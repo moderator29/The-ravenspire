@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSendTransaction, useWallets } from "@privy-io/react-auth";
+import { encodeFunctionData, erc20Abi } from "viem";
 import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
+import { TokenLogo } from "@/components/wallet/token-logo";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import type {
   WatchCheck,
@@ -46,8 +49,13 @@ interface WatchResult {
 
 interface Approval {
   token: string;
+  tokenSymbol: string | null;
+  tokenLogo: string | null;
   spender: string;
-  allowance: string;
+  spenderLabel: string | null;
+  allowance: string | null;
+  valueAtRiskUsd: number | null;
+  risky: boolean;
 }
 
 interface ApprovalsResult {
@@ -103,6 +111,20 @@ export default function WatchPage() {
 
   const [approvalsLoading, setApprovalsLoading] = useState(false);
   const [approvals, setApprovals] = useState<ApprovalsResult | null>(null);
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+
+  const { sendTransaction } = useSendTransaction();
+  const { wallets } = useWallets();
+  const sender = useMemo(() => {
+    const embedded = wallets.find(
+      (w) =>
+        w.walletClientType === "privy" ||
+        w.walletClientType === "privy-v2" ||
+        w.connectorType === "embedded"
+    );
+    return embedded ?? wallets[0] ?? null;
+  }, [wallets]);
 
   const valid = /^0x[a-fA-F0-9]{40}$/.test(contract.trim());
 
@@ -140,9 +162,10 @@ export default function WatchPage() {
   const loadApprovals = useCallback(async () => {
     if (!authenticated || !address) return;
     setApprovalsLoading(true);
+    setRevokeError(null);
     try {
       const res = await fetch(
-        `/api/approvals?address=${encodeURIComponent(address)}`
+        `/api/approvals?address=${encodeURIComponent(address)}&chain=${chain}`
       );
       setApprovals((await res.json()) as ApprovalsResult);
     } catch {
@@ -154,12 +177,66 @@ export default function WatchPage() {
     } finally {
       setApprovalsLoading(false);
     }
-  }, [authenticated, address]);
+  }, [authenticated, address, chain]);
 
   useEffect(() => {
     if (authenticated && address) void loadApprovals();
     else setApprovals(null);
   }, [authenticated, address, loadApprovals]);
+
+  /* One-tap revoke: a real, non-custodial approve(spender, 0) signed by the
+     member's own wallet on the selected chain. On success the row drops out. */
+  const revoke = useCallback(
+    async (a: Approval) => {
+      if (!sender?.address) {
+        setRevokeError("No wallet is ready to sign the revoke.");
+        return;
+      }
+      const rowKey = `${a.token}-${a.spender}`;
+      setRevoking(rowKey);
+      setRevokeError(null);
+      try {
+        try {
+          await sender.switchChain?.(Number(chain));
+        } catch {
+          /* provider may switch inside its own window */
+        }
+        await sendTransaction(
+          {
+            to: a.token as `0x${string}`,
+            data: encodeFunctionData({
+              abi: erc20Abi,
+              functionName: "approve",
+              args: [a.spender as `0x${string}`, 0n],
+            }),
+            value: 0n,
+            chainId: Number(chain),
+          },
+          { address: sender.address }
+        );
+        setApprovals((prev) =>
+          prev
+            ? {
+                ...prev,
+                approvals: prev.approvals.filter(
+                  (x) => !(x.token === a.token && x.spender === a.spender)
+                ),
+              }
+            : prev
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        setRevokeError(
+          /reject|denied|cancel/i.test(msg)
+            ? "You closed the wallet window. The approval still stands."
+            : "The revoke could not be sent. Try again."
+        );
+      } finally {
+        setRevoking(null);
+      }
+    },
+    [sender, chain, sendTransaction]
+  );
 
   const score = result?.score ?? 0;
   const scoreColor =
@@ -348,8 +425,8 @@ export default function WatchPage() {
           <div className="glass mt-3 h-32 animate-pulse" />
         ) : approvals && approvals.configured === false ? (
           <div className="glass mt-3 p-6 text-center text-sm text-bone-mut">
-            The approvals ledger is not yet wired. Live approval reads arrive as
-            the Watch deepens.
+            Live approval reads need the GoldRush lens, which is not configured
+            in this environment yet.
           </div>
         ) : approvals && approvals.error ? (
           <div className="glass mt-3 p-6 text-center text-sm text-bone-mut">
@@ -362,32 +439,62 @@ export default function WatchPage() {
           </div>
         ) : approvals ? (
           <>
+            {revokeError && (
+              <p className="mt-2 text-xs text-ember">{revokeError}</p>
+            )}
             <div className="glass mt-3 flex flex-col divide-y divide-steel-line p-2">
-              {approvals.approvals.map((a, i) => (
-                <div
-                  key={`${a.token}-${a.spender}-${i}`}
-                  className="flex items-center gap-3 px-3 py-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="tnum text-sm text-bone">
-                      Token {shortHex(a.token)}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-bone-faint">
-                      Spender {shortHex(a.spender)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-ember">
-                      {allowanceLabel(a.allowance)}
-                    </p>
-                  </div>
-                  <Link
-                    href="/soon/mint"
-                    className="btn-glass shrink-0"
-                    aria-label="Revoke this approval"
+              {approvals.approvals.map((a, i) => {
+                const rowKey = `${a.token}-${a.spender}`;
+                const busy = revoking === rowKey;
+                return (
+                  <div
+                    key={`${rowKey}-${i}`}
+                    className="flex items-center gap-3 px-3 py-3"
                   >
-                    Revoke
-                  </Link>
-                </div>
-              ))}
+                    <TokenLogo
+                      logo={a.tokenLogo}
+                      symbol={a.tokenSymbol ?? "?"}
+                      size={34}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-sm font-semibold text-bone">
+                          {a.tokenSymbol ?? shortHex(a.token)}
+                        </p>
+                        {a.risky && (
+                          <span className="rounded-full border border-ember-deep/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-ember">
+                            Risk
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 truncate text-xs text-bone-faint">
+                        {a.spenderLabel ?? `Spender ${shortHex(a.spender)}`}
+                      </p>
+                      <p className="mt-0.5 text-xs text-ember">
+                        {allowanceLabel(a.allowance ?? "")}
+                        {a.valueAtRiskUsd && a.valueAtRiskUsd > 0.01 ? (
+                          <span className="ml-1.5 text-bone-faint">
+                            ~$
+                            {a.valueAtRiskUsd.toLocaleString("en-US", {
+                              maximumFractionDigits: 2,
+                            })}{" "}
+                            at risk
+                          </span>
+                        ) : null}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void revoke(a)}
+                      className="btn-glass shrink-0 text-ember disabled:opacity-60"
+                      aria-label="Revoke this approval"
+                    >
+                      {busy ? "Revoking..." : "Revoke"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="glass mt-3 p-4 text-sm text-bone-mut">
@@ -399,11 +506,7 @@ export default function WatchPage() {
                 <p>
                   Revoking is non-custodial: it never moves your keys. Each
                   revoke is a wallet signature that sets the spender allowance to
-                  zero. One-tap signed revokes arrive with{" "}
-                  <Link href="/soon/mint" className="gold-text underline">
-                    The Mint
-                  </Link>
-                  .
+                  zero, signed in your own wallet. You pay only network gas.
                 </p>
               </div>
             </div>
