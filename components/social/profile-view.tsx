@@ -251,87 +251,100 @@ export function ProfileView({
             )
           ) : (
             /* Follow always renders so blocking never shifts it. The overflow
-               menu is an absolute popover, so opening it never moves anything. */
-            <div className="relative flex items-center gap-2">
+               menu is anchored to the dots button alone (its own relative box),
+               so opening it never moves the Follow button or the surrounding
+               header. Block lives only inside this menu, never loose. */
+            <div className="flex items-center gap-2">
               <button
                 onClick={toggleFollow}
                 className={`px-5 py-1.5 text-xs ${following ? "btn-glass text-bone-mut" : "btn-gold"}`}
               >
                 {following ? "Following" : "Follow"}
               </button>
-              <button
-                onClick={() => setMenuOpen((v) => !v)}
-                aria-label="More"
-                className="btn-glass flex h-8 w-8 items-center justify-center text-bone-mut"
-              >
-                <Icon name="dots" className="h-4 w-4" />
-              </button>
-              {menuOpen && (
-                <>
-                  <button
-                    aria-hidden
-                    tabIndex={-1}
-                    onClick={() => setMenuOpen(false)}
-                    className="fixed inset-0 z-30 cursor-default"
-                  />
-                  <div className="glass glass-sm absolute right-0 top-full z-40 mt-2 w-44 p-1">
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-label="More"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  className="btn-glass flex h-8 w-8 items-center justify-center text-bone-mut"
+                >
+                  <Icon name="dots" className="h-4 w-4" />
+                </button>
+                {menuOpen && (
+                  <>
                     <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        void navigator.clipboard
-                          ?.writeText(
-                            `${window.location.origin}/u/${profile.handle}`
-                          )
-                          .catch(() => {});
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                      aria-hidden
+                      tabIndex={-1}
+                      onClick={() => setMenuOpen(false)}
+                      className="fixed inset-0 z-40 cursor-default"
+                    />
+                    <div
+                      role="menu"
+                      className="glass glass-sm absolute right-0 top-full z-50 mt-2 w-44 p-1"
                     >
-                      <Icon name="share" className="h-3.5 w-3.5" />
-                      Share profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        void realmFetch("/api/mutes", {
-                          method: "POST",
-                          json: { muted_id: profile.id },
-                        });
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                    >
-                      <Icon name="bell" className="h-3.5 w-3.5" />
-                      Mute
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        void toggleBlock();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                    >
-                      <Icon name="shield" className="h-3.5 w-3.5" />
-                      {isBlocked ? "Unblock" : "Block"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        void realmFetch("/api/reports", {
-                          method: "POST",
-                          json: {
-                            subject_type: "profile",
-                            subject_id: profile.id,
-                            reason: "member_flag",
-                          },
-                        });
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
-                    >
-                      <Icon name="flag" className="h-3.5 w-3.5" />
-                      Report
-                    </button>
-                  </div>
-                </>
-              )}
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          void navigator.clipboard
+                            ?.writeText(
+                              `${window.location.origin}/u/${profile.handle}`
+                            )
+                            .catch(() => {});
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                      >
+                        <Icon name="share" className="h-3.5 w-3.5 shrink-0" />
+                        Share profile
+                      </button>
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          void realmFetch("/api/mutes", {
+                            method: "POST",
+                            json: { muted_id: profile.id },
+                          });
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                      >
+                        <Icon name="bell" className="h-3.5 w-3.5 shrink-0" />
+                        Mute
+                      </button>
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          void toggleBlock();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                      >
+                        <Icon name="shield" className="h-3.5 w-3.5 shrink-0" />
+                        {isBlocked ? "Unblock" : "Block"}
+                      </button>
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          void realmFetch("/api/reports", {
+                            method: "POST",
+                            json: {
+                              subject_type: "profile",
+                              subject_id: profile.id,
+                              reason: "member_flag",
+                            },
+                          });
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
+                      >
+                        <Icon name="flag" className="h-3.5 w-3.5 shrink-0" />
+                        Report
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

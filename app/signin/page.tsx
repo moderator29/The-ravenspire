@@ -27,7 +27,7 @@ const assurances: { icon: LandingIconName; title: string; body: string }[] = [
   {
     icon: "badge",
     title: "Earned, never bought",
-    body: "No presale, no seats for sale. Standing in the realm is earned in the open.",
+    body: "Presale coming soon. Standing in the realm is earned in the open.",
   },
 ];
 

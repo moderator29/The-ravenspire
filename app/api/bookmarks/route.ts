@@ -7,6 +7,27 @@ export async function GET(req: Request) {
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
+  /* Lightweight probe: ?ids=a,b,c returns just the subset of those post ids the
+     viewer has bookmarked. The bookmarks table is not client-readable (RLS), so
+     the feed/profile queries resolve the viewer's bookmark flags through here
+     rather than the browser Supabase client. */
+  const idsParam = new URL(req.url).searchParams.get("ids");
+  if (idsParam !== null) {
+    const ids = idsParam
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 200);
+    if (ids.length === 0) return json({ bookmarked: [] });
+    const { data: rows } = await db
+      .from("bookmarks")
+      .select("post_id")
+      .eq("profile_id", profile.id)
+      .in("post_id", ids);
+    const bookmarked = (rows ?? []).map((r) => r.post_id as string);
+    return json({ bookmarked });
+  }
+
   const { data } = await db
     .from("bookmarks")
     .select(

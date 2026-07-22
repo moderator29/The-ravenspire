@@ -139,29 +139,56 @@ export async function POST(req: Request) {
 
   if (body.action === "repost") {
     if (!body.subject_id) return json({ error: "bad request" }, 400);
-    const { error } = await db.from("reposts").insert({
-      profile_id: profile.id,
-      post_id: body.subject_id,
-      quote: body.quote?.slice(0, 280) ?? null,
-    });
-    if (!error) {
-      const { data: row } = await db
-        .from("posts")
-        .select("repost_count, author_id")
-        .eq("id", body.subject_id)
-        .single();
-      if (row) {
-        await db
+    /* Idempotent toggle. Older clients omit `on` and mean "repost"; the
+       (profile_id, post_id) primary key makes a second repost a no-op, so the
+       count never double-counts however many times the button is tapped. An
+       explicit on:false un-reposts and decrements once. */
+    const on = body.on !== false;
+    if (on) {
+      const { error } = await db.from("reposts").insert({
+        profile_id: profile.id,
+        post_id: body.subject_id,
+        quote: body.quote?.slice(0, 280) ?? null,
+      });
+      /* error here is the duplicate-key conflict on a re-tap: already reposted,
+         so we neither increment nor notify again. */
+      if (!error) {
+        const { data: row } = await db
           .from("posts")
-          .update({ repost_count: row.repost_count + 1 })
-          .eq("id", body.subject_id);
-        if (row.author_id !== profile.id)
-          await db.from("notifications").insert({
-            profile_id: row.author_id,
-            kind: "reraven",
-            actor_id: profile.id,
-            subject_id: body.subject_id,
-          });
+          .select("repost_count, author_id")
+          .eq("id", body.subject_id)
+          .single();
+        if (row) {
+          await db
+            .from("posts")
+            .update({ repost_count: row.repost_count + 1 })
+            .eq("id", body.subject_id);
+          if (row.author_id !== profile.id)
+            await db.from("notifications").insert({
+              profile_id: row.author_id,
+              kind: "reraven",
+              actor_id: profile.id,
+              subject_id: body.subject_id,
+            });
+        }
+      }
+    } else {
+      const { error, count } = await db
+        .from("reposts")
+        .delete({ count: "exact" })
+        .eq("profile_id", profile.id)
+        .eq("post_id", body.subject_id);
+      if (!error && count) {
+        const { data: row } = await db
+          .from("posts")
+          .select("repost_count")
+          .eq("id", body.subject_id)
+          .single();
+        if (row)
+          await db
+            .from("posts")
+            .update({ repost_count: Math.max(0, row.repost_count - 1) })
+            .eq("id", body.subject_id);
       }
     }
     return json({ ok: true });

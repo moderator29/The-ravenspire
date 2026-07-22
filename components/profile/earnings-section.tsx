@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
+import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
 import { EarningsChart, type EarningsPoint } from "@/components/profile/earnings-chart";
 import { PositionsList } from "@/components/profile/positions-list";
 import type { PositionToken } from "@/app/api/profile/earnings/types";
@@ -80,6 +82,11 @@ interface PositionsResponse {
 
 const EARNINGS_POLL_MS = 30_000;
 const POSITIONS_POLL_MS = 45_000;
+const BALANCE_POLL_MS = 30_000;
+
+/* Stable empty reference so the wallet hook does not re-fetch every render;
+   The Coffers folds in no custom tokens of its own. */
+const EMPTY_CUSTOM: [] = [];
 
 const fmt = new Intl.NumberFormat("en-US");
 
@@ -125,6 +132,23 @@ export function EarningsSection({
   const [thesisSaving, setThesisSaving] = useState(false);
 
   const firstLoad = useRef(true);
+
+  /* The viewer's own embedded Privy wallet, read live through the same balances
+     route + hook the Vault and Ledger use. This is the member's REAL platform
+     wallet, already connected realm-wide, so The Coffers shows its true total
+     with no "connect a wallet" gimmick and no invented reserve. Only ever the
+     viewer's own address is read here, and it is only surfaced when they own
+     this Keep. */
+  const { address } = useRealmAuth();
+  const wallet = useWalletTokens(address, EMPTY_CUSTOM);
+
+  /* Keep the balance live: re-read the chain totals on a gentle cadence so the
+     FOMO figure tracks the real wallet in near real time. */
+  useEffect(() => {
+    if (!address) return;
+    const t = setInterval(() => wallet.refresh(), BALANCE_POLL_MS);
+    return () => clearInterval(t);
+  }, [address, wallet.refresh]);
 
   const load = useCallback(async () => {
     const res = await realmFetch<EarningsResponse>(
@@ -207,7 +231,7 @@ export function EarningsSection({
   /* Other viewer, PnL kept private: reputation only, never a balance. */
   if (!data.visible) {
     return (
-      <section className="glass glass-warm mt-4 overflow-hidden p-5">
+      <section className="glass glass-warm mt-4 overflow-hidden p-4">
         <CoffersBanner
           owner={false}
           handle={pub.handle}
@@ -239,10 +263,36 @@ export function EarningsSection({
   const win = earn?.windows?.[tf];
   const hasEarnings = !!earn && earn.grandTotal > 0;
 
-  const tokens = positions?.tokens ?? [];
+  /* Holdings + balance source. The owner reads their live embedded-wallet
+     balance straight from the balances hook (real, real-time); other viewers
+     see only what the member chose to make public via the positions route,
+     never a balance total. */
+  const walletTokens: PositionToken[] = owner
+    ? wallet.tokens.map((t) => ({
+        key: t.key,
+        symbol: t.symbol,
+        name: t.name,
+        logo: t.logo,
+        chainShort: t.chainShort,
+        amount: t.balanceDisplay,
+        valueUsd: t.quoteUsd,
+        change24h: t.change24h,
+        native: t.isNative,
+      }))
+    : (positions?.tokens ?? []);
+  const tokens = walletTokens;
   const hasTokens = tokens.length > 0;
-  const balanceConfigured =
-    !!positions?.configured && typeof positions.totalUsd === "number";
+
+  /* Owner: real total from the live wallet. The number is honest even at zero
+     (an empty wallet reads $0.00), so there is no fabricated reserve. */
+  const balanceLoading = owner && wallet.loading && wallet.tokens.length === 0;
+  const ownerBalanceUsd = wallet.totalUsd;
+  const balanceLive = owner && !!address && wallet.configured;
+  /* Holdings total: the owner's live wallet total, or a public member's shared
+     positions total. Null when there is nothing real to show. */
+  const holdingsTotalUsd: number | null = owner
+    ? ownerBalanceUsd
+    : (positions?.totalUsd ?? null);
 
   const changePct = win?.changePct ?? 0;
   const windowDelta = win?.delta ?? 0;
@@ -251,7 +301,7 @@ export function EarningsSection({
   const PREVIEW = 4;
 
   return (
-    <section className="glass glass-warm mt-4 overflow-hidden p-5">
+    <section className="glass glass-warm mt-4 overflow-hidden p-4">
       <CoffersBanner
         owner={owner}
         handle={pub.handle}
@@ -262,12 +312,12 @@ export function EarningsSection({
       {/* Twin coffers: platform earnings beside the wallet balance (owner) or
           public standing (other members). */}
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Coffer accent icon="coin" label="Platform earnings">
+        <Coffer accent icon="coin" label="Points earned">
           <div className="flex items-baseline gap-1.5">
-            <span className="gold-text font-display text-4xl font-bold tnum leading-none">
+            <span className="gold-text font-display text-3xl font-bold tnum leading-none">
               {fmt.format(earn?.grandTotal ?? 0)}
             </span>
-            <span className="text-sm font-semibold text-gold">$RSP</span>
+            <span className="text-sm font-semibold text-gold">points</span>
           </div>
           {hasEarnings ? (
             <div className="mt-2 flex items-center gap-2">
@@ -291,41 +341,38 @@ export function EarningsSection({
                   : `${up ? "+" : ""}${changePct.toFixed(changePct <= -10 || changePct >= 10 ? 0 : 1)}%`}
               </span>
               <span className="tnum text-xs text-bone-faint">
-                {signed(windowDelta)} $RSP in {TF_SINCE[tf]}
+                {signed(windowDelta)} in {TF_SINCE[tf]}
               </span>
             </div>
           ) : (
             <p className="mt-2 text-xs text-bone-faint">
-              No $RSP earned yet. Send ravens, seal calls, win glory.
+              No points earned yet. Send ravens, seal calls, win glory.
             </p>
           )}
-          {hasEarnings && earn?.firstEarnedAt && (
-            <p className="mt-1 text-[11px] text-bone-faint">
-              Earning since {joinLabel(earn.firstEarnedAt)}
-            </p>
-          )}
+          <p className="mt-1 text-[11px] text-bone-faint">
+            Points convert to $RSP at TGE
+          </p>
         </Coffer>
 
         {owner ? (
           <Coffer icon="wallet" label="Wallet balance" live>
             <div className="flex items-baseline gap-1.5">
-              <span className="font-display text-4xl font-bold tnum leading-none text-bone">
-                {positions === null
-                  ? "..."
-                  : balanceConfigured
-                    ? fmtUsd(positions.totalUsd as number)
-                    : fmt.format(pub.renown)}
+              <span className="font-display text-3xl font-bold tnum leading-none text-bone">
+                {!address
+                  ? "Resting"
+                  : balanceLoading
+                    ? "..."
+                    : fmtUsd(ownerBalanceUsd)}
               </span>
-              {positions !== null && !balanceConfigured && (
-                <span className="text-sm font-semibold text-gold">Renown</span>
-              )}
             </div>
-            <p className="mt-2 text-xs text-bone-faint">
-              {positions === null
-                ? "Reading holdings..."
-                : balanceConfigured
-                  ? `${tokens.length} ${tokens.length === 1 ? "asset" : "assets"} across chains`
-                  : "Link a wallet to track live balance. Showing renown reserve."}
+            <p className="mt-1.5 text-xs text-bone-faint">
+              {!address
+                ? "Your embedded Vault wakes with the Gatehouse."
+                : balanceLoading
+                  ? "Reading your Vault..."
+                  : balanceLive
+                    ? `${tokens.length} ${tokens.length === 1 ? "asset" : "assets"} across chains, live`
+                    : "Live balances are resting in this realm."}
             </p>
           </Coffer>
         ) : (
@@ -379,7 +426,7 @@ export function EarningsSection({
           series={win?.series ?? []}
           emptyLabel={
             hasEarnings
-              ? `No $RSP moved in the last ${TF_SINCE[tf]}. Try a wider window.`
+              ? `No points moved in the last ${TF_SINCE[tf]}. Try a wider window.`
               : "Not enough history yet to chart. Earn on to watch it climb."
           }
         />
@@ -392,9 +439,9 @@ export function EarningsSection({
             <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
               Holdings
             </span>
-            {owner && balanceConfigured && (
+            {holdingsTotalUsd !== null && (
               <span className="tnum text-xs text-bone-mut">
-                {fmtUsd(positions?.totalUsd as number)}
+                {fmtUsd(holdingsTotalUsd)}
               </span>
             )}
           </div>
@@ -504,7 +551,7 @@ export function EarningsSection({
           {data.showPositions && earn && earn.breakdown.length > 0 ? (
             <div>
               <h4 className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-                Where the $RSP came from
+                Where the points came from
               </h4>
               <div className="mt-2 flex flex-col gap-2">
                 {earn.breakdown.map((slice) => {
@@ -553,7 +600,7 @@ export function EarningsSection({
             <Fact label="Referrals" value={fmt.format(pub.referralCount)} />
             <Fact
               label="Tips earned"
-              value={`${fmt.format(earn?.tipsTotal ?? 0)} $RSP`}
+              value={`${fmt.format(earn?.tipsTotal ?? 0)} pts`}
             />
           </div>
         </div>
@@ -592,7 +639,7 @@ function CoffersBanner({
           </div>
           <p className="mt-1 truncate text-xs text-bone-faint">
             {owner
-              ? "Your $RSP treasury and live holdings"
+              ? "Your earned points and live holdings"
               : `${handle ? `${handle}'s` : "This Keep's"} treasury, kept in the open`}
           </p>
         </div>

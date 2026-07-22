@@ -51,7 +51,7 @@ const sections: Section[] = [
     id: "token",
     heading: "5. The $RSP token",
     body: [
-      "$RSP is a utility and social token intended for use within the realm. It is not an investment product, and The Ravenspire does not offer it as a security. There is no presale. Standing and rewards are earned through participation, never bought.",
+      "$RSP is a utility and social token intended for use within the realm. It is not an investment product, and The Ravenspire does not offer it as a security. A presale is coming soon, and its terms will be announced openly when ready. Standing and rewards are earned through participation, never bought.",
       "Nothing in these terms or on the platform should be read as a promise of profit, price, or future value. You should not acquire or hold $RSP with the expectation of financial return.",
     ],
   },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { parseEther } from "viem";
 import { Icon } from "@/components/ui/icon";
@@ -43,6 +44,19 @@ export function TipDialog({
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string>("");
   const [sentAmount, setSentAmount] = useState<string>("");
+  const [mounted, setMounted] = useState(false);
+
+  /* Portal to the body so the overlay is never trapped inside a transformed
+     card ancestor (which pinned it to the top of the page); lock body scroll
+     so the tribute reads as a full page, not a floating tab. */
+  useEffect(() => {
+    setMounted(true);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   /* The tipper's embedded wallet decides the chain. If none is present (they
      signed in with an external wallet), fall back to the first connected one. */
@@ -156,8 +170,10 @@ export function TipDialog({
     setPhase("success");
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-stretch justify-center sm:items-center sm:p-4">
       <button
         aria-label="Close"
         onClick={onClose}
@@ -165,7 +181,7 @@ export function TipDialog({
       />
 
       {phase === "success" ? (
-        <div className="relative w-full max-w-md">
+        <div className="relative flex w-full items-center justify-center p-3 sm:max-w-md sm:p-0">
           <TipSuccessCard
             amount={sentAmount}
             symbol={chain.symbol}
@@ -176,7 +192,7 @@ export function TipDialog({
           />
         </div>
       ) : (
-        <div className="glass glass-warm relative w-full max-w-md overflow-hidden p-6">
+        <div className="glass glass-warm relative flex h-full w-full flex-col overflow-y-auto p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] sm:h-auto sm:max-w-md sm:pt-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
@@ -315,6 +331,7 @@ export function TipDialog({
           )}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -103,75 +103,76 @@ export function Feed() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="relative flex items-center gap-2">
-        <div className="scrollbar-none -mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1">
-          {TABS.map((t) => (
+    <div className="flex flex-col gap-2">
+      {/* Filter sits on its own line above the tabs, right-aligned, so it never
+          overlaps the Signal/Latest tabs or scatters the row. */}
+      <div className="relative flex justify-end">
+        <button
+          onClick={() => setFiltersOpen((v) => !v)}
+          aria-label="Feed filters"
+          aria-expanded={filtersOpen}
+          className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
+            filtersOpen ||
+            filters.hideHerald ||
+            filters.mediaOnly ||
+            filters.callsOnly
+              ? "btn-gold"
+              : "btn-glass text-bone-mut"
+          }`}
+        >
+          <Icon name="sliders" className="h-4 w-4" />
+          Filters
+        </button>
+        {filtersOpen && (
+          <>
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                tab === t.key ? "btn-gold" : "btn-glass text-bone-mut"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="relative shrink-0">
+              type="button"
+              aria-label="Close filters"
+              onClick={() => setFiltersOpen(false)}
+              className="fixed inset-0 z-40 cursor-default"
+            />
+            <div className="glass glass-sm absolute right-0 top-10 z-50 w-56 p-3">
+              {(
+                [
+                  ["hideHerald", "Hide the Herald's posts"],
+                  ["mediaOnly", "Media only"],
+                  ["callsOnly", "Calls only"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setFilters((f) => ({ ...f, [key]: !f[key] }))}
+                  className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs text-bone-mut hover:bg-panel"
+                >
+                  {label}
+                  <span
+                    className={`h-3.5 w-6 rounded-full border transition ${
+                      filters[key]
+                        ? "gold-metal border-gold-bright/60"
+                        : "border-steel-line bg-steel-deep"
+                    }`}
+                  />
+                </button>
+              ))}
+              <p className="mt-1 px-2 text-[10px] text-bone-faint">
+                Blocked members never appear.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+      <div className="scrollbar-none -mx-1 flex gap-1.5 overflow-x-auto px-1">
+        {TABS.map((t) => (
           <button
-            onClick={() => setFiltersOpen((v) => !v)}
-            aria-label="Feed filters"
-            aria-expanded={filtersOpen}
-            className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
-              filtersOpen ||
-              filters.hideHerald ||
-              filters.mediaOnly ||
-              filters.callsOnly
-                ? "btn-gold"
-                : "btn-glass text-bone-mut"
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+              tab === t.key ? "btn-gold" : "btn-glass text-bone-mut"
             }`}
           >
-            <Icon name="sliders" className="h-4 w-4" />
+            {t.label}
           </button>
-          {filtersOpen && (
-            <>
-              <button
-                type="button"
-                aria-label="Close filters"
-                onClick={() => setFiltersOpen(false)}
-                className="fixed inset-0 z-40 cursor-default"
-              />
-              <div className="glass glass-sm absolute right-0 top-11 z-50 w-56 p-3">
-                {(
-                  [
-                    ["hideHerald", "Hide the Herald's posts"],
-                    ["mediaOnly", "Media only"],
-                    ["callsOnly", "Calls only"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setFilters((f) => ({ ...f, [key]: !f[key] }))}
-                    className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs text-bone-mut hover:bg-panel"
-                  >
-                    {label}
-                    <span
-                      className={`h-3.5 w-6 rounded-full border transition ${
-                        filters[key]
-                          ? "gold-metal border-gold-bright/60"
-                          : "border-steel-line bg-steel-deep"
-                      }`}
-                    />
-                  </button>
-                ))}
-                <p className="mt-1 px-2 text-[10px] text-bone-faint">
-                  Blocked members never appear.
-                </p>
-              </div>
-            </>
-          )}
-        </div>
+        ))}
       </div>
 
       {hasNew && (

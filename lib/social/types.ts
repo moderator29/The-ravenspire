@@ -38,6 +38,13 @@ export interface Post {
   /* The time this item takes its feed position from: the post's own
      creation time, or the re-raven time when repostedBy is set. */
   effectiveTime?: string;
+  /* Per-viewer reaction state, resolved server-side for the signed-in reader
+     so a card renders its true like/repost/bookmark state on load instead of
+     defaulting to off (which let a returning member re-like the same raven).
+     Absent for logged-out readers, who have no reactions. */
+  viewer_liked?: boolean;
+  viewer_reposted?: boolean;
+  viewer_bookmarked?: boolean;
 }
 
 export interface Comment {

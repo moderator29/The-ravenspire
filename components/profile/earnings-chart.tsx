@@ -63,6 +63,19 @@ export function EarningsChart({
   /* Flat window: every value equal (no earning events landed inside it). */
   const flat = maxV - Math.min(...values) < 1e-9;
 
+  /* Candle bars from the per-interval delta (points earned in each step), for a
+     trading-terminal vibe under the gold line. Gold when points came in that
+     step, quiet steel when nothing landed. Height scales to the largest step. */
+  const deltas = series.map((p, i) => (i === 0 ? 0 : p.v - series[i - 1].v));
+  const maxDelta = Math.max(1, ...deltas.map((d) => Math.abs(d)));
+  const baseY = H - PAD_Y / 2;
+  const barW = Math.max(2, Math.min(10, (W / series.length) * 0.5));
+  const candles = pts.map((p, i) => {
+    const d = deltas[i];
+    const h = (Math.abs(d) / maxDelta) * (H - PAD_Y * 2);
+    return { x: p.x, h: Math.max(d > 0 ? 2 : 0, h), up: d > 0 };
+  });
+
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
@@ -99,6 +112,23 @@ export function EarningsChart({
           opacity="0.5"
         />
       ))}
+
+      {/* Candle/volume bars: each step's points-earned, gold when it landed. */}
+      {candles.map((c, i) =>
+        c.h > 0 ? (
+          <rect
+            key={i}
+            x={c.x - barW / 2}
+            y={baseY - c.h}
+            width={barW}
+            height={c.h}
+            rx={barW > 4 ? 1.5 : 0.8}
+            fill={c.up ? "var(--gold)" : "var(--steel-line)"}
+            opacity={c.up ? 0.5 : 0.35}
+            vectorEffect="non-scaling-stroke"
+          />
+        ) : null
+      )}
 
       <path d={area} fill={`url(#${gradId})`} />
       <path

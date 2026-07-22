@@ -107,11 +107,14 @@ export function PostCard({ post }: { post: Post }) {
   const viewerId = useViewerId();
   const isOwn = viewerId !== null && viewerId === post.author_id;
   const [removed, setRemoved] = useState(false);
-  const [liked, setLiked] = useState(false);
+  /* Seed reaction state from the per-viewer flags the feed/profile query
+     resolved server-side, so a returning member sees their real like / repost /
+     bookmark state and cannot re-like or re-repost the same raven. */
+  const [liked, setLiked] = useState(post.viewer_liked ?? false);
   const [likes, setLikes] = useState(post.like_count);
-  const [reposted, setReposted] = useState(false);
+  const [reposted, setReposted] = useState(post.viewer_reposted ?? false);
   const [reposts, setReposts] = useState(post.repost_count);
-  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarked, setBookmarked] = useState(post.viewer_bookmarked ?? false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reported, setReported] = useState(false);
   /* Why this card is hidden, so the placeholder can offer the right undo. */
@@ -147,19 +150,23 @@ export function PostCard({ post }: { post: Post }) {
       json: { action: "bookmark", subject_id: post.id, on },
     });
   };
-  const doRepost = async () => {
-    if (!requireAuth() || reposted) return;
-    setReposted(true);
-    setReposts((n) => n + 1);
+  const toggleRepost = async () => {
+    if (!requireAuth()) return;
+    const on = !reposted;
+    setReposted(on);
+    setReposts((n) => Math.max(0, n + (on ? 1 : -1)));
     await realmFetch("/api/social", {
       method: "POST",
-      json: { action: "repost", subject_id: post.id },
+      json: { action: "repost", subject_id: post.id, on },
     });
   };
+  const [shared, setShared] = useState(false);
   const share = async () => {
     const url = `${window.location.origin}/post/${post.id}`;
     try {
       await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 1600);
     } catch {
       /* no clipboard, no drama */
     }
@@ -496,13 +503,13 @@ export function PostCard({ post }: { post: Post }) {
               count={reposts}
               active={reposted}
               label="Re-raven"
-              onClick={doRepost}
+              onClick={toggleRepost}
             />
             <ActionButton
               icon="heart"
               count={likes}
               active={liked}
-              activeClass="text-ember"
+              activeClass="text-gold"
               label="Like"
               onClick={toggleLike}
             />
@@ -515,7 +522,12 @@ export function PostCard({ post }: { post: Post }) {
                 setTipOpen(true);
               }}
             />
-            <ActionButton icon="share" label="Copy link" onClick={share} />
+            <ActionButton
+              icon="share"
+              active={shared}
+              label="Copy link"
+              onClick={share}
+            />
           </div>
 
           {tipSent && (

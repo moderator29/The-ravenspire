@@ -1,6 +1,8 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { realmFetch } from "@/lib/auth/api";
+import { fetchViewerId } from "@/lib/social/use-viewer";
 import type { Post, Comment, PublicProfile } from "@/lib/social/types";
 
 const AUTHOR_SELECT =
@@ -66,6 +68,54 @@ function visibilityOrClause(v: FeedViewer): string {
   return parts.join(",");
 }
 
+/* Stamp each raven with the signed-in reader's own reaction state so a card
+   opens showing its true like / repost / bookmark, and a returning member can
+   never re-like or re-repost the same raven. Reactions and reposts are
+   public-read, so they answer directly through the browser client; bookmarks
+   are not client-readable (RLS), so their flags come through the token-auth
+   /api/bookmarks probe. A logged-out reader has no reactions, so the posts are
+   returned unchanged. */
+async function attachViewerFlags(posts: Post[]): Promise<Post[]> {
+  if (posts.length === 0) return posts;
+  const viewerId = await fetchViewerId();
+  if (!viewerId) return posts;
+
+  const ids = [...new Set(posts.map((p) => p.id))];
+  const db = createClient();
+
+  const [reactionsRes, repostsRes, bookmarkRes] = await Promise.all([
+    db
+      .from("reactions")
+      .select("subject_id")
+      .eq("profile_id", viewerId)
+      .eq("subject_type", "post")
+      .in("subject_id", ids),
+    db
+      .from("reposts")
+      .select("post_id")
+      .eq("profile_id", viewerId)
+      .in("post_id", ids),
+    realmFetch<{ bookmarked?: string[] }>(
+      `/api/bookmarks?ids=${encodeURIComponent(ids.join(","))}`
+    ),
+  ]);
+
+  const liked = new Set(
+    (reactionsRes.data ?? []).map((r) => (r as { subject_id: string }).subject_id)
+  );
+  const reposted = new Set(
+    (repostsRes.data ?? []).map((r) => (r as { post_id: string }).post_id)
+  );
+  const bookmarked = new Set(bookmarkRes.data?.bookmarked ?? []);
+
+  return posts.map((p) => ({
+    ...p,
+    viewer_liked: liked.has(p.id),
+    viewer_reposted: reposted.has(p.id),
+    viewer_bookmarked: bookmarked.has(p.id),
+  }));
+}
+
 /* Tabs where a re-raven earns distribution alongside original posts. */
 const REPOST_TABS: FeedTab[] = ["foryou", "latest", "following"];
 
@@ -112,7 +162,7 @@ export async function fetchFeed(opts: {
       effectiveTime: p.created_at,
     }));
 
-  if (!REPOST_TABS.includes(opts.tab)) return posts;
+  if (!REPOST_TABS.includes(opts.tab)) return attachViewerFlags(posts);
 
   const reposts = await fetchReposts({
     tab: opts.tab,
@@ -122,9 +172,10 @@ export async function fetchFeed(opts: {
   });
   /* Merge and order by feed time so re-ravens surface at their re-raven
      moment; cap to a single page's worth. */
-  return [...posts, ...reposts]
+  const merged = [...posts, ...reposts]
     .sort((a, b) => feedTime(b) - feedTime(a))
     .slice(0, 30);
+  return attachViewerFlags(merged);
 }
 
 /* Re-ravens as feed items: the original post and author, tagged with who
@@ -188,7 +239,10 @@ export async function fetchPost(id: string): Promise<Post | null> {
     .select(POST_SELECT)
     .eq("id", id)
     .maybeSingle();
-  return (data as unknown as Post) ?? null;
+  const post = (data as unknown as Post) ?? null;
+  if (!post) return null;
+  const [withFlags] = await attachViewerFlags([post]);
+  return withFlags;
 }
 
 export async function fetchComments(postId: string): Promise<Comment[]> {
@@ -226,7 +280,7 @@ export async function fetchProfilePosts(profileId: string): Promise<Post[]> {
     .eq("deleted", false)
     .order("created_at", { ascending: false })
     .limit(50);
-  return (data ?? []) as unknown as Post[];
+  return attachViewerFlags((data ?? []) as unknown as Post[]);
 }
 
 export async function fetchFollowCounts(profileId: string) {
