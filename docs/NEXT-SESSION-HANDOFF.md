@@ -13,6 +13,20 @@ Live site: ravenspire.vercel.app (production tracks `main`). Work on branch
 
 ## 1. Founder rules (non-negotiable)
 
+- Work FULLY AUTONOMOUSLY. Do not stop to ask unless genuinely blocked. Make the
+  call, build it, ship it, and report. Do NOT spawn subagents: the founder wants
+  the main agent doing the work (subagents burn the usage budget).
+- REAL, FUNCTIONING AI ONLY. @raven and every AI feature (per-coin take, DNA
+  analyzer, account scanner) must be a real LLM (Anthropic) reasoning over real
+  data. Never fake, stub, canned, or hardcode AI output.
+- NO MOCK DATA. No placeholder, demo, seeded, or invented data anywhere, ever.
+  Every number, balance, chart, holding, and list is real or an honest empty
+  state. This is a hard line.
+- 2030, NEXT-GEN bar. Every surface must feel years ahead: cinematic motion,
+  depth, and polish. If it reads like a template or an MVP, rebuild it.
+- Presale runs on an EXTERNAL LAUNCHPAD (Gempad or Pinksale, not yet decided),
+  NOT on the platform. Never build an on-platform presale or whitelist flow.
+  Keep only "Presale coming soon" copy.
 - NO em-dashes anywhere. Use commas, periods, or restructure.
 - NO emojis as icons. Use the `Icon` / `LandingIcon` components only.
 - Premium, next-gen, cinematic UI. Obsidian and forged gold, restrained ember,
@@ -134,6 +148,48 @@ Extend the existing coin page with a trading panel modeled on the reference:
 - Everything EVM-only. Guard every code path against Solana tokens.
 
 ---
+
+## 4b. The 10-item shortlist and the founder's calls
+
+These are the ten high-value picks from the 261-audit + backlog that were put to
+the founder, with the exact decision on each. Build the greenlit ones (mostly
+alongside the Scrying/Swap work), skip the rest.
+
+1. Presale page + register/whitelist flow. DECISION: NO. The presale runs on an
+   external launchpad (Gempad or Pinksale, TBD), not on the platform. Do not
+   build it here; keep "Presale coming soon" copy only.
+2. AI Account Scanner: a personal AI with full read access to the member's OWN
+   account (posts, wallet, activity) surfacing insights, risks, alpha. DECISION:
+   YES, build clean and end to end. Real LLM over the owner's real data only,
+   never another member's private data.
+3. Follow buy/sell/call alerts: notify when someone you follow buys, sells, or
+   seals a Call. DECISION: YES, get buy/sell notifications and call alerts up.
+   (Calls can notify today; buy/sell needs wallet-activity indexing.)
+4. Leaderboards: top by Renown, Glory, earnings, best callers, DNA archetypes.
+   DECISION: YES, build it.
+5. Global search: search users, cashtags, and posts from anywhere. DECISION:
+   YES, important, get it going.
+6. Season close, points-to-$RSP settlement (admin wizard). DECISION: YES, build
+   it end to end, but KEEP IT IN POINTS for now (we have not decided how much
+   $RSP the earnings portal gets). Wire the whole flow; we swap points for $RSP
+   later. Do NOT surface any $RSP amount yet.
+7. Quest verification + auto-complete: verify quests server-side so the earn
+   economy is not honor-system (anti-cheat). DECISION: YES, alongside 2 to 6.
+8. Real audio/video livestreams: upgrade the Rookery from text/reactions to real
+   live audio (Twitter Spaces style). DECISION: YES, important. Make it fast and
+   sharp.
+9. On-chain $RSP (testnet): deploy a real $RSP test token, wire claim/airdrop.
+   DECISION: NO, not now.
+10. Creator monetization: paid subscriptions, gated Whispers, tip tiers.
+    DECISION: OFF for now. Everyone has full access for free. Do not build paid
+    gating. REPLACEMENT pick from the 261+ remaining: a Notifications center with
+    a realtime unread badge (owner-read RLS policy on `notifications`, a filtered
+    Supabase realtime subscription, bell badge, in-app toasts, mark-read,
+    per-type toggles). Low infrastructure, high engagement; add it to this set
+    and knock them all down.
+
+Build order for this set: 2, 3, 4, 5, 6, 7 alongside the Scrying/Swap work; then
+8 (livestreams) and the notifications center (10-replacement).
 
 ## 5. Bug list: done vs remaining
 
