@@ -12,10 +12,15 @@
    missing env var can never silently misroute funds. */
 export const PLATFORM_FEE_BPS = 50; // 0.5%
 
-/* Server-side only. Set PLATFORM_FEE_RECIPIENT to the treasury 0x address that
-   collects the 0.5% fee. Absent, we quote and trade with no fee attached. */
+/* Server-side only. Set TREASURY_FEE_EVM to the realm treasury's EVM (0x)
+   address that collects the 0.5% fee on every in-app buy, sell and swap. This
+   must be a wallet the realm controls (a Safe or an owned wallet); the fee is
+   routed on-chain by 0x straight to it. Absent (or malformed), we quote and
+   trade with NO fee attached, so a missing env can never misroute funds.
+   PLATFORM_FEE_RECIPIENT is still read as a fallback for backward compatibility. */
 export function feeRecipient(): string | null {
-  const addr = process.env.PLATFORM_FEE_RECIPIENT;
+  const addr =
+    process.env.TREASURY_FEE_EVM ?? process.env.PLATFORM_FEE_RECIPIENT;
   if (!addr || !/^0x[a-fA-F0-9]{40}$/.test(addr)) return null;
   return addr;
 }
