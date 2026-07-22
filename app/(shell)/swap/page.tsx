@@ -10,27 +10,39 @@ import { realmFetch } from "@/lib/auth/api";
 import { useVaultPrefs } from "@/components/wallet/wallet-prefs";
 import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
 import { TokenLogo } from "@/components/wallet/token-logo";
-import { TokenSafety } from "@/components/trade/token-safety";
 import { txExplorerUrlFor, shortAddress } from "@/components/wallet/chains";
-import type { WalletToken } from "@/components/wallet/wallet-token-types";
 import {
   NATIVE_TOKEN_SENTINEL,
   PLATFORM_FEE_BPS,
+  TRADE_CHAINS,
   tradeChainById,
 } from "@/lib/trade/config";
+import {
+  tokensForChain,
+  nativeToken,
+  defaultQuoteToken,
+  type ListedToken,
+} from "@/lib/trade/token-list";
 
-/* The Swap: a dedicated surface to trade any EVM coin for any other, in
-   platform, non-custodially. The "from" side is one of the member's own
-   holdings (so we know its decimals and balance); the "to" side is any EVM
-   coin searched by name, symbol or address. Live 0x quote, explicit 0.5% fee,
-   minimum received, price impact and gas. Same-chain only in one signature;
-   cross-chain intent is guided to a top-up rather than faked. Preview then a
-   success screen, both in our design. BETA. */
+/* The Swap: trade any EVM coin for any other, non-custodially, best price via
+   0x (which routes Uniswap and every major DEX). Opens on ETH to USDC, never
+   gated on holdings. Both sides pick from a base token list, your own holdings,
+   or a live search of any coin by ticker or contract address. BETA. */
 
 const SLIPPAGE_BPS = 100;
 const NATIVE_DECIMALS = 18;
 
-interface SwapTokenResult {
+export interface TokenRef {
+  chainId: number;
+  address: string | null; // null = native
+  symbol: string;
+  name: string;
+  decimals: number;
+  logo: string | null;
+  priceUsd?: number | null;
+}
+
+interface SearchResult {
   address: string;
   symbol: string;
   name: string;
@@ -39,10 +51,6 @@ interface SwapTokenResult {
   logo: string | null;
   priceUsd: number | null;
   liquidityUsd: number | null;
-}
-
-interface ToToken extends SwapTokenResult {
-  decimals: number | null;
 }
 
 interface NormalizedQuote {
@@ -55,32 +63,13 @@ interface NormalizedQuote {
   allowanceTarget: string | null;
   allowanceNeeded: boolean;
   transaction: { to: string; data: string; value: string } | null;
-  chainId: number;
 }
 
 type Phase = "idle" | "confirm" | "approving" | "swapping" | "success" | "error";
 
-function fmtUsd(n: number): string {
-  if (n >= 1_000_000)
-    return `$${(n / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 2 })}M`;
-  if (n >= 1_000)
-    return `$${(n / 1_000).toLocaleString("en-US", { maximumFractionDigits: 1 })}K`;
-  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+function nowMs(): number {
+  return Date.now();
 }
-
-function fmtToken(raw: string | null, decimals: number): string {
-  if (!raw) return "0";
-  try {
-    const n = Number(formatUnits(BigInt(raw), decimals));
-    if (!Number.isFinite(n)) return "0";
-    if (n >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
-    if (n >= 0.0001) return n.toFixed(6);
-    return n.toPrecision(3);
-  } catch {
-    return "0";
-  }
-}
-
 function toBig(raw: string | null | undefined): bigint {
   if (!raw) return 0n;
   try {
@@ -89,7 +78,26 @@ function toBig(raw: string | null | undefined): bigint {
     return 0n;
   }
 }
-
+function fmtUsd(n: number): string {
+  if (n >= 1_000_000)
+    return `$${(n / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 2 })}M`;
+  if (n >= 1_000)
+    return `$${(n / 1_000).toLocaleString("en-US", { maximumFractionDigits: 1 })}K`;
+  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+}
+function fmtToken(raw: string | null, decimals: number): string {
+  if (!raw) return "0";
+  try {
+    const n = Number(formatUnits(BigInt(raw), decimals));
+    if (!Number.isFinite(n)) return "0";
+    if (n >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    if (n >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+    if (n >= 0.0001) return n.toFixed(6);
+    return n.toPrecision(3);
+  } catch {
+    return "0";
+  }
+}
 function parseAmount(amount: string, decimals: number): bigint {
   const v = amount.trim();
   if (!v) return 0n;
@@ -99,6 +107,19 @@ function parseAmount(amount: string, decimals: number): bigint {
   } catch {
     return 0n;
   }
+}
+function listedToRef(t: ListedToken): TokenRef {
+  return {
+    chainId: t.chainId,
+    address: t.address,
+    symbol: t.symbol,
+    name: t.name,
+    decimals: t.decimals,
+    logo: t.logo,
+  };
+}
+function zeroxToken(t: TokenRef): string {
+  return t.address === null ? NATIVE_TOKEN_SENTINEL : t.address;
 }
 
 export default function SwapPage() {
@@ -117,17 +138,22 @@ export default function SwapPage() {
   const walletAddress = sender?.address;
 
   const { custom, recordTx } = useVaultPrefs(walletAddress);
-  const { tokens, refresh } = useWalletTokens(walletAddress, custom);
+  const { tokens: heldTokens, refresh } = useWalletTokens(walletAddress, custom);
 
-  const [fromToken, setFromToken] = useState<WalletToken | null>(null);
-  const [toToken, setToToken] = useState<ToToken | null>(null);
+  const [chainId, setChainId] = useState(1);
+  const [from, setFrom] = useState<TokenRef>(() =>
+    listedToRef(nativeToken(1)!)
+  );
+  const [to, setTo] = useState<TokenRef>(() =>
+    listedToRef(defaultQuoteToken(1)!)
+  );
   const [amount, setAmount] = useState("");
 
   const [quote, setQuote] = useState<NormalizedQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSide, setPickerSide] = useState<"from" | "to" | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [execError, setExecError] = useState<string | null>(null);
   const [approvalHash, setApprovalHash] = useState<string | null>(null);
@@ -136,33 +162,75 @@ export default function SwapPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // Default the "from" side to the member's largest holding.
-  useEffect(() => {
-    if (fromToken || tokens.length === 0) return;
-    const withBalance = tokens
-      .filter((t) => Number(t.balanceDisplay) > 0)
-      .sort((a, b) => b.quoteUsd - a.quoteUsd);
-    setFromToken(withBalance[0] ?? tokens[0] ?? null);
-  }, [tokens, fromToken]);
+  const chain = tradeChainById(chainId);
 
-  const sellRaw = useMemo(
-    () => (fromToken ? parseAmount(amount, fromToken.decimals) : 0n),
-    [amount, fromToken]
+  // Switch chains: reset both sides to that chain's native and USDC.
+  const switchChain = (id: number) => {
+    setChainId(id);
+    const nat = nativeToken(id);
+    const usdc = defaultQuoteToken(id);
+    if (nat) setFrom(listedToRef(nat));
+    if (usdc) setTo(listedToRef(usdc));
+    setAmount("");
+    setQuote(null);
+  };
+
+  // Hydrate a token's USD price from /api/coin (native uses the wrapped coin).
+  const hydratePrice = useCallback(
+    async (t: TokenRef, set: (r: TokenRef) => void) => {
+      const c = tradeChainById(t.chainId);
+      const addr = t.address ?? c?.wrappedNative;
+      if (!addr || !c) return;
+      try {
+        const res = await fetch(
+          `/api/coin?address=${addr}&net=${c.gecko}`
+        );
+        const body = (await res.json()) as {
+          coin?: { priceUsd?: number | null };
+        };
+        if (typeof body.coin?.priceUsd === "number") {
+          set({ ...t, priceUsd: body.coin.priceUsd });
+        }
+      } catch {
+        /* price is a nicety */
+      }
+    },
+    []
   );
 
-  const sameChain =
-    !!fromToken && !!toToken && fromToken.chainId === toToken.chainId;
-  const balanceRaw = useMemo(() => toBig(fromToken?.balanceRaw), [fromToken]);
-  const overBalance = sellRaw > balanceRaw;
+  useEffect(() => {
+    if (from.priceUsd === undefined) void hydratePrice(from, setFrom);
+  }, [from, hydratePrice]);
+  useEffect(() => {
+    if (to.priceUsd === undefined) void hydratePrice(to, setTo);
+  }, [to, hydratePrice]);
 
-  const chain = fromToken ? tradeChainById(fromToken.chainId) : undefined;
+  // Live balance for a side from the member's holdings (0 when not held).
+  const balanceOf = useCallback(
+    (t: TokenRef) => {
+      const match = heldTokens.find(
+        (h) =>
+          h.chainId === t.chainId &&
+          (t.address === null
+            ? h.isNative
+            : h.contract?.toLowerCase() === t.address.toLowerCase())
+      );
+      return match ?? null;
+    },
+    [heldTokens]
+  );
+  const fromHeld = balanceOf(from);
+  const fromBalanceRaw = toBig(fromHeld?.balanceRaw);
+  const toHeld = balanceOf(to);
+
+  const sellRaw = useMemo(
+    () => parseAmount(amount, from.decimals),
+    [amount, from.decimals]
+  );
+  const overBalance = fromHeld ? sellRaw > fromBalanceRaw : false;
 
   const fetchQuote = useCallback(async () => {
-    if (!fromToken || !toToken || toToken.decimals === null) {
-      setQuote(null);
-      return;
-    }
-    if (!sameChain || sellRaw <= 0n || overBalance) {
+    if (sellRaw <= 0n) {
       setQuote(null);
       setQuoteError(null);
       return;
@@ -175,76 +243,66 @@ export default function SwapPage() {
         method: "POST",
         json: {
           mode: "price",
-          chainId: fromToken.chainId,
-          sellToken: fromToken.isNative
-            ? NATIVE_TOKEN_SENTINEL
-            : fromToken.contract,
-          buyToken: toToken.address,
+          chainId,
+          sellToken: zeroxToken(from),
+          buyToken: zeroxToken(to),
           sellAmount: sellRaw.toString(),
-          feeToken: toToken.address,
+          feeToken: to.address ?? from.address ?? undefined,
           slippageBps: SLIPPAGE_BPS,
         },
       }
     );
-    if (res.ok && res.data?.quote) {
-      setQuote(res.data.quote);
-    } else {
+    if (res.ok && res.data?.quote) setQuote(res.data.quote);
+    else {
       setQuote(null);
       setQuoteError(res.data?.error ?? "No quote right now.");
     }
     setQuoteLoading(false);
-  }, [fromToken, toToken, sameChain, sellRaw, overBalance]);
+  }, [sellRaw, chainId, from, to]);
 
   useEffect(() => {
     const t = setTimeout(() => void fetchQuote(), 350);
     return () => clearTimeout(t);
   }, [fetchQuote]);
 
-  // Price impact from the two known USD prices, honest and derived.
-  const priceImpact = useMemo(() => {
-    if (
-      !fromToken ||
-      !toToken ||
-      !quote?.buyAmount ||
-      !fromToken.priceUsd ||
-      !toToken.priceUsd ||
-      sellRaw <= 0n
-    )
-      return null;
-    const payUsd =
-      Number(formatUnits(sellRaw, fromToken.decimals)) * fromToken.priceUsd;
-    const recvUsd =
-      Number(formatUnits(toBig(quote.buyAmount), toToken.decimals ?? 18)) *
-      toToken.priceUsd;
-    if (payUsd <= 0 || recvUsd <= 0) return null;
-    return (1 - recvUsd / payUsd) * 100;
-  }, [fromToken, toToken, quote, sellRaw]);
+  const receiveAmount = quote?.buyAmount
+    ? Number(formatUnits(toBig(quote.buyAmount), to.decimals))
+    : 0;
+  const payUsd =
+    from.priceUsd && sellRaw > 0n
+      ? Number(formatUnits(sellRaw, from.decimals)) * from.priceUsd
+      : null;
+  const receiveUsd =
+    to.priceUsd && receiveAmount > 0 ? receiveAmount * to.priceUsd : null;
 
-  const setMax = () => {
-    if (!fromToken) return;
-    setAmount(formatUnits(balanceRaw, fromToken.decimals));
+  const rate =
+    quote?.buyAmount && sellRaw > 0n
+      ? receiveAmount / Number(formatUnits(sellRaw, from.decimals))
+      : null;
+
+  const flip = () => {
+    setFrom(to);
+    setTo(from);
+    setAmount("");
+    setQuote(null);
   };
 
-  const hydrateTo = async (r: SwapTokenResult) => {
-    const c = tradeChainById(r.chainId);
-    setToToken({ ...r, decimals: null });
-    setPickerOpen(false);
-    try {
-      const res = await fetch(
-        `/api/coin?address=${encodeURIComponent(r.address)}&net=${c?.gecko ?? ""}`
-      );
-      const body = (await res.json()) as {
-        coin?: { decimals?: number | null; priceUsd?: number | null };
-      };
-      setToToken({
-        ...r,
-        decimals:
-          typeof body.coin?.decimals === "number" ? body.coin.decimals : null,
-        priceUsd: body.coin?.priceUsd ?? r.priceUsd,
-      });
-    } catch {
-      setToToken({ ...r, decimals: null });
+  const pickToken = (side: "from" | "to", t: TokenRef) => {
+    if (side === "from") {
+      if (
+        t.address === to.address &&
+        t.chainId === to.chainId
+      )
+        setTo(from);
+      setFrom({ ...t, priceUsd: undefined });
+    } else {
+      if (t.address === from.address && t.chainId === from.chainId)
+        setFrom(to);
+      setTo({ ...t, priceUsd: undefined });
     }
+    setChainId(t.chainId);
+    setPickerSide(null);
+    setQuote(null);
   };
 
   const reset = () => {
@@ -256,7 +314,7 @@ export default function SwapPage() {
   };
 
   const execute = async () => {
-    if (!walletAddress || !fromToken || !toToken || !chain) return;
+    if (!walletAddress || !chain) return;
     setExecError(null);
     setPhase("swapping");
     const res = await realmFetch<{ quote?: NormalizedQuote; error?: string }>(
@@ -265,14 +323,12 @@ export default function SwapPage() {
         method: "POST",
         json: {
           mode: "quote",
-          chainId: fromToken.chainId,
-          sellToken: fromToken.isNative
-            ? NATIVE_TOKEN_SENTINEL
-            : fromToken.contract,
-          buyToken: toToken.address,
+          chainId,
+          sellToken: zeroxToken(from),
+          buyToken: zeroxToken(to),
           sellAmount: sellRaw.toString(),
           taker: walletAddress,
-          feeToken: toToken.address,
+          feeToken: to.address ?? from.address ?? undefined,
           slippageBps: SLIPPAGE_BPS,
         },
       }
@@ -283,33 +339,29 @@ export default function SwapPage() {
       setPhase("error");
       return;
     }
-
     try {
-      await sender?.switchChain?.(fromToken.chainId);
+      await sender?.switchChain?.(chainId);
     } catch {
-      /* provider may switch inside its own window */
+      /* provider may switch in its own window */
     }
-
-    // ERC-20 "from" needs an approval to the allowance target before the swap.
     if (
-      !fromToken.isNative &&
+      from.address !== null &&
       firm.allowanceNeeded &&
       firm.allowanceTarget &&
-      fromToken.contract &&
       !approvalSent.current
     ) {
       try {
         setPhase("approving");
         const approval = await sendTransaction(
           {
-            to: fromToken.contract as `0x${string}`,
+            to: from.address as `0x${string}`,
             data: encodeFunctionData({
               abi: erc20Abi,
               functionName: "approve",
               args: [firm.allowanceTarget as `0x${string}`, sellRaw],
             }),
             value: 0n,
-            chainId: fromToken.chainId,
+            chainId,
           },
           { address: walletAddress }
         );
@@ -323,7 +375,6 @@ export default function SwapPage() {
         return;
       }
     }
-
     try {
       setPhase("swapping");
       const result = await sendTransaction(
@@ -331,46 +382,39 @@ export default function SwapPage() {
           to: firm.transaction.to as `0x${string}`,
           data: firm.transaction.data as `0x${string}`,
           value: BigInt(firm.transaction.value || "0"),
-          chainId: fromToken.chainId,
+          chainId,
         },
         { address: walletAddress }
       );
       setSwapHash(result.hash);
       recordTx({
         hash: result.hash,
-        chainId: fromToken.chainId,
+        chainId,
         to: firm.transaction.to,
-        symbol: toToken.symbol,
+        symbol: to.symbol,
         amount: firm.buyAmount
-          ? formatUnits(toBig(firm.buyAmount), toToken.decimals ?? 18)
+          ? formatUnits(toBig(firm.buyAmount), to.decimals)
           : "0",
-        contract: toToken.address,
-        at: Date.now(),
+        contract: to.address,
+        at: nowMs(),
       });
-
-      // Record to the platform-wide trade feed (idempotent on the hash).
-      const usd =
-        fromToken.priceUsd && sellRaw > 0n
-          ? Number(formatUnits(sellRaw, fromToken.decimals)) * fromToken.priceUsd
-          : undefined;
       void realmFetch("/api/trade/record", {
         method: "POST",
         json: {
           kind: "swap",
-          chainId: fromToken.chainId,
+          chainId,
           txHash: result.hash,
-          sellSymbol: fromToken.symbol,
+          sellSymbol: from.symbol,
           sellAmount: amount,
-          sellContract: fromToken.isNative ? null : fromToken.contract,
-          buySymbol: toToken.symbol,
+          sellContract: from.address,
+          buySymbol: to.symbol,
           buyAmount: firm.buyAmount
-            ? formatUnits(toBig(firm.buyAmount), toToken.decimals ?? 18)
+            ? formatUnits(toBig(firm.buyAmount), to.decimals)
             : null,
-          buyContract: toToken.address,
-          usdValue: usd,
+          buyContract: to.address,
+          usdValue: payUsd ?? receiveUsd ?? undefined,
         },
       });
-
       setPhase("success");
       setTimeout(() => refresh(), 4000);
     } catch (e) {
@@ -379,35 +423,17 @@ export default function SwapPage() {
     }
   };
 
-  const receiveText = toToken
-    ? `${fmtToken(quote?.buyAmount ?? null, toToken.decimals ?? 18)} ${toToken.symbol}`
-    : "-";
-  const payUsd =
-    fromToken && fromToken.priceUsd && sellRaw > 0n
-      ? Number(formatUnits(sellRaw, fromToken.decimals)) * fromToken.priceUsd
-      : 0;
-
   const canReview =
-    !!walletAddress &&
-    !!fromToken &&
-    !!toToken &&
-    toToken.decimals !== null &&
-    sameChain &&
-    sellRaw > 0n &&
-    !overBalance &&
-    !quoteLoading &&
-    !!quote;
+    !!walletAddress && sellRaw > 0n && !overBalance && !quoteLoading && !!quote;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
+    <div className="mx-auto w-full max-w-xl px-3 py-4 sm:px-4 sm:py-6">
       <div className="mb-4">
         <BackButton />
       </div>
 
       <div className="flex items-center gap-2.5">
-        <h1 className="font-display text-xl font-semibold text-bone">
-          The Swap
-        </h1>
+        <h1 className="font-display text-xl font-semibold text-bone">The Swap</h1>
         <span className="inline-flex items-center rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
           Beta
         </span>
@@ -415,40 +441,53 @@ export default function SwapPage() {
       <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
         Trade any EVM coin
       </p>
-      <p className="mt-3 text-sm text-bone-mut">
-        Swap from your holdings into any coin on any EVM chain, non-custodially.
-        You approve every trade in your own wallet. {(PLATFORM_FEE_BPS / 100).toFixed(1)}% fee.
-      </p>
+
+      {/* Network chips */}
+      <div className="mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {TRADE_CHAINS.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => switchChain(c.id)}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              chainId === c.id
+                ? "border-gold/60 bg-panel-warm text-gold-bright"
+                : "border-steel-line bg-void text-bone-mut hover:border-gold/40"
+            }`}
+          >
+            {c.name}
+          </button>
+        ))}
+      </div>
 
       {/* From */}
-      <div className="glass mt-5 p-4">
+      <div className="glass mt-3 p-4">
         <div className="flex items-center justify-between">
           <span className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-            From
+            You pay
           </span>
-          {fromToken && (
-            <button
-              type="button"
-              onClick={setMax}
-              className="text-xs font-medium text-gold hover:underline"
-            >
-              Max{" "}
-              {Number(fromToken.balanceDisplay).toLocaleString("en-US", {
-                maximumFractionDigits: 4,
-              })}{" "}
-              {fromToken.symbol}
-            </button>
-          )}
+          <span className="text-[11px] text-bone-faint">
+            Balance{" "}
+            {fromHeld
+              ? Number(fromHeld.balanceDisplay).toLocaleString("en-US", {
+                  maximumFractionDigits: 4,
+                })
+              : "0"}
+            {fromHeld && Number(fromHeld.balanceDisplay) > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setAmount(formatUnits(fromBalanceRaw, from.decimals))
+                }
+                className="ml-1.5 font-semibold text-gold hover:underline"
+              >
+                Max
+              </button>
+            )}
+          </span>
         </div>
         <div className="mt-2 flex items-center gap-3">
-          <FromSelector
-            tokens={tokens}
-            value={fromToken}
-            onChange={(t) => {
-              setFromToken(t);
-              setQuote(null);
-            }}
-          />
+          <TokenSelect token={from} onClick={() => setPickerSide("from")} />
           <input
             inputMode="decimal"
             value={amount}
@@ -456,117 +495,78 @@ export default function SwapPage() {
               const v = e.target.value;
               if (v === "" || /^\d*\.?\d*$/.test(v)) setAmount(v);
             }}
-            placeholder="0.0"
-            className={`tnum min-w-0 flex-1 bg-transparent text-right font-display text-2xl text-bone placeholder-bone-faint outline-none ${
-              overBalance ? "text-ember" : ""
+            placeholder="0"
+            className={`tnum min-w-0 flex-1 bg-transparent text-right font-display text-2xl outline-none placeholder-bone-faint ${
+              overBalance ? "text-ember" : "text-bone"
             }`}
           />
         </div>
         <div className="mt-1 flex items-center justify-between text-xs text-bone-faint">
-          <span>{chain?.name ?? fromToken?.chainName ?? ""}</span>
-          {payUsd > 0 && <span className="tnum">{fmtUsd(payUsd)}</span>}
+          <span>{chain?.name}</span>
+          {payUsd !== null && <span className="tnum">{fmtUsd(payUsd)}</span>}
         </div>
         {overBalance && (
           <p className="mt-1 text-xs text-ember">
-            That is more than your {fromToken?.symbol} balance.
+            More than your {from.symbol} balance.
           </p>
         )}
+      </div>
+
+      {/* Flip */}
+      <div className="relative z-10 -my-2.5 flex justify-center">
+        <button
+          type="button"
+          onClick={flip}
+          aria-label="Swap direction"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-steel-line bg-panel text-gold transition hover:border-gold/50"
+        >
+          <Icon name="repost" className="h-4 w-4" />
+        </button>
       </div>
 
       {/* To */}
-      <div className="glass mt-2.5 p-4">
+      <div className="glass p-4">
         <span className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-          To
+          You receive
         </span>
         <div className="mt-2 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="btn-glass inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm"
-          >
-            {toToken ? (
-              <>
-                <TokenLogo logo={toToken.logo} symbol={toToken.symbol} size={22} />
-                <span className="font-semibold text-bone">{toToken.symbol}</span>
-                <Icon name="dots" className="h-3.5 w-3.5 text-bone-faint" />
-              </>
-            ) : (
-              <>
-                <Icon name="search" className="h-4 w-4 text-gold" />
-                <span className="text-bone-mut">Select a coin</span>
-              </>
-            )}
-          </button>
-          <span className="tnum min-w-0 flex-1 text-right font-display text-2xl text-bone">
-            {quoteLoading ? "..." : toToken ? fmtToken(quote?.buyAmount ?? null, toToken.decimals ?? 18) : "0.0"}
+          <TokenSelect token={to} onClick={() => setPickerSide("to")} />
+          <span className="tnum min-w-0 flex-1 truncate text-right font-display text-2xl text-bone">
+            {quoteLoading
+              ? "..."
+              : quote
+                ? fmtToken(quote.buyAmount, to.decimals)
+                : "0"}
           </span>
         </div>
-        {toToken && (
-          <div className="mt-1 flex items-center justify-between text-xs text-bone-faint">
-            <span>{toToken.chainLabel}</span>
-            {toToken.decimals === null && (
-              <span className="text-ember">Reading token details...</span>
-            )}
-          </div>
-        )}
+        <div className="mt-1 flex items-center justify-between text-xs text-bone-faint">
+          <span>
+            {toHeld
+              ? `Balance ${Number(toHeld.balanceDisplay).toLocaleString("en-US", { maximumFractionDigits: 4 })}`
+              : chain?.name}
+          </span>
+          {receiveUsd !== null && <span className="tnum">{fmtUsd(receiveUsd)}</span>}
+        </div>
       </div>
 
-      {/* Real GoPlus safety scan on the coin being bought. */}
-      {toToken && toToken.decimals !== null && (
-        <TokenSafety chainId={toToken.chainId} address={toToken.address} />
-      )}
-
-      {/* Cross-chain guidance */}
-      {fromToken && toToken && !sameChain && (
-        <div className="glass-warm mt-2.5 flex items-start gap-3 p-4">
-          <Icon name="shield" className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-          <p className="text-xs text-bone-mut">
-            {fromToken.symbol} sits on {fromToken.chainName} and {toToken.symbol}{" "}
-            is on {toToken.chainLabel}. A single swap cannot cross chains. Pick a
-            coin on {fromToken.chainName}, choose a holding on {toToken.chainLabel},
-            or top up {toToken.chainLabel} with a card from the coin page.
-          </p>
+      {/* Rate + fee line */}
+      {quote && rate !== null && (
+        <div className="mt-2 flex items-center justify-between rounded-xl border border-steel-line bg-void/60 px-3.5 py-2 text-xs text-bone-mut">
+          <span className="tnum">
+            1 {from.symbol} ={" "}
+            {rate >= 1
+              ? rate.toLocaleString("en-US", { maximumFractionDigits: 2 })
+              : rate.toPrecision(3)}{" "}
+            {to.symbol}
+          </span>
+          <span className="text-bone-faint">
+            {(PLATFORM_FEE_BPS / 100).toFixed(1)}% fee
+          </span>
         </div>
       )}
 
-      {/* Quote details */}
-      {sameChain && (quote || quoteError) && (
-        <div className="glass mt-2.5 p-4">
-          {quoteError ? (
-            <p className="text-xs text-ember">{quoteError}</p>
-          ) : (
-            <div className="flex flex-col gap-2 text-sm">
-              <Row label="You receive" value={receiveText} strong />
-              {quote?.minBuyAmount && toToken && (
-                <Row
-                  label="Minimum received"
-                  value={`${fmtToken(quote.minBuyAmount, toToken.decimals ?? 18)} ${toToken.symbol}`}
-                />
-              )}
-              {priceImpact !== null && (
-                <Row
-                  label="Price impact"
-                  value={`${priceImpact >= 0 ? "" : "+"}${(-priceImpact).toFixed(2)}%`}
-                  warn={priceImpact > 5}
-                />
-              )}
-              <Row
-                label={`Platform fee (${(PLATFORM_FEE_BPS / 100).toFixed(1)}%)`}
-                value={
-                  quote?.feeAmount && toToken
-                    ? `${fmtToken(quote.feeAmount, toToken.decimals ?? 18)} ${toToken.symbol}`
-                    : "included"
-                }
-              />
-              {quote?.totalNetworkFee && chain && (
-                <Row
-                  label="Network fee (est.)"
-                  value={`~${fmtToken(quote.totalNetworkFee, NATIVE_DECIMALS)} ${chain.native}`}
-                />
-              )}
-            </div>
-          )}
-        </div>
+      {quoteError && sellRaw > 0n && (
+        <p className="mt-2 text-xs text-ember">{quoteError}</p>
       )}
 
       <button
@@ -576,7 +576,7 @@ export default function SwapPage() {
         className="btn-gold mt-3 w-full py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Icon name="repost" className="h-4 w-4" />
-        Review swap
+        {overBalance ? `Not enough ${from.symbol}` : "Review swap"}
       </button>
 
       {!walletAddress && (
@@ -584,22 +584,24 @@ export default function SwapPage() {
           No embedded wallet is ready to swap yet.
         </p>
       )}
-
       <p className="mt-3 text-center text-[11px] text-bone-faint">
-        Signed by your own wallet. Non-custodial. You approve every swap yourself.
+        Signed by your own wallet. Non-custodial. Best price via 0x across
+        Uniswap and every major DEX.
       </p>
 
-      {/* Token picker */}
-      {mounted && pickerOpen && (
-        <TokenPicker onClose={() => setPickerOpen(false)} onPick={hydrateTo} />
+      {mounted && pickerSide && (
+        <TokenPicker
+          side={pickerSide}
+          chainId={chainId}
+          held={heldTokens}
+          onClose={() => setPickerSide(null)}
+          onPick={(t) => pickToken(pickerSide, t)}
+        />
       )}
 
-      {/* Confirm / success overlay */}
       {mounted &&
         phase !== "idle" &&
         chain &&
-        fromToken &&
-        toToken &&
         createPortal(
           <div className="fixed inset-0 z-[100] flex items-stretch justify-center sm:items-center sm:p-4">
             <button
@@ -610,10 +612,10 @@ export default function SwapPage() {
             <div className="glass glass-warm relative flex h-full w-full flex-col overflow-y-auto p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] sm:h-auto sm:max-w-md sm:pt-6">
               {phase === "success" ? (
                 <SwapSuccess
-                  fromSymbol={fromToken.symbol}
-                  toToken={toToken}
-                  receive={receiveText}
-                  chainId={fromToken.chainId}
+                  from={from}
+                  to={to}
+                  receive={`${fmtToken(quote?.buyAmount ?? null, to.decimals)} ${to.symbol}`}
+                  chainId={chainId}
                   hash={swapHash}
                   onClose={reset}
                 />
@@ -625,7 +627,7 @@ export default function SwapPage() {
                         Swap · Preview
                       </p>
                       <h3 className="mt-1 font-display text-lg font-semibold text-bone">
-                        {fromToken.symbol} to {toToken.symbol}
+                        {from.symbol} to {to.symbol}
                       </h3>
                     </div>
                     <button
@@ -636,35 +638,47 @@ export default function SwapPage() {
                       <Icon name="plus" className="h-4 w-4 rotate-45" />
                     </button>
                   </div>
-
                   <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-steel-line bg-void/60 p-4">
+                    <Row label="You pay" value={`${amount} ${from.symbol}`} />
                     <Row
-                      label="You pay"
-                      value={`${amount} ${fromToken.symbol}`}
+                      label="You receive"
+                      value={`${fmtToken(quote?.buyAmount ?? null, to.decimals)} ${to.symbol}`}
+                      strong
                     />
-                    <Row label="You receive" value={receiveText} strong />
                     {quote?.minBuyAmount && (
                       <Row
                         label="Minimum received"
-                        value={`${fmtToken(quote.minBuyAmount, toToken.decimals ?? 18)} ${toToken.symbol}`}
-                      />
-                    )}
-                    {priceImpact !== null && (
-                      <Row
-                        label="Price impact"
-                        value={`${(-priceImpact).toFixed(2)}%`}
-                        warn={priceImpact > 5}
+                        value={`${fmtToken(quote.minBuyAmount, to.decimals)} ${to.symbol}`}
                       />
                     )}
                     <Row
                       label={`Platform fee (${(PLATFORM_FEE_BPS / 100).toFixed(1)}%)`}
                       value={
                         quote?.feeAmount
-                          ? `${fmtToken(quote.feeAmount, toToken.decimals ?? 18)} ${toToken.symbol}`
+                          ? `${fmtToken(quote.feeAmount, to.decimals)} ${to.symbol}`
                           : "included"
                       }
                     />
+                    {quote?.totalNetworkFee && (
+                      <Row
+                        label="Network fee (est.)"
+                        value={`~${fmtToken(quote.totalNetworkFee, NATIVE_DECIMALS)} ${chain.native}`}
+                      />
+                    )}
                     <Row label="Network" value={chain.name} />
+                    {/* Order routing */}
+                    <div className="mt-1 flex items-center justify-between border-t border-steel-line pt-2.5 text-[11px] text-bone-faint">
+                      <span>Route</span>
+                      <span className="flex items-center gap-1.5">
+                        {from.symbol}
+                        <Icon name="arrow" className="h-3 w-3" />
+                        <span className="rounded bg-panel px-1.5 py-0.5 text-gold">
+                          0x
+                        </span>
+                        <Icon name="arrow" className="h-3 w-3" />
+                        {to.symbol}
+                      </span>
+                    </div>
                   </div>
 
                   {approvalHash && (
@@ -673,10 +687,7 @@ export default function SwapPage() {
                       the swap below.
                     </div>
                   )}
-
-                  {execError && (
-                    <p className="mt-3 text-xs text-ember">{execError}</p>
-                  )}
+                  {execError && <p className="mt-3 text-xs text-ember">{execError}</p>}
 
                   <button
                     type="button"
@@ -694,11 +705,6 @@ export default function SwapPage() {
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#171204]/40 border-t-[#171204]" />
                         Confirm in your wallet...
                       </>
-                    ) : approvalHash ? (
-                      <>
-                        <Icon name="repost" className="h-4 w-4" />
-                        Confirm swap
-                      </>
                     ) : (
                       <>
                         <Icon name="repost" className="h-4 w-4" />
@@ -706,10 +712,8 @@ export default function SwapPage() {
                       </>
                     )}
                   </button>
-
                   <p className="mt-3 text-center text-[11px] text-bone-faint">
-                    Signed by your own wallet. Non-custodial. Cancel any time in
-                    the wallet window.
+                    Signed by your own wallet. Non-custodial.
                   </p>
                 </>
               )}
@@ -721,28 +725,40 @@ export default function SwapPage() {
   );
 }
 
+function TokenSelect({
+  token,
+  onClick,
+}: {
+  token: TokenRef;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="btn-glass inline-flex shrink-0 items-center gap-2 rounded-full py-2 pl-2 pr-3 text-sm"
+    >
+      <TokenLogo logo={token.logo} symbol={token.symbol} size={24} />
+      <span className="font-semibold text-bone">{token.symbol}</span>
+      <Icon name="dots" className="h-3.5 w-3.5 text-bone-faint" />
+    </button>
+  );
+}
+
 function Row({
   label,
   value,
   strong,
-  warn,
 }: {
   label: string;
   value: string;
   strong?: boolean;
-  warn?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       <span className="text-bone-faint">{label}</span>
       <span
-        className={`tnum text-right ${
-          warn
-            ? "text-ember"
-            : strong
-              ? "font-semibold text-bone"
-              : "text-bone-mut"
-        }`}
+        className={`tnum text-right ${strong ? "font-semibold text-bone" : "text-bone-mut"}`}
       >
         {value}
       </span>
@@ -750,89 +766,21 @@ function Row({
   );
 }
 
-function FromSelector({
-  tokens,
-  value,
-  onChange,
-}: {
-  tokens: WalletToken[];
-  value: WalletToken | null;
-  onChange: (t: WalletToken) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="btn-glass inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm"
-      >
-        {value ? (
-          <>
-            <TokenLogo logo={value.logo} symbol={value.symbol} size={22} />
-            <span className="font-semibold text-bone">{value.symbol}</span>
-          </>
-        ) : (
-          <span className="text-bone-mut">Token</span>
-        )}
-        <Icon name="dots" className="h-3.5 w-3.5 text-bone-faint" />
-      </button>
-      {open && (
-        <>
-          <button
-            aria-label="Close"
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40"
-          />
-          <div className="absolute left-0 z-50 mt-1.5 max-h-72 w-60 overflow-y-auto rounded-2xl border border-steel-line bg-panel p-1.5 shadow-xl">
-            {tokens.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-bone-faint">
-                No holdings to swap from yet.
-              </p>
-            ) : (
-              tokens.map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => {
-                    onChange(t);
-                    setOpen(false);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-panel-warm/60"
-                >
-                  <TokenLogo logo={t.logo} symbol={t.symbol} size={26} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-bone">
-                      {t.symbol}
-                    </p>
-                    <p className="truncate text-[11px] text-bone-faint">
-                      {t.chainName}
-                    </p>
-                  </div>
-                  <span className="tnum shrink-0 text-xs text-bone-mut">
-                    {Number(t.balanceDisplay).toLocaleString("en-US", {
-                      maximumFractionDigits: 3,
-                    })}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 function TokenPicker({
+  side,
+  chainId,
+  held,
   onClose,
   onPick,
 }: {
+  side: "from" | "to";
+  chainId: number;
+  held: ReturnType<typeof useWalletTokens>["tokens"];
   onClose: () => void;
-  onPick: (t: SwapTokenResult) => void;
+  onPick: (t: TokenRef) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SwapTokenResult[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
@@ -851,7 +799,7 @@ function TokenPicker({
     let cancelled = false;
     setSearching(true);
     const t = setTimeout(async () => {
-      const res = await realmFetch<{ results?: SwapTokenResult[] }>(
+      const res = await realmFetch<{ results?: SearchResult[] }>(
         `/api/trade/tokens?q=${encodeURIComponent(query.trim())}`
       );
       if (cancelled) return;
@@ -864,6 +812,32 @@ function TokenPicker({
     };
   }, [query]);
 
+  const base = tokensForChain(chainId);
+  const heldOnChain = held.filter(
+    (h) => h.chainId === chainId && Number(h.balanceDisplay) > 0
+  );
+
+  const pickListed = (t: ListedToken) => onPick(listedToRef(t));
+  const pickHeld = (h: (typeof held)[number]) =>
+    onPick({
+      chainId: h.chainId,
+      address: h.isNative ? null : h.contract,
+      symbol: h.symbol,
+      name: h.name,
+      decimals: h.decimals,
+      logo: h.logo,
+    });
+  const pickResult = (r: SearchResult) =>
+    onPick({
+      chainId: r.chainId,
+      address: r.address,
+      symbol: r.symbol,
+      name: r.name,
+      decimals: 18, // hydrated by the coin page on the way in
+      logo: r.logo,
+      priceUsd: r.priceUsd,
+    });
+
   return createPortal(
     <div className="fixed inset-0 z-[110] flex items-stretch justify-center sm:items-center sm:p-4">
       <button
@@ -871,7 +845,7 @@ function TokenPicker({
         onClick={onClose}
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
       />
-      <div className="glass glass-warm relative flex h-full w-full flex-col overflow-hidden p-5 pt-[calc(1.25rem+env(safe-area-inset-top))] sm:h-[70vh] sm:max-w-md sm:pt-5">
+      <div className="glass glass-warm relative flex h-full w-full flex-col overflow-hidden p-5 pt-[calc(1.25rem+env(safe-area-inset-top))] sm:h-[72vh] sm:max-w-md sm:pt-5">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-display text-lg font-semibold text-bone">
             Select a coin
@@ -890,79 +864,149 @@ function TokenPicker({
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Name, symbol or address"
+            placeholder="Ticker, name or contract address"
             spellCheck={false}
             className="min-w-0 flex-1 bg-transparent text-sm text-bone placeholder-bone-faint outline-none"
           />
         </label>
 
         <div className="mt-3 flex-1 overflow-y-auto">
-          {searching ? (
-            <div className="flex items-center gap-2 px-1 py-3 text-sm text-bone-faint">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
-              Searching the chains...
-            </div>
-          ) : query.trim().length < 2 ? (
-            <p className="px-1 py-3 text-sm text-bone-faint">
-              Search any coin on any EVM chain. Solana is not tradable here.
-            </p>
-          ) : results.length === 0 ? (
-            <p className="px-1 py-3 text-sm text-bone-faint">
-              No EVM coin found for that above the liquidity floor.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-1">
-              {results.map((r) => (
-                <button
-                  key={`${r.chainId}:${r.address}`}
-                  type="button"
-                  onClick={() => onPick(r)}
-                  className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-left hover:bg-panel-warm/60"
-                >
-                  <TokenLogo logo={r.logo} symbol={r.symbol} size={32} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-bone">
-                      {r.symbol}
-                    </p>
-                    <p className="truncate text-[11px] text-bone-faint">
-                      {r.name} · {r.chainLabel}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    {r.priceUsd !== null && (
-                      <p className="tnum text-xs text-bone">
-                        {r.priceUsd >= 1
+          {query.trim().length >= 2 ? (
+            searching ? (
+              <Loading />
+            ) : results.length === 0 ? (
+              <Empty text="No coin found for that. Try the full contract address." />
+            ) : (
+              <Section label="Search results">
+                {results.map((r) => (
+                  <Choice
+                    key={`${r.chainId}:${r.address}`}
+                    logo={r.logo}
+                    symbol={r.symbol}
+                    sub={`${r.name} · ${r.chainLabel}`}
+                    right={
+                      r.priceUsd !== null
+                        ? r.priceUsd >= 1
                           ? `$${r.priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
-                          : `$${r.priceUsd.toPrecision(2)}`}
-                      </p>
-                    )}
-                    {r.liquidityUsd !== null && (
-                      <p className="tnum text-[11px] text-bone-faint">
-                        {fmtUsd(r.liquidityUsd)} liq
-                      </p>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
+                          : `$${r.priceUsd.toPrecision(2)}`
+                        : undefined
+                    }
+                    onClick={() => pickResult(r)}
+                  />
+                ))}
+              </Section>
+            )
+          ) : (
+            <>
+              {heldOnChain.length > 0 && (
+                <Section label="Your holdings">
+                  {heldOnChain.map((h) => (
+                    <Choice
+                      key={h.key}
+                      logo={h.logo}
+                      symbol={h.symbol}
+                      sub={h.name}
+                      right={Number(h.balanceDisplay).toLocaleString("en-US", {
+                        maximumFractionDigits: 4,
+                      })}
+                      onClick={() => pickHeld(h)}
+                    />
+                  ))}
+                </Section>
+              )}
+              <Section label="Popular on this chain">
+                {base.map((t) => (
+                  <Choice
+                    key={t.symbol}
+                    logo={t.logo}
+                    symbol={t.symbol}
+                    sub={t.name}
+                    onClick={() => pickListed(t)}
+                  />
+                ))}
+              </Section>
+            </>
           )}
         </div>
+        <p className="mt-2 text-center text-[10px] text-bone-faint">
+          {side === "from" ? "Paying with" : "Receiving"} on EVM chains only.
+        </p>
       </div>
     </div>,
     document.body
   );
 }
 
+function Section({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-4">
+      <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
+        {label}
+      </p>
+      <div className="flex flex-col gap-1">{children}</div>
+    </div>
+  );
+}
+
+function Choice({
+  logo,
+  symbol,
+  sub,
+  right,
+  onClick,
+}: {
+  logo: string | null;
+  symbol: string;
+  sub: string;
+  right?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-left hover:bg-panel-warm/60"
+    >
+      <TokenLogo logo={logo} symbol={symbol} size={32} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-bone">{symbol}</p>
+        <p className="truncate text-[11px] text-bone-faint">{sub}</p>
+      </div>
+      {right && (
+        <span className="tnum shrink-0 text-xs text-bone-mut">{right}</span>
+      )}
+    </button>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="flex items-center gap-2 px-1 py-3 text-sm text-bone-faint">
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
+      Searching the chains...
+    </div>
+  );
+}
+function Empty({ text }: { text: string }) {
+  return <p className="px-1 py-3 text-sm text-bone-faint">{text}</p>;
+}
+
 function SwapSuccess({
-  fromSymbol,
-  toToken,
+  from,
+  to,
   receive,
   chainId,
   hash,
   onClose,
 }: {
-  fromSymbol: string;
-  toToken: ToToken;
+  from: TokenRef;
+  to: TokenRef;
   receive: string;
   chainId: number;
   hash: string | null;
@@ -972,11 +1016,11 @@ function SwapSuccess({
   return (
     <div className="flex flex-col items-center gap-4 py-4 text-center">
       <span className="flex h-16 w-16 items-center justify-center rounded-full border border-gold/40 bg-panel-warm">
-        <TokenLogo logo={toToken.logo} symbol={toToken.symbol} size={40} />
+        <TokenLogo logo={to.logo} symbol={to.symbol} size={40} />
       </span>
       <div>
         <p className="font-display text-lg font-semibold text-bone">
-          Swapped {fromSymbol} to {toToken.symbol}
+          Swapped {from.symbol} to {to.symbol}
         </p>
         <p className="mt-1 text-sm text-bone-mut">
           You received {receive}. Your Vault and Coffers will update as the chain

@@ -1,9 +1,10 @@
 import { requireProfile, json } from "@/lib/auth/server";
-import {
-  MIN_LIQUIDITY_USD,
-  isEvmDexChain,
-  tradeChainByDex,
-} from "@/lib/trade/config";
+import { isEvmDexChain, tradeChainByDex } from "@/lib/trade/config";
+
+/* Search casts a wider net than the discovery glass: a member who types an
+   exact ticker or address wants to find the coin even if it is thinly traded,
+   so the floor here is low (real liquidity, just not dust). */
+const SEARCH_MIN_LIQUIDITY_USD = 1_000;
 
 /* Token search for The Swap. Searches any EVM coin by name, symbol or address
    through DexScreener (keyless), EVM chains only. Solana and every non-EVM
@@ -35,7 +36,8 @@ export async function GET(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
 
-  const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
+  // Strip a leading cashtag $ so "$NAKA" searches "NAKA".
+  const q = (new URL(req.url).searchParams.get("q") ?? "").trim().replace(/^\$/, "");
   if (q.length < 2) return json({ results: [] });
 
   try {
@@ -57,7 +59,7 @@ export async function GET(req: Request) {
       const symbol = p.baseToken?.symbol;
       if (!chain || !address || !symbol) continue;
       const liq = p.liquidity?.usd ?? 0;
-      if (liq < MIN_LIQUIDITY_USD) continue;
+      if (liq < SEARCH_MIN_LIQUIDITY_USD) continue;
 
       const key = `${chain.id}:${address.toLowerCase()}`;
       const existing = best.get(key);
