@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { txExplorerUrlFor } from "@/components/wallet/chains";
+import { WatchBadge } from "@/components/tools/watch-badge";
 
 /* The realm's shared trade feed: real, on-chain buys, sells and swaps made in
    platform by members, newest first. Reads the members-only feed route; never
@@ -153,10 +154,19 @@ export function RealmTrades() {
                       {tradeLine(t)}
                     </span>
                   </p>
-                  <p className="truncate text-[11px] text-bone-faint">
-                    {t.usdValue ? `${fmtUsd(t.usdValue)} · ` : ""}
-                    {timeAgo(t.createdAt, now)} ago
-                  </p>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <p className="truncate text-[11px] text-bone-faint">
+                      {t.usdValue ? `${fmtUsd(t.usdValue)} · ` : ""}
+                      {timeAgo(t.createdAt, now)} ago
+                    </p>
+                    {t.buyContract && (
+                      <WatchBadge
+                        address={t.buyContract}
+                        chain={String(t.chainId)}
+                        linkToWatch={false}
+                      />
+                    )}
+                  </div>
                 </div>
                 {explorer && (
                   <a

@@ -55,4 +55,14 @@ export const WATCH_CHAINS: Record<
     explorer: "https://bscscan.com",
     honeypot: true,
   },
+  "137": {
+    label: "Polygon",
+    explorer: "https://polygonscan.com",
+    honeypot: false,
+  },
+  "43114": {
+    label: "Avalanche",
+    explorer: "https://snowtrace.io",
+    honeypot: false,
+  },
 };
