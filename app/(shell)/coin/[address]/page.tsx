@@ -7,7 +7,8 @@ import { BackButton } from "@/components/shell/back-button";
 import { WatchBadge } from "@/components/tools/watch-badge";
 import { TokenLogo } from "@/components/coin/token-logo";
 import { WatchStar } from "@/components/coin/watch-star";
-import { PriceChart, type ChartPoint } from "@/components/coin/price-chart";
+import { type ChartPoint } from "@/components/coin/price-chart";
+import { InteractiveChart } from "@/components/coin/interactive-chart";
 import { TradePanel } from "@/components/trade/trade-panel";
 import { RavenTake } from "@/components/trade/raven-take";
 import { TokenSafety } from "@/components/trade/token-safety";
@@ -144,6 +145,7 @@ export default function CoinPage({
     return null;
   }, [coin]);
 
+  const [scrub, setScrub] = useState<ChartPoint | null>(null);
   const up = (coin?.change24h ?? 0) >= 0;
   const watchChain = coin?.chainId ? WATCH_CHAIN[coin.chainId] : undefined;
 
@@ -217,15 +219,22 @@ export default function CoinPage({
                   Price
                 </p>
                 <p className="tnum mt-1 font-display text-2xl font-semibold text-bone">
-                  {formatPrice(coin.priceUsd)}
+                  {formatPrice(scrub ? scrub.c : coin.priceUsd)}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-                  24h
+                  {scrub ? "At point" : "24h"}
                 </p>
                 <p className="tnum mt-1 text-lg font-semibold">
-                  <ChangeText value={coin.change24h} />
+                  <ChangeText
+                    value={
+                      scrub && chart && chart.points[0]?.c
+                        ? ((scrub.c - chart.points[0].c) / chart.points[0].c) *
+                          100
+                        : coin.change24h
+                    }
+                  />
                 </p>
               </div>
             </div>
@@ -233,7 +242,11 @@ export default function CoinPage({
             <div className="mt-4">
               {chart ? (
                 <>
-                  <PriceChart points={chart.points} up={up} />
+                  <InteractiveChart
+                    points={chart.points}
+                    up={up}
+                    onScrub={setScrub}
+                  />
                   <p className="mt-2 text-[11px] text-bone-faint">
                     {chart.implied
                       ? "Implied 24h line from current price and 24h change. Full price history is not available for this pair yet."
