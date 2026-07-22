@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
+import { StreakFlame } from "@/components/shell/streak-flame";
 import { socialNav, toolsNav, accountNav, comingSoonNav } from "@/lib/nav";
 import type { NavItem } from "@/lib/nav";
 import { realmFetch } from "@/lib/auth/api";
@@ -113,12 +114,13 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
               <Icon name="user" className="h-5 w-5" />
             </div>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-bone">
               {displayName ?? (xHandle ? `@${xHandle}` : "Your Keep")}
             </p>
             <p className="truncate text-xs text-bone-faint">View your Keep</p>
           </div>
+          <StreakFlame className="shrink-0" />
         </Link>
       ) : (
         <div className="glass glass-sm mb-3 p-3">
