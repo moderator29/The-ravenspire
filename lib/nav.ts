@@ -28,6 +28,7 @@ export const toolsNav: NavItem[] = [
   { slug: "search", href: "/search", themed: "Search", plain: "Find anything", icon: "search" },
   { slug: "raven", href: "/raven", themed: "The Raven", plain: "Ask anything", icon: "raven" },
   { slug: "dna", href: "/dna", themed: "The Bloodline", plain: "Wallet & profile DNA", icon: "orb", badge: "Beta" },
+  { slug: "scanner", href: "/scanner", themed: "The Oracle", plain: "Account scanner", icon: "target", badge: "Beta" },
   { slug: "ledger", href: "/ledger", themed: "The Ledger", plain: "Portfolio", icon: "book" },
   { slug: "watch", href: "/watch", themed: "The Watch", plain: "Safety", icon: "shield", badge: "Beta" },
   { slug: "scrying", href: "/scrying", themed: "The Scrying Glass", plain: "Discover coins", icon: "eye" },
