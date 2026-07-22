@@ -127,6 +127,97 @@ export interface Portfolio {
   allocations: { chain: string; chainLabel: string; totalUsd: number }[];
 }
 
+export interface TrendPoint {
+  t: number;
+  v: number;
+}
+export interface PortfolioTrend {
+  series: TrendPoint[];
+  change7dPct: number | null;
+  change30dPct: number | null;
+  change7dUsd: number | null;
+  change30dUsd: number | null;
+}
+
+interface PortfolioV2Holding {
+  timestamp?: string;
+  close?: { quote?: number | null };
+}
+interface PortfolioV2Item {
+  holdings?: PortfolioV2Holding[];
+}
+
+async function fetchChainTrend(
+  key: string,
+  chain: LedgerChainId,
+  address: string
+): Promise<Map<number, number>> {
+  const daily = new Map<number, number>();
+  try {
+    const res = await fetch(
+      `https://api.covalenthq.com/v1/${chain}/address/${address}/portfolio_v2/?quote-currency=USD`,
+      { headers: { Authorization: authHeader(key) }, next: { revalidate: 600 } }
+    );
+    if (!res.ok) return daily;
+    const body = (await res.json()) as {
+      data?: { items?: PortfolioV2Item[] };
+    };
+    for (const it of body.data?.items ?? []) {
+      for (const h of it.holdings ?? []) {
+        if (!h.timestamp) continue;
+        const day = new Date(h.timestamp).setUTCHours(0, 0, 0, 0);
+        if (!Number.isFinite(day)) continue;
+        const q = typeof h.close?.quote === "number" ? h.close.quote : 0;
+        daily.set(day, (daily.get(day) ?? 0) + q);
+      }
+    }
+  } catch {
+    /* omit this chain */
+  }
+  return daily;
+}
+
+/* A real 30-day portfolio value trend, aggregated daily across every chain, for
+   a sparkline and 7d / 30d PnL. Value-over-time, not tax-lot cost basis. */
+export async function fetchPortfolioTrend(
+  address: string
+): Promise<PortfolioTrend | null> {
+  const key = process.env.GOLDRUSH_API_KEY;
+  if (!key) return null;
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) return null;
+
+  const perChain = await Promise.all(
+    LEDGER_CHAINS.map((c) => fetchChainTrend(key, c.id, address))
+  );
+  const total = new Map<number, number>();
+  for (const m of perChain)
+    for (const [day, v] of m) total.set(day, (total.get(day) ?? 0) + v);
+
+  const series: TrendPoint[] = [...total.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([t, v]) => ({ t, v }));
+  if (series.length < 2) return { series, change7dPct: null, change30dPct: null, change7dUsd: null, change30dUsd: null };
+
+  const last = series[series.length - 1].v;
+  const at = (daysBack: number): number | null => {
+    const idx = series.length - 1 - daysBack;
+    return idx >= 0 ? series[idx].v : series[0].v;
+  };
+  const v7 = at(7);
+  const v30 = series[0].v;
+  const pct = (from: number | null) =>
+    from && from > 0 ? ((last - from) / from) * 100 : null;
+  const usd = (from: number | null) => (from !== null ? last - from : null);
+
+  return {
+    series,
+    change7dPct: pct(v7),
+    change30dPct: pct(v30),
+    change7dUsd: usd(v7),
+    change30dUsd: usd(v30),
+  };
+}
+
 export async function fetchPortfolio(
   address: string
 ): Promise<Portfolio | null> {
