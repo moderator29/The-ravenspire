@@ -21,6 +21,7 @@ import { Tokenomics } from "@/components/landing/tokenomics";
 import { Roadmap } from "@/components/landing/roadmap";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { StatsStrip } from "@/components/landing/stats-strip";
+import { LiveRealmStats } from "@/components/landing/live-realm-stats";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { RefCapture } from "@/components/referral/ref-capture";
 
@@ -207,6 +208,8 @@ export default function Landing() {
               </Link>
             ))}
           </motion.div>
+
+          <LiveRealmStats className="mt-8" />
         </section>
 
         {/* Narrative + features */}
