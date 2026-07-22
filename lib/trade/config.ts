@@ -10,7 +10,15 @@
    (swapFeeBps + swapFeeRecipient + swapFeeToken) so it is on-chain and never
    hidden. When no recipient is configured the fee simply is not applied, so a
    missing env var can never silently misroute funds. */
-export const PLATFORM_FEE_BPS = 50; // 0.5%
+/* The platform fee in basis points, configurable in env. Basis points make it
+   precise: 50 = 0.5%, 25 = 0.25%, 5 = 0.05%. Public (not a secret) so the same
+   value drives both the on-chain fee and the fee shown in the UI. Defaults to
+   50 (0.5%) when unset or malformed; clamped to a sane 0-10% range. */
+export const PLATFORM_FEE_BPS = (() => {
+  const raw = Number(process.env.NEXT_PUBLIC_TREASURY_FEE_BPS);
+  if (Number.isFinite(raw) && raw >= 0 && raw <= 1000) return Math.round(raw);
+  return 50;
+})();
 
 /* Server-side only. Set TREASURY_FEE_EVM to the realm treasury's EVM (0x)
    address that collects the 0.5% fee on every in-app buy, sell and swap. This
