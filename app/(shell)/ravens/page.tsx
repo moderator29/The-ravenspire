@@ -8,12 +8,13 @@ import { createClient } from "@/lib/supabase/client";
 import { timeAgo } from "@/lib/social/types";
 import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
-
-interface Actor {
-  handle: string | null;
-  display_name: string | null;
-  avatar_url: string | null;
-}
+import {
+  NOTIF_KIND_ICON,
+  NOTIF_KIND_TEXT,
+  notifActorName,
+  notifHref,
+  type NotifActor,
+} from "@/lib/notification-view";
 
 interface Notif {
   id: string;
@@ -22,66 +23,13 @@ interface Notif {
   read: boolean;
   created_at: string;
   subject_id: string | null;
-  actor: Actor | null;
+  actor: NotifActor | null;
 }
 
 /* Client-side view model: `fresh` remembers a raven arrived unread this visit,
    so it keeps its glow even after the server marks the batch read. */
 interface NotifView extends Notif {
   fresh: boolean;
-}
-
-const kindIcon: Record<string, string> = {
-  like: "heart",
-  reply: "reply",
-  reraven: "repost",
-  follow: "user",
-  tip: "coin",
-  mention: "flag",
-  whisper: "mail",
-  referral: "banner",
-  raven_reply: "raven",
-  duel_answered: "swords",
-  duel_won: "crown",
-  call_verdict: "target",
-};
-
-const kindText: Record<string, string> = {
-  like: "admired your raven",
-  reply: "answered your raven",
-  reraven: "re-ravened your words",
-  follow: "now follows your banner",
-  tip: "sent you tribute",
-  mention: "called your name",
-  whisper: "sent you a whisper",
-  referral: "joined under your banner",
-  raven_reply: "the Herald has answered",
-  duel_answered: "answered your duel",
-  duel_won: "claimed victory in the duel",
-  call_verdict: "your Call has been judged",
-};
-
-function nameOf(a: Actor | null): string {
-  return a?.display_name ?? a?.handle ?? "The realm";
-}
-
-/* Where a raven carries the reader when tapped. */
-function hrefFor(n: Notif): string {
-  switch (n.kind) {
-    case "follow":
-    case "referral":
-      return n.actor?.handle ? `/u/${n.actor.handle}` : "/home";
-    case "whisper":
-      return "/whispers";
-    case "tip":
-      return n.subject_id
-        ? `/post/${n.subject_id}`
-        : n.actor?.handle
-          ? `/u/${n.actor.handle}`
-          : "/home";
-    default:
-      return n.subject_id ? `/post/${n.subject_id}` : "/home";
-  }
 }
 
 export default function RavensPage() {
@@ -206,7 +154,7 @@ export default function RavensPage() {
           items.map((n) => (
             <Link
               key={n.id}
-              href={hrefFor(n)}
+              href={notifHref(n)}
               className={`glass glass-sm glass-hover relative flex items-start gap-3 p-3.5 transition ${
                 n.fresh
                   ? "border-gold/30 bg-gold/[0.04]"
@@ -228,12 +176,12 @@ export default function RavensPage() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    nameOf(n.actor).slice(0, 1).toUpperCase()
+                    notifActorName(n.actor).slice(0, 1).toUpperCase()
                   )}
                 </span>
                 <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-steel-line bg-obsidian text-gold">
                   <Icon
-                    name={kindIcon[n.kind] ?? "bell"}
+                    name={NOTIF_KIND_ICON[n.kind] ?? "bell"}
                     className="h-3 w-3"
                   />
                 </span>
@@ -241,9 +189,11 @@ export default function RavensPage() {
 
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-bone">
-                  <span className="font-semibold">{nameOf(n.actor)}</span>{" "}
+                  <span className="font-semibold">
+                    {notifActorName(n.actor)}
+                  </span>{" "}
                   <span className="text-bone-mut">
-                    {kindText[n.kind] ?? n.kind}
+                    {NOTIF_KIND_TEXT[n.kind] ?? n.kind}
                   </span>
                 </p>
                 {n.body && (

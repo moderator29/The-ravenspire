@@ -1,7 +1,28 @@
 import "server-only";
 import type { adminClient } from "@/lib/supabase/admin";
+import { kindAllowedBySettings } from "@/lib/notification-prefs";
 
 type Db = NonNullable<ReturnType<typeof adminClient>>;
+
+/* Read the recipient's per-type notification toggles and decide whether a raven
+   of this kind may be filed. Any read failure defaults to allowing the notice:
+   a member should never miss a raven because a settings lookup hiccuped. */
+async function kindAllowedForMember(
+  db: Db,
+  profileId: string,
+  kind: string
+): Promise<boolean> {
+  try {
+    const { data } = await db
+      .from("profiles")
+      .select("settings")
+      .eq("id", profileId)
+      .maybeSingle();
+    return kindAllowedBySettings(data?.settings, kind);
+  } catch {
+    return true;
+  }
+}
 
 /* The realm's notification kinds. Kept as a loose string on the wire so a new
    event can ship without a migration, but named here so callers stay honest. */
@@ -75,6 +96,8 @@ export async function createNotification(
   const { profile_id, kind, actor_id = null, body = null, ref = null } = input;
   if (!profile_id) return;
   if (actor_id && actor_id === profile_id) return;
+  /* Honor the member's per-type toggles before writing anything. */
+  if (!(await kindAllowedForMember(db, profile_id, kind))) return;
   try {
     const { error } = await db.from("notifications").insert({
       profile_id,
