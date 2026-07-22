@@ -10,6 +10,7 @@ import { realmFetch } from "@/lib/auth/api";
 import { useVaultPrefs } from "@/components/wallet/wallet-prefs";
 import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
 import { TokenLogo } from "@/components/wallet/token-logo";
+import { WatchBadge } from "@/components/tools/watch-badge";
 import { txExplorerUrlFor, shortAddress } from "@/components/wallet/chains";
 import {
   NATIVE_TOKEN_SENTINEL,
@@ -540,10 +541,17 @@ export default function SwapPage() {
           </span>
         </div>
         <div className="mt-1 flex items-center justify-between text-xs text-bone-faint">
-          <span>
+          <span className="flex items-center gap-1.5">
             {toHeld
               ? `Balance ${Number(toHeld.balanceDisplay).toLocaleString("en-US", { maximumFractionDigits: 4 })}`
               : chain?.name}
+            {to.address && (
+              <WatchBadge
+                address={to.address}
+                chain={String(to.chainId)}
+                linkToWatch={false}
+              />
+            )}
           </span>
           {receiveUsd !== null && <span className="tnum">{fmtUsd(receiveUsd)}</span>}
         </div>
