@@ -80,6 +80,7 @@ interface DexPair {
   priceUsd?: string;
   priceChange?: { m5?: number; h1?: number; h6?: number; h24?: number };
   volume?: { h24?: number };
+  txns?: { h24?: { buys?: number; sells?: number } };
   liquidity?: { usd?: number };
   marketCap?: number;
   fdv?: number;
@@ -102,6 +103,7 @@ export interface CoinData {
   change24h: number | null;
   change: { m5: number | null; h1: number | null; h6: number | null; h24: number | null };
   volume24h: number | null;
+  txns24h: { buys: number; sells: number } | null;
   liquidityUsd: number | null;
   marketCap: number | null;
   marketCapIsFdv: boolean;
@@ -276,6 +278,14 @@ export async function GET(req: Request) {
       h24: pair.priceChange?.h24 ?? null,
     },
     volume24h: pair.volume?.h24 ?? null,
+    txns24h:
+      typeof pair.txns?.h24?.buys === "number" ||
+      typeof pair.txns?.h24?.sells === "number"
+        ? {
+            buys: pair.txns?.h24?.buys ?? 0,
+            sells: pair.txns?.h24?.sells ?? 0,
+          }
+        : null,
     liquidityUsd: pair.liquidity?.usd ?? null,
     marketCap: hasRealMcap ? (pair.marketCap as number) : (pair.fdv ?? null),
     marketCapIsFdv: !hasRealMcap && typeof pair.fdv === "number",
