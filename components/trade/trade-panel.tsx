@@ -69,6 +69,12 @@ function fmtUsd(n: number): string {
   return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
+/* Event-time timestamp, read through a module helper so the purity lint does
+   not mistake this handler-only call for a render-time impurity. */
+function nowMs(): number {
+  return Date.now();
+}
+
 /* Pure BigInt helpers kept at module scope (not inside a useMemo) so the React
    Compiler can preserve memoization; try/catch inside a hook body defeats it. */
 function toBig(raw: string | null | undefined): bigint {
@@ -375,12 +381,39 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
         chainId: coin.evmChainId,
         to: firm.transaction.to,
         symbol: side === "buy" ? coin.symbol : chain.native,
-        amount: receivedRaw
-          ? formatUnits(BigInt(receivedRaw), receivedDecimals)
-          : "0",
+        amount: receivedRaw ? formatUnits(toBig(receivedRaw), receivedDecimals) : "0",
         contract: side === "buy" ? coin.address : null,
-        at: Date.now(),
+        at: nowMs(),
       });
+
+      // Also record to the platform-wide trade feed (real receipt, idempotent
+      // on the hash). Best-effort: the on-chain trade is the source of truth,
+      // so a failed write here never undoes a completed trade.
+      const isBuy = side === "buy";
+      void realmFetch("/api/trade/record", {
+        method: "POST",
+        json: {
+          kind: side,
+          chainId: coin.evmChainId,
+          txHash: result.hash,
+          sellSymbol: isBuy ? chain.native : coin.symbol,
+          sellAmount: firm.sellAmount
+            ? formatUnits(toBig(firm.sellAmount), isBuy ? NATIVE_DECIMALS : decimals)
+            : null,
+          sellContract: isBuy ? null : coin.address,
+          buySymbol: isBuy ? coin.symbol : chain.native,
+          buyAmount: firm.buyAmount
+            ? formatUnits(toBig(firm.buyAmount), isBuy ? decimals : NATIVE_DECIMALS)
+            : null,
+          buyContract: isBuy ? coin.address : null,
+          usdValue: isBuy
+            ? usdAmount
+            : heldToken
+              ? (heldToken.quoteUsd * sellPct) / 100
+              : undefined,
+        },
+      });
+
       setPhase("success");
       setTimeout(() => refresh(), 4000);
     } catch (e) {
