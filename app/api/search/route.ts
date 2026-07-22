@@ -21,6 +21,9 @@ export async function GET(req: Request) {
   if (q.length < 2) return json({ users: [], posts: [], cashtags: [] });
 
   const like = `%${escapeLike(q)}%`;
+  // For the .or() filter string, also drop characters that would break
+  // PostgREST's filter grammar (commas and parentheses split the expression).
+  const orLike = `%${escapeLike(q).replace(/[,()]/g, "")}%`;
   const bare = q.replace(/^\$/, "").toLowerCase();
 
   const [usersRes, postsRes, cashtagRes] = await Promise.all([
@@ -30,7 +33,7 @@ export async function GET(req: Request) {
       .eq("is_banned", false)
       .eq("onboarded", true)
       .not("handle", "is", null)
-      .or(`handle.ilike.${like},display_name.ilike.${like}`)
+      .or(`handle.ilike.${orLike},display_name.ilike.${orLike}`)
       .limit(8),
     db
       .from("posts")
@@ -38,6 +41,7 @@ export async function GET(req: Request) {
         "id, body, created_at, cashtags, author:profiles!posts_author_id_fkey (handle, display_name, avatar_url, is_verified)"
       )
       .ilike("body", like)
+      .eq("deleted", false)
       .or("visibility.eq.public,visibility.is.null")
       .order("created_at", { ascending: false })
       .limit(8),
@@ -45,7 +49,9 @@ export async function GET(req: Request) {
       ? db
           .from("posts")
           .select("id", { count: "exact", head: true })
-          .contains("cashtags", [bare])
+          .eq("deleted", false)
+          // Cashtags are stored uppercase (see the posts route), so match upper.
+          .contains("cashtags", [bare.toUpperCase()])
       : Promise.resolve({ count: 0 }),
   ]);
 

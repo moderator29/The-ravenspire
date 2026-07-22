@@ -81,6 +81,7 @@ export async function POST(req: Request) {
     .from("posts")
     .select("body, cashtags, like_count, reply_count, repost_count, view_count, created_at")
     .eq("author_id", profile.id)
+    .eq("deleted", false)
     .order("created_at", { ascending: false })
     .limit(30);
 
