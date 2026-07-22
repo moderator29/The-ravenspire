@@ -341,11 +341,35 @@ export default function SwapPage() {
         to: firm.transaction.to,
         symbol: toToken.symbol,
         amount: firm.buyAmount
-          ? formatUnits(BigInt(firm.buyAmount), toToken.decimals ?? 18)
+          ? formatUnits(toBig(firm.buyAmount), toToken.decimals ?? 18)
           : "0",
         contract: toToken.address,
         at: Date.now(),
       });
+
+      // Record to the platform-wide trade feed (idempotent on the hash).
+      const usd =
+        fromToken.priceUsd && sellRaw > 0n
+          ? Number(formatUnits(sellRaw, fromToken.decimals)) * fromToken.priceUsd
+          : undefined;
+      void realmFetch("/api/trade/record", {
+        method: "POST",
+        json: {
+          kind: "swap",
+          chainId: fromToken.chainId,
+          txHash: result.hash,
+          sellSymbol: fromToken.symbol,
+          sellAmount: amount,
+          sellContract: fromToken.isNative ? null : fromToken.contract,
+          buySymbol: toToken.symbol,
+          buyAmount: firm.buyAmount
+            ? formatUnits(toBig(firm.buyAmount), toToken.decimals ?? 18)
+            : null,
+          buyContract: toToken.address,
+          usdValue: usd,
+        },
+      });
+
       setPhase("success");
       setTimeout(() => refresh(), 4000);
     } catch (e) {

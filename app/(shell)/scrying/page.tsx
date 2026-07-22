@@ -7,6 +7,7 @@ import { WatchBadge } from "@/components/tools/watch-badge";
 import { BackButton } from "@/components/shell/back-button";
 import { TokenLogo } from "@/components/coin/token-logo";
 import { WatchStar } from "@/components/coin/watch-star";
+import { RealmTrades } from "@/components/trade/realm-trades";
 
 interface TrendingToken {
   symbol: string;
@@ -265,6 +266,8 @@ export default function ScryingPage() {
           })
         )}
       </div>
+
+      <RealmTrades />
 
       <section className="mt-8">
         <div className="flex items-center gap-2">
