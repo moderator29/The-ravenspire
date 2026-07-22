@@ -10,6 +10,7 @@ import { WatchStar } from "@/components/coin/watch-star";
 import { PriceChart, type ChartPoint } from "@/components/coin/price-chart";
 import { TradePanel } from "@/components/trade/trade-panel";
 import { RavenTake } from "@/components/trade/raven-take";
+import { TokenSafety } from "@/components/trade/token-safety";
 
 interface CoinData {
   address: string;
@@ -292,6 +293,11 @@ export default function CoinPage({
 
           {/* Risk banner: honest, real signals only. */}
           <RiskBanner liquidityUsd={coin.liquidityUsd} ageDays={ageDays} />
+
+          {/* Real GoPlus token-security scan (honeypot, tax, blacklist, etc.). */}
+          {coin.evmChainId !== null && (
+            <TokenSafety chainId={coin.evmChainId} address={coin.address} />
+          )}
 
           {/* The Raven's read on this coin (real AI over real figures). */}
           <RavenTake
