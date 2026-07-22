@@ -37,7 +37,9 @@ export type NotificationKind =
   | "raven_reply"
   | "duel_answered"
   | "duel_won"
-  | "call_verdict";
+  | "call_verdict"
+  | "follow_trade"
+  | "follow_call";
 
 export interface CreateNotificationInput {
   /* Who receives the raven. */
@@ -108,6 +110,42 @@ export async function createNotification(
     });
     if (error) return;
     await broadcastToMember(profile_id);
+  } catch {
+    /* best effort */
+  }
+}
+
+/* Fan a raven out to everyone who follows `actorId`: used for follow alerts
+   when a member you follow makes a trade or seals a Call. Each recipient's
+   per-type toggle is honored (createNotification checks it), and the actor is
+   never notified about their own action. Capped so a very-followed member does
+   not fan out unbounded. Best effort throughout. */
+export async function notifyFollowers(
+  db: Db,
+  opts: {
+    actorId: string;
+    kind: NotificationKind | (string & {});
+    body?: string | null;
+    ref?: string | null;
+  }
+): Promise<void> {
+  try {
+    const { data } = await db
+      .from("follows")
+      .select("follower_id")
+      .eq("followed_id", opts.actorId)
+      .limit(1000);
+    for (const row of data ?? []) {
+      const recipient = row.follower_id as string;
+      if (!recipient || recipient === opts.actorId) continue;
+      await createNotification(db, {
+        profile_id: recipient,
+        kind: opts.kind,
+        actor_id: opts.actorId,
+        body: opts.body ?? null,
+        ref: opts.ref ?? null,
+      });
+    }
   } catch {
     /* best effort */
   }

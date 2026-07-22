@@ -3,7 +3,7 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { maybeRavenReplyToPost } from "@/lib/ai/mention";
-import { notifyMentions } from "@/lib/notifications";
+import { notifyMentions, notifyFollowers } from "@/lib/notifications";
 import { lookupToken } from "@/lib/data/tokens";
 
 export async function POST(req: Request) {
@@ -182,6 +182,18 @@ export async function POST(req: Request) {
       ref: post.id,
       body: text.slice(0, 140),
     });
+    /* Follow alert: a Call from someone you follow. */
+    if (kind === "call" && body.call?.token && body.call.stance) {
+      const tf = ["24h", "7d", "30d"].includes(body.call.timeframe ?? "")
+        ? body.call.timeframe
+        : "the window";
+      await notifyFollowers(db, {
+        actorId: profile.id,
+        kind: "follow_call",
+        body: `called $${body.call.token.toUpperCase()} ${body.call.stance} over ${tf}`,
+        ref: post.id,
+      });
+    }
   });
 
   return json({ ok: true, id: post.id, post });

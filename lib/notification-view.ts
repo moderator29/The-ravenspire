@@ -28,6 +28,8 @@ export const NOTIF_KIND_ICON: Record<string, string> = {
   duel_answered: "swords",
   duel_won: "crown",
   call_verdict: "target",
+  follow_trade: "coin",
+  follow_call: "target",
   house: "banner",
   announcement: "bell",
 };
@@ -46,6 +48,8 @@ export const NOTIF_KIND_TEXT: Record<string, string> = {
   duel_answered: "answered your duel",
   duel_won: "claimed victory in the duel",
   call_verdict: "your Call has been judged",
+  follow_trade: "made a move in the markets",
+  follow_call: "sealed a new Call",
   house: "word from your banner",
   announcement: "a proclamation for the realm",
 };
@@ -62,6 +66,13 @@ export function notifHref(n: NotifLike): string {
       return n.actor?.handle ? `/u/${n.actor.handle}` : "/home";
     case "whisper":
       return "/whispers";
+    case "follow_trade":
+      // subject_id carries the traded coin's contract address.
+      return n.subject_id
+        ? `/coin/${n.subject_id}`
+        : n.actor?.handle
+          ? `/u/${n.actor.handle}`
+          : "/home";
     case "tip":
       return n.subject_id
         ? `/post/${n.subject_id}`

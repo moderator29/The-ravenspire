@@ -1,6 +1,7 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { tradeChainById } from "@/lib/trade/config";
+import { notifyFollowers } from "@/lib/notifications";
 
 /* The platform-wide trade feed. After a member's own wallet confirms an in-app
    buy, sell or swap (the on-chain transfer is the source of truth), the client
@@ -168,6 +169,27 @@ export async function POST(req: Request) {
     if (raced) return json({ ok: true, trade: raced.id, deduped: true });
     return json({ error: "Could not record the trade" }, 500);
   }
+
+  // Follow alert: tell the trader's followers about the move. The coin contract
+  // rides in ref so the raven opens the right coin page.
+  const buySym = cleanSymbol(body?.buySymbol);
+  const sellSym = cleanSymbol(body?.sellSymbol);
+  const buyAmt = cleanAmount(body?.buyAmount);
+  const sellAmt = cleanAmount(body?.sellAmount);
+  const alertBody =
+    kind === "buy"
+      ? `bought ${buyAmt ? `${buyAmt} ` : ""}${buySym ?? "a coin"}`
+      : kind === "sell"
+        ? `sold ${sellAmt ? `${sellAmt} ` : ""}${sellSym ?? "a coin"}`
+        : `swapped ${sellSym ?? "a coin"} for ${buySym ?? "a coin"}`;
+  const coinRef =
+    kind === "sell" ? cleanContract(body?.sellContract) : cleanContract(body?.buyContract);
+  await notifyFollowers(db, {
+    actorId: profile.id,
+    kind: "follow_trade",
+    body: alertBody,
+    ref: coinRef,
+  });
 
   return json({ ok: true, trade: trade.id });
 }
