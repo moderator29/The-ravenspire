@@ -25,6 +25,12 @@ interface Prefs {
   discoverable: boolean;
   notifyMentions: boolean;
   notifyReplies: boolean;
+  notifyLikes: boolean;
+  notifyReposts: boolean;
+  notifyFollows: boolean;
+  notifyTips: boolean;
+  notifyWhispers: boolean;
+  notifyCalls: boolean;
   notifyDuels: boolean;
   notifyHouse: boolean;
   notifyAnnouncements: boolean;
@@ -42,6 +48,12 @@ const DEFAULT_PREFS: Prefs = {
   discoverable: true,
   notifyMentions: true,
   notifyReplies: true,
+  notifyLikes: true,
+  notifyReposts: true,
+  notifyFollows: true,
+  notifyTips: true,
+  notifyWhispers: true,
+  notifyCalls: true,
   notifyDuels: true,
   notifyHouse: true,
   notifyAnnouncements: true,
@@ -61,6 +73,12 @@ const PREF_MAP: Record<
   discoverable: { bucket: "privacy", key: "discoverable" },
   notifyMentions: { bucket: "notifications", key: "mentions" },
   notifyReplies: { bucket: "notifications", key: "replies" },
+  notifyLikes: { bucket: "notifications", key: "likes" },
+  notifyReposts: { bucket: "notifications", key: "reposts" },
+  notifyFollows: { bucket: "notifications", key: "follows" },
+  notifyTips: { bucket: "notifications", key: "tips" },
+  notifyWhispers: { bucket: "notifications", key: "whispers" },
+  notifyCalls: { bucket: "notifications", key: "calls" },
   notifyDuels: { bucket: "notifications", key: "duels" },
   notifyHouse: { bucket: "notifications", key: "house" },
   notifyAnnouncements: { bucket: "notifications", key: "announcements" },
@@ -349,6 +367,54 @@ export default function SettingsPage() {
                   onChange={setPref("notifyReplies")}
                   disabled={toggleDisabled}
                   label="Reply notifications"
+                />
+              </Row>
+              <Row title="Admiration" desc="When someone likes your raven">
+                <Toggle
+                  on={prefs.notifyLikes}
+                  onChange={setPref("notifyLikes")}
+                  disabled={toggleDisabled}
+                  label="Like notifications"
+                />
+              </Row>
+              <Row title="Re-ravens" desc="When your words are shared onward">
+                <Toggle
+                  on={prefs.notifyReposts}
+                  onChange={setPref("notifyReposts")}
+                  disabled={toggleDisabled}
+                  label="Repost notifications"
+                />
+              </Row>
+              <Row title="New bannermen" desc="When someone follows you">
+                <Toggle
+                  on={prefs.notifyFollows}
+                  onChange={setPref("notifyFollows")}
+                  disabled={toggleDisabled}
+                  label="Follow notifications"
+                />
+              </Row>
+              <Row title="Tribute" desc="When you receive a tip">
+                <Toggle
+                  on={prefs.notifyTips}
+                  onChange={setPref("notifyTips")}
+                  disabled={toggleDisabled}
+                  label="Tip notifications"
+                />
+              </Row>
+              <Row title="Whispers" desc="New direct messages">
+                <Toggle
+                  on={prefs.notifyWhispers}
+                  onChange={setPref("notifyWhispers")}
+                  disabled={toggleDisabled}
+                  label="Whisper notifications"
+                />
+              </Row>
+              <Row title="Call verdicts" desc="When your Call is judged">
+                <Toggle
+                  on={prefs.notifyCalls}
+                  onChange={setPref("notifyCalls")}
+                  disabled={toggleDisabled}
+                  label="Call verdict notifications"
                 />
               </Row>
               <Row title="Duels" desc="Challenges and verdicts">

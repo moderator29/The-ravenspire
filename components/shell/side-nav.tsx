@@ -9,6 +9,7 @@ import { socialNav, toolsNav, accountNav, comingSoonNav } from "@/lib/nav";
 import type { NavItem } from "@/lib/nav";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { NotifBadge } from "@/components/notifications/notif-badge";
 
 function NavGroup({
   label,
@@ -40,6 +41,7 @@ function NavGroup({
           >
             <Icon name={item.icon} className="h-[17px] w-[17px] shrink-0" />
             <span className="truncate font-medium">{item.themed}</span>
+            {item.slug === "ravens" && <NotifBadge className="ml-auto" />}
             {item.badge && (
               <span className="shrink-0 rounded-full border border-gold/30 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-gold/80">
                 {item.badge}

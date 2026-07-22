@@ -334,6 +334,21 @@ body {
   animation: ember-rise linear infinite;
 }
 
+/* In-app raven toast: a quiet slide-and-settle as it arrives. */
+@keyframes notif-toast-in {
+  0% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.notif-toast {
+  animation: notif-toast-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 ::selection {
   background: rgba(200, 162, 76, 0.32);
   color: var(--bone);

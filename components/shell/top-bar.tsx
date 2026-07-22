@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { SideNav } from "@/components/shell/side-nav";
+import { NotifDot } from "@/components/notifications/notif-badge";
 
 /* Mobile-only top bar: drawer trigger, centered brand, and whispers. Ravens
    (notifications) and the vault now live in the side nav and bottom nav, so
@@ -29,13 +30,23 @@ export function TopBar() {
         >
           <RavenMark className="h-8 w-8" />
         </Link>
-        <Link
-          href="/whispers"
-          aria-label="Whispers"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-bone-mut"
-        >
-          <Icon name="mail" className="h-5 w-5" />
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link
+            href="/ravens"
+            aria-label="Ravens"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-bone-mut"
+          >
+            <Icon name="bell" className="h-5 w-5" />
+            <NotifDot className="absolute right-1.5 top-1.5" />
+          </Link>
+          <Link
+            href="/whispers"
+            aria-label="Whispers"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-bone-mut"
+          >
+            <Icon name="mail" className="h-5 w-5" />
+          </Link>
+        </div>
       </header>
 
       {open && (
