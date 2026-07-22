@@ -10,6 +10,27 @@ export async function GET(req: Request) {
   if (isResponse(ctx)) return ctx;
   const { db } = ctx;
 
+  /* Settlement view: the frozen standings for one settled season. */
+  const settlementId = new URL(req.url).searchParams.get("settlement");
+  if (settlementId) {
+    const sid = Number(settlementId);
+    if (!Number.isFinite(sid)) return json({ error: "bad_request" }, 400);
+    const { data: rows, error: sErr } = await db
+      .from("season_settlements")
+      .select(
+        "rank, points, renown, glory, settled_at, member:profiles!season_settlements_profile_id_fkey (handle, display_name, avatar_url)"
+      )
+      .eq("season_id", sid)
+      .order("rank", { ascending: true })
+      .limit(200);
+    if (sErr) return json({ error: "query_failed" }, 500);
+    const totalPoints = (rows ?? []).reduce(
+      (sum, r) => sum + ((r.points as number) ?? 0),
+      0
+    );
+    return json({ settlement: rows ?? [], totalPoints, count: (rows ?? []).length });
+  }
+
   const { data, error } = await db
     .from("seasons")
     .select(SEASON_SELECT)
@@ -125,6 +146,66 @@ export async function POST(req: Request) {
       payload: patch,
     });
     return json({ ok: true, season: updated });
+  }
+
+  if (action === "settle") {
+    // Freeze the season's final standings into points. Keep it entirely in
+    // points; no $RSP is computed or surfaced. Idempotent per member via the
+    // (season_id, profile_id) unique key.
+    const { data: season } = await db
+      .from("seasons")
+      .select("id, status")
+      .eq("id", id)
+      .maybeSingle();
+    if (!season) return json({ error: "not_found" }, 404);
+
+    const { data: members, error: mErr } = await db
+      .from("profiles")
+      .select("id, points, renown, glory")
+      .eq("is_banned", false)
+      .eq("is_agent", false)
+      .eq("onboarded", true)
+      .order("points", { ascending: false })
+      .order("renown", { ascending: false })
+      .limit(5000);
+    if (mErr) return json({ error: "query_failed" }, 500);
+
+    const rows = (members ?? []).map((m, i) => ({
+      season_id: id,
+      profile_id: m.id as string,
+      points: Math.max(0, Math.trunc((m.points as number) ?? 0)),
+      renown: Math.max(0, Math.trunc((m.renown as number) ?? 0)),
+      glory: Math.max(0, Math.trunc((m.glory as number) ?? 0)),
+      rank: i + 1,
+    }));
+
+    if (rows.length > 0) {
+      const { error: upErr } = await db
+        .from("season_settlements")
+        .upsert(rows, { onConflict: "season_id,profile_id" });
+      if (upErr) return json({ error: "settle_failed" }, 500);
+    }
+
+    const { data: updated, error: stErr } = await db
+      .from("seasons")
+      .update({ status: "settled" })
+      .eq("id", id)
+      .select(SEASON_SELECT)
+      .maybeSingle();
+    if (stErr) return json({ error: "update_failed" }, 500);
+
+    const totalPoints = rows.reduce((sum, r) => sum + r.points, 0);
+    await logAdminAction(db, profile.id, "season_settle", {
+      targetType: "season",
+      targetId: id,
+      payload: { members: rows.length, totalPoints },
+    });
+    return json({
+      ok: true,
+      season: updated,
+      settled: rows.length,
+      totalPoints,
+    });
   }
 
   if (action === "activate" || action === "close") {

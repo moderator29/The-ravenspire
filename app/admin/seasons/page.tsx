@@ -13,6 +13,18 @@ interface SeasonRow {
   vault_raven: number;
 }
 
+interface SettlementRow {
+  rank: number;
+  points: number;
+  renown: number;
+  glory: number;
+  member: {
+    handle: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
 function toDateInput(iso: string | null): string {
   if (!iso) return "";
   return new Date(iso).toISOString().slice(0, 10);
@@ -26,6 +38,11 @@ export default function AdminSeasonsPage() {
   const [busyId, setBusyId] = useState<number | "new" | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [settlementForId, setSettlementForId] = useState<number | null>(null);
+  const [settlementRows, setSettlementRows] = useState<SettlementRow[] | null>(
+    null
+  );
+  const [settlementTotal, setSettlementTotal] = useState(0);
 
   const [newName, setNewName] = useState("");
   const [newStart, setNewStart] = useState("");
@@ -142,6 +159,44 @@ export default function AdminSeasonsPage() {
     );
     if (res.ok && res.data?.ok && res.data.season) applyUpdated(res.data.season);
     else setNote("The decree did not take. Try again.");
+    setBusyId(null);
+  }
+
+  async function viewSettlement(id: number) {
+    setSettlementForId(id);
+    setSettlementRows(null);
+    const res = await realmFetch<{
+      settlement?: SettlementRow[];
+      totalPoints?: number;
+    }>(`/api/admin/seasons?settlement=${id}`);
+    setSettlementRows(res.data?.settlement ?? []);
+    setSettlementTotal(res.data?.totalPoints ?? 0);
+  }
+
+  async function settleSeason(id: number) {
+    if (
+      !window.confirm(
+        "Settle this season? Every member's final Points, Renown and Glory are frozen into the settlement ledger (kept in points). This can be re-run to refresh the snapshot."
+      )
+    )
+      return;
+    setBusyId(id);
+    setNote(null);
+    const res = await realmFetch<{
+      ok?: boolean;
+      season?: SeasonRow;
+      settled?: number;
+      totalPoints?: number;
+    }>("/api/admin/seasons", { method: "POST", json: { action: "settle", id } });
+    if (res.ok && res.data?.ok) {
+      if (res.data.season) applyUpdated(res.data.season);
+      setNote(
+        `Season settled: ${res.data.settled ?? 0} members, ${(res.data.totalPoints ?? 0).toLocaleString()} points frozen.`
+      );
+      await viewSettlement(id);
+    } else {
+      setNote("The settlement did not take. Try again.");
+    }
     setBusyId(null);
   }
 
@@ -291,12 +346,29 @@ export default function AdminSeasonsPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={busyId === s.id || s.status === "closed"}
+                  disabled={busyId === s.id || s.status === "closed" || s.status === "settled"}
                   onClick={() => void setSeasonStatus(s.id, "close")}
                   className="btn-glass px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Close
                 </button>
+                <button
+                  type="button"
+                  disabled={busyId === s.id}
+                  onClick={() => void settleSeason(s.id)}
+                  className="btn-gold px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {s.status === "settled" ? "Re-settle" : "Settle"}
+                </button>
+                {s.status === "settled" && (
+                  <button
+                    type="button"
+                    onClick={() => void viewSettlement(s.id)}
+                    className="btn-glass px-3 py-1.5 text-xs"
+                  >
+                    View settlement
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-glass px-3 py-1.5 text-xs"
@@ -305,6 +377,61 @@ export default function AdminSeasonsPage() {
                   {open ? "Close editor" : "Edit"}
                 </button>
               </div>
+
+              {settlementForId === s.id && (
+                <div className="mt-4 border-t border-steel-line pt-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
+                      Settlement (points)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSettlementForId(null)}
+                      className="text-[11px] text-bone-faint hover:text-bone-mut"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  {settlementRows === null ? (
+                    <p className="mt-2 text-xs text-bone-faint">
+                      Reading the ledger...
+                    </p>
+                  ) : settlementRows.length === 0 ? (
+                    <p className="mt-2 text-xs text-bone-mut">
+                      No standings were frozen for this season.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="mt-1 text-[11px] text-bone-faint">
+                        {settlementRows.length} members,{" "}
+                        {settlementTotal.toLocaleString()} points frozen. Kept in
+                        points; $RSP conversion comes later.
+                      </p>
+                      <div className="mt-2 flex flex-col gap-1">
+                        {settlementRows.slice(0, 25).map((r) => (
+                          <div
+                            key={r.rank}
+                            className="flex items-center gap-2 rounded-lg bg-panel/50 px-2.5 py-1.5"
+                          >
+                            <span className="tnum w-6 shrink-0 text-xs text-bone-faint">
+                              {r.rank}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-xs text-bone">
+                              {r.member?.display_name ??
+                                (r.member?.handle
+                                  ? `@${r.member.handle}`
+                                  : "A member")}
+                            </span>
+                            <span className="tnum shrink-0 gold-text text-xs font-semibold">
+                              {r.points.toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {open && (
                 <div className="mt-4 grid grid-cols-1 gap-3 border-t border-steel-line pt-4 sm:grid-cols-2">
