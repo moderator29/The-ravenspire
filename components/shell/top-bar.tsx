@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { SideNav } from "@/components/shell/side-nav";
 import { NotifDot } from "@/components/notifications/notif-badge";
+import { StreakFlame } from "@/components/shell/streak-flame";
 
 /* Mobile-only top bar: drawer trigger, centered brand, and whispers. Ravens
    (notifications) and the vault now live in the side nav and bottom nav, so
@@ -30,7 +31,8 @@ export function TopBar() {
         >
           <RavenMark className="h-8 w-8" />
         </Link>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
+          <StreakFlame />
           <Link
             href="/ravens"
             aria-label="Ravens"
