@@ -6,8 +6,9 @@ the features to build next (the in-app Scrying trading + Swap, fully specced
 from the founder's reference images), and the live bug list with what is done
 and what remains.
 
-Live site: ravenspire.vercel.app (production tracks `main`). Work on branch
-`claude/clean-repo-setup-9erdzt`, open a PR to `main`, merge to ship.
+Live site: ravenspire.vercel.app (production tracks `main`). Open a PR to
+`main` and merge to ship. (The Scrying/Swap session worked on branch
+`claude/scrying-trading-swap-wbq9p3`; use a fresh branch per chunk of work.)
 
 ---
 
@@ -73,7 +74,41 @@ Rewards 10, Ecosystem & CEX Growth 18, Airdrop 5. Chain: Ethereum.
 
 ---
 
-## 4. NEXT BUILD: The Scrying Glass in-app trading + The Swap
+## 4. The Scrying Glass in-app trading + The Swap
+
+STATUS: the core shipped to production in PRs #39 and #40. What landed:
+- Scrying Glass is EVM only (Solana and non-EVM dropped), with min liquidity
+  ~$10k and min market cap ~$40k floors, top coins ranked by 24h volume, drop
+  counts logged. Beta badge. Constants centralized in `lib/trade/config.ts`.
+- 0x Swap API server integration in `lib/trade/zerox.ts` (allowance-holder v2,
+  0.5% fee via 0x swapFee params, honest degrade when the key is absent) and a
+  members-only `POST /api/trade/quote` (price + firm-quote modes).
+- Coin page (`/coin/[address]`) trading panel (BETA): Buy with $10/$25/$50/$100
+  presets or custom USD, Sell by 25/50/Max percent, live 0x quote, you-receive,
+  minimum received, explicit 0.5% fee and network fee, gold action, preview +
+  success, Privy signs (native buy direct, ERC-20 sell approves then swaps),
+  writes to Vault history + refreshes balances, unverified/rug-risk banner, a
+  per-coin Raven take (real LLM over real figures), MoonPay "Top up with card"
+  (`/api/trade/onramp`). `/api/coin` now returns decimals, EVM chain id, age.
+- The Swap page (`/swap`, BETA): from a live holding into any EVM coin, search
+  via `/api/trade/tokens` (EVM only, ranked by liquidity), live quote with
+  price impact, cross-chain guidance, preview + success. Added to Tools nav
+  beside the Scrying Glass and linked from the glass.
+
+REMAINING on this feature (not yet built):
+- Platform-wide transaction feed: trades currently write to the per-wallet Vault
+  history (localStorage, real) and refresh live balances. A shared on-platform
+  transaction feed (Supabase table) is NOT yet wired; add a `trades` table and
+  record buys/sells/swaps server-side to surface them platform-wide.
+- Vercel env to go live: set `ZEROX_API_KEY` (founder has it), and optionally
+  `PLATFORM_FEE_RECIPIENT` (treasury 0x for the 0.5% fee; absent = no fee taken)
+  and `NEXT_PUBLIC_MOONPAY_KEY` / `MOONPAY_SECRET_KEY` for card top-up. Until
+  the 0x key is set, the panels show an honest BETA "warming up" state.
+- "Alert me when they buy" (follow buy/sell alerts) needs wallet-activity
+  indexing; see 4b item 3. Limit/DCA tabs are not built (stub as coming soon).
+
+### Original spec (for reference)
+### NEXT BUILD: The Scrying Glass in-app trading + The Swap
 
 The founder wants members to buy, sell and swap EVM coins inside the platform,
 non-custodially, with a 0.5% platform fee, using the 0x Swap API (API key is
