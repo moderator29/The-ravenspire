@@ -22,7 +22,7 @@ function PollBlock({ post }: { post: Post }) {
 
   const vote = async (i: number) => {
     if (!authenticated) {
-      window.location.href = "/signin";
+      window.location.assign("/signin");
       return;
     }
     if (voted) return;
@@ -279,7 +279,8 @@ export function PostCard({ post }: { post: Post }) {
           <Avatar author={a} size={40} />
         </Link>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 text-sm">
+          <div className="flex items-start gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 text-sm">
             <Link
               href={a.handle ? `/u/${a.handle}` : "#"}
               className="font-semibold text-bone hover:underline"
@@ -298,7 +299,8 @@ export function PostCard({ post }: { post: Post }) {
             <span className="text-xs text-bone-faint">
               {timeAgo(post.created_at)}
             </span>
-            <div className="relative ml-auto flex items-center gap-1.5">
+            </div>
+            <div className="relative flex shrink-0 items-center gap-1.5">
               {a.tier && !a.is_agent && (
                 <span className="hidden text-[10px] uppercase tracking-[0.16em] text-bone-faint sm:inline">
                   {TIER_NAMES[a.tier] ?? a.tier}
