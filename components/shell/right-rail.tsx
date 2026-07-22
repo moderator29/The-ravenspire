@@ -1,0 +1,164 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Icon } from "@/components/ui/icon";
+import { createClient } from "@/lib/supabase/client";
+import { houses } from "@/lib/data/houses";
+
+interface HouseRow {
+  slug: string;
+  name: string;
+  glory: number;
+}
+
+export function RightRail() {
+  const [tags, setTags] = useState<{ tag: string; count: number }[]>([]);
+  const [lead, setLead] = useState<HouseRow | null>(null);
+  const [days, setDays] = useState<number | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const db = createClient();
+    void (async () => {
+      const [{ data: posts }, { data: houseRows }, { data: season }] =
+        await Promise.all([
+          db
+            .from("posts")
+            .select("cashtags")
+            .eq("deleted", false)
+            .order("created_at", { ascending: false })
+            .limit(200),
+          db.from("houses").select("slug, name, glory").order("glory", {
+            ascending: false,
+          }),
+          db.from("seasons").select("ends_at").eq("id", 1).maybeSingle(),
+        ]);
+
+      const counts = new Map<string, number>();
+      for (const p of posts ?? [])
+        for (const t of (p.cashtags as string[]) ?? [])
+          counts.set(t, (counts.get(t) ?? 0) + 1);
+      setTags(
+        [...counts.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6)
+          .map(([tag, count]) => ({ tag, count }))
+      );
+      if (houseRows?.length) setLead(houseRows[0] as HouseRow);
+      if (season?.ends_at) {
+        const ms = new Date(season.ends_at).getTime() - Date.now();
+        setDays(Math.max(0, Math.ceil(ms / 86_400_000)));
+      }
+      setReady(true);
+    })();
+  }, []);
+
+  const leadMeta = houses.find((h) => h.slug === lead?.slug);
+
+  return (
+    <aside className="hidden w-80 shrink-0 flex-col gap-4 px-4 py-6 xl:flex">
+      <div className="glass p-4">
+        <div className="flex items-center gap-2">
+          <Icon name="raven" className="h-5 w-5 text-gold" />
+          <h2 className="font-display text-base font-semibold tracking-wide text-bone">
+            @raven
+          </h2>
+          <span className="ml-auto text-[10px] uppercase tracking-[0.18em] text-bone-faint">
+            The Herald
+          </span>
+        </div>
+        <p className="mt-2 text-sm text-bone-mut">
+          Ask anything. Settle a debate, read a token, roast a friend kindly.
+          Real data only, realm voice always.
+        </p>
+        <Link
+          href="/raven"
+          className="btn-glass mt-3 block w-full px-3 py-2 text-center text-sm text-bone-mut"
+        >
+          Summon the Raven
+        </Link>
+      </div>
+
+      {/* The Season */}
+      <div className="glass p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-base font-semibold tracking-wide text-bone">
+            The Season
+          </h2>
+          {days !== null && (
+            <span className="tnum text-xs text-gold">{days}d left</span>
+          )}
+        </div>
+        {lead ? (
+          <Link
+            href={`/houses/${lead.slug}`}
+            className="mt-3 flex items-center gap-3 rounded-xl bg-panel p-3 transition hover:bg-panel-warm"
+          >
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-lg"
+              style={{
+                background: `linear-gradient(160deg, ${leadMeta?.color ?? "#C8A24C"}26, #101017)`,
+                border: `1px solid ${leadMeta?.color ?? "#C8A24C"}55`,
+                color: leadMeta?.color ?? "#C8A24C",
+              }}
+            >
+              <Icon name="crown" className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-bone">
+                {lead.name}
+              </p>
+              <p className="tnum text-xs text-bone-faint">
+                {lead.glory.toLocaleString()} Glory · leading
+              </p>
+            </div>
+          </Link>
+        ) : (
+          <p className="mt-2 text-sm text-bone-mut">
+            The Houses are still gathering. First to move claims the lead.
+          </p>
+        )}
+        <Link
+          href="/throne"
+          className="mt-2 block text-center text-xs text-gold hover:text-gold-bright"
+        >
+          Enter Claim the Throne
+        </Link>
+      </div>
+
+      {/* Trending cashtags */}
+      <div className="glass p-4">
+        <h2 className="font-display text-base font-semibold tracking-wide text-bone">
+          What the realm watches
+        </h2>
+        {!ready ? (
+          <div className="mt-3 space-y-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-6 animate-pulse rounded bg-panel" />
+            ))}
+          </div>
+        ) : tags.length ? (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {tags.map((t) => (
+              <Link
+                key={t.tag}
+                href={`/raven`}
+                className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm transition hover:bg-panel"
+              >
+                <span className="font-semibold text-gold">${t.tag}</span>
+                <span className="tnum text-xs text-bone-faint">
+                  {t.count} {t.count === 1 ? "raven" : "ravens"}
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-bone-mut">
+            No cashtags in the wind yet. Seal a Call and start the talk.
+          </p>
+        )}
+      </div>
+    </aside>
+  );
+}
