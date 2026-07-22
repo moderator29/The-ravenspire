@@ -2,6 +2,7 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { quests, type Quest } from "@/lib/game/quests";
+import { computeBounds, verifyQuest } from "@/lib/game/quest-verify";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /* The period key a quest completion is bucketed under, derived from cadence:
@@ -84,6 +85,18 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as { quest?: string } | null;
   const quest = quests.find((q) => q.slug === body?.quest);
   if (!quest) return json({ error: "Unknown quest" }, 400);
+
+  /* Anti-cheat: verify the member's real activity actually completed this quest
+     in the current period before awarding anything. Quests without a reliable
+     on-platform signal yet stay trusted (verifyQuest returns true for them). */
+  const bounds = await computeBounds(db, new Date());
+  const done = await verifyQuest(db, profile.id, quest.slug, bounds);
+  if (!done) {
+    return json(
+      { error: "You have not completed this quest yet. Do the deed, then claim." },
+      403
+    );
+  }
 
   /* Period is derived from the quest's own cadence, so a weekly or seasonal
      quest occupies a single row for the whole week or season and cannot be
