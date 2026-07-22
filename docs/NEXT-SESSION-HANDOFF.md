@@ -11,6 +11,43 @@ Live site: ravenspire.vercel.app (production tracks `main`). Work on branch
 
 ---
 
+## 0. IMMEDIATE NEXT BATCH (do these first)
+
+The founder handed off this exact batch. Build all of it, slick and clean, then
+ship to production.
+
+1. Comments parity with posts. A comment must support: reply-to-comment,
+   like, bookmark, share, and tip, with threading, exactly like posts.
+   Files: components/social/comment-card.tsx (and the comment thread on
+   /post/[id]), app/api/comments, app/api/social (reactions already keyed by
+   subject_type = "comment"), app/api/bookmarks (comment_bookmarks exists),
+   app/api/tips (subject_type "comment"). Seed per-viewer state for comments the
+   same way posts now do (see attachViewerFlags in lib/social/queries.ts).
+
+2. @raven in comment threads. When a member tags @raven in a comment, or
+   replies to a reply @raven made, @raven auto-replies to THAT comment and the
+   thread flows naturally. Reuse maybeRavenReplyToPost-style plumbing for
+   comments (app/api/comments + lib raven helpers). Keep it real-data, realm
+   voice.
+
+3. Bigger action icons. The like/repost/bookmark/share/tip icons in
+   post-card (and the new comment-card) are a touch too small; bump the icon and
+   hit-area size a step. Bookmark stays in the header corner.
+
+4. Vault redesign. Rework The Vault (app/(shell)/vault, components/wallet/**)
+   to a true Trust Wallet / Exodus / MetaMask / Crypto.com feel. Move
+   recovery/key-export into settings, add more vault settings, and add a
+   Referral earnings tab beneath the Send/Receive/Swap row. EVM 0x address only,
+   never Solana.
+
+5. Profile edit + X logo placement. Move the Edit Profile button out of the
+   bottom of the profile into the Keep header. Show the X LOGO (bigger) next to
+   the member's NAME, not next to the @username, and never render the X handle
+   as the display name. Also fix the other-profile banner rendering ON TOP of
+   the avatar (banner behind, avatar in front). See components/social/profile-view.tsx.
+
+---
+
 ## 1. Founder rules (non-negotiable)
 
 - NO em-dashes anywhere. Use commas, periods, or restructure.
