@@ -8,6 +8,7 @@ import { BackButton } from "@/components/shell/back-button";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
 import { buildPortfolio } from "@/components/ledger/portfolio-data";
 import { ValueHeader } from "@/components/ledger/value-header";
+import { TrendCard } from "@/components/ledger/trend-card";
 import { Allocation } from "@/components/ledger/allocation";
 import { Positions } from "@/components/ledger/positions";
 
@@ -180,6 +181,7 @@ export default function LedgerPage() {
         ) : (
           <>
             <ValueHeader portfolio={portfolio} />
+            {address && <TrendCard address={address} />}
             {portfolio.byAsset.length > 0 && (
               <Allocation
                 byAsset={portfolio.byAsset}
