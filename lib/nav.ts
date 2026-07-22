@@ -18,12 +18,14 @@ export const socialNav: NavItem[] = [
   { slug: "throne", href: "/throne", themed: "Claim the Throne", plain: "Season game", icon: "crown" },
   { slug: "war", href: "/war", themed: "The War", plain: "Battle for the Realm", icon: "swords" },
   { slug: "renown", href: "/renown", themed: "Crests & Renown", plain: "Reputation", icon: "medal" },
+  { slug: "leaderboards", href: "/leaderboards", themed: "The Roll of Honour", plain: "Leaderboards", icon: "crown" },
   { slug: "banners", href: "/banners", themed: "Raise Your Banners", plain: "Refer & Earn", icon: "flag" },
   { slug: "whispers", href: "/whispers", themed: "Whispers", plain: "Messages", icon: "mail" },
   { slug: "bookmarks", href: "/bookmarks", themed: "Bookmarks", plain: "Saved", icon: "bookmark" },
 ];
 
 export const toolsNav: NavItem[] = [
+  { slug: "search", href: "/search", themed: "Search", plain: "Find anything", icon: "search" },
   { slug: "raven", href: "/raven", themed: "The Raven", plain: "Ask anything", icon: "raven" },
   { slug: "dna", href: "/dna", themed: "The Bloodline", plain: "Wallet & profile DNA", icon: "orb", badge: "Beta" },
   { slug: "ledger", href: "/ledger", themed: "The Ledger", plain: "Portfolio", icon: "book" },
