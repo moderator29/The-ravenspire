@@ -24,6 +24,7 @@ interface CoinData {
   change24h: number | null;
   change: { m5: number | null; h1: number | null; h6: number | null; h24: number | null };
   volume24h: number | null;
+  txns24h: { buys: number; sells: number } | null;
   liquidityUsd: number | null;
   marketCap: number | null;
   marketCapIsFdv: boolean;
@@ -282,6 +283,12 @@ export default function CoinPage({
             </div>
           </div>
 
+          {/* Transactions (24h): real buys vs sells */}
+          {coin.txns24h &&
+            coin.txns24h.buys + coin.txns24h.sells > 0 && (
+              <TxnsBar buys={coin.txns24h.buys} sells={coin.txns24h.sells} />
+            )}
+
           {/* Market data */}
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Stat
@@ -439,6 +446,31 @@ function RiskBanner({
             : ""}{" "}
           Never trade more than you can lose.
         </p>
+      </div>
+    </div>
+  );
+}
+
+/* Real 24h buys vs sells, a proportional bar (gold buys, ember sells). */
+function TxnsBar({ buys, sells }: { buys: number; sells: number }) {
+  const total = buys + sells || 1;
+  const buyPct = (buys / total) * 100;
+  return (
+    <div className="glass mt-3 p-4">
+      <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
+        Transactions (24h)
+      </p>
+      <div className="mt-2 flex items-center justify-between text-sm font-semibold">
+        <span className="tnum text-gold-bright">
+          {buys.toLocaleString("en-US")} buys
+        </span>
+        <span className="tnum text-ember-deep">
+          {sells.toLocaleString("en-US")} sells
+        </span>
+      </div>
+      <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-void">
+        <div className="h-full bg-gold-bright" style={{ width: `${buyPct}%` }} />
+        <div className="h-full flex-1 bg-ember-deep" />
       </div>
     </div>
   );
