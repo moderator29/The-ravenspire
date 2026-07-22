@@ -15,6 +15,8 @@ interface TrendingToken {
   change24h: number | null;
   volume24h: number | null;
   liquidityUsd: number;
+  marketCap: number | null;
+  fdv: number | null;
   chain: string;
   watchChain: string | null;
   network: string;
@@ -157,15 +159,21 @@ export default function ScryingPage() {
       <div className="mb-4">
         <BackButton />
       </div>
-      <h1 className="font-display text-xl font-semibold text-bone">
-        The Scrying Glass
-      </h1>
+      <div className="flex items-center gap-2.5">
+        <h1 className="font-display text-xl font-semibold text-bone">
+          The Scrying Glass
+        </h1>
+        <span className="inline-flex items-center rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+          Beta
+        </span>
+      </div>
       <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
         Market watch
       </p>
       <p className="mt-3 text-sm text-bone-mut">
-        Pairs drawing real trading interest across the chains, ranked by the
-        markets, not by who paid for a boost.
+        EVM coins drawing real trading interest, ranked by volume, filtered for
+        depth so the thinnest scam launches never reach the glass. Tap any coin
+        to read it and trade in-app, non-custodially.
       </p>
 
       <div className="mt-5 flex flex-col gap-2">

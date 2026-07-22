@@ -1,5 +1,6 @@
 import { json } from "@/lib/auth/server";
 import { lookupToken } from "@/lib/data/tokens";
+import { tradeChainByDex } from "@/lib/trade/config";
 
 /*
   In-app coin data for The Scrying Glass. Real market data only, keyless:
@@ -74,6 +75,7 @@ interface DexPair {
   dexId?: string;
   url?: string;
   pairAddress?: string;
+  pairCreatedAt?: number;
   baseToken?: { symbol?: string; name?: string; address?: string };
   priceUsd?: string;
   priceChange?: { m5?: number; h1?: number; h6?: number; h24?: number };
@@ -108,6 +110,13 @@ export interface CoinData {
   dexUrl: string | null;
   explorerUrl: string | null;
   chart: { source: "geckoterminal"; points: CoinChartPoint[] } | null;
+  /* Trading support: the EIP-155 chain id when this token lives on a tradable
+     EVM chain (null for non-EVM, which is never tradable in-app), the token
+     decimals for base-unit conversion, and the pool's age for the rug-risk
+     read. */
+  evmChainId: number | null;
+  decimals: number | null;
+  pairCreatedAt: number | null;
   fetchedAt: number;
 }
 
@@ -182,6 +191,32 @@ async function fetchChart(
   }
 }
 
+/* Token decimals via GeckoTerminal token info (keyless). Needed to convert 0x
+   base-unit amounts to human figures on the trading panel. Null when it cannot
+   be read; the panel then declines to guess a "you receive" figure. */
+async function fetchDecimals(
+  chainId: string | null,
+  address: string
+): Promise<number | null> {
+  if (!chainId) return null;
+  const network = GECKO_NETWORK[chainId];
+  if (!network) return null;
+  try {
+    const res = await fetch(
+      `https://api.geckoterminal.com/api/v2/networks/${network}/tokens/${address}`,
+      { headers: { accept: "application/json" }, next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      data?: { attributes?: { decimals?: number | null } };
+    };
+    const dec = body.data?.attributes?.decimals;
+    return typeof dec === "number" && dec >= 0 && dec <= 36 ? dec : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const rawId = (url.searchParams.get("address") ?? "").trim();
@@ -218,7 +253,12 @@ export async function GET(req: Request) {
   const chainId = pair.chainId ?? null;
   const hasRealMcap = typeof pair.marketCap === "number" && pair.marketCap > 0;
   const tokenAddress = pair.baseToken.address ?? address;
-  const points = await fetchChart(chainId, pair.pairAddress ?? null);
+  const evmChain = chainId ? tradeChainByDex(chainId) : undefined;
+  // Only spend the extra decimals lookup on tokens we can actually trade.
+  const [points, decimals] = await Promise.all([
+    fetchChart(chainId, pair.pairAddress ?? null),
+    evmChain ? fetchDecimals(chainId, tokenAddress) : Promise.resolve(null),
+  ]);
 
   const data: CoinData = {
     address: tokenAddress,
@@ -247,6 +287,10 @@ export async function GET(req: Request) {
         ? `${EXPLORER_TOKEN[chainId]}${tokenAddress}`
         : null,
     chart: points ? { source: "geckoterminal", points } : null,
+    evmChainId: evmChain?.id ?? null,
+    decimals,
+    pairCreatedAt:
+      typeof pair.pairCreatedAt === "number" ? pair.pairCreatedAt : null,
     fetchedAt: Date.now(),
   };
 

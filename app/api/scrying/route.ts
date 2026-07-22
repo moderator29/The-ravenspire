@@ -1,22 +1,19 @@
 import { json } from "@/lib/auth/server";
 import { SMART_WALLETS, walletSnapshot } from "@/lib/data/smartmoney";
+import {
+  MIN_LIQUIDITY_USD,
+  MIN_MARKET_CAP_USD,
+  isEvmGeckoNetwork,
+  tradeChainByGecko,
+} from "@/lib/trade/config";
 
 /* Organic market intelligence. GeckoTerminal trending pools rank by real
    trading interest (volume / attention), not paid promotion, so we never
-   relabel promoter-funded boosts as "what the realm is watching". Keyless. */
-const GECKO_NETWORKS: Record<
-  string,
-  { label: string; watch: string | null }
-> = {
-  eth: { label: "Ethereum", watch: "1" },
-  base: { label: "Base", watch: "8453" },
-  arbitrum: { label: "Arbitrum", watch: "42161" },
-  optimism: { label: "Optimism", watch: "10" },
-  bsc: { label: "BNB Chain", watch: "56" },
-  polygon_pos: { label: "Polygon", watch: null },
-  solana: { label: "Solana", watch: null },
-  avax: { label: "Avalanche", watch: null },
-};
+   relabel promoter-funded boosts as "what the realm is watching". Keyless.
+
+   EVM ONLY. Solana and every non-EVM network are dropped before a coin ever
+   reaches the glass, because the in-app trading surface is EVM-only (0x). The
+   allowlist and quality floors live in lib/trade/config.ts. */
 
 interface GeckoPool {
   id?: string;
@@ -24,6 +21,8 @@ interface GeckoPool {
     name?: string;
     base_token_price_usd?: string | null;
     reserve_in_usd?: string | null;
+    market_cap_usd?: string | null;
+    fdv_usd?: string | null;
     volume_usd?: { h24?: string | null };
     price_change_percentage?: { h24?: string | null };
   };
@@ -71,16 +70,26 @@ async function readTrending() {
       if (inc.type === "token" && inc.id) tokens.set(inc.id, inc);
     }
 
-    const trending = (body.data ?? [])
+    let droppedNonEvm = 0;
+    let droppedThin = 0;
+
+    const mapped = (body.data ?? [])
       .map((pool) => {
         const a = pool.attributes ?? {};
         const baseId = pool.relationships?.base_token?.data?.id ?? "";
         const base = tokens.get(baseId);
         const networkId = baseId.split("_")[0] ?? "";
-        const net = GECKO_NETWORKS[networkId];
+        const chain = tradeChainByGecko(networkId);
         const address = base?.attributes?.address ?? "";
         const liquidity = Number(a.reserve_in_usd ?? 0);
+        const marketCap = a.market_cap_usd ? Number(a.market_cap_usd) : null;
+        const fdv = a.fdv_usd ? Number(a.fdv_usd) : null;
+        // Prefer a real circulating market cap; fall back to FDV for the floor
+        // check so a coin with only FDV reported is not unfairly dropped.
+        const capForFloor = marketCap ?? fdv ?? 0;
         return {
+          networkId,
+          evm: isEvmGeckoNetwork(networkId),
           symbol: base?.attributes?.symbol?.toUpperCase() ?? "?",
           name: a.name ?? base?.attributes?.name ?? "Unknown pair",
           priceUsd: a.base_token_price_usd
@@ -91,8 +100,11 @@ async function readTrending() {
             : null,
           volume24h: a.volume_usd?.h24 ? Number(a.volume_usd.h24) : null,
           liquidityUsd: liquidity,
-          chain: net?.label ?? networkId,
-          watchChain: net?.watch ?? null,
+          marketCap,
+          fdv,
+          capForFloor,
+          chain: chain?.name ?? networkId,
+          watchChain: chain ? String(chain.id) : null,
           network: networkId,
           logo: cleanLogo(base?.attributes?.image_url),
           address,
@@ -101,9 +113,42 @@ async function readTrending() {
             : "",
         };
       })
-      // Safety floor: skip vanishingly thin pools that skew to scam launches.
-      .filter((t) => t.address && t.liquidityUsd >= 20_000)
-      .slice(0, 12);
+      .filter((t) => {
+        if (!t.address) return false;
+        // EVM only. Solana and every non-EVM chain are dropped here.
+        if (!t.evm) {
+          droppedNonEvm += 1;
+          return false;
+        }
+        // Quality floors: thin liquidity and micro-cap launches skew to scams.
+        if (
+          t.liquidityUsd < MIN_LIQUIDITY_USD ||
+          t.capForFloor < MIN_MARKET_CAP_USD
+        ) {
+          droppedThin += 1;
+          return false;
+        }
+        return true;
+      });
+
+    // Top coins by big volume at the top of the glass.
+    const trending = mapped
+      .slice()
+      .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0))
+      // Strip the internal bookkeeping fields before serializing.
+      .map(({ evm, networkId, capForFloor, ...rest }) => {
+        void evm;
+        void networkId;
+        void capForFloor;
+        return rest;
+      })
+      .slice(0, 14);
+
+    if (droppedNonEvm > 0 || droppedThin > 0) {
+      console.log(
+        `[scrying] dropped ${droppedNonEvm} non-EVM and ${droppedThin} thin/micro-cap pools; ${trending.length} surfaced`
+      );
+    }
 
     return { trending };
   } catch {

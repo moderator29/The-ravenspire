@@ -8,6 +8,8 @@ import { WatchBadge } from "@/components/tools/watch-badge";
 import { TokenLogo } from "@/components/coin/token-logo";
 import { WatchStar } from "@/components/coin/watch-star";
 import { PriceChart, type ChartPoint } from "@/components/coin/price-chart";
+import { TradePanel } from "@/components/trade/trade-panel";
+import { RavenTake } from "@/components/trade/raven-take";
 
 interface CoinData {
   address: string;
@@ -28,6 +30,9 @@ interface CoinData {
   dexUrl: string | null;
   explorerUrl: string | null;
   chart: { source: "geckoterminal"; points: ChartPoint[] } | null;
+  evmChainId: number | null;
+  decimals: number | null;
+  pairCreatedAt: number | null;
   fetchedAt: number;
 }
 
@@ -140,6 +145,16 @@ export default function CoinPage({
 
   const up = (coin?.change24h ?? 0) >= 0;
   const watchChain = coin?.chainId ? WATCH_CHAIN[coin.chainId] : undefined;
+
+  // Pool age from the server's fetch time (a pure value), not Date.now() during
+  // render. Used by the risk read and the Raven's take.
+  const ageDays =
+    coin?.pairCreatedAt != null
+      ? Math.max(
+          0,
+          Math.floor((coin.fetchedAt - coin.pairCreatedAt) / 86_400_000)
+        )
+      : null;
 
   return (
     <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
@@ -275,6 +290,51 @@ export default function CoinPage({
             />
           </div>
 
+          {/* Risk banner: honest, real signals only. */}
+          <RiskBanner liquidityUsd={coin.liquidityUsd} ageDays={ageDays} />
+
+          {/* The Raven's read on this coin (real AI over real figures). */}
+          <RavenTake
+            symbol={coin.symbol}
+            address={coin.address}
+            chainLabel={coin.chainLabel}
+            priceUsd={coin.priceUsd}
+            change24h={coin.change24h}
+            marketCap={coin.marketCap}
+            liquidityUsd={coin.liquidityUsd}
+            volume24h={coin.volume24h}
+            ageDays={ageDays}
+          />
+
+          {/* In-app, non-custodial trading (EVM only, BETA). */}
+          {coin.evmChainId !== null ? (
+            <TradePanel
+              coin={{
+                address: coin.address,
+                symbol: coin.symbol,
+                name: coin.name,
+                evmChainId: coin.evmChainId,
+                decimals: coin.decimals,
+                priceUsd: coin.priceUsd,
+                logo: coin.logo,
+                chainLabel: coin.chainLabel,
+                liquidityUsd: coin.liquidityUsd,
+                pairCreatedAt: coin.pairCreatedAt,
+              }}
+            />
+          ) : (
+            <div className="glass-warm mt-3 flex items-start gap-3 p-4">
+              <Icon
+                name="shield"
+                className="mt-0.5 h-4 w-4 shrink-0 text-bone-faint"
+              />
+              <p className="text-xs text-bone-mut">
+                In-app trading is EVM only. This token is not on a chain the
+                realm trades, so buy and sell are not offered here.
+              </p>
+            </div>
+          )}
+
           {/* Secondary external actions */}
           <div className="mt-3 flex flex-wrap gap-2">
             {coin.dexUrl && (
@@ -325,6 +385,42 @@ export default function CoinPage({
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+/* Honest, real risk read. Every coin is flagged unverified (anyone can launch
+   one). Where liquidity and age are known we surface concrete caution, never a
+   fabricated "safety score". */
+function RiskBanner({
+  liquidityUsd,
+  ageDays,
+}: {
+  liquidityUsd: number | null;
+  ageDays: number | null;
+}) {
+  const thinLiquidity = liquidityUsd !== null && liquidityUsd < 50_000;
+  const young = ageDays !== null && ageDays < 7;
+
+  return (
+    <div className="mt-4 flex items-start gap-3 rounded-2xl border border-ember-deep/40 bg-panel p-4">
+      <Icon name="shield" className="mt-0.5 h-4 w-4 shrink-0 text-ember" />
+      <div>
+        <p className="text-xs font-semibold text-bone">
+          Unverified coin. Trade with caution.
+        </p>
+        <p className="mt-1 text-[11px] leading-relaxed text-bone-mut">
+          Anyone can launch a coin and name it anything. The Ravenspire does not
+          endorse this token.
+          {thinLiquidity
+            ? " Liquidity here is thin, so the price can swing hard and selling may cost you."
+            : ""}
+          {young
+            ? ` This pool is only about ${ageDays} day${ageDays === 1 ? "" : "s"} old, a common window for rugs.`
+            : ""}{" "}
+          Never trade more than you can lose.
+        </p>
+      </div>
     </div>
   );
 }
