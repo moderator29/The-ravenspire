@@ -10,6 +10,7 @@ import { realmFetch } from "@/lib/auth/api";
 import { useVaultPrefs } from "@/components/wallet/wallet-prefs";
 import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
 import { TokenLogo } from "@/components/wallet/token-logo";
+import { TokenSafety } from "@/components/trade/token-safety";
 import { txExplorerUrlFor, shortAddress } from "@/components/wallet/chains";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
 import {
@@ -510,6 +511,11 @@ export default function SwapPage() {
         )}
       </div>
 
+      {/* Real GoPlus safety scan on the coin being bought. */}
+      {toToken && toToken.decimals !== null && (
+        <TokenSafety chainId={toToken.chainId} address={toToken.address} />
+      )}
+
       {/* Cross-chain guidance */}
       {fromToken && toToken && !sameChain && (
         <div className="glass-warm mt-2.5 flex items-start gap-3 p-4">
@@ -922,11 +928,20 @@ function TokenPicker({
                       {r.name} · {r.chainLabel}
                     </p>
                   </div>
-                  {r.liquidityUsd !== null && (
-                    <span className="tnum shrink-0 text-[11px] text-bone-faint">
-                      {fmtUsd(r.liquidityUsd)} liq
-                    </span>
-                  )}
+                  <div className="shrink-0 text-right">
+                    {r.priceUsd !== null && (
+                      <p className="tnum text-xs text-bone">
+                        {r.priceUsd >= 1
+                          ? `$${r.priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+                          : `$${r.priceUsd.toPrecision(2)}`}
+                      </p>
+                    )}
+                    {r.liquidityUsd !== null && (
+                      <p className="tnum text-[11px] text-bone-faint">
+                        {fmtUsd(r.liquidityUsd)} liq
+                      </p>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>
