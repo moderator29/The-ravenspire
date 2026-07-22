@@ -176,6 +176,15 @@ export default function ScryingPage() {
         to read it and trade in-app, non-custodially.
       </p>
 
+      <Link
+        href="/swap"
+        className="btn-glass mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs text-gold"
+      >
+        <Icon name="repost" className="h-3.5 w-3.5" />
+        Open The Swap
+        <Icon name="arrow" className="h-3.5 w-3.5" />
+      </Link>
+
       <div className="mt-5 flex flex-col gap-2">
         {trending === null ? (
           [0, 1, 2, 3].map((i) => (

@@ -28,7 +28,8 @@ export const toolsNav: NavItem[] = [
   { slug: "dna", href: "/dna", themed: "The Bloodline", plain: "Wallet & profile DNA", icon: "orb", badge: "Beta" },
   { slug: "ledger", href: "/ledger", themed: "The Ledger", plain: "Portfolio", icon: "book" },
   { slug: "watch", href: "/watch", themed: "The Watch", plain: "Safety", icon: "shield", badge: "Beta" },
-  { slug: "scrying", href: "/scrying", themed: "The Scrying Glass", plain: "Smart money", icon: "eye" },
+  { slug: "scrying", href: "/scrying", themed: "The Scrying Glass", plain: "Discover coins", icon: "eye" },
+  { slug: "swap", href: "/swap", themed: "The Swap", plain: "Trade any coin", icon: "repost", badge: "Beta" },
   { slug: "forge", href: "/forge", themed: "The Forge", plain: "Staking", icon: "flame" },
 ];
 
