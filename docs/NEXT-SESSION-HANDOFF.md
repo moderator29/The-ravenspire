@@ -163,17 +163,17 @@ Extend the existing coin page with a trading panel modeled on the reference:
 - Side nav: removed The Ravenry and The Crossroads (already in bottom nav).
 - iOS input zoom fixed (16px min on form controls under 640px).
 - Copy: "no presale" -> "Presale coming soon".
+- Comments parity with posts (reply/like/bookmark/share/tip + threading) and
+  @raven in comment threads. (Founder confirmed done.)
+- Bigger like/repost/bookmark/share/tip action icons. (Founder confirmed done.)
+- Vault redesign (Trust Wallet / Exodus / MetaMask / Crypto.com feel), recovery
+  in settings, referral earnings tab. (Founder confirmed done.)
+- Profile: Edit Profile in the Keep header, X logo beside the name (not the
+  username), banner behind the avatar. (Founder confirmed done.)
 
 ### Remaining (verify against the live site first, then fix)
 
 Social / feed / comments
-- Comments need full parity with posts: reply to a comment, like/bookmark/share/
-  tip a comment, and threading. @raven must reply in comment threads: when a
-  member tags @raven in a comment (or replies to @raven's reply), @raven auto-
-  replies to that specific comment and the thread flows. (Partial threading and
-  threaded @raven exist; audit and complete.)
-- Make the like/repost/bookmark/share/tip icons a touch bigger (founder finds
-  the current size annoying). Bookmark stays in the header corner.
 - Image posts: confirm end-to-end that an image added in the composer previews
   (not a black box) AND appears in the feed after posting. The media check was
   the storage-path bug (fixed for whispers and posts); re-verify posts on the
