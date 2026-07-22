@@ -44,10 +44,6 @@ function convoName(c: Convo): string {
   return c.other?.display_name ?? c.other?.handle ?? c.title ?? "Whisper";
 }
 
-function avatarLetter(c: Convo): string {
-  return convoName(c).slice(0, 1).toUpperCase();
-}
-
 /* The recipient's portrait: their real avatar when they have one, otherwise
    the initial on the house-panel disc used everywhere else in the corridor. */
 function OtherAvatar({
@@ -496,9 +492,10 @@ export default function WhispersPage() {
                       c.id === activeId ? "glass glass-warm" : "glass glass-sm"
                     } glass-hover flex w-full items-center gap-3 p-3 text-left`}
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-steel-line bg-panel font-display text-sm text-gold">
-                      {avatarLetter(c)}
-                    </span>
+                    <OtherAvatar
+                      other={c.other}
+                      className="h-10 w-10 text-sm"
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-bone">
                         {convoName(c)}
