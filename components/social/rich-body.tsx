@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Fragment } from "react";
+import { CashtagChip } from "@/components/social/cashtag-chip";
 
 /* Renders raven text with $cashtags gold, @mentions linked, urls linked. */
 export function RichBody({ text }: { text: string }) {
@@ -8,11 +9,7 @@ export function RichBody({ text }: { text: string }) {
     <span className="whitespace-pre-wrap break-words">
       {parts.map((part, i) => {
         if (/^\$[a-zA-Z]{2,12}$/.test(part)) {
-          return (
-            <span key={i} className="font-semibold text-gold">
-              {part.toUpperCase()}
-            </span>
-          );
+          return <CashtagChip key={i} tag={part.toUpperCase()} />;
         }
         if (/^@[a-z0-9_]{2,20}$/.test(part)) {
           return (
