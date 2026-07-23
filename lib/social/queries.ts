@@ -138,6 +138,10 @@ export async function fetchFeed(opts: {
     houseSlug: opts.houseSlug ?? null,
     followingIds: opts.followingIds ?? [],
   };
+  /* Signal ranks by VERIFIED OUTCOME, not recency, so it pulls a wider window
+     to rank across (hits lead, then live calls, misses sink). Other tabs read
+     a single page ordered by recency. */
+  const isSignal = opts.tab === "signal";
   let q = db
     .from("posts")
     .select(POST_SELECT)
@@ -145,9 +149,9 @@ export async function fetchFeed(opts: {
     /* Only ravens whose audience includes this reader. */
     .or(visibilityOrClause(viewer))
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(isSignal ? 90 : 30);
   if (opts.before) q = q.lt("created_at", opts.before);
-  if (opts.tab === "signal") q = q.eq("kind", "call");
+  if (isSignal) q = q.eq("kind", "call");
   if (opts.tab === "houses" && opts.houseSlug)
     q = q.eq("house_slug", opts.houseSlug);
   if (opts.tab === "following") {
@@ -161,6 +165,28 @@ export async function fetchFeed(opts: {
       ...p,
       effectiveTime: p.created_at,
     }));
+
+  /* Signal = top by verified outcome. Rank hits first (proven right), then
+     still-open calls (live claims), then misses; ties break on recency. This
+     is the honest ranking the brief asks for, replacing the old recency-only
+     order that mixed misses and unsettled calls in equally. */
+  if (isSignal) {
+    const rank = (p: Post): number => {
+      const v = p.call?.verdict;
+      if (v === "hit") return 0;
+      if (v === "open" || v == null) return 1;
+      return 2; // miss
+    };
+    const ranked = posts
+      .sort((a, b) => {
+        const ra = rank(a);
+        const rb = rank(b);
+        if (ra !== rb) return ra - rb;
+        return feedTime(b) - feedTime(a);
+      })
+      .slice(0, 30);
+    return attachViewerFlags(ranked);
+  }
 
   if (!REPOST_TABS.includes(opts.tab)) return attachViewerFlags(posts);
 
