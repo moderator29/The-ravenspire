@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Champion } from "@/lib/game/champions";
 import { champions } from "@/lib/game/champions";
+import {
+  buildCombatProfile,
+  passiveEffectText,
+  ultimateEffectText,
+  playstyleTag,
+} from "@/lib/game/combat";
 import { Icon } from "@/components/ui/icon";
 
 /*
@@ -40,11 +46,27 @@ interface Unit {
   speed: number;
   size: number;
   cooldown: number;
+  /* Seconds between this unit's auto-attacks (champion pace). */
+  attackInterval: number;
   alive: boolean;
   hitFlash: number;
   lunge: number;
   shield: number;
   img: HTMLImageElement | null;
+
+  /* Champion combat kit (defaults 0/false for rank-and-file units). */
+  dr: number; // damage reduction 0..0.5
+  lifesteal: number;
+  critChance: number;
+  critMul: number;
+  executeBonus: number;
+  thorns: number;
+  ignite: number; // burn dps as a fraction of atk, applied on hit
+  deathless: boolean;
+  deathlessUsed: boolean;
+  burn: number; // seconds of burn remaining on this unit
+  burnDps: number; // burn damage per second while burning
+  stun: number; // seconds this unit is frozen/stunned
 }
 interface Float {
   x: number;
@@ -164,7 +186,12 @@ export function BattleEngine({
   const spawnHost = useCallback(() => {
     const s = stateRef.current;
     const withArt = champions.filter((c) => c.art && c.slug !== champion.slug);
-    const heroHp = 260 + champion.stats.health / 55 + mastery * 24;
+
+    /* The chosen champion's real combat kit — attack, pace, reach, damage
+       reduction and their passive/ultimate mechanics all flow from here, so
+       every champion actually plays to their stats and their written kit. */
+    const prof = buildCombatProfile(champion);
+    const heroHp = prof.hp + mastery * 24;
 
     const mk = (
       team: 0 | 1,
@@ -183,19 +210,32 @@ export function BattleEngine({
       hp,
       maxHp: hp,
       atk,
-      range: hero ? 0.055 : 0.05,
-      speed: hero ? 0.07 : 0.062,
+      range: hero ? prof.range : 0.05,
+      speed: hero ? prof.moveSpeed : 0.062,
       size: hero ? 0.095 : 0.052,
       cooldown: 0,
+      attackInterval: hero ? prof.attackInterval : 0.9,
       alive: true,
       hitFlash: 0,
       lunge: 0,
       shield: 0,
       img: art ? (imgs.current[artSlug(art)] ?? null) : null,
+      dr: hero ? prof.damageReduction : 0,
+      lifesteal: hero ? prof.lifesteal : 0,
+      critChance: hero ? prof.critChance : 0,
+      critMul: hero ? prof.critMul : 1,
+      executeBonus: hero ? prof.executeBonus : 0,
+      thorns: hero ? prof.thorns : 0,
+      ignite: hero ? prof.ignite : 0,
+      deathless: hero ? prof.deathless : false,
+      deathlessUsed: false,
+      burn: 0,
+      burnDps: 0,
+      stun: 0,
     });
 
-    /* Your hero and a small line of the host. */
-    s.units.push(mk(0, true, 0.16, 0.55, champion.art, heroHp, 34));
+    /* Your hero (kitted from the profile) and a small line of the host. */
+    s.units.push(mk(0, true, 0.16, 0.55, champion.art, heroHp, prof.atk));
     const allyArt = withArt.slice(0, 4);
     for (let i = 0; i < 3; i++) {
       s.units.push(
@@ -222,11 +262,24 @@ export function BattleEngine({
         speed: 0.06 + ((idx * 13) % 5) * 0.004,
         size: 0.052,
         cooldown: ((idx * 7) % 10) / 10,
+        attackInterval: 0.9,
         alive: true,
         hitFlash: 0,
         lunge: 0,
         shield: 0,
         img: imgs.current[artSlug(foeArt(idx) ?? "")] ?? null,
+        dr: 0,
+        lifesteal: 0,
+        critChance: 0,
+        critMul: 1,
+        executeBonus: 0,
+        thorns: 0,
+        ignite: 0,
+        deathless: false,
+        deathlessUsed: false,
+        burn: 0,
+        burnDps: 0,
+        stun: 0,
       });
       s.spawned += 1;
     },
@@ -266,7 +319,7 @@ export function BattleEngine({
     h.lunge = 1;
     s.units.forEach((u) => {
       if (u.team === 1 && u.alive && dist(h, u) < 0.14) {
-        damage(s, u, h.atk * 2.4, h.team);
+        damage(s, u, h.atk * 2.4, h.team, h);
         s.slashes.push({ x: u.x, y: u.y, life: 1, team: h.team });
       }
     });
@@ -278,16 +331,38 @@ export function BattleEngine({
     if (!h || !h.alive || s.ultCd > 0) return;
     s.ultCd = 12;
     h.lunge = 1;
-    s.units.forEach((u) => {
-      if (u.team === 1 && u.alive && dist(h, u) < 0.34) {
-        damage(s, u, h.atk * 3.4, h.team);
-        s.slashes.push({ x: u.x, y: u.y, life: 1, team: h.team });
+
+    /* Each champion's ultimate resolves to its own shape — a single-target
+       nuke, a wide cleave, a double-striking storm, a heal, a shield, or a
+       stun — so the written ultimate finally plays the way it reads. */
+    const prof = buildCombatProfile(champion);
+    const amt = h.atk * prof.ultDamageMul;
+    const inRange = s.units
+      .filter((u) => u.team === 1 && u.alive && dist(h, u) < prof.ultRadius)
+      .sort((a, b) => dist(h, a) - dist(h, b));
+
+    const strike = (u: Unit) => {
+      damage(s, u, amt, h.team, h);
+      s.slashes.push({ x: u.x, y: u.y, life: 1, team: h.team });
+    };
+
+    if (prof.ultimate === "nuke") {
+      if (inRange[0]) strike(inRange[0]);
+    } else if (prof.ultimate === "multistrike") {
+      for (const u of inRange) {
+        strike(u);
+        if (u.alive) damage(s, u, amt, h.team, h);
       }
-    });
+    } else {
+      // cleave / heal / shield / stun all sweep everyone in range...
+      for (const u of inRange) strike(u);
+      applyUltSupport(s.units, h, inRange, prof.ultimate);
+    }
+
     s.floats.push({
       x: h.x,
       y: h.y - 0.06,
-      text: champion.ultimate.name,
+      text: prof.ultName,
       life: 1.4,
       color: "#F0D68C",
     });
@@ -576,29 +651,111 @@ function nearestEnemy(units: Unit[], u: Unit): Unit | null {
   }
   return best;
 }
+/* One blow, run through the attacker's kit and the target's defenses. The
+   attacker is optional so effects (burn ticks, thorns) that have no wielder
+   still resolve. Called only from the animation loop, never during render, so
+   the randomness in crits is safe. */
 function damage(
   s: { units: Unit[]; floats: Float[]; kills: number; streak: number },
   target: Unit,
   amount: number,
-  byTeam: 0 | 1
+  byTeam: 0 | 1,
+  attacker?: Unit
 ) {
   if (!target.alive) return;
-  const dealt = target.shield > 0 ? amount * 0.25 : amount;
+
+  let amt = amount;
+  let crit = false;
+  if (attacker) {
+    // Crit: a sharp spike of damage on a chance roll.
+    if (attacker.critChance > 0 && Math.random() < attacker.critChance) {
+      amt *= attacker.critMul;
+      crit = true;
+    }
+    // Execute: extra bite against a badly wounded foe.
+    if (attacker.executeBonus > 0 && target.hp < target.maxHp * 0.4) {
+      amt *= 1 + attacker.executeBonus;
+    }
+  }
+
+  // Target defenses: champion damage reduction, then any active shield.
+  let dealt = amt * (1 - (target.dr ?? 0));
+  if (target.shield > 0) dealt *= 0.25;
   target.hp -= dealt;
   target.hitFlash = 1;
+
   s.floats.push({
     x: target.x,
     y: target.y - 0.03,
-    text: `-${Math.round(dealt)}`,
-    life: 0.8,
-    color: byTeam === 0 ? "#F0D68C" : "#E5702A",
+    text: crit ? `-${Math.round(dealt)}!` : `-${Math.round(dealt)}`,
+    life: crit ? 1 : 0.8,
+    color: crit ? "#FFE9A8" : byTeam === 0 ? "#F0D68C" : "#E5702A",
   });
+
+  if (attacker) {
+    // Lifesteal: the attacker drinks a share of the damage.
+    if (attacker.lifesteal > 0 && attacker.alive) {
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + dealt * attacker.lifesteal);
+    }
+    // Ignite: lay a burn that ticks over the next moments.
+    if (attacker.ignite > 0) {
+      target.burn = Math.max(target.burn, 1.6);
+      target.burnDps = Math.max(target.burnDps, attacker.atk * attacker.ignite);
+    }
+    // Thorns: the target answers a share of the blow back at the attacker.
+    if (target.thorns > 0 && attacker.alive && attacker !== target) {
+      attacker.hp -= dealt * target.thorns;
+      if (attacker.hp <= 0 && !(attacker.deathless && !attacker.deathlessUsed)) {
+        attacker.alive = false;
+        if (target.team === 0) {
+          s.kills += 1;
+          s.streak = Math.min(5, 1 + s.kills * 0.05);
+        }
+      }
+    }
+  }
+
   if (target.hp <= 0) {
+    // Deathless: the first lethal blow leaves the hero at a sliver of life.
+    if (target.deathless && !target.deathlessUsed) {
+      target.deathlessUsed = true;
+      target.hp = 1;
+      target.shield = Math.max(target.shield, 2);
+      s.floats.push({
+        x: target.x,
+        y: target.y - 0.08,
+        text: "Deathless",
+        life: 1.4,
+        color: "#9AD1FF",
+      });
+      return;
+    }
     target.alive = false;
     if (byTeam === 0) {
       s.kills += 1;
       s.streak = Math.min(5, 1 + s.kills * 0.05);
     }
+  }
+}
+
+/* The support half of a champion ultimate — heal / shield the host or freeze
+   foes. Kept at module scope (like damage/step) so it can mutate live units
+   freely; the in-component callbacks stay pure for the React Compiler. */
+function applyUltSupport(
+  units: Unit[],
+  h: Unit,
+  inRange: Unit[],
+  kind: "cleave" | "multistrike" | "nuke" | "heal" | "shield" | "stun"
+) {
+  if (kind === "heal") {
+    for (const a of units)
+      if (a.team === 0 && a.alive && dist(h, a) < 0.3)
+        a.hp = Math.min(a.maxHp, a.hp + a.maxHp * 0.3);
+  } else if (kind === "shield") {
+    for (const a of units)
+      if (a.team === 0 && a.alive && dist(h, a) < 0.3) a.shield = 4;
+  } else if (kind === "stun") {
+    for (const u of inRange) u.stun = Math.max(u.stun, 1.6);
   }
 }
 
@@ -619,6 +776,27 @@ function step(
     u.shield = Math.max(0, u.shield - dt);
     u.cooldown = Math.max(0, u.cooldown - dt);
 
+    /* Burn (ignite passive): ticking damage over its remaining life. Only foes
+       are ever set alight, so a burn kill banks for your host. */
+    if (u.burn > 0) {
+      u.burn -= dt;
+      u.hp -= u.burnDps * dt;
+      if (u.hp <= 0 && u.alive) {
+        u.alive = false;
+        if (u.team === 1) {
+          s.kills += 1;
+          s.streak = Math.min(5, 1 + s.kills * 0.05);
+        }
+        continue;
+      }
+    }
+
+    /* Stunned (enemy ultimate effect): the unit is frozen and cannot act. */
+    if (u.stun > 0) {
+      u.stun -= dt;
+      continue;
+    }
+
     const foe = nearestEnemy(s.units, u);
     if (!foe) continue;
     const d = dist(u, foe);
@@ -633,9 +811,9 @@ function step(
       u.x = Math.max(0.04, Math.min(0.96, u.x));
       u.y = Math.max(0.22, Math.min(0.88, u.y));
     } else if (u.cooldown <= 0) {
-      u.cooldown = u.hero ? 0.7 : 0.9;
+      u.cooldown = u.attackInterval;
       u.lunge = 1;
-      damage(s, foe, u.atk, u.team);
+      damage(s, foe, u.atk, u.team, u);
       if (u.hero)
         s.slashes.push({ x: foe.x, y: foe.y, life: 1, team: u.team });
     }
@@ -795,6 +973,12 @@ function HowToPlay({
   onBegin: () => void;
   onExit: () => void;
 }) {
+  const prof = buildCombatProfile(champion);
+  const battleKit = {
+    tag: playstyleTag(prof),
+    passive: passiveEffectText(prof.passive),
+    ultimate: ultimateEffectText(prof.ultimate),
+  };
   return (
     <div className="realm-bg flex h-full flex-col items-center justify-center overflow-y-auto p-6 text-center">
       <p className="text-[11px] uppercase tracking-[0.3em] text-gold">
@@ -807,14 +991,53 @@ function HowToPlay({
         {champion.name} fights on their own. Your taps are for power. Clear all{" "}
         {totalFoes} foes to win.
       </p>
-      <div className="glass mt-5 w-full max-w-md p-5 text-left text-sm text-bone-mut">
+
+      {/* The champion's real kit — passive and ultimate that actually shape how
+          they play, not flavor text. */}
+      <div className="glass glass-warm mt-5 w-full max-w-md p-5 text-left">
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-display text-base font-semibold text-bone">
+            {champion.name}
+          </p>
+          <span className="rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-gold">
+            {battleKit.tag}
+          </span>
+        </div>
+        <div className="mt-3 flex gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
+            <Icon name="orb" className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-bone">
+              Passive · {champion.passive.name}
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
+              {battleKit.passive}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
+            <Icon name="flame" className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-bone">
+              Ultimate · {champion.ultimate.name}
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
+              {battleKit.ultimate}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="glass mt-3 w-full max-w-md p-5 text-left text-sm text-bone-mut">
         <Rule icon="swords" title="Dash">
           Leap onto the nearest foe and cut down everything around them. Your
           strongest move, on a short cooldown.
         </Rule>
         <Rule icon="flame" title={`Ultimate: ${champion.ultimate.name}`}>
-          A wide blast that clears clustered enemies. Save it for the thickest
-          press.
+          {battleKit.ultimate} Save it for the thickest press.
         </Rule>
         <Rule icon="shield" title="Shield">
           Guard yourself and nearby allies for a few seconds. Time it against

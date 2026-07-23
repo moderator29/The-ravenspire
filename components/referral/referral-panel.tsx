@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { realmFetch } from "@/lib/auth/api";
 import { Icon } from "@/components/ui/icon";
+import { shareOrCopy } from "@/lib/share";
 
 interface RefMember {
   handle: string | null;
@@ -67,12 +68,10 @@ export function ReferralPanel({ enabled }: { enabled: boolean }) {
 
   const copy = async () => {
     if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
+    const result = await shareOrCopy(link, "Join me on The Ravenspire");
+    if (result !== "failed") {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard unavailable; the link is still visible to copy by hand */
     }
   };
 

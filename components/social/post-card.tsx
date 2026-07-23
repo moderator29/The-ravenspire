@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/social/avatar";
 import { RichBody } from "@/components/social/rich-body";
 import { PriceCard } from "@/components/social/price-card";
 import { CallChart } from "@/components/social/call-chart";
 import { Icon } from "@/components/ui/icon";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
+import { useDossier } from "@/components/social/user-dossier";
 import { TipDialog } from "@/components/tip/tip-dialog";
+import { shareOrCopy } from "@/lib/share";
 import { realmFetch } from "@/lib/auth/api";
 import { muteMember, unmuteMember } from "@/lib/social/mutes";
 import { useViewerId } from "@/lib/social/use-viewer";
@@ -106,6 +108,7 @@ function ActionButton({
 export function PostCard({ post }: { post: Post }) {
   const { authenticated } = useRealmAuth();
   const viewerId = useViewerId();
+  const dossier = useDossier();
   const isOwn = viewerId !== null && viewerId === post.author_id;
   const [removed, setRemoved] = useState(false);
   /* Seed reaction state from the per-viewer flags the feed/profile query
@@ -117,6 +120,38 @@ export function PostCard({ post }: { post: Post }) {
   const [reposts, setReposts] = useState(post.repost_count);
   const [bookmarked, setBookmarked] = useState(post.viewer_bookmarked ?? false);
   const [reported, setReported] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  /* Live view count. An impression is recorded the first time this raven
+     scrolls into view — as it is on X — not only when its full page is
+     opened, so the tally reflects reality. The server dedupes one view per
+     member per day, and we only bump the visible number when it actually
+     counted, so the figure stays honest. */
+  const [views, setViews] = useState(post.view_count);
+  const cardRef = useRef<HTMLElement | null>(null);
+  const viewedRef = useRef(false);
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || viewedRef.current) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const seen = entries.some((e) => e.isIntersecting);
+        if (!seen || viewedRef.current) return;
+        viewedRef.current = true;
+        io.disconnect();
+        void realmFetch<{ counted?: boolean }>("/api/views", {
+          method: "POST",
+          json: { post_id: post.id },
+        }).then((res) => {
+          if (res.ok && res.data?.counted) setViews((v) => v + 1);
+        });
+      },
+      { threshold: 0.5 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [post.id]);
   /* Why this card is hidden, so the placeholder can offer the right undo. */
   const [hidden, setHidden] = useState<null | "mute" | "block">(null);
   const [undoBusy, setUndoBusy] = useState(false);
@@ -160,16 +195,15 @@ export function PostCard({ post }: { post: Post }) {
       json: { action: "repost", subject_id: post.id, on },
     });
   };
-  const [shared, setShared] = useState(false);
+  const [shared, setShared] = useState<null | "shared" | "copied" | "failed">(
+    null
+  );
   const share = async () => {
     const url = `${window.location.origin}/post/${post.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setShared(true);
-      setTimeout(() => setShared(false), 1600);
-    } catch {
-      /* no clipboard, no drama */
-    }
+    const author = a.handle ? `@${a.handle}` : "a member";
+    const result = await shareOrCopy(url, `A raven from ${author} on The Ravenspire`);
+    setShared(result);
+    window.setTimeout(() => setShared(null), 1800);
   };
   const doDelete = async () => {
     if (!requireAuth()) return;
@@ -178,6 +212,14 @@ export function PostCard({ post }: { post: Post }) {
     await realmFetch("/api/posts", {
       method: "DELETE",
       json: { id: post.id },
+    });
+  };
+  /* Copy a shareable link to this raven. Feedback lives in the menu label. */
+  const doCopyLink = () => {
+    const url = `${window.location.origin}/post/${post.id}`;
+    void shareOrCopy(url).then(() => {
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 1600);
     });
   };
   const doReport = async () => {
@@ -253,7 +295,7 @@ export function PostCard({ post }: { post: Post }) {
   }
 
   return (
-    <article className="glass glass-sm glass-hover p-4">
+    <article ref={cardRef} className="glass glass-sm glass-hover p-4">
       {post.repostedBy && (
         <div className="mb-2 flex items-center gap-1.5 pl-1 text-xs text-bone-faint">
           <Icon name="repost" className="h-3.5 w-3.5 shrink-0" />
@@ -271,9 +313,20 @@ export function PostCard({ post }: { post: Post }) {
         </p>
       )}
       <div className="flex gap-3">
-        <Link href={a.handle ? `/u/${a.handle}` : "#"}>
+        {/* Tapping the avatar opens the member's dossier without leaving the
+            timeline; the name below still links through to their Keep. */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dossier.open(post.author_id, a.handle);
+          }}
+          aria-label={`Open ${a.handle ? `@${a.handle}` : "member"} dossier`}
+          className="shrink-0 rounded-full transition hover:opacity-90"
+        >
           <Avatar author={a} size={40} />
-        </Link>
+        </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 text-sm">
@@ -316,22 +369,40 @@ export function PostCard({ post }: { post: Post }) {
                 <Icon name="bookmark" className="h-4 w-4" />
               </button>
               <OverflowMenu ariaLabel="More">
-                {(close) =>
-                  isOwn ? (
+                {(close) => {
+                  const copyItem = (
                     <button
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        doCopyLink();
                         close();
-                        void doDelete();
                       }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
                     >
-                      <Icon name="flag" className="h-3.5 w-3.5" />
-                      Delete raven
+                      <Icon name="share" className="h-3.5 w-3.5" />
+                      {linkCopied ? "Link copied" : "Copy link"}
                     </button>
+                  );
+                  return isOwn ? (
+                    <>
+                      {copyItem}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          close();
+                          void doDelete();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
+                      >
+                        <Icon name="flag" className="h-3.5 w-3.5" />
+                        Delete raven
+                      </button>
+                    </>
                   ) : (
                     <>
+                      {copyItem}
                       <button
                         onClick={(e) => {
                           e.preventDefault();
@@ -370,8 +441,8 @@ export function PostCard({ post }: { post: Post }) {
                         Block
                       </button>
                     </>
-                  )
-                }
+                  );
+                }}
               </OverflowMenu>
             </div>
           </div>
@@ -461,11 +532,11 @@ export function PostCard({ post }: { post: Post }) {
           <div className="mt-2 flex items-center justify-between">
             <span
               className="flex items-center gap-1.5 px-1 py-1 text-xs text-bone-faint"
-              aria-label={`${post.view_count} views`}
-              title={`${post.view_count.toLocaleString()} views`}
+              aria-label={`${views} views`}
+              title={`${views.toLocaleString()} views`}
             >
               <Icon name="eye" className="h-[18px] w-[18px]" />
-              <span className="tnum">{post.view_count.toLocaleString()}</span>
+              <span className="tnum">{views.toLocaleString()}</span>
             </span>
             <Link
               href={`/post/${post.id}`}
@@ -503,8 +574,8 @@ export function PostCard({ post }: { post: Post }) {
             />
             <ActionButton
               icon="share"
-              active={shared}
-              label="Copy link"
+              active={shared !== null}
+              label="Share"
               onClick={share}
             />
           </div>
@@ -513,6 +584,18 @@ export function PostCard({ post }: { post: Post }) {
             <p className="mt-1 flex items-center gap-1.5 pl-1 text-xs text-gold">
               <Icon name="coin" className="h-3.5 w-3.5" />
               Tribute sent
+            </p>
+          )}
+          {shared && (
+            <p
+              className={`mt-1 flex items-center gap-1.5 pl-1 text-xs ${shared === "failed" ? "text-ember" : "text-gold"}`}
+            >
+              <Icon name="share" className="h-3.5 w-3.5" />
+              {shared === "shared"
+                ? "Shared"
+                : shared === "copied"
+                  ? "Link copied"
+                  : "Could not share — try again"}
             </p>
           )}
         </div>

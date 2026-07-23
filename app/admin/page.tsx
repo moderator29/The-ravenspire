@@ -1,17 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { realmFetch } from "@/lib/auth/api";
 import { Icon } from "@/components/ui/icon";
 
 interface OverviewStats {
   users: number;
   dau: number;
+  newToday: number;
   posts: number;
+  calls: number;
   gloryIssued: number;
   liveRooms: number;
   revenue: number;
   openReports: number;
+  trades: number;
+  trades24h: number;
+  duelsLive: number;
+  connections: number;
+  warPlayers: number;
 }
 
 interface RecentPost {
@@ -158,10 +166,17 @@ export default function AdminOverviewPage() {
     ? [
         { label: "Members of the realm", value: data.stats.users, icon: "user" },
         { label: "Active today", value: data.stats.dau, icon: "signal" },
-        { label: "Ravens sent", value: data.stats.posts, icon: "raven" },
+        { label: "New today", value: data.stats.newToday, icon: "raven" },
+        { label: "Ravens sent", value: data.stats.posts, icon: "mail" },
+        { label: "Calls sealed", value: data.stats.calls, icon: "target" },
+        { label: "Connections", value: data.stats.connections, icon: "heart" },
         { label: "Glory issued", value: data.stats.gloryIssued, icon: "medal" },
         { label: "Live courts", value: data.stats.liveRooms, icon: "orb" },
-        { label: "Tips revenue", value: data.stats.revenue, icon: "coin" },
+        { label: "Trades all-time", value: data.stats.trades, icon: "repost" },
+        { label: "Trades today", value: data.stats.trades24h, icon: "coin" },
+        { label: "War champions", value: data.stats.warPlayers, icon: "swords" },
+        { label: "Open duels", value: data.stats.duelsLive, icon: "flag" },
+        { label: "Tips revenue", value: data.stats.revenue, icon: "wallet" },
         {
           label: "Open reports",
           value: data.stats.openReports,
@@ -169,6 +184,33 @@ export default function AdminOverviewPage() {
         },
       ]
     : [];
+
+  /* The control center: every lever an admin has, each a card into its
+     sub-console, with a live "needs attention" badge where the platform is
+     waiting on a steward. */
+  const controls = [
+    { href: "/admin/users", icon: "user", label: "Users", desc: "Search, roles, bans and seals" },
+    {
+      href: "/admin/moderation",
+      icon: "shield",
+      label: "Moderation",
+      desc: "Removed ravens and the report queue",
+      badge: data?.stats.openReports ?? 0,
+    },
+    {
+      href: "/admin/reports",
+      icon: "scroll",
+      label: "Reports",
+      desc: "Member reports awaiting a verdict",
+      badge: data?.stats.openReports ?? 0,
+    },
+    { href: "/admin/houses", icon: "banner", label: "Houses", desc: "Banners, glory and membership" },
+    { href: "/admin/seasons", icon: "crown", label: "Seasons", desc: "Season windows and settlement" },
+    { href: "/admin/crests", icon: "medal", label: "Crests", desc: "Award and revoke honors" },
+    { href: "/admin/war", icon: "swords", label: "The War", desc: "Champions, battles and rewards" },
+    { href: "/admin/flags", icon: "sliders", label: "Feature Flags", desc: "Roll features out or back" },
+    { href: "/admin/settings", icon: "wall", label: "Settings", desc: "Realm-wide configuration" },
+  ];
 
   return (
     <div>
@@ -178,6 +220,42 @@ export default function AdminOverviewPage() {
       <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
         The state of the realm
       </p>
+
+      {/* Control center — jump to any lever, with live attention badges. */}
+      <section className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-3">
+        {controls.map((c) => (
+          <Link
+            key={c.href}
+            href={c.href}
+            className="glass glass-sm group relative flex items-start gap-3 p-3.5 transition hover:border-gold/30 sm:p-4"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/25 bg-void text-gold">
+              <Icon name={c.icon} className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-bone">{c.label}</p>
+                {"badge" in c && (c.badge ?? 0) > 0 && (
+                  <span className="tnum inline-flex min-w-5 items-center justify-center rounded-full border border-ember-deep/50 bg-ember/10 px-1.5 py-0.5 text-[10px] font-bold text-ember">
+                    {c.badge}
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 truncate text-[11px] text-bone-faint">
+                {c.desc}
+              </p>
+            </div>
+            <Icon
+              name="arrow"
+              className="mt-1 h-3.5 w-3.5 shrink-0 rotate-0 text-bone-faint transition group-hover:text-gold"
+            />
+          </Link>
+        ))}
+      </section>
+
+      <h2 className="mt-8 font-display text-lg font-semibold text-bone">
+        Pulse of the realm
+      </h2>
 
       {status === "loading" ? (
         <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">

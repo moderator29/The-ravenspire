@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
-import { parseEther } from "viem";
+import { isAddress, parseEther } from "viem";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { TipSuccessCard } from "@/components/tip/tip-success-card";
@@ -94,7 +94,17 @@ export function TipDialog({
         setPhase("error");
         return;
       }
-      setRecipientWallet(wallet);
+      /* Guard the address before we ever hand it to the wallet: a malformed or
+         non-EVM address would otherwise surface as a raw "invalid" error mid
+         send. Better to say so plainly up front. */
+      if (!isAddress(wallet.trim())) {
+        setError(
+          `${recipientName}'s linked wallet could not be read as a valid address, so tribute cannot be sent safely.`
+        );
+        setPhase("error");
+        return;
+      }
+      setRecipientWallet(wallet.trim());
       setPhase("amount");
     })();
     return () => {
@@ -112,6 +122,13 @@ export function TipDialog({
 
   const confirm = async () => {
     if (!recipientWallet || !amountValid || selfTip) return;
+    /* No signing wallet yet: the embedded wallet is still waking. Say so
+       instead of letting the send throw a cryptic "invalid" error. */
+    if (!sender?.address || !isAddress(sender.address)) {
+      setError("Your wallet is still connecting. Give it a moment and try again.");
+      setPhase("error");
+      return;
+    }
     let value: bigint;
     try {
       value = parseEther(amountStr);
@@ -128,20 +145,24 @@ export function TipDialog({
     try {
       const result = await sendTransaction(
         {
-          to: recipientWallet,
+          to: recipientWallet as `0x${string}`,
           value,
           ...(chainId != null ? { chainId } : {}),
         },
-        sender?.address ? { address: sender.address } : undefined
+        { address: sender.address }
       );
       hash = result.hash;
     } catch (e) {
-      const message =
-        e instanceof Error && /reject|denied|cancel/i.test(e.message)
-          ? "The tribute was cancelled."
-          : e instanceof Error && /insufficient|funds|balance/i.test(e.message)
-            ? `Your wallet lacks the ${chain.symbol} to cover this tribute and gas.`
-            : "The transfer could not be completed. Nothing was sent.";
+      const msg = e instanceof Error ? e.message : "";
+      const message = /reject|denied|cancel|user rejected/i.test(msg)
+        ? "The tribute was cancelled."
+        : /insufficient|funds|balance|exceeds/i.test(msg)
+          ? `Your wallet lacks the ${chain.symbol} to cover this tribute and gas.`
+          : /chain|network|unsupported/i.test(msg)
+            ? `Your wallet is on a network tribute cannot use right now. Switch to ${chain.name} and try again.`
+            : /invalid|address|argument/i.test(msg)
+              ? "The transfer details could not be validated. Nothing was sent."
+              : "The transfer could not be completed. Nothing was sent.";
       setError(message);
       setPhase("error");
       return;

@@ -5,6 +5,7 @@ import { RightRail } from "@/components/shell/right-rail";
 import { ShellGate } from "@/components/shell/shell-gate";
 import { FloatingCompose } from "@/components/shell/floating-compose";
 import { NotificationsProvider } from "@/components/notifications/notifications-provider";
+import { DossierProvider } from "@/components/social/user-dossier";
 
 export default function ShellLayout({
   children,
@@ -12,6 +13,7 @@ export default function ShellLayout({
   return (
     <ShellGate>
       <NotificationsProvider>
+        <DossierProvider>
         <div className="realm-bg mx-auto flex min-h-screen w-full max-w-[1600px] flex-col lg:flex-row">
           <div className="sticky top-0 hidden h-screen w-[272px] shrink-0 border-r border-steel-line/70 lg:block">
             <SideNav />
@@ -23,6 +25,7 @@ export default function ShellLayout({
 
           <FloatingCompose />
         </div>
+        </DossierProvider>
       </NotificationsProvider>
     </ShellGate>
   );

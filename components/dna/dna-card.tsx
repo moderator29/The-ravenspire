@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
+import { shareOrCopy } from "@/lib/share";
 import type { DnaResult } from "@/components/dna/types";
 
 /* The premium result card. Numbers here are real, computed server-side; the
@@ -16,13 +17,10 @@ export function DnaCard({ result }: { result: DnaResult }) {
       typeof window !== "undefined"
         ? `${window.location.origin}/dna?q=${encodeURIComponent(result.subject)}`
         : "";
-    const text = `${result.shareText}${url ? `\n${url}` : ""}`;
-    try {
-      await navigator.clipboard.writeText(text);
+    const result2 = await shareOrCopy(url || result.shareText, result.shareText);
+    if (result2 !== "failed") {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
     }
   }
 
