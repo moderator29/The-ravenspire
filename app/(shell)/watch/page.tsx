@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { shareOrCopy } from "@/lib/share";
 import type {
   WatchCheck,
   WatchVerdict,
@@ -159,9 +160,10 @@ export default function WatchPage() {
   const shareReport = useCallback(() => {
     if (!scanned) return;
     const url = `${window.location.origin}/safety/${scanned.chain}/${scanned.address}`;
-    void navigator.clipboard?.writeText(url).catch(() => {});
-    setShared(true);
-    window.setTimeout(() => setShared(false), 1600);
+    void shareOrCopy(url, "Token safety report · The Watch").then(() => {
+      setShared(true);
+      window.setTimeout(() => setShared(false), 1600);
+    });
   }, [scanned]);
 
   const scan = () => void scanAddress(contract, chain);

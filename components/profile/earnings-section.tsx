@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
+import { shareOrCopy } from "@/lib/share";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
 import { EarningsChart, type EarningsPoint } from "@/components/profile/earnings-chart";
@@ -197,9 +198,10 @@ export function EarningsSection({
 
   const share = () => {
     const url = `${window.location.origin}/u/${handle ?? ""}`;
-    void navigator.clipboard?.writeText(url).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    void shareOrCopy(url, "The Coffers on The Ravenspire").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    });
   };
 
   const saveThesis = async () => {

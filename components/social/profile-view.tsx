@@ -23,6 +23,7 @@ import { TIER_NAMES, type Post, type PublicProfile } from "@/lib/social/types";
 import { houses } from "@/lib/data/houses";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { shareOrCopy } from "@/lib/share";
 
 export function ProfileView({
   profile,
@@ -270,12 +271,10 @@ export function ProfileView({
                     <button
                       role="menuitem"
                       onClick={() => {
+                        const url = `${window.location.origin}/u/${profile.handle}`;
+                        const who = profile.display_name ?? `@${profile.handle}`;
+                        void shareOrCopy(url, `${who} on The Ravenspire`);
                         close();
-                        void navigator.clipboard
-                          ?.writeText(
-                            `${window.location.origin}/u/${profile.handle}`
-                          )
-                          .catch(() => {});
                       }}
                       className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
                     >

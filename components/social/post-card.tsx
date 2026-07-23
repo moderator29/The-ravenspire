@@ -10,6 +10,7 @@ import { Icon } from "@/components/ui/icon";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { useDossier } from "@/components/social/user-dossier";
 import { TipDialog } from "@/components/tip/tip-dialog";
+import { shareOrCopy } from "@/lib/share";
 import { realmFetch } from "@/lib/auth/api";
 import { muteMember, unmuteMember } from "@/lib/social/mutes";
 import { useViewerId } from "@/lib/social/use-viewer";
@@ -194,16 +195,15 @@ export function PostCard({ post }: { post: Post }) {
       json: { action: "repost", subject_id: post.id, on },
     });
   };
-  const [shared, setShared] = useState(false);
+  const [shared, setShared] = useState<null | "shared" | "copied" | "failed">(
+    null
+  );
   const share = async () => {
     const url = `${window.location.origin}/post/${post.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setShared(true);
-      setTimeout(() => setShared(false), 1600);
-    } catch {
-      /* no clipboard, no drama */
-    }
+    const author = a.handle ? `@${a.handle}` : "a member";
+    const result = await shareOrCopy(url, `A raven from ${author} on The Ravenspire`);
+    setShared(result);
+    window.setTimeout(() => setShared(null), 1800);
   };
   const doDelete = async () => {
     if (!requireAuth()) return;
@@ -217,9 +217,10 @@ export function PostCard({ post }: { post: Post }) {
   /* Copy a shareable link to this raven. Feedback lives in the menu label. */
   const doCopyLink = () => {
     const url = `${window.location.origin}/post/${post.id}`;
-    void navigator.clipboard?.writeText(url).catch(() => {});
-    setLinkCopied(true);
-    window.setTimeout(() => setLinkCopied(false), 1600);
+    void shareOrCopy(url).then(() => {
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 1600);
+    });
   };
   const doReport = async () => {
     if (!requireAuth()) return;
@@ -573,8 +574,8 @@ export function PostCard({ post }: { post: Post }) {
             />
             <ActionButton
               icon="share"
-              active={shared}
-              label="Copy link"
+              active={shared !== null}
+              label="Share"
               onClick={share}
             />
           </div>
@@ -583,6 +584,18 @@ export function PostCard({ post }: { post: Post }) {
             <p className="mt-1 flex items-center gap-1.5 pl-1 text-xs text-gold">
               <Icon name="coin" className="h-3.5 w-3.5" />
               Tribute sent
+            </p>
+          )}
+          {shared && (
+            <p
+              className={`mt-1 flex items-center gap-1.5 pl-1 text-xs ${shared === "failed" ? "text-ember" : "text-gold"}`}
+            >
+              <Icon name="share" className="h-3.5 w-3.5" />
+              {shared === "shared"
+                ? "Shared"
+                : shared === "copied"
+                  ? "Link copied"
+                  : "Could not share — try again"}
             </p>
           )}
         </div>
