@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
 import { realmFetch } from "@/lib/auth/api";
@@ -40,7 +41,10 @@ interface Results {
 }
 
 export default function SearchPage() {
-  const [query, setQuery] = useState("");
+  /* Seed the query from the URL so deep links like /search?q=$NAKA (from the
+     right rail's trending cashtags) land pre-searched. */
+  const params = useSearchParams();
+  const [query, setQuery] = useState(() => params.get("q") ?? "");
   const [results, setResults] = useState<Results | null>(null);
   const [searching, setSearching] = useState(false);
 
