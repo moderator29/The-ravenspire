@@ -174,14 +174,12 @@ export function EarningsSection({
     return () => clearInterval(t);
   }, [load]);
 
-  /* Live holdings + owner balance. The route enforces the gate: owners get a
-     balance total and full holdings, public-positions members expose their
-     token list only, everyone else gets canView:false. */
+  /* Live holdings + wallet balance. The route enforces the gate on the token
+     LIST (owners and public-positions members only), but the aggregate wallet
+     total is public on-chain data and comes back for every Keep with a linked
+     wallet. So we fetch for every profile — even one that seals its PnL — so
+     The Coffers can always show a real balance instead of a reputation stand-in. */
   useEffect(() => {
-    if (!data?.visible) {
-      setPositions(null);
-      return;
-    }
     let alive = true;
     const pull = async () => {
       const res = await realmFetch<PositionsResponse>(
@@ -195,7 +193,7 @@ export function EarningsSection({
       alive = false;
       clearInterval(t);
     };
-  }, [profileId, data?.visible]);
+  }, [profileId]);
 
   const share = () => {
     const url = `${window.location.origin}/u/${handle ?? ""}`;
@@ -228,7 +226,15 @@ export function EarningsSection({
   const pub = data.public;
   const owner = data.isOwner;
 
-  /* Other viewer, PnL kept private: reputation only, never a balance. */
+  /* The public wallet balance total (on-chain, so it is shown for every Keep
+     that has linked a wallet). Null when no wallet is linked or the balance
+     service is unavailable — in that case The Coffers falls back to standing. */
+  const publicBalanceUsd: number | null =
+    typeof positions?.totalUsd === "number" ? positions.totalUsd : null;
+  const hasPublicBalance = publicBalanceUsd !== null;
+
+  /* Other viewer, PnL kept private: earnings stay sealed, but the wallet
+     balance is public on-chain data, so we still surface it up top. */
   if (!data.visible) {
     return (
       <section className="glass glass-warm mt-4 overflow-hidden p-4">
@@ -238,6 +244,22 @@ export function EarningsSection({
           onShare={share}
           copied={copied}
         />
+
+        {hasPublicBalance && (
+          <div className="mt-4">
+            <Coffer icon="wallet" label="Wallet balance" live>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-display text-3xl font-bold tnum leading-none text-bone">
+                  {fmtUsd(publicBalanceUsd)}
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs text-bone-faint">
+                Live on-chain balance across tracked realms
+              </p>
+            </Coffer>
+          </div>
+        )}
+
         <div className="mt-4 flex items-center gap-2 rounded-2xl border border-steel-line/70 bg-void/40 px-4 py-3 text-bone-mut">
           <Icon name="lock" className="h-4 w-4 shrink-0 text-gold" />
           <span className="text-sm">
@@ -292,7 +314,7 @@ export function EarningsSection({
      positions total. Null when there is nothing real to show. */
   const holdingsTotalUsd: number | null = owner
     ? ownerBalanceUsd
-    : (positions?.totalUsd ?? null);
+    : publicBalanceUsd;
 
   const changePct = win?.changePct ?? 0;
   const windowDelta = win?.delta ?? 0;
@@ -373,6 +395,17 @@ export function EarningsSection({
                   : balanceLive
                     ? `${tokens.length} ${tokens.length === 1 ? "asset" : "assets"} across chains, live`
                     : "Live balances are resting in this realm."}
+            </p>
+          </Coffer>
+        ) : hasPublicBalance ? (
+          <Coffer icon="wallet" label="Wallet balance" live>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display text-3xl font-bold tnum leading-none text-bone">
+                {fmtUsd(publicBalanceUsd)}
+              </span>
+            </div>
+            <p className="tnum mt-1.5 text-xs text-bone-faint">
+              {fmt.format(pub.renown)} Renown &middot; {fmt.format(pub.callsWon)} calls won
             </p>
           </Coffer>
         ) : (
