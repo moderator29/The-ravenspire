@@ -7,6 +7,7 @@ import { RichBody } from "@/components/social/rich-body";
 import { PriceCard } from "@/components/social/price-card";
 import { CallChart } from "@/components/social/call-chart";
 import { Icon } from "@/components/ui/icon";
+import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { TipDialog } from "@/components/tip/tip-dialog";
 import { realmFetch } from "@/lib/auth/api";
 import { muteMember, unmuteMember } from "@/lib/social/mutes";
@@ -115,7 +116,6 @@ export function PostCard({ post }: { post: Post }) {
   const [reposted, setReposted] = useState(post.viewer_reposted ?? false);
   const [reposts, setReposts] = useState(post.repost_count);
   const [bookmarked, setBookmarked] = useState(post.viewer_bookmarked ?? false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [reported, setReported] = useState(false);
   /* Why this card is hidden, so the placeholder can offer the right undo. */
   const [hidden, setHidden] = useState<null | "mute" | "block">(null);
@@ -125,7 +125,7 @@ export function PostCard({ post }: { post: Post }) {
 
   const requireAuth = () => {
     if (!authenticated) {
-      window.location.href = "/signin";
+      window.location.assign("/signin");
       return false;
     }
     return true;
@@ -173,7 +173,6 @@ export function PostCard({ post }: { post: Post }) {
   };
   const doDelete = async () => {
     if (!requireAuth()) return;
-    setMenuOpen(false);
     if (!window.confirm("Delete this raven for good?")) return;
     setRemoved(true);
     await realmFetch("/api/posts", {
@@ -183,7 +182,6 @@ export function PostCard({ post }: { post: Post }) {
   };
   const doReport = async () => {
     if (!requireAuth()) return;
-    setMenuOpen(false);
     if (reported) return;
     setReported(true);
     await realmFetch("/api/reports", {
@@ -193,7 +191,6 @@ export function PostCard({ post }: { post: Post }) {
   };
   const doMute = async () => {
     if (!requireAuth()) return;
-    setMenuOpen(false);
     setHidden("mute");
     const ok = await muteMember(post.author_id);
     /* Server refused the silence: bring the raven back so nothing is lost. */
@@ -201,7 +198,6 @@ export function PostCard({ post }: { post: Post }) {
   };
   const doBlock = async () => {
     if (!requireAuth()) return;
-    setMenuOpen(false);
     setHidden("block");
     await realmFetch("/api/blocks", {
       method: "POST",
@@ -319,83 +315,64 @@ export function PostCard({ post }: { post: Post }) {
               >
                 <Icon name="bookmark" className="h-4 w-4" />
               </button>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMenuOpen((v) => !v);
-                }}
-                aria-label="More"
-                className="flex h-7 w-7 items-center justify-center rounded-full text-bone-faint transition hover:bg-panel hover:text-bone-mut"
-              >
-                <Icon name="dots" className="h-4 w-4" />
-              </button>
-              {menuOpen && (
-                <>
-                  <button
-                    aria-hidden
-                    tabIndex={-1}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                    }}
-                    className="fixed inset-0 z-20 cursor-default"
-                  />
-                  <div className="glass glass-sm absolute right-0 top-8 z-30 w-40 p-1">
-                    {isOwn ? (
+              <OverflowMenu ariaLabel="More">
+                {(close) =>
+                  isOwn ? (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        close();
+                        void doDelete();
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
+                    >
+                      <Icon name="flag" className="h-3.5 w-3.5" />
+                      Delete raven
+                    </button>
+                  ) : (
+                    <>
                       <button
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          void doDelete();
+                          close();
+                          void doReport();
                         }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
+                        disabled={reported}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel disabled:opacity-50"
                       >
                         <Icon name="flag" className="h-3.5 w-3.5" />
-                        Delete raven
+                        {reported ? "Reported" : "Report"}
                       </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            void doReport();
-                          }}
-                          disabled={reported}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel disabled:opacity-50"
-                        >
-                          <Icon name="flag" className="h-3.5 w-3.5" />
-                          {reported ? "Reported" : "Report"}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            void doMute();
-                          }}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                        >
-                          <Icon name="bell" className="h-3.5 w-3.5" />
-                          Mute
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            void doBlock();
-                          }}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                        >
-                          <Icon name="shield" className="h-3.5 w-3.5" />
-                          Block
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          close();
+                          void doMute();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                      >
+                        <Icon name="bell" className="h-3.5 w-3.5" />
+                        Mute
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          close();
+                          void doBlock();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                      >
+                        <Icon name="shield" className="h-3.5 w-3.5" />
+                        Block
+                      </button>
+                    </>
+                  )
+                }
+              </OverflowMenu>
             </div>
           </div>
 
