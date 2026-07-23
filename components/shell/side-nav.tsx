@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { StreakFlame } from "@/components/shell/streak-flame";
-import { socialNav, toolsNav, accountNav, comingSoonNav } from "@/lib/nav";
+import { primaryNav, socialNav, toolsNav, accountNav, comingSoonNav } from "@/lib/nav";
 import type { NavItem } from "@/lib/nav";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -142,6 +142,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       )}
 
+      <NavGroup items={primaryNav} pathname={pathname} />
       <NavGroup label="Social & Game" items={socialNav} pathname={pathname} />
       <NavGroup label="Tools" items={toolsNav} pathname={pathname} />
       <NavGroup label="Account" items={accountNav} pathname={pathname} />
