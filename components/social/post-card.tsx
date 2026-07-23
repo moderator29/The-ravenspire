@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/social/avatar";
 import { RichBody } from "@/components/social/rich-body";
 import { PriceCard } from "@/components/social/price-card";
@@ -120,6 +120,37 @@ export function PostCard({ post }: { post: Post }) {
   const [bookmarked, setBookmarked] = useState(post.viewer_bookmarked ?? false);
   const [reported, setReported] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+
+  /* Live view count. An impression is recorded the first time this raven
+     scrolls into view — as it is on X — not only when its full page is
+     opened, so the tally reflects reality. The server dedupes one view per
+     member per day, and we only bump the visible number when it actually
+     counted, so the figure stays honest. */
+  const [views, setViews] = useState(post.view_count);
+  const cardRef = useRef<HTMLElement | null>(null);
+  const viewedRef = useRef(false);
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || viewedRef.current) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const seen = entries.some((e) => e.isIntersecting);
+        if (!seen || viewedRef.current) return;
+        viewedRef.current = true;
+        io.disconnect();
+        void realmFetch<{ counted?: boolean }>("/api/views", {
+          method: "POST",
+          json: { post_id: post.id },
+        }).then((res) => {
+          if (res.ok && res.data?.counted) setViews((v) => v + 1);
+        });
+      },
+      { threshold: 0.5 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [post.id]);
   /* Why this card is hidden, so the placeholder can offer the right undo. */
   const [hidden, setHidden] = useState<null | "mute" | "block">(null);
   const [undoBusy, setUndoBusy] = useState(false);
@@ -263,7 +294,7 @@ export function PostCard({ post }: { post: Post }) {
   }
 
   return (
-    <article className="glass glass-sm glass-hover p-4">
+    <article ref={cardRef} className="glass glass-sm glass-hover p-4">
       {post.repostedBy && (
         <div className="mb-2 flex items-center gap-1.5 pl-1 text-xs text-bone-faint">
           <Icon name="repost" className="h-3.5 w-3.5 shrink-0" />
@@ -500,11 +531,11 @@ export function PostCard({ post }: { post: Post }) {
           <div className="mt-2 flex items-center justify-between">
             <span
               className="flex items-center gap-1.5 px-1 py-1 text-xs text-bone-faint"
-              aria-label={`${post.view_count} views`}
-              title={`${post.view_count.toLocaleString()} views`}
+              aria-label={`${views} views`}
+              title={`${views.toLocaleString()} views`}
             >
               <Icon name="eye" className="h-[18px] w-[18px]" />
-              <span className="tnum">{post.view_count.toLocaleString()}</span>
+              <span className="tnum">{views.toLocaleString()}</span>
             </span>
             <Link
               href={`/post/${post.id}`}
