@@ -790,6 +790,26 @@ function TokenPicker({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [active, setActive] = useState<SearchResult[]>([]);
+  const [activeLoading, setActiveLoading] = useState(true);
+
+  /* The live active-coin roll for the selected chain, so the picker opens like
+     a real DEX token list rather than a handful of majors. Refetched when the
+     chain changes. */
+  useEffect(() => {
+    let cancelled = false;
+    setActiveLoading(true);
+    void realmFetch<{ results?: SearchResult[] }>(
+      `/api/trade/top-tokens?chain=${chainId}`
+    ).then((res) => {
+      if (cancelled) return;
+      setActive(res.data?.results ?? []);
+      setActiveLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [chainId]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -823,6 +843,15 @@ function TokenPicker({
   const base = tokensForChain(chainId);
   const heldOnChain = held.filter(
     (h) => h.chainId === chainId && Number(h.balanceDisplay) > 0
+  );
+
+  /* The active roll, minus anything already surfaced in Popular or Holdings, so
+     the list never repeats a coin. */
+  const seen = new Set<string>();
+  for (const t of base) if (t.address) seen.add(t.address.toLowerCase());
+  for (const h of heldOnChain) if (h.contract) seen.add(h.contract.toLowerCase());
+  const activeCoins = active.filter(
+    (r) => r.address && !seen.has(r.address.toLowerCase())
   );
 
   const pickListed = (t: ListedToken) => onPick(listedToRef(t));
@@ -932,6 +961,30 @@ function TokenPicker({
                     onClick={() => pickListed(t)}
                   />
                 ))}
+              </Section>
+              <Section label="Active coins, live by volume">
+                {activeLoading ? (
+                  <Loading />
+                ) : activeCoins.length === 0 ? (
+                  <Empty text="No live coins could be read for this chain right now." />
+                ) : (
+                  activeCoins.map((r) => (
+                    <Choice
+                      key={`${r.chainId}:${r.address}`}
+                      logo={r.logo}
+                      symbol={r.symbol}
+                      sub={`${r.name} · ${r.chainLabel}`}
+                      right={
+                        r.priceUsd !== null && r.priceUsd !== undefined
+                          ? r.priceUsd >= 1
+                            ? `$${r.priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+                            : `$${r.priceUsd.toPrecision(2)}`
+                          : undefined
+                      }
+                      onClick={() => pickResult(r)}
+                    />
+                  ))
+                )}
               </Section>
             </>
           )}
