@@ -119,6 +119,7 @@ export function PostCard({ post }: { post: Post }) {
   const [reposts, setReposts] = useState(post.repost_count);
   const [bookmarked, setBookmarked] = useState(post.viewer_bookmarked ?? false);
   const [reported, setReported] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   /* Why this card is hidden, so the placeholder can offer the right undo. */
   const [hidden, setHidden] = useState<null | "mute" | "block">(null);
   const [undoBusy, setUndoBusy] = useState(false);
@@ -181,6 +182,13 @@ export function PostCard({ post }: { post: Post }) {
       method: "DELETE",
       json: { id: post.id },
     });
+  };
+  /* Copy a shareable link to this raven. Feedback lives in the menu label. */
+  const doCopyLink = () => {
+    const url = `${window.location.origin}/post/${post.id}`;
+    void navigator.clipboard?.writeText(url).catch(() => {});
+    setLinkCopied(true);
+    window.setTimeout(() => setLinkCopied(false), 1600);
   };
   const doReport = async () => {
     if (!requireAuth()) return;
@@ -329,22 +337,40 @@ export function PostCard({ post }: { post: Post }) {
                 <Icon name="bookmark" className="h-4 w-4" />
               </button>
               <OverflowMenu ariaLabel="More">
-                {(close) =>
-                  isOwn ? (
+                {(close) => {
+                  const copyItem = (
                     <button
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        doCopyLink();
                         close();
-                        void doDelete();
                       }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
                     >
-                      <Icon name="flag" className="h-3.5 w-3.5" />
-                      Delete raven
+                      <Icon name="share" className="h-3.5 w-3.5" />
+                      {linkCopied ? "Link copied" : "Copy link"}
                     </button>
+                  );
+                  return isOwn ? (
+                    <>
+                      {copyItem}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          close();
+                          void doDelete();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
+                      >
+                        <Icon name="flag" className="h-3.5 w-3.5" />
+                        Delete raven
+                      </button>
+                    </>
                   ) : (
                     <>
+                      {copyItem}
                       <button
                         onClick={(e) => {
                           e.preventDefault();
@@ -383,8 +409,8 @@ export function PostCard({ post }: { post: Post }) {
                         Block
                       </button>
                     </>
-                  )
-                }
+                  );
+                }}
               </OverflowMenu>
             </div>
           </div>

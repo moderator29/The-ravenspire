@@ -38,6 +38,7 @@ interface DossierData {
   glory: number;
   houseSlug: string | null;
   isVerified: boolean;
+  joined: string | null;
   callsWon: number;
   callsLost: number;
   callsOpen: number;
@@ -52,9 +53,17 @@ interface ProfileRow {
   glory: number | null;
   house_slug: string | null;
   is_verified: boolean | null;
+  created_at: string | null;
 }
 
 const fmt = new Intl.NumberFormat("en-US");
+
+function joinLabel(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
 
 /* Read the member's public standing and settle-record. Public fields only —
    never privy_id, wallet_address, settings or is_admin. */
@@ -64,7 +73,7 @@ async function fetchDossier(profileId: string): Promise<DossierData | null> {
     db
       .from("profiles")
       .select(
-        "handle, display_name, avatar_url, tier, renown, glory, house_slug, is_verified"
+        "handle, display_name, avatar_url, tier, renown, glory, house_slug, is_verified, created_at"
       )
       .eq("id", profileId)
       .maybeSingle(),
@@ -99,6 +108,7 @@ async function fetchDossier(profileId: string): Promise<DossierData | null> {
     glory: p.glory ?? 0,
     houseSlug: p.house_slug,
     isVerified: Boolean(p.is_verified),
+    joined: p.created_at,
     callsWon,
     callsLost,
     callsOpen,
@@ -227,10 +237,23 @@ export function DossierProvider({ children }: { children: ReactNode }) {
                 <Stat label="Calls lost" value={loading ? "…" : fmt.format(data?.callsLost ?? 0)} icon="flag" />
               </div>
 
-              {data && data.callsOpen > 0 && (
-                <p className="mt-2 text-center text-[11px] text-bone-faint">
-                  {fmt.format(data.callsOpen)} live{" "}
-                  {data.callsOpen === 1 ? "call" : "calls"} still open
+              {data && (data.callsOpen > 0 || joinLabel(data.joined)) && (
+                <p className="mt-2 flex flex-wrap items-center justify-center gap-x-2 text-center text-[11px] text-bone-faint">
+                  {data.callsOpen > 0 && (
+                    <span>
+                      {fmt.format(data.callsOpen)} live{" "}
+                      {data.callsOpen === 1 ? "call" : "calls"} still open
+                    </span>
+                  )}
+                  {data.callsOpen > 0 && joinLabel(data.joined) && (
+                    <span aria-hidden>·</span>
+                  )}
+                  {joinLabel(data.joined) && (
+                    <span className="inline-flex items-center gap-1">
+                      <Icon name="scroll" className="h-3 w-3 text-gold" />
+                      Joined {joinLabel(data.joined)}
+                    </span>
+                  )}
                 </p>
               )}
 
