@@ -114,6 +114,13 @@ export default function WatchPage() {
   const [revoking, setRevoking] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
 
+  /* The address a verdict was actually read for, captured at scan time so the
+     shareable report link stays correct even if the input is edited after. */
+  const [scanned, setScanned] = useState<{ address: string; chain: string } | null>(
+    null
+  );
+  const [shared, setShared] = useState(false);
+
   const { sendTransaction } = useSendTransaction();
   const { wallets } = useWallets();
   const sender = useMemo(() => {
@@ -132,17 +139,30 @@ export default function WatchPage() {
     if (!/^0x[a-fA-F0-9]{40}$/.test(addr.trim())) return;
     setLoading(true);
     setResult(null);
+    setShared(false);
     try {
       const res = await fetch(
         `/api/watch?address=${encodeURIComponent(addr.trim())}&chain=${chainId}`
       );
-      setResult((await res.json()) as WatchResult);
+      const body = (await res.json()) as WatchResult;
+      setResult(body);
+      if (!body.error) setScanned({ address: addr.trim(), chain: chainId });
     } catch {
       setResult({ error: "The Watch could not reach the wall" });
     } finally {
       setLoading(false);
     }
   }, []);
+
+  /* Copy a public, shareable link to this token's safety report (a page that
+     opens for anyone, member or not, with a rich preview card). */
+  const shareReport = useCallback(() => {
+    if (!scanned) return;
+    const url = `${window.location.origin}/safety/${scanned.chain}/${scanned.address}`;
+    void navigator.clipboard?.writeText(url).catch(() => {});
+    setShared(true);
+    window.setTimeout(() => setShared(false), 1600);
+  }, [scanned]);
 
   const scan = () => void scanAddress(contract, chain);
 
@@ -329,6 +349,16 @@ export default function WatchPage() {
               >
                 {result.headline}
               </p>
+            )}
+            {scanned && (
+              <button
+                type="button"
+                onClick={shareReport}
+                className="btn-glass mx-auto mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-bone-mut"
+              >
+                <Icon name="share" className="h-4 w-4" />
+                {shared ? "Link copied" : "Share report"}
+              </button>
             )}
           </div>
 
