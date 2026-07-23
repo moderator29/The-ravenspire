@@ -7,6 +7,7 @@ import { EarningsSection } from "@/components/profile/earnings-section";
 import { Avatar } from "@/components/social/avatar";
 import { CrestRoundel, findCrest } from "@/components/brand/crests";
 import { Icon } from "@/components/ui/icon";
+import { OverflowMenu } from "@/components/ui/overflow-menu";
 import {
   fetchFollowCounts,
   fetchProfilePosts,
@@ -44,7 +45,6 @@ export function ProfileView({
   const [bannerOverride, setBannerOverride] = useState<string | null>(null);
   const [uploading, setUploading] = useState<"avatar" | "banner" | null>(null);
   const [portraitError, setPortraitError] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [mutuals, setMutuals] = useState<Mutuals | null>(null);
 
   /* This Keep belongs to the viewer either because the parent said so
@@ -261,90 +261,73 @@ export function ProfileView({
               >
                 {following ? "Following" : "Follow"}
               </button>
-              <div className="relative shrink-0">
-                <button
-                  onClick={() => setMenuOpen((v) => !v)}
-                  aria-label="More"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  className="btn-glass flex h-8 w-8 items-center justify-center text-bone-mut"
-                >
-                  <Icon name="dots" className="h-4 w-4" />
-                </button>
-                {menuOpen && (
+              <OverflowMenu
+                ariaLabel="More"
+                buttonClassName="btn-glass flex h-8 w-8 items-center justify-center text-bone-mut"
+              >
+                {(close) => (
                   <>
                     <button
-                      aria-hidden
-                      tabIndex={-1}
-                      onClick={() => setMenuOpen(false)}
-                      className="fixed inset-0 z-40 cursor-default"
-                    />
-                    <div
-                      role="menu"
-                      className="glass glass-sm absolute right-0 top-full z-50 mt-2 w-44 p-1"
+                      role="menuitem"
+                      onClick={() => {
+                        close();
+                        void navigator.clipboard
+                          ?.writeText(
+                            `${window.location.origin}/u/${profile.handle}`
+                          )
+                          .catch(() => {});
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
                     >
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          void navigator.clipboard
-                            ?.writeText(
-                              `${window.location.origin}/u/${profile.handle}`
-                            )
-                            .catch(() => {});
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                      >
-                        <Icon name="share" className="h-3.5 w-3.5 shrink-0" />
-                        Share profile
-                      </button>
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          void realmFetch("/api/mutes", {
-                            method: "POST",
-                            json: { muted_id: profile.id },
-                          });
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                      >
-                        <Icon name="bell" className="h-3.5 w-3.5 shrink-0" />
-                        Mute
-                      </button>
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          void toggleBlock();
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                      >
-                        <Icon name="shield" className="h-3.5 w-3.5 shrink-0" />
-                        {isBlocked ? "Unblock" : "Block"}
-                      </button>
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          void realmFetch("/api/reports", {
-                            method: "POST",
-                            json: {
-                              subject_type: "profile",
-                              subject_id: profile.id,
-                              reason: "member_flag",
-                            },
-                          });
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
-                      >
-                        <Icon name="flag" className="h-3.5 w-3.5 shrink-0" />
-                        Report
-                      </button>
-                    </div>
+                      <Icon name="share" className="h-3.5 w-3.5 shrink-0" />
+                      Share profile
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        close();
+                        void realmFetch("/api/mutes", {
+                          method: "POST",
+                          json: { muted_id: profile.id },
+                        });
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                    >
+                      <Icon name="bell" className="h-3.5 w-3.5 shrink-0" />
+                      Mute
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        close();
+                        void toggleBlock();
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                    >
+                      <Icon name="shield" className="h-3.5 w-3.5 shrink-0" />
+                      {isBlocked ? "Unblock" : "Block"}
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        close();
+                        void realmFetch("/api/reports", {
+                          method: "POST",
+                          json: {
+                            subject_type: "profile",
+                            subject_id: profile.id,
+                            reason: "member_flag",
+                          },
+                        });
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
+                    >
+                      <Icon name="flag" className="h-3.5 w-3.5 shrink-0" />
+                      Report
+                    </button>
                   </>
                 )}
-              </div>
+              </OverflowMenu>
             </div>
           )}
         </div>
