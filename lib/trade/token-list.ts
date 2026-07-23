@@ -2,7 +2,14 @@
    stablecoins and blue chips, so The Swap always opens on real tokens (ETH to
    USDC by default) instead of waiting on a member's holdings. Anything not
    here is found by search (DexScreener) and hydrated on select. Decimals are
-   correct per chain (note BSC stablecoins are 18 decimals, not 6). */
+   correct per chain (note BSC stablecoins are 18 decimals, not 6).
+
+   Logos come from the Trust Wallet asset pack (a free CDN over GitHub raw),
+   which serves checksummed per-chain token icons and native-coin icons. Every
+   base token below has its logo resolved automatically at module load; the
+   TokenLogo component still falls back to a glyph badge if an icon 404s. */
+
+import { getAddress } from "viem";
 
 export interface ListedToken {
   chainId: number;
@@ -15,6 +22,59 @@ export interface ListedToken {
   popular?: boolean;
 }
 
+/* Trust Wallet blockchain folder per EVM chain id. */
+const TW_CHAIN: Record<number, string> = {
+  1: "ethereum",
+  56: "smartchain",
+  137: "polygon",
+  8453: "base",
+  42161: "arbitrum",
+  10: "optimism",
+  43114: "avalanchec",
+};
+
+const TW_BASE =
+  "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains";
+
+/* Native-coin icon by ticker, so ETH on an L2 shows the Ether coin (not the
+   L2's own chain mark) and BNB/POL/AVAX each show their own. */
+const NATIVE_LOGO: Record<string, string> = {
+  ETH: `${TW_BASE}/ethereum/info/logo.png`,
+  BNB: `${TW_BASE}/smartchain/info/logo.png`,
+  POL: `${TW_BASE}/polygon/info/logo.png`,
+  MATIC: `${TW_BASE}/polygon/info/logo.png`,
+  AVAX: `${TW_BASE}/avalanchec/info/logo.png`,
+};
+
+/* The chain's own mark, used for the small chain badge beside a coin logo. */
+export function chainLogo(chainId: number): string | null {
+  const slug = TW_CHAIN[chainId];
+  return slug ? `${TW_BASE}/${slug}/info/logo.png` : null;
+}
+
+/* Resolve a Trust Wallet logo URL for any token on a supported chain. Native
+   coins (null address) map by ticker; ERC-20s use the checksummed contract.
+   Returns null when the chain is unsupported or the address won't checksum. */
+export function trustWalletLogo(
+  chainId: number,
+  address: string | null,
+  symbol?: string
+): string | null {
+  if (!address) {
+    return symbol ? (NATIVE_LOGO[symbol.toUpperCase()] ?? null) : null;
+  }
+  const slug = TW_CHAIN[chainId];
+  if (!slug) return null;
+  try {
+    const checksum = getAddress(address);
+    return `${TW_BASE}/${slug}/assets/${checksum}/logo.png`;
+  } catch {
+    return null;
+  }
+}
+
+const RAW_TOKENS: ListedToken[] = raw();
+
 function native(
   chainId: number,
   symbol: string,
@@ -23,7 +83,8 @@ function native(
   return { chainId, address: null, symbol, name, decimals: 18, logo: null, popular: true };
 }
 
-export const BASE_TOKENS: ListedToken[] = [
+function raw(): ListedToken[] {
+  return [
   // Ethereum
   native(1, "ETH", "Ethereum"),
   { chainId: 1, address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", name: "USD Coin", decimals: 6, logo: null, popular: true },
@@ -64,7 +125,14 @@ export const BASE_TOKENS: ListedToken[] = [
   native(43114, "AVAX", "Avalanche"),
   { chainId: 43114, address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", symbol: "USDC", name: "USD Coin", decimals: 6, logo: null, popular: true },
   { chainId: 43114, address: "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7", symbol: "WAVAX", name: "Wrapped AVAX", decimals: 18, logo: null },
-];
+  ];
+}
+
+/* Every base token with its Trust Wallet logo resolved once at module load. */
+export const BASE_TOKENS: ListedToken[] = RAW_TOKENS.map((t) => ({
+  ...t,
+  logo: t.logo ?? trustWalletLogo(t.chainId, t.address, t.symbol),
+}));
 
 export function tokensForChain(chainId: number): ListedToken[] {
   return BASE_TOKENS.filter((t) => t.chainId === chainId);

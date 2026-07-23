@@ -31,7 +31,7 @@ export const toolsNav: NavItem[] = [
   { slug: "scanner", href: "/scanner", themed: "The Oracle", plain: "Account scanner", icon: "target", badge: "Beta" },
   { slug: "ledger", href: "/ledger", themed: "The Ledger", plain: "Portfolio", icon: "book" },
   { slug: "watch", href: "/watch", themed: "The Watch", plain: "Safety", icon: "shield", badge: "Beta" },
-  { slug: "scrying", href: "/scrying", themed: "The Scrying Glass", plain: "Discover coins", icon: "eye" },
+  { slug: "scrying", href: "/scrying", themed: "The Scrying Glass", plain: "Discover coins", icon: "eye", badge: "Beta" },
   { slug: "swap", href: "/swap", themed: "The Swap", plain: "Trade any coin", icon: "repost", badge: "Beta" },
   { slug: "forge", href: "/forge", themed: "The Forge", plain: "Staking", icon: "flame" },
 ];

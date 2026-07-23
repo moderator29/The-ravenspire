@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { isEvmDexChain, tradeChainByDex } from "@/lib/trade/config";
+import { trustWalletLogo } from "@/lib/trade/token-list";
 
 /* Search casts a wider net than the discovery glass: a member who types an
    exact ticker or address wants to find the coin even if it is thinly traded,
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
         name: p.baseToken?.name ?? symbol,
         chainId: chain.id,
         chainLabel: chain.name,
-        logo: p.info?.imageUrl ?? null,
+        logo: p.info?.imageUrl ?? trustWalletLogo(chain.id, address, symbol),
         priceUsd: p.priceUsd ? Number(p.priceUsd) : null,
         liquidityUsd: liq,
         _liq: liq,

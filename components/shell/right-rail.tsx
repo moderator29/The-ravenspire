@@ -5,6 +5,10 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { createClient } from "@/lib/supabase/client";
 import { houses } from "@/lib/data/houses";
+import { Avatar } from "@/components/social/avatar";
+import { FollowButton } from "@/components/social/follow-button";
+import { fetchViewer, fetchFollowingSet } from "@/lib/social/profile-queries";
+import { fetchTopPeople, type PersonHit } from "@/lib/social/explore-queries";
 
 interface HouseRow {
   slug: string;
@@ -17,6 +21,27 @@ export function RightRail() {
   const [lead, setLead] = useState<HouseRow | null>(null);
   const [days, setDays] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
+  const [people, setPeople] = useState<PersonHit[] | null>(null);
+  const [viewerId, setViewerId] = useState<string | null>(null);
+  const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
+
+  /* Who to follow: the realm's most renowned, with the viewer's real
+     follow-state batched so every button loads truthfully in one query. */
+  useEffect(() => {
+    void fetchViewer().then((v) => {
+      setViewerId(v?.id ?? null);
+      void fetchTopPeople(v?.id).then((list) => {
+        const top = list.slice(0, 4);
+        setPeople(top);
+        if (v?.id && top.length > 0) {
+          void fetchFollowingSet(
+            v.id,
+            top.map((p) => p.id)
+          ).then(setFollowingSet);
+        }
+      });
+    });
+  }, []);
 
   useEffect(() => {
     const db = createClient();
@@ -79,6 +104,52 @@ export function RightRail() {
           Summon the Raven
         </Link>
       </div>
+
+      {/* Who to follow */}
+      {(people === null || people.length > 0) && (
+        <div className="glass p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-base font-semibold tracking-wide text-bone">
+              Who to follow
+            </h2>
+            <Link
+              href="/explore"
+              className="text-xs text-gold hover:text-gold-bright"
+            >
+              More
+            </Link>
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            {people === null
+              ? [0, 1, 2].map((i) => (
+                  <div key={i} className="h-10 animate-pulse rounded-lg bg-panel" />
+                ))
+              : people.map((p) => (
+                  <div key={p.id} className="flex items-center gap-2.5">
+                    <Link
+                      href={`/u/${p.handle}`}
+                      className="flex min-w-0 flex-1 items-center gap-2.5"
+                    >
+                      <Avatar author={p} size={36} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-bone">
+                          {p.display_name ?? p.handle}
+                        </p>
+                        <p className="truncate text-xs text-bone-faint">
+                          @{p.handle}
+                        </p>
+                      </div>
+                    </Link>
+                    <FollowButton
+                      targetId={p.id}
+                      viewerId={viewerId}
+                      initialFollowing={followingSet.has(p.id)}
+                    />
+                  </div>
+                ))}
+          </div>
+        </div>
+      )}
 
       {/* The Season */}
       <div className="glass p-4">
@@ -143,7 +214,7 @@ export function RightRail() {
             {tags.map((t) => (
               <Link
                 key={t.tag}
-                href={`/raven`}
+                href={`/search?q=${encodeURIComponent(`$${t.tag}`)}`}
                 className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm transition hover:bg-panel"
               >
                 <span className="font-semibold text-gold">${t.tag}</span>

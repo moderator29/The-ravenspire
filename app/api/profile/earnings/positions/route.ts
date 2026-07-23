@@ -160,29 +160,36 @@ export async function GET(req: Request) {
   const pnlVisible = privacyFlag(target.settings, "pnlVisible");
   const publicPositions = privacyFlag(target.settings, "publicPositions");
 
+  // The per-token holdings LIST is still opt-in (owner, or public positions on).
   const canViewPositions = isOwner || (pnlVisible && publicPositions);
-  if (!canViewPositions) {
-    return json({ canView: false, isOwner, tokens: [] });
-  }
 
   const address = (target.wallet_address as string | null) ?? null;
   const key = process.env.GOLDRUSH_API_KEY;
   if (!key || !address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
-    return json({ canView: true, isOwner, configured: false, tokens: [] });
+    return json({
+      canView: canViewPositions,
+      isOwner,
+      configured: false,
+      tokens: [],
+      totalUsd: null,
+    });
   }
 
   try {
     const { tokens, totalUsd } = await fetchPositions(key, address);
     return json({
-      canView: true,
+      canView: canViewPositions,
       isOwner,
       configured: true,
-      tokens,
-      /* The aggregate balance total is owner-only, even when positions are
-         public: a public holdings list should not double as a net-worth ping. */
-      totalUsd: isOwner ? totalUsd : undefined,
+      // Holdings detail stays opt-in; the aggregate wallet total is public
+      // (it is public on-chain data anyway) so every Keep shows a real balance.
+      tokens: canViewPositions ? tokens : [],
+      totalUsd,
     });
   } catch {
-    return json({ canView: true, isOwner, configured: true, tokens: [] }, 502);
+    return json(
+      { canView: canViewPositions, isOwner, configured: true, tokens: [], totalUsd: null },
+      502
+    );
   }
 }

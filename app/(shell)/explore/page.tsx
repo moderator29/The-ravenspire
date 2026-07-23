@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { houses } from "@/lib/data/houses";
 import { Avatar } from "@/components/social/avatar";
 import { Icon } from "@/components/ui/icon";
+import { FollowButton } from "@/components/social/follow-button";
 import { TIER_NAMES, timeAgo } from "@/lib/social/types";
+import { fetchViewer, fetchFollowingSet } from "@/lib/social/profile-queries";
 import {
   fetchHouseStats,
   fetchTopPeople,
@@ -17,6 +19,7 @@ import {
 } from "@/lib/social/explore-queries";
 
 interface ProfileHit {
+  id: string;
   handle: string | null;
   display_name: string | null;
   avatar_url: string | null;
@@ -48,6 +51,8 @@ export default function ExplorePage() {
   const [cashtags, setCashtags] = useState<Cashtag[] | null>(null);
   const [people, setPeople] = useState<PersonHit[] | null>(null);
   const [houseStats, setHouseStats] = useState<Record<string, HouseStat>>({});
+  const [viewerId, setViewerId] = useState<string | null>(null);
+  const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const db = createClient();
@@ -63,8 +68,23 @@ export default function ExplorePage() {
       .then(({ data }) => setCalls((data as unknown as CallRow[]) ?? []));
 
     void fetchTrendingCashtags().then(setCashtags);
-    void fetchTopPeople().then(setPeople);
     void fetchHouseStats().then(setHouseStats);
+
+    /* Resolve the viewer, then the people to follow, then which of them the
+       viewer already follows — all so every Follow button loads truthfully
+       and in a single batched query, not one lookup per row. */
+    void fetchViewer().then((v) => {
+      setViewerId(v?.id ?? null);
+      void fetchTopPeople(v?.id).then((list) => {
+        setPeople(list);
+        if (v?.id && list.length > 0) {
+          void fetchFollowingSet(
+            v.id,
+            list.map((p) => p.id)
+          ).then(setFollowingSet);
+        }
+      });
+    });
   }, []);
 
   useEffect(() => {
@@ -80,7 +100,7 @@ export default function ExplorePage() {
       const like = `%${q.replace(/[%_]/g, "")}%`;
       void db
         .from("profiles")
-        .select("handle, display_name, avatar_url, house_slug, tier")
+        .select("id, handle, display_name, avatar_url, house_slug, tier")
         .or(`handle.ilike.${like},display_name.ilike.${like}`)
         .not("handle", "is", null)
         .limit(12)
@@ -124,24 +144,31 @@ export default function ExplorePage() {
             </div>
           ) : (
             (hits ?? []).map((p, i) => (
-              <Link
-                key={p.handle ?? i}
-                href={`/u/${p.handle}`}
-                className="glass glass-sm glass-hover flex items-center gap-3 p-3"
+              <div
+                key={p.id ?? p.handle ?? i}
+                className="glass glass-sm flex items-center gap-3 p-3"
               >
-                <Avatar author={p} size={40} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-bone">
-                    {p.display_name ?? p.handle}
-                  </p>
-                  <p className="truncate text-xs text-bone-faint">
-                    @{p.handle}
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full border border-steel-line px-2.5 py-1 text-[11px] text-bone-mut">
-                  {TIER_NAMES[p.tier] ?? p.tier}
-                </span>
-              </Link>
+                <Link
+                  href={`/u/${p.handle}`}
+                  className="flex min-w-0 flex-1 items-center gap-3"
+                >
+                  <Avatar author={p} size={40} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-bone">
+                      {p.display_name ?? p.handle}
+                    </p>
+                    <p className="truncate text-xs text-bone-faint">
+                      @{p.handle}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-steel-line px-2.5 py-1 text-[11px] text-bone-mut">
+                    {TIER_NAMES[p.tier] ?? p.tier}
+                  </span>
+                </Link>
+                {p.id && (
+                  <FollowButton targetId={p.id} viewerId={viewerId} />
+                )}
+              </div>
             ))
           )}
         </div>
@@ -169,27 +196,36 @@ export default function ExplorePage() {
               </div>
             ) : (
               people.map((p) => (
-                <Link
+                <div
                   key={p.id}
-                  href={`/u/${p.handle}`}
-                  className="glass glass-sm glass-hover flex items-center gap-3 p-3"
+                  className="glass glass-sm flex items-center gap-3 p-3"
                 >
-                  <Avatar author={p} size={40} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-bone">
-                      {p.display_name ?? p.handle}
-                    </p>
-                    <p className="truncate text-xs text-bone-faint">
-                      @{p.handle}
-                    </p>
-                  </div>
-                  <span className="tnum shrink-0 text-right text-[11px] text-bone-faint">
-                    <span className="block font-semibold text-bone-mut">
-                      {p.renown.toLocaleString()}
+                  <Link
+                    href={`/u/${p.handle}`}
+                    className="flex min-w-0 flex-1 items-center gap-3"
+                  >
+                    <Avatar author={p} size={40} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-bone">
+                        {p.display_name ?? p.handle}
+                      </p>
+                      <p className="truncate text-xs text-bone-faint">
+                        @{p.handle}
+                      </p>
+                    </div>
+                    <span className="tnum shrink-0 text-right text-[11px] text-bone-faint">
+                      <span className="block font-semibold text-bone-mut">
+                        {p.renown.toLocaleString()}
+                      </span>
+                      Renown
                     </span>
-                    Renown
-                  </span>
-                </Link>
+                  </Link>
+                  <FollowButton
+                    targetId={p.id}
+                    viewerId={viewerId}
+                    initialFollowing={followingSet.has(p.id)}
+                  />
+                </div>
               ))
             )}
           </div>

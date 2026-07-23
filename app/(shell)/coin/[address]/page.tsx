@@ -123,6 +123,33 @@ export default function CoinPage({
     };
   }, [address, net, sym]);
 
+  /* Keep the coin live: silently re-fetch every 30s and swap in the fresh data
+     WITHOUT touching status, so price, stats and the chart update in real time
+     with no loading flash. Only runs once a first load has succeeded. */
+  useEffect(() => {
+    if (status !== "ready") return;
+    const qs = new URLSearchParams();
+    qs.set("address", address);
+    if (net) qs.set("net", net);
+    if (sym) qs.set("symbol", sym);
+    let alive = true;
+    const tick = () => {
+      fetch(`/api/coin?${qs.toString()}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((body) => {
+          if (!alive || !body) return;
+          const data = (body as { coin?: CoinData }).coin;
+          if (data) setCoin(data);
+        })
+        .catch(() => {});
+    };
+    const t = setInterval(tick, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [status, address, net, sym]);
+
   const chart = useMemo<{ points: ChartPoint[]; implied: boolean } | null>(() => {
     if (!coin) return null;
     if (coin.chart && coin.chart.points.length >= 2) {

@@ -38,6 +38,25 @@ export async function fetchIsFollowing(
   return Boolean(data);
 }
 
+/* Which of `targetIds` the viewer already follows, resolved in one query so a
+   list of people (the Crossroads) can seed every Follow button without an
+   N+1 fan-out. Returns a Set of followed ids. */
+export async function fetchFollowingSet(
+  viewerId: string,
+  targetIds: string[]
+): Promise<Set<string>> {
+  if (targetIds.length === 0) return new Set();
+  const db = createClient();
+  const { data } = await db
+    .from("follows")
+    .select("followee_id")
+    .eq("follower_id", viewerId)
+    .in("followee_id", targetIds);
+  return new Set(
+    ((data ?? []) as { followee_id: string }[]).map((r) => r.followee_id)
+  );
+}
+
 /* People the viewer already follows who also follow this member: the mutual
    connections shown on a Keep ("followed by ... whom you follow"). */
 export interface Mutuals {
