@@ -8,6 +8,7 @@ import { PriceCard } from "@/components/social/price-card";
 import { CallChart } from "@/components/social/call-chart";
 import { Icon } from "@/components/ui/icon";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
+import { useDossier } from "@/components/social/user-dossier";
 import { TipDialog } from "@/components/tip/tip-dialog";
 import { realmFetch } from "@/lib/auth/api";
 import { muteMember, unmuteMember } from "@/lib/social/mutes";
@@ -106,6 +107,7 @@ function ActionButton({
 export function PostCard({ post }: { post: Post }) {
   const { authenticated } = useRealmAuth();
   const viewerId = useViewerId();
+  const dossier = useDossier();
   const isOwn = viewerId !== null && viewerId === post.author_id;
   const [removed, setRemoved] = useState(false);
   /* Seed reaction state from the per-viewer flags the feed/profile query
@@ -271,9 +273,20 @@ export function PostCard({ post }: { post: Post }) {
         </p>
       )}
       <div className="flex gap-3">
-        <Link href={a.handle ? `/u/${a.handle}` : "#"}>
+        {/* Tapping the avatar opens the member's dossier without leaving the
+            timeline; the name below still links through to their Keep. */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dossier.open(post.author_id, a.handle);
+          }}
+          aria-label={`Open ${a.handle ? `@${a.handle}` : "member"} dossier`}
+          className="shrink-0 rounded-full transition hover:opacity-90"
+        >
           <Avatar author={a} size={40} />
-        </Link>
+        </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 text-sm">
