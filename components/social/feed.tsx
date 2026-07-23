@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PostCard } from "@/components/social/post-card";
+import { BackToTop } from "@/components/shell/back-to-top";
 import { Icon } from "@/components/ui/icon";
 import {
   fetchFeed,
@@ -176,13 +177,24 @@ export function Feed() {
       </div>
 
       {hasNew && (
-        <button
-          onClick={() => void load()}
-          className="btn-glass mx-auto px-4 py-1.5 text-xs text-gold"
-        >
-          New ravens have arrived
-        </button>
+        <div className="sticky top-2 z-30 flex justify-center">
+          <button
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              void load();
+            }}
+            className="btn-gold flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold shadow-xl active:scale-95"
+          >
+            <span className="relative flex h-2 w-2" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-obsidian/50" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-obsidian" />
+            </span>
+            New ravens have arrived
+          </button>
+        </div>
       )}
+
+      <BackToTop />
 
       {loading ? (
         <div className="flex flex-col gap-3">
