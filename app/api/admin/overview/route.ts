@@ -26,6 +26,13 @@ export async function GET(req: Request) {
     tipsRows,
     signupRows,
     postDayRows,
+    callsCount,
+    tradesCount,
+    trades24h,
+    duelsLive,
+    connections,
+    warPlayers,
+    newUsers24h,
   ] = await Promise.all([
     db.from("profiles").select("id", { count: "exact", head: true }),
     db
@@ -53,6 +60,28 @@ export async function GET(req: Request) {
       .eq("deleted", false)
       .gte("created_at", since7d)
       .limit(20000),
+    /* Trading + war + social reach across the whole platform. Each is a lone
+       count; a table that is absent in an environment simply reads 0. */
+    db
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("kind", "call")
+      .eq("deleted", false),
+    db.from("trades").select("id", { count: "exact", head: true }),
+    db
+      .from("trades")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", since24h),
+    db
+      .from("duels")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open"),
+    db.from("follows").select("follower_id", { count: "exact", head: true }),
+    db.from("war_state").select("profile_id", { count: "exact", head: true }),
+    db
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", since24h),
   ]);
 
   const gloryIssued = (gloryRows.data ?? []).reduce(
@@ -97,11 +126,18 @@ export async function GET(req: Request) {
     stats: {
       users: users.count ?? 0,
       dau,
+      newToday: newUsers24h.count ?? 0,
       posts: postsCount.count ?? 0,
+      calls: callsCount.count ?? 0,
       gloryIssued,
       liveRooms: liveRooms.count ?? 0,
       revenue,
       openReports: reportsOpen.count ?? 0,
+      trades: tradesCount.count ?? 0,
+      trades24h: trades24h.count ?? 0,
+      duelsLive: duelsLive.count ?? 0,
+      connections: connections.count ?? 0,
+      warPlayers: warPlayers.count ?? 0,
     },
     series: {
       days,
