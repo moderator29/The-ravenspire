@@ -83,6 +83,9 @@ export interface ScryCoin {
   website: string | null;
   twitter: string | null;
   telegram: string | null;
+  /* A real micro-trend: the coin's price reconstructed at 24h/6h/1h/now from
+     DexScreener's price-change buckets, oldest→newest. Drives the row spark. */
+  spark: number[] | null;
 }
 
 function cleanLogo(src: string | null | undefined): string | null {
@@ -150,6 +153,7 @@ function mapPools(
       website: null,
       twitter: null,
       telegram: null,
+      spark: null,
     });
   }
   return out;
@@ -168,21 +172,41 @@ async function fetchGecko(path: string, networkId: string): Promise<ScryCoin[]> 
   }
 }
 
-/* One batched DexScreener call (up to 30 addresses) → socials by address. */
+/* One batched DexScreener call (up to 30 addresses) enriches socials AND a
+   real price micro-trend per address, in a single request. */
 interface DexSocial { type?: string; url?: string }
 interface DexWebsite { label?: string; url?: string }
 interface DexPair {
   baseToken?: { address?: string };
+  priceUsd?: string;
+  liquidity?: { usd?: number };
+  priceChange?: { m5?: number; h1?: number; h6?: number; h24?: number };
   info?: { websites?: DexWebsite[]; socials?: DexSocial[] };
 }
 
-async function socialsFor(
-  addresses: string[]
-): Promise<Map<string, { website: string | null; twitter: string | null; telegram: string | null }>> {
-  const map = new Map<
-    string,
-    { website: string | null; twitter: string | null; telegram: string | null }
-  >();
+interface Enrichment {
+  website: string | null;
+  twitter: string | null;
+  telegram: string | null;
+  spark: number[] | null;
+}
+
+/* Reconstruct a 24h→now price path from the current price and the percentage
+   change over each window: pₜ = price / (1 + changeₜ%). Real data, no fetch. */
+function buildSpark(
+  price: number,
+  ch?: { m5?: number; h1?: number; h6?: number; h24?: number }
+): number[] | null {
+  if (!Number.isFinite(price) || price <= 0 || !ch) return null;
+  const at = (pct?: number) =>
+    typeof pct === "number" && Number.isFinite(pct) ? price / (1 + pct / 100) : price;
+  const pts = [at(ch.h24), at(ch.h6), at(ch.h1), at(ch.m5), price];
+  return pts.every((p) => Number.isFinite(p) && p > 0) ? pts : null;
+}
+
+async function enrichFor(addresses: string[]): Promise<Map<string, Enrichment>> {
+  const map = new Map<string, Enrichment>();
+  const bestLiq = new Map<string, number>();
   const chunks: string[][] = [];
   for (let i = 0; i < addresses.length; i += 30) chunks.push(addresses.slice(i, i + 30));
 
@@ -191,24 +215,28 @@ async function socialsFor(
       try {
         const res = await fetch(
           `https://api.dexscreener.com/latest/dex/tokens/${chunk.join(",")}`,
-          { next: { revalidate: 300 } }
+          { next: { revalidate: 120 } }
         );
         if (!res.ok) return;
         const body = (await res.json()) as { pairs?: DexPair[] | null };
         for (const p of body.pairs ?? []) {
           const addr = p.baseToken?.address?.toLowerCase();
-          if (!addr || map.has(addr)) continue;
+          if (!addr) continue;
+          // Keep the deepest pair per token for the truest trend + links.
+          const liq = p.liquidity?.usd ?? 0;
+          if (map.has(addr) && (bestLiq.get(addr) ?? 0) >= liq) continue;
+          bestLiq.set(addr, liq);
+
           const socials = p.info?.socials ?? [];
-          const twitter =
-            socials.find((s) => s.type === "twitter")?.url ?? null;
-          const telegram =
-            socials.find((s) => s.type === "telegram")?.url ?? null;
-          const website = p.info?.websites?.[0]?.url ?? null;
-          if (twitter || telegram || website)
-            map.set(addr, { website, twitter, telegram });
+          map.set(addr, {
+            website: p.info?.websites?.[0]?.url ?? null,
+            twitter: socials.find((s) => s.type === "twitter")?.url ?? null,
+            telegram: socials.find((s) => s.type === "telegram")?.url ?? null,
+            spark: buildSpark(Number(p.priceUsd ?? 0), p.priceChange),
+          });
         }
       } catch {
-        /* socials are best-effort; a miss just leaves the links empty */
+        /* enrichment is best-effort; a miss leaves links + spark empty */
       }
     })
   );
@@ -266,16 +294,16 @@ async function scry() {
     .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0))
     .slice(0, PER_TAB);
 
-  // Enrich socials once for the union of everything we're returning.
+  // Enrich socials + spark once for the union of everything we're returning.
   const union = new Map<string, ScryCoin>();
   for (const c of [...heating, ...trending, ...top])
     union.set(c.address.toLowerCase(), c);
-  const socials = await socialsFor([...union.keys()].slice(0, 90));
+  const enrich = await enrichFor([...union.keys()].slice(0, 90));
 
   const apply = (list: ScryCoin[]) =>
     list.map((c) => {
-      const s = socials.get(c.address.toLowerCase());
-      return s ? { ...c, ...s } : c;
+      const e = enrich.get(c.address.toLowerCase());
+      return e ? { ...c, ...e } : c;
     });
 
   return {

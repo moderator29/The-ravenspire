@@ -8,6 +8,7 @@ import { BackButton } from "@/components/shell/back-button";
 import { TokenLogo } from "@/components/coin/token-logo";
 import { WatchStar } from "@/components/coin/watch-star";
 import { RealmTrades } from "@/components/trade/realm-trades";
+import { TRADE_CHAINS } from "@/lib/trade/config";
 
 interface ScryCoin {
   symbol: string;
@@ -30,6 +31,7 @@ interface ScryCoin {
   website: string | null;
   twitter: string | null;
   telegram: string | null;
+  spark: number[] | null;
 }
 
 interface ScryResponse {
@@ -125,10 +127,48 @@ function Socials({ t }: { t: ScryCoin }) {
   );
 }
 
+/* A tiny real-trend spark drawn from the coin's reconstructed 24h price path.
+   Green when it closes up over the window, ember when down. Pure SVG, no lib. */
+function Sparkline({ points, up }: { points: number[]; up: boolean }) {
+  const w = 56;
+  const h = 22;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const step = points.length > 1 ? w / (points.length - 1) : w;
+  const d = points
+    .map((p, i) => {
+      const x = i * step;
+      const y = h - ((p - min) / span) * (h - 2) - 1;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  const stroke = up ? "var(--gold-bright, #f0d68c)" : "#c65f4a";
+  return (
+    <svg
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      className="shrink-0"
+      aria-hidden
+    >
+      <path
+        d={d}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function ScryingPage() {
   const [data, setData] = useState<ScryResponse | null>(null);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<Tab>("heating");
+  const [chainFilter, setChainFilter] = useState<number | null>(null);
   const [shown, setShown] = useState(PAGE);
 
   const load = useCallback(async () => {
@@ -160,11 +200,21 @@ export default function ScryingPage() {
 
   useEffect(() => {
     setShown(PAGE);
-  }, [tab]);
+  }, [tab, chainFilter]);
 
   const coins = useMemo(() => {
     if (!data) return null;
-    return data[tab] ?? [];
+    const list = data[tab] ?? [];
+    return chainFilter === null
+      ? list
+      : list.filter((c) => c.chainId === chainFilter);
+  }, [data, tab, chainFilter]);
+
+  /* Only offer chain chips for chains that actually have coins in this tab. */
+  const availableChains = useMemo(() => {
+    if (!data) return [];
+    const present = new Set((data[tab] ?? []).map((c) => c.chainId));
+    return TRADE_CHAINS.filter((c) => present.has(c.id));
   }, [data, tab]);
 
   return (
@@ -226,6 +276,37 @@ export default function ScryingPage() {
       <p className="mt-2 text-center text-[11px] text-bone-faint">
         {TABS.find((t) => t.key === tab)?.blurb}
       </p>
+
+      {/* Chain filter — only chains present in the current lens are shown. */}
+      {availableChains.length > 1 && (
+        <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <button
+            type="button"
+            onClick={() => setChainFilter(null)}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              chainFilter === null
+                ? "border-gold/60 bg-panel-warm text-gold-bright"
+                : "border-steel-line bg-void text-bone-mut hover:border-gold/40"
+            }`}
+          >
+            All chains
+          </button>
+          {availableChains.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setChainFilter(c.id)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                chainFilter === c.id
+                  ? "border-gold/60 bg-panel-warm text-gold-bright"
+                  : "border-steel-line bg-void text-bone-mut hover:border-gold/40"
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-col gap-2">
         {coins === null ? (
@@ -293,6 +374,9 @@ export default function ScryingPage() {
                         ) : null}
                       </p>
                     </div>
+                    {t.spark && t.spark.length > 1 && (
+                      <Sparkline points={t.spark} up={up} />
+                    )}
                     <div className="shrink-0 text-right">
                       <p className="tnum text-sm text-bone">
                         {formatPrice(t.priceUsd)}
