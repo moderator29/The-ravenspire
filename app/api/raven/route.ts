@@ -218,6 +218,7 @@ export async function POST(req: Request) {
     suggestions,
     browsed: result.browsed,
     browseRequested: result.browseRequested,
+    browseAvailable: result.browseAvailable,
     sources: result.sources,
   });
 }

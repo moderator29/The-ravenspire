@@ -12,6 +12,7 @@ import { InteractiveChart } from "@/components/coin/interactive-chart";
 import { TradePanel } from "@/components/trade/trade-panel";
 import { RavenTake } from "@/components/trade/raven-take";
 import { TokenSafety } from "@/components/trade/token-safety";
+import { shareOrCopy } from "@/lib/share";
 
 interface CoinData {
   address: string;
@@ -89,6 +90,8 @@ export default function CoinPage({
   const sym = searchParams.get("sym");
 
   const [coin, setCoin] = useState<CoinData | null>(null);
+  const [copiedAddr, setCopiedAddr] = useState(false);
+  const [chartMode, setChartMode] = useState<"line" | "candle">("line");
   const [status, setStatus] = useState<"loading" | "ready" | "notfound" | "error">(
     "loading"
   );
@@ -230,11 +233,28 @@ export default function CoinPage({
                 )}
               </div>
               <p className="truncate text-xs text-bone-mut">{coin.name}</p>
-              {coin.chainLabel && (
-                <span className="mt-1 inline-block rounded-full border border-steel-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
-                  {coin.chainLabel}
-                </span>
-              )}
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {coin.chainLabel && (
+                  <span className="inline-block rounded-full border border-steel-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                    {coin.chainLabel}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void shareOrCopy(coin.address).then(() => {
+                      setCopiedAddr(true);
+                      window.setTimeout(() => setCopiedAddr(false), 1600);
+                    });
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition hover:border-gold/40 hover:text-gold"
+                >
+                  <Icon name={copiedAddr ? "shield" : "share"} className="h-3 w-3" />
+                  {copiedAddr
+                    ? "Copied"
+                    : `${coin.address.slice(0, 6)}…${coin.address.slice(-4)}`}
+                </button>
+              </div>
             </div>
             <WatchStar id={coin.address} symbol={coin.symbol} />
           </div>
@@ -270,15 +290,38 @@ export default function CoinPage({
             <div className="mt-4">
               {chart ? (
                 <>
+                  {/* Line / candle toggle — candles only when real OHLC exists
+                      (never on an implied line). */}
+                  {!chart.implied && chart.points.some((p) => p.o != null) && (
+                    <div className="mb-2 flex justify-end">
+                      <div className="inline-flex items-center gap-0.5 rounded-full border border-steel-line/70 bg-void/50 p-0.5">
+                        {(["line", "candle"] as const).map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setChartMode(m)}
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize transition ${
+                              chartMode === m
+                                ? "bg-gold/15 text-gold"
+                                : "text-bone-faint hover:text-bone-mut"
+                            }`}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <InteractiveChart
                     points={chart.points}
                     up={up}
+                    mode={chart.implied ? "line" : chartMode}
                     onScrub={setScrub}
                   />
                   <p className="mt-2 text-[11px] text-bone-faint">
                     {chart.implied
                       ? "Implied 24h line from current price and 24h change. Full price history is not available for this pair yet."
-                      : "Recent price, hourly closes from the deepest pool. Source: GeckoTerminal."}
+                      : `Recent price, hourly ${chartMode === "candle" ? "candles" : "closes"} from the deepest pool. Source: GeckoTerminal.`}
                   </p>
                 </>
               ) : (

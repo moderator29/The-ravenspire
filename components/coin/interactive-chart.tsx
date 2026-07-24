@@ -5,6 +5,9 @@ import { useId, useMemo, useRef, useState, useCallback } from "react";
 export interface ChartPoint {
   t: number;
   c: number;
+  o?: number;
+  h?: number;
+  l?: number;
 }
 
 interface Props {
@@ -12,6 +15,9 @@ interface Props {
   up: boolean;
   height?: number;
   className?: string;
+  /* "line" is the smooth area chart; "candle" draws OHLC candles when the
+     points carry open/high/low. */
+  mode?: "line" | "candle";
   /* Fired as the member drags across the chart (null when they let go), so the
      page can update the big price header to the scrubbed point. */
   onScrub?: (point: ChartPoint | null) => void;
@@ -29,6 +35,7 @@ export function InteractiveChart({
   up,
   height = 200,
   className = "",
+  mode = "line",
   onScrub,
 }: Props) {
   const gradientId = useId();
@@ -41,24 +48,66 @@ export function InteractiveChart({
     [points]
   );
 
+  const hasOHLC = useMemo(
+    () =>
+      valid.length >= 2 &&
+      valid.every(
+        (p) =>
+          Number.isFinite(p.o) && Number.isFinite(p.h) && Number.isFinite(p.l)
+      ),
+    [valid]
+  );
+  const candle = mode === "candle" && hasOHLC;
+
   const geom = useMemo(() => {
     if (valid.length < 2) return null;
-    const values = valid.map((p) => p.c);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const span = max - min || Math.abs(max) || 1;
     const padY = height * 0.1;
     const usable = height - padY * 2;
+    // In candle mode scale to the full high/low range so wicks fit; in line
+    // mode scale to the closes.
+    const lows = candle ? valid.map((p) => p.l as number) : valid.map((p) => p.c);
+    const highs = candle ? valid.map((p) => p.h as number) : valid.map((p) => p.c);
+    const min = Math.min(...lows);
+    const max = Math.max(...highs);
+    const span = max - min || Math.abs(max) || 1;
+    const yOf = (v: number) => padY + (1 - (v - min) / span) * usable;
+
     const coords = valid.map((p, i) => ({
       x: (i / (valid.length - 1)) * width,
-      y: padY + (1 - (p.c - min) / span) * usable,
+      y: yOf(p.c),
       leftPct: (i / (valid.length - 1)) * 100,
     }));
     const line = coords
       .map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)},${c.y.toFixed(2)}`)
       .join(" ");
-    return { coords, line, area: `${line} L${width},${height} L0,${height} Z` };
-  }, [valid, height]);
+
+    const step = width / valid.length;
+    const bodyW = Math.max(1.5, Math.min(14, step * 0.62));
+    const candles = candle
+      ? valid.map((p, i) => {
+          const x = step * (i + 0.5);
+          const o = yOf(p.o as number);
+          const c = yOf(p.c);
+          const up = (p.c ?? 0) >= (p.o ?? 0);
+          return {
+            x,
+            bodyW,
+            top: Math.min(o, c),
+            bodyH: Math.max(1, Math.abs(c - o)),
+            wickTop: yOf(p.h as number),
+            wickBottom: yOf(p.l as number),
+            up,
+          };
+        })
+      : [];
+
+    return {
+      coords,
+      line,
+      area: `${line} L${width},${height} L0,${height} Z`,
+      candles,
+    };
+  }, [valid, height, candle]);
 
   const pick = useCallback(
     (clientX: number) => {
@@ -127,16 +176,44 @@ export function InteractiveChart({
             <stop offset="100%" stopColor={stroke} stopOpacity="0" />
           </linearGradient>
         </defs>
-        <path d={geom.area} fill={`url(#${gradientId})`} stroke="none" />
-        <path
-          d={geom.line}
-          fill="none"
-          stroke={stroke}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
+        {candle ? (
+          geom.candles.map((c, i) => {
+            const col = c.up ? "var(--gold-rich)" : "var(--ember)";
+            return (
+              <g key={i}>
+                <line
+                  x1={c.x}
+                  x2={c.x}
+                  y1={c.wickTop}
+                  y2={c.wickBottom}
+                  stroke={col}
+                  strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <rect
+                  x={c.x - c.bodyW / 2}
+                  y={c.top}
+                  width={c.bodyW}
+                  height={c.bodyH}
+                  fill={col}
+                />
+              </g>
+            );
+          })
+        ) : (
+          <>
+            <path d={geom.area} fill={`url(#${gradientId})`} stroke="none" />
+            <path
+              d={geom.line}
+              fill="none"
+              stroke={stroke}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </>
+        )}
       </svg>
 
       {/* Crosshair */}

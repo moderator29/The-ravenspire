@@ -149,6 +149,7 @@ export default function RavenPage() {
         sources?: Source[];
         browsed?: boolean;
         browseRequested?: boolean;
+        browseAvailable?: boolean;
         error?: string;
       }>("/api/raven", {
         method: "POST",
@@ -185,6 +186,7 @@ export default function RavenPage() {
                 : undefined,
             browsed: data.browsed,
             browseRequested: data.browseRequested,
+            browseAvailable: data.browseAvailable,
           },
         ]);
       }
@@ -243,7 +245,7 @@ export default function RavenPage() {
   const activeVoice = VOICES.find((v) => v.id === voice) ?? VOICES[0];
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-9.5rem)] w-full max-w-3xl flex-col lg:h-[calc(100dvh-2rem)]">
+    <div className="mx-auto flex h-[calc(100dvh-6rem)] w-full max-w-3xl flex-col lg:h-[calc(100dvh-2rem)]">
       {/* Header bar: thin, full width, border below like a real chat app. */}
       <header className="flex shrink-0 items-center gap-2.5 border-b border-steel-line/70 bg-obsidian/60 px-3 py-2.5 backdrop-blur-sm sm:px-4">
         <button
@@ -256,9 +258,14 @@ export default function RavenPage() {
         </button>
 
         <div className="min-w-0 flex-1">
-          <h1 className="gold-text font-display text-base font-semibold leading-tight">
-            The Raven
-          </h1>
+          <div className="flex items-center gap-1.5">
+            <h1 className="gold-text font-display text-base font-semibold leading-tight">
+              The Raven
+            </h1>
+            <span className="rounded-full border border-gold/40 bg-panel-warm/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
+              Beta
+            </span>
+          </div>
           <p className="flex items-center gap-1.5 text-[11px] text-bone-mut">
             <span className="truncate">Voice: {activeVoice.label}</span>
             {browse && (

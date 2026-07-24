@@ -1,8 +1,94 @@
 import "server-only";
+import { EVM_DEX_CHAINS } from "@/lib/trade/config";
 
-/* Keyless, real market data from DexScreener with a small bounded cache.
-   Never fabricated; when the well is dry, or the match is not trustworthy,
-   we return null and the UI says so. */
+/* Keyless, real market data with a small bounded cache. Two sources, chosen so
+   the Raven never quotes a fake price:
+     - Majors and blue chips (ETH, BTC, BNB, USDC, LINK, UNI…) resolve through
+       CoinGecko, the canonical price, so "$eth" is real Ether and never a
+       Solana impostor named ETH.
+     - Everything else resolves through DexScreener, restricted to the EVM
+       chains the realm trades — Solana and other non-EVM results are dropped —
+       with an exact-symbol + liquidity floor so an impostor can't mint a card.
+   Never fabricated; when the match is not trustworthy we return null. */
+
+/* symbol -> CoinGecko id for the coins members ask about by name. */
+const COINGECKO_IDS: Record<string, string> = {
+  eth: "ethereum",
+  weth: "weth",
+  btc: "bitcoin",
+  wbtc: "wrapped-bitcoin",
+  cbbtc: "coinbase-wrapped-btc",
+  bnb: "binancecoin",
+  wbnb: "wbnb",
+  sol: "solana",
+  avax: "avalanche-2",
+  wavax: "wrapped-avax",
+  matic: "matic-network",
+  pol: "polygon-ecosystem-token",
+  usdc: "usd-coin",
+  usdt: "tether",
+  dai: "dai",
+  arb: "arbitrum",
+  op: "optimism",
+  link: "chainlink",
+  uni: "uniswap",
+  aave: "aave",
+  mkr: "maker",
+  ldo: "lido-dao",
+  crv: "curve-dao-token",
+  pepe: "pepe",
+  shib: "shiba-inu",
+  ena: "ethena",
+  ondo: "ondo-finance",
+};
+
+const CG_CHAIN: Record<string, string> = {
+  ethereum: "ethereum",
+  bitcoin: "bitcoin",
+  binancecoin: "bsc",
+  solana: "solana",
+  "avalanche-2": "avalanche",
+  "matic-network": "polygon",
+  "polygon-ecosystem-token": "polygon",
+};
+
+interface CoinGeckoPrice {
+  usd?: number;
+  usd_24h_change?: number;
+  usd_24h_vol?: number;
+  usd_market_cap?: number;
+}
+
+async function lookupMajor(symbol: string): Promise<TokenCard | null> {
+  const id = COINGECKO_IDS[symbol];
+  if (!id) return null;
+  try {
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true`,
+      { next: { revalidate: 60 } }
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as Record<string, CoinGeckoPrice>;
+    const d = body[id];
+    if (!d || typeof d.usd !== "number") return null;
+    return {
+      symbol: symbol.toUpperCase(),
+      name: id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      priceUsd: d.usd,
+      change24h: typeof d.usd_24h_change === "number" ? d.usd_24h_change : null,
+      volume24h: typeof d.usd_24h_vol === "number" ? d.usd_24h_vol : null,
+      marketCap: typeof d.usd_market_cap === "number" ? d.usd_market_cap : null,
+      marketCapIsFdv: false,
+      liquidityUsd: null,
+      chain: CG_CHAIN[id] ?? "ethereum",
+      address: null,
+      url: `https://www.coingecko.com/en/coins/${id}`,
+      fetchedAt: Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
 
 export interface TokenCard {
   symbol: string;
@@ -76,6 +162,16 @@ export async function lookupToken(query: string): Promise<TokenCard | null> {
 
   const isAddress = /^0x[a-f0-9]{40}$/.test(q);
 
+  // Majors and blue chips: canonical price from CoinGecko, never an impostor.
+  if (!isAddress && COINGECKO_IDS[q]) {
+    const major = await lookupMajor(q);
+    if (major) {
+      cacheSet(q, major);
+      return major;
+    }
+    // fall through to DexScreener only if CoinGecko was unreachable
+  }
+
   try {
     const res = await fetch(
       `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(q)}`,
@@ -91,6 +187,9 @@ export async function lookupToken(query: string): Promise<TokenCard | null> {
     //    highest-liquidity "closest guess" fallback, which renders a
     //    confidently wrong token.
     const matches = allPairs
+      // EVM chains only — the realm never trades Solana or other non-EVM coins,
+      // and dropping them here is what keeps a Solana impostor out of the card.
+      .filter((p) => p.chainId && EVM_DEX_CHAINS.has(p.chainId))
       .filter((p) => {
         if (isAddress) return p.baseToken?.address?.toLowerCase() === q;
         return p.baseToken?.symbol?.toLowerCase() === q;

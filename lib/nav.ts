@@ -50,6 +50,22 @@ export const accountNav: NavItem[] = [
 
 export const comingSoonNav: NavItem[] = [
   {
+    slug: "flock",
+    href: "/soon/flock",
+    themed: "The Flock",
+    plain: "Copy-trading",
+    icon: "raven",
+    blurb: "Follow a proven caller and mirror their swaps, non-custodially, sized to your purse.",
+  },
+  {
+    slug: "almanac",
+    href: "/soon/almanac",
+    themed: "The Almanac",
+    plain: "Daily prophecy",
+    icon: "scroll",
+    blurb: "The Raven reads your holdings, your watchlist and the realm's calls into one morning briefing.",
+  },
+  {
     slug: "mint",
     href: "/soon/mint",
     themed: "The Mint",

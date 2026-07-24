@@ -152,6 +152,12 @@ export function ProfileView({
   const portraitAccept = "image/jpeg,image/png,image/webp,image/gif";
   const callPosts = posts.filter((p) => p.kind === "call");
   const callsWon = callPosts.filter((p) => p.call?.verdict === "hit").length;
+  const callsLost = callPosts.filter((p) => p.call?.verdict === "miss").length;
+  const settledCalls = callsWon + callsLost;
+  /* Hit-rate on settled calls only — an honest track record, blank until at
+     least a few calls have resolved so a lone lucky call can't read as 100%. */
+  const hitRate =
+    settledCalls >= 3 ? Math.round((callsWon / settledCalls) * 100) : null;
   const shown = tab === "calls" ? callPosts : posts;
   const mediaTiles = posts.flatMap((p) =>
     (p.media ?? [])
@@ -430,6 +436,15 @@ export function ProfileView({
             <b className="text-bone">{callsWon}</b>{" "}
             <span className="text-bone-faint">Calls won</span>
           </span>
+          {hitRate !== null && (
+            <span
+              title={`${callsWon} of ${settledCalls} settled calls hit`}
+              className="inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold/5 px-2 py-0.5 text-xs font-semibold text-gold"
+            >
+              <Icon name="target" className="h-3 w-3" />
+              {hitRate}% hit rate
+            </span>
+          )}
         </div>
 
         {!isOwn && mutuals && mutuals.count > 0 && (

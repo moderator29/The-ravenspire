@@ -29,6 +29,7 @@ export type Msg = {
   sources?: Source[];
   browsed?: boolean;
   browseRequested?: boolean;
+  browseAvailable?: boolean;
 };
 
 /* ---- AI settings sent to /api/raven ---- */

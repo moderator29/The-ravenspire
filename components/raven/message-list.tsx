@@ -9,6 +9,19 @@ import {
 } from "@/components/raven/cards";
 import type { Msg } from "@/components/raven/types";
 
+/* The Herald speaks in plain prose, but if the model ever slips a little
+   markdown in, we strip it on display so a member never reads a literal
+   "**" or "###". Purely cosmetic — the words are untouched. */
+function tidyProse(s: string): string {
+  return s
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/(^|[\s(])\*(?!\s)([^*\n]+?)\*(?=[\s).,!?]|$)/g, "$1$2")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "• ");
+}
+
 const OPENERS = [
   "Settle a debate for me",
   "What is $ETH doing today?",
@@ -93,7 +106,9 @@ export function MessageList({
               <RavenAvatar />
               <div className="min-w-0">
                 <div className="text-sm leading-relaxed text-bone">
-                  <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                  <p className="whitespace-pre-wrap break-words">
+                    {tidyProse(m.content)}
+                  </p>
                 </div>
 
                 {/* Browsing surfaced honestly */}
@@ -103,12 +118,14 @@ export function MessageList({
                     Browsed the web
                   </span>
                 )}
-                {!m.browsed && m.browseRequested && (
-                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-steel-line/70 bg-panel px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-bone-faint">
-                    <Icon name="search" className="h-3 w-3" />
-                    Browsing unavailable
-                  </span>
-                )}
+                {!m.browsed &&
+                  m.browseRequested &&
+                  m.browseAvailable === false && (
+                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-steel-line/70 bg-panel px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-bone-faint">
+                      <Icon name="search" className="h-3 w-3" />
+                      Browsing unavailable
+                    </span>
+                  )}
 
                 {/* Sources */}
                 {m.sources && m.sources.length > 0 && (

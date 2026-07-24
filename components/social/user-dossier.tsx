@@ -237,6 +237,20 @@ export function DossierProvider({ children }: { children: ReactNode }) {
                 <Stat label="Calls lost" value={loading ? "…" : fmt.format(data?.callsLost ?? 0)} icon="flag" />
               </div>
 
+              {data && data.callsWon + data.callsLost >= 3 && (
+                <p className="mt-2 flex items-center justify-center">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 text-xs font-semibold text-gold">
+                    <Icon name="target" className="h-3 w-3" />
+                    {Math.round(
+                      (data.callsWon / (data.callsWon + data.callsLost)) * 100
+                    )}
+                    % hit rate
+                    <span className="font-normal text-bone-faint">
+                      · {data.callsWon}/{data.callsWon + data.callsLost}
+                    </span>
+                  </span>
+                </p>
+              )}
               {data && (data.callsOpen > 0 || joinLabel(data.joined)) && (
                 <p className="mt-2 flex flex-wrap items-center justify-center gap-x-2 text-center text-[11px] text-bone-faint">
                   {data.callsOpen > 0 && (

@@ -9,8 +9,10 @@ import { chainLogo } from "@/lib/trade/token-list";
    deduped to one row per token (its deepest pool) and ranked by 24h volume.
    Keyless, cached server-side. Members only. Real data only. */
 
-const MIN_LIQUIDITY_USD = 8_000;
-const PAGES = 4;
+const MIN_LIQUIDITY_USD = 5_000;
+/* GeckoTerminal serves 20 pools per page; deep enough to yield 100+ unique
+   tokens once pools are deduped to one row per token. */
+const PAGES = 9;
 
 interface GeckoPool {
   id?: string;
@@ -118,7 +120,7 @@ export async function GET(req: Request) {
 
   const results = [...best.values()]
     .sort((x, y) => (y.volume24h ?? 0) - (x.volume24h ?? 0))
-    .slice(0, 120);
+    .slice(0, 200);
 
   return json({ results });
 }

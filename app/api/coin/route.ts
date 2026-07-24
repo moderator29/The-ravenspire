@@ -90,6 +90,11 @@ interface DexPair {
 export interface CoinChartPoint {
   t: number;
   c: number;
+  /* Open / high / low for candlestick mode; present when the source gives full
+     OHLCV (GeckoTerminal does), absent for close-only fallbacks. */
+  o?: number;
+  h?: number;
+  l?: number;
 }
 
 export interface CoinData {
@@ -183,8 +188,15 @@ async function fetchChart(
       data?: { attributes?: { ohlcv_list?: number[][] } };
     };
     const list = body.data?.attributes?.ohlcv_list ?? [];
+    // GeckoTerminal ohlcv_list rows are [ts, open, high, low, close, volume].
     const points = list
-      .map((row) => ({ t: (row[0] ?? 0) * 1000, c: Number(row[4]) }))
+      .map((row) => ({
+        t: (row[0] ?? 0) * 1000,
+        o: Number(row[1]),
+        h: Number(row[2]),
+        l: Number(row[3]),
+        c: Number(row[4]),
+      }))
       .filter((p) => p.t > 0 && Number.isFinite(p.c) && p.c > 0)
       .sort((a, b) => a.t - b.t);
     return points.length >= 2 ? points : null;
