@@ -149,6 +149,7 @@ export default function RavenPage() {
         sources?: Source[];
         browsed?: boolean;
         browseRequested?: boolean;
+        browseAvailable?: boolean;
         error?: string;
       }>("/api/raven", {
         method: "POST",
@@ -185,6 +186,7 @@ export default function RavenPage() {
                 : undefined,
             browsed: data.browsed,
             browseRequested: data.browseRequested,
+            browseAvailable: data.browseAvailable,
           },
         ]);
       }

@@ -118,12 +118,14 @@ export function MessageList({
                     Browsed the web
                   </span>
                 )}
-                {!m.browsed && m.browseRequested && (
-                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-steel-line/70 bg-panel px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-bone-faint">
-                    <Icon name="search" className="h-3 w-3" />
-                    Browsing unavailable
-                  </span>
-                )}
+                {!m.browsed &&
+                  m.browseRequested &&
+                  m.browseAvailable === false && (
+                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-steel-line/70 bg-panel px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-bone-faint">
+                      <Icon name="search" className="h-3 w-3" />
+                      Browsing unavailable
+                    </span>
+                  )}
 
                 {/* Sources */}
                 {m.sources && m.sources.length > 0 && (

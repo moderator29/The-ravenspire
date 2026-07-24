@@ -32,6 +32,11 @@ export type RavenResult = {
   text: string;
   browsed: boolean;
   browseRequested: boolean;
+  /* True when the web tool was actually offered and the call succeeded (so the
+     model COULD browse, whether or not it chose to). Only false when browsing
+     genuinely failed and we fell back — that is the only time we tell the
+     member browsing was unavailable. */
+  browseAvailable: boolean;
   sources: RavenSource[];
 };
 
@@ -50,7 +55,7 @@ function buildSystem(context: string | undefined, opts: AskRavenOptions): string
 
   if (opts.browse) {
     parts.push(
-      `## Live browsing is ON\n\nYou have a web search tool this turn. Use it when the answer depends on current or fast-moving facts (news, prices you were not handed, dates, live events). Weave what you find into your own voice, state findings plainly, and make clear when something is fresh from the web. Do not paste raw links into the prose; the interface lists your sources beside the reply.`
+      `## Live browsing is ON\n\nYou have a real web_search tool this turn, and the member turned it on deliberately. USE IT — actually call web_search — for anything that touches current or fast-moving facts: news, prices or figures you were not handed in context, dates, standings, live events, "latest", "today", "now", or any claim you are not fully certain of. Prefer searching over guessing. Run more than one search if the question has parts. Weave what you find into your own voice, state findings plainly, and make clear when something is fresh from the web. Do not paste raw links into the prose; the interface lists your sources beside the reply.`
     );
   }
 
@@ -129,6 +134,7 @@ export async function askRaven(
       text,
       browsed: wantsBrowse && didBrowse(res.content),
       browseRequested: wantsBrowse,
+      browseAvailable: wantsBrowse,
       sources: wantsBrowse ? extractSources(res.content) : [],
     };
   } catch (err) {
@@ -145,7 +151,13 @@ export async function askRaven(
         });
         const text = extractText(res.content);
         if (!text) return null;
-        return { text, browsed: false, browseRequested: true, sources: [] };
+        return {
+          text,
+          browsed: false,
+          browseRequested: true,
+          browseAvailable: false,
+          sources: [],
+        };
       } catch {
         return null;
       }
