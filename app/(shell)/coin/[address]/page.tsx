@@ -12,6 +12,7 @@ import { InteractiveChart } from "@/components/coin/interactive-chart";
 import { TradePanel } from "@/components/trade/trade-panel";
 import { RavenTake } from "@/components/trade/raven-take";
 import { TokenSafety } from "@/components/trade/token-safety";
+import { shareOrCopy } from "@/lib/share";
 
 interface CoinData {
   address: string;
@@ -89,6 +90,7 @@ export default function CoinPage({
   const sym = searchParams.get("sym");
 
   const [coin, setCoin] = useState<CoinData | null>(null);
+  const [copiedAddr, setCopiedAddr] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "notfound" | "error">(
     "loading"
   );
@@ -230,11 +232,28 @@ export default function CoinPage({
                 )}
               </div>
               <p className="truncate text-xs text-bone-mut">{coin.name}</p>
-              {coin.chainLabel && (
-                <span className="mt-1 inline-block rounded-full border border-steel-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
-                  {coin.chainLabel}
-                </span>
-              )}
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {coin.chainLabel && (
+                  <span className="inline-block rounded-full border border-steel-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                    {coin.chainLabel}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void shareOrCopy(coin.address).then(() => {
+                      setCopiedAddr(true);
+                      window.setTimeout(() => setCopiedAddr(false), 1600);
+                    });
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition hover:border-gold/40 hover:text-gold"
+                >
+                  <Icon name={copiedAddr ? "shield" : "share"} className="h-3 w-3" />
+                  {copiedAddr
+                    ? "Copied"
+                    : `${coin.address.slice(0, 6)}…${coin.address.slice(-4)}`}
+                </button>
+              </div>
             </div>
             <WatchStar id={coin.address} symbol={coin.symbol} />
           </div>

@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PostCard } from "@/components/social/post-card";
+import { WhoToFollow } from "@/components/social/who-to-follow";
+import { CashtagChip } from "@/components/social/cashtag-chip";
 import { BackToTop } from "@/components/shell/back-to-top";
 import { Icon } from "@/components/ui/icon";
+import { fetchTrendingCashtags, type Cashtag } from "@/lib/social/explore-queries";
 import {
   fetchFeed,
   subscribeToFeed,
@@ -43,6 +46,13 @@ export function Feed() {
   });
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
   const [muted, setMuted] = useState<Set<string>>(new Set());
+  const [trending, setTrending] = useState<Cashtag[]>([]);
+
+  /* The cashtags the realm is carrying most this week, tappable straight into a
+     live coin sheet. Loaded once; a quiet discovery rail above the feed. */
+  useEffect(() => {
+    void fetchTrendingCashtags().then((tags) => setTrending(tags.slice(0, 8)));
+  }, []);
   const me = useRef<{
     id: string;
     handle: string | null;
@@ -176,6 +186,22 @@ export function Feed() {
         ))}
       </div>
 
+      {trending.length > 0 && (
+        <div className="scrollbar-none -mx-1 flex items-center gap-2 overflow-x-auto px-1 py-0.5">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint">
+            Trending
+          </span>
+          {trending.map((t) => (
+            <span
+              key={t.tag}
+              className="shrink-0 rounded-full border border-steel-line bg-void px-2.5 py-1 text-xs"
+            >
+              <CashtagChip tag={`$${t.tag}`} />
+            </span>
+          ))}
+        </div>
+      )}
+
       {hasNew && (
         <div className="sticky top-2 z-30 flex justify-center">
           <button
@@ -203,16 +229,19 @@ export function Feed() {
           ))}
         </div>
       ) : posts.length === 0 ? (
-        <div className="glass p-8 text-center text-sm text-bone-mut">
-          {tab === "following"
-            ? authenticated
-              ? "You follow no one yet. The Crossroads is a fine place to find your people."
-              : "Sign in to see the creators you follow."
-            : tab === "houses"
+        <div className="flex flex-col gap-3">
+          <div className="glass p-8 text-center text-sm text-bone-mut">
+            {tab === "following"
               ? authenticated
-                ? "No word from your House yet. Send the first raven."
-                : "Sign in and join a House to see its hall."
-              : "The ravens carry no word yet. Send the first raven of the realm."}
+                ? "You follow no one yet. The Crossroads is a fine place to find your people."
+                : "Sign in to see the creators you follow."
+              : tab === "houses"
+                ? authenticated
+                  ? "No word from your House yet. Send the first raven."
+                  : "Sign in and join a House to see its hall."
+                : "The ravens carry no word yet. Send the first raven of the realm."}
+          </div>
+          {authenticated && <WhoToFollow />}
         </div>
       ) : (
         <>
