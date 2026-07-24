@@ -8,10 +8,15 @@ export type NavItem = {
   badge?: string;
 };
 
-/* Social-first grouping: the social realm and the games lead, tools support.
-   Home (The Ravenry) and Explore (The Crossroads) are intentionally omitted
-   here: they already anchor the mobile bottom nav, so listing them in the side
-   nav Social group would only duplicate them. */
+/* The two anchors of the realm, shown at the top of the desktop side nav. The
+   mobile bottom nav already carries Home and Explore, so this group is only
+   rendered in the side nav (which the bottom nav never duplicates). */
+export const primaryNav: NavItem[] = [
+  { slug: "home", href: "/home", themed: "The Ravenry", plain: "Home feed", icon: "home" },
+  { slug: "explore", href: "/explore", themed: "The Crossroads", plain: "Explore", icon: "compass" },
+];
+
+/* Social-first grouping: the social realm and the games lead, tools support. */
 export const socialNav: NavItem[] = [
   { slug: "rookery", href: "/rookery", themed: "The Rookery", plain: "Live", icon: "signal" },
   { slug: "houses", href: "/houses", themed: "Houses", plain: "Communities", icon: "banner" },
@@ -29,11 +34,11 @@ export const toolsNav: NavItem[] = [
   { slug: "raven", href: "/raven", themed: "The Raven", plain: "Ask anything", icon: "raven" },
   { slug: "dna", href: "/dna", themed: "The Bloodline", plain: "Wallet & profile DNA", icon: "orb", badge: "Beta" },
   { slug: "scanner", href: "/scanner", themed: "The Oracle", plain: "Account scanner", icon: "target", badge: "Beta" },
-  { slug: "ledger", href: "/ledger", themed: "The Ledger", plain: "Portfolio", icon: "book" },
+  { slug: "ledger", href: "/ledger", themed: "The Ledger", plain: "Portfolio", icon: "book", badge: "Beta" },
   { slug: "watch", href: "/watch", themed: "The Watch", plain: "Safety", icon: "shield", badge: "Beta" },
   { slug: "scrying", href: "/scrying", themed: "The Scrying Glass", plain: "Discover coins", icon: "eye", badge: "Beta" },
   { slug: "swap", href: "/swap", themed: "The Swap", plain: "Trade any coin", icon: "repost", badge: "Beta" },
-  { slug: "forge", href: "/forge", themed: "The Forge", plain: "Staking", icon: "flame" },
+  { slug: "forge", href: "/forge", themed: "The Forge", plain: "Staking", icon: "flame", badge: "Beta" },
 ];
 
 export const accountNav: NavItem[] = [

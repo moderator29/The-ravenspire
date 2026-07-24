@@ -17,6 +17,18 @@ import { useViewerId } from "@/lib/social/use-viewer";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { timeAgo, TIER_NAMES, type Post } from "@/lib/social/types";
 
+/* A whisper of haptic feedback on a positive action, where the device (and
+   the browser) supports it. A no-op everywhere else — never throws. */
+function buzz(ms = 12) {
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(ms);
+    }
+  } catch {
+    /* vibration unsupported or blocked; ignore */
+  }
+}
+
 function PollBlock({ post }: { post: Post }) {
   const { authenticated } = useRealmAuth();
   const [options, setOptions] = useState(post.poll?.options ?? []);
@@ -77,6 +89,7 @@ function ActionButton({
   activeClass,
   label,
   onClick,
+  iconClassName,
 }: {
   icon: string;
   count?: number;
@@ -84,6 +97,7 @@ function ActionButton({
   activeClass?: string;
   label: string;
   onClick?: () => void;
+  iconClassName?: string;
 }) {
   return (
     <button
@@ -93,11 +107,11 @@ function ActionButton({
         onClick?.();
       }}
       aria-label={label}
-      className={`flex items-center gap-1.5 rounded-full px-2.5 py-2 text-sm transition hover:bg-panel ${
+      className={`flex items-center gap-1.5 rounded-full px-2.5 py-2 text-sm transition hover:bg-panel active:scale-95 ${
         active ? (activeClass ?? "text-gold") : "text-bone-faint hover:text-bone-mut"
       }`}
     >
-      <Icon name={icon} className="h-[18px] w-[18px]" />
+      <Icon name={icon} className={`h-[18px] w-[18px] ${iconClassName ?? ""}`} />
       {count !== undefined && count > 0 && (
         <span className="tnum text-xs">{count}</span>
       )}
@@ -119,6 +133,11 @@ export function PostCard({ post }: { post: Post }) {
   const [reposted, setReposted] = useState(post.viewer_reposted ?? false);
   const [reposts, setReposts] = useState(post.repost_count);
   const [bookmarked, setBookmarked] = useState(post.viewer_bookmarked ?? false);
+  /* Tactile feedback: a pop on the icon when an action toggles on, and a heart
+     that blooms over the raven when it is liked. */
+  const [likePop, setLikePop] = useState(false);
+  const [bmPop, setBmPop] = useState(false);
+  const [heartBurst, setHeartBurst] = useState(false);
   const [reported, setReported] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -171,6 +190,13 @@ export function PostCard({ post }: { post: Post }) {
     const on = !liked;
     setLiked(on);
     setLikes((n) => n + (on ? 1 : -1));
+    if (on) {
+      buzz();
+      setLikePop(true);
+      setHeartBurst(true);
+      window.setTimeout(() => setLikePop(false), 360);
+      window.setTimeout(() => setHeartBurst(false), 720);
+    }
     await realmFetch("/api/social", {
       method: "POST",
       json: { action: "like", subject_type: "post", subject_id: post.id, on },
@@ -180,6 +206,11 @@ export function PostCard({ post }: { post: Post }) {
     if (!requireAuth()) return;
     const on = !bookmarked;
     setBookmarked(on);
+    if (on) {
+      buzz();
+      setBmPop(true);
+      window.setTimeout(() => setBmPop(false), 360);
+    }
     await realmFetch("/api/social", {
       method: "POST",
       json: { action: "bookmark", subject_id: post.id, on },
@@ -295,7 +326,18 @@ export function PostCard({ post }: { post: Post }) {
   }
 
   return (
-    <article ref={cardRef} className="glass glass-sm glass-hover p-4">
+    <article ref={cardRef} className="glass glass-sm glass-hover relative p-4">
+      {heartBurst && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
+        >
+          <Icon
+            name="heart"
+            className="heart-burst h-20 w-20 text-gold drop-shadow-[0_0_16px_rgba(200,162,76,0.6)]"
+          />
+        </span>
+      )}
       {post.repostedBy && (
         <div className="mb-2 flex items-center gap-1.5 pl-1 text-xs text-bone-faint">
           <Icon name="repost" className="h-3.5 w-3.5 shrink-0" />
@@ -366,7 +408,7 @@ export function PostCard({ post }: { post: Post }) {
                   bookmarked ? "text-gold" : "text-bone-faint hover:text-bone-mut"
                 }`}
               >
-                <Icon name="bookmark" className="h-4 w-4" />
+                <Icon name="bookmark" className={`h-4 w-4 ${bmPop ? "action-pop" : ""}`} />
               </button>
               <OverflowMenu ariaLabel="More">
                 {(close) => {
@@ -561,6 +603,7 @@ export function PostCard({ post }: { post: Post }) {
               active={liked}
               activeClass="text-gold"
               label="Like"
+              iconClassName={likePop ? "action-pop" : ""}
               onClick={toggleLike}
             />
             <ActionButton
