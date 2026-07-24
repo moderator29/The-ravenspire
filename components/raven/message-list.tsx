@@ -9,6 +9,19 @@ import {
 } from "@/components/raven/cards";
 import type { Msg } from "@/components/raven/types";
 
+/* The Herald speaks in plain prose, but if the model ever slips a little
+   markdown in, we strip it on display so a member never reads a literal
+   "**" or "###". Purely cosmetic — the words are untouched. */
+function tidyProse(s: string): string {
+  return s
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/(^|[\s(])\*(?!\s)([^*\n]+?)\*(?=[\s).,!?]|$)/g, "$1$2")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "• ");
+}
+
 const OPENERS = [
   "Settle a debate for me",
   "What is $ETH doing today?",
@@ -93,7 +106,9 @@ export function MessageList({
               <RavenAvatar />
               <div className="min-w-0">
                 <div className="text-sm leading-relaxed text-bone">
-                  <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                  <p className="whitespace-pre-wrap break-words">
+                    {tidyProse(m.content)}
+                  </p>
                 </div>
 
                 {/* Browsing surfaced honestly */}

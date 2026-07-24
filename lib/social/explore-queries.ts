@@ -61,7 +61,10 @@ export async function fetchTopPeople(excludeId?: string): Promise<PersonHit[]> {
     .from("profiles")
     .select("id, handle, display_name, avatar_url, house_slug, tier, renown")
     .not("handle", "is", null)
-    .eq("is_banned", false)
+    /* Exclude only the explicitly banned. `is_banned` is null for most members,
+       and `.eq(false)` would drop every one of them (NULL never equals false),
+       which is why the Crossroads and the follow rails came back empty. */
+    .not("is_banned", "is", true)
     .order("renown", { ascending: false })
     .order("created_at", { ascending: true })
     .limit(9);
