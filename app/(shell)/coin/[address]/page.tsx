@@ -91,6 +91,7 @@ export default function CoinPage({
 
   const [coin, setCoin] = useState<CoinData | null>(null);
   const [copiedAddr, setCopiedAddr] = useState(false);
+  const [chartMode, setChartMode] = useState<"line" | "candle">("line");
   const [status, setStatus] = useState<"loading" | "ready" | "notfound" | "error">(
     "loading"
   );
@@ -289,15 +290,38 @@ export default function CoinPage({
             <div className="mt-4">
               {chart ? (
                 <>
+                  {/* Line / candle toggle — candles only when real OHLC exists
+                      (never on an implied line). */}
+                  {!chart.implied && chart.points.some((p) => p.o != null) && (
+                    <div className="mb-2 flex justify-end">
+                      <div className="inline-flex items-center gap-0.5 rounded-full border border-steel-line/70 bg-void/50 p-0.5">
+                        {(["line", "candle"] as const).map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setChartMode(m)}
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize transition ${
+                              chartMode === m
+                                ? "bg-gold/15 text-gold"
+                                : "text-bone-faint hover:text-bone-mut"
+                            }`}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <InteractiveChart
                     points={chart.points}
                     up={up}
+                    mode={chart.implied ? "line" : chartMode}
                     onScrub={setScrub}
                   />
                   <p className="mt-2 text-[11px] text-bone-faint">
                     {chart.implied
                       ? "Implied 24h line from current price and 24h change. Full price history is not available for this pair yet."
-                      : "Recent price, hourly closes from the deepest pool. Source: GeckoTerminal."}
+                      : `Recent price, hourly ${chartMode === "candle" ? "candles" : "closes"} from the deepest pool. Source: GeckoTerminal.`}
                   </p>
                 </>
               ) : (

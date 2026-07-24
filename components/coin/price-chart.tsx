@@ -5,6 +5,9 @@ import { useId } from "react";
 export interface ChartPoint {
   t: number;
   c: number;
+  o?: number;
+  h?: number;
+  l?: number;
 }
 
 interface Props {
