@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/social/avatar";
 import { RichBody } from "@/components/social/rich-body";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import { StreamAction } from "@/components/stream/stream-shell";
 import { TipDialog } from "@/components/tip/tip-dialog";
 import { timeAgo, type Author } from "@/lib/social/types";
 import { realmFetch } from "@/lib/auth/api";
@@ -41,38 +47,6 @@ interface RowApi {
   copiedId: string | null;
 }
 
-function ActionBit({
-  icon,
-  label,
-  count,
-  active,
-  activeClass,
-  onClick,
-}: {
-  icon: string;
-  label: string;
-  count?: number;
-  active?: boolean;
-  activeClass?: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className={`flex items-center gap-1 rounded-[--radius-sm] px-2 py-1 text-xs transition hover:bg-panel ${
-        active ? (activeClass ?? "text-gold") : "text-bone-faint hover:text-bone-mut"
-      }`}
-    >
-      <Icon name={icon} className="h-4 w-4" />
-      {count !== undefined && count > 0 && (
-        <span className="tnum">{count}</span>
-      )}
-    </button>
-  );
-}
-
 function ReplyBox({
   onSubmit,
   onCancel,
@@ -84,34 +58,32 @@ function ReplyBox({
 }) {
   const [text, setText] = useState("");
   return (
-    <div className="glass glass-sm mt-2 flex items-end gap-2 p-2.5">
+    <Card pad="sm" className="mt-2 flex items-end gap-2">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value.slice(0, 600))}
         placeholder="Reply in this thread... (@raven answers when called)"
+        aria-label="Your reply"
         rows={2}
         autoFocus
         className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint outline-none"
       />
-      <div className="flex shrink-0 flex-col gap-1">
-        <button
-          type="button"
+      <div className="flex shrink-0 flex-col items-stretch gap-1">
+        <Button
+          variant="gold"
+          size="md"
           onClick={() => text.trim() && onSubmit(text.trim())}
+          loading={busy}
           disabled={busy || !text.trim()}
-          className="btn-gold px-3 py-1.5 text-xs disabled:opacity-50"
         >
-          <Icon name="send" className="h-3.5 w-3.5" />
-          {busy ? "..." : "Reply"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-3 py-1 text-[11px] text-bone-faint hover:text-bone-mut"
-        >
+          {busy ? null : <Icon name="send" className="h-3.5 w-3.5" />}
+          Reply
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -138,58 +110,51 @@ function CommentNode({
       }
     >
       <div className="flex gap-2.5 py-2.5">
-        <Link href={c.author.handle ? `/u/${c.author.handle}` : "#"}>
+        <Link
+          href={c.author.handle ? `/u/${c.author.handle}` : "#"}
+          className="shrink-0 self-start rounded-[var(--radius-full)]"
+        >
           <Avatar author={c.author} size={30} />
         </Link>
         <div className="min-w-0 flex-1">
-          <p className="text-xs">
+          <p className="flex flex-wrap items-center gap-x-1.5 text-xs">
             <Link
               href={c.author.handle ? `/u/${c.author.handle}` : "#"}
               className="font-semibold text-bone hover:underline"
             >
               {c.author.display_name ?? c.author.handle ?? "A stranger"}
             </Link>
-            {c.author.is_agent && (
-              <span className="ml-1.5 rounded-[--radius-sm] border border-gold/40 px-1.5 text-[8px] font-bold uppercase tracking-wider text-gold">
-                Herald
-              </span>
-            )}
-            <span className="ml-1.5 text-bone-faint">
-              {timeAgo(c.created_at)}
-            </span>
+            {c.author.is_agent && <Badge variant="gold">Herald</Badge>}
+            <span className="text-bone-faint">{timeAgo(c.created_at)}</span>
           </p>
           <p className="mt-0.5 text-sm leading-relaxed text-bone">
             <RichBody text={c.body} />
           </p>
 
           <div className="-ml-2 mt-0.5 flex flex-wrap items-center gap-0.5">
-            <ActionBit
+            <StreamAction
               icon="reply"
               label="Reply"
               onClick={() =>
                 api.onStartReply(api.replyingTo === c.id ? null : c.id)
               }
             />
-            <ActionBit
+            <StreamAction
               icon="heart"
               label="Like"
               count={c.like_count}
               active={c.liked}
-              activeClass="text-ember"
+              tone="ember"
               onClick={() => api.onToggleLike(c)}
             />
-            <ActionBit
+            <StreamAction
               icon="bookmark"
-              label="Bookmark"
+              label={c.bookmarked ? "Remove bookmark" : "Bookmark"}
               active={c.bookmarked}
               onClick={() => api.onToggleBookmark(c)}
             />
-            <ActionBit
-              icon="coin"
-              label="Tip"
-              onClick={() => api.onTip(c)}
-            />
-            <ActionBit
+            <StreamAction icon="coin" label="Tip" onClick={() => api.onTip(c)} />
+            <StreamAction
               icon="share"
               label="Copy link"
               active={api.copiedId === c.id}
@@ -209,6 +174,19 @@ function CommentNode({
       {kids.map((child) => (
         <CommentNode key={child.id} c={child} all={all} depth={depth + 1} api={api} />
       ))}
+    </div>
+  );
+}
+
+/* A skeleton shaped like a comment: avatar, name line, one line of body. */
+function CommentSkeleton() {
+  return (
+    <div className="flex gap-2.5 py-2.5" aria-hidden>
+      <Skeleton radius="full" className="h-[30px] w-[30px] shrink-0" />
+      <div className="min-w-0 flex-1">
+        <Skeleton radius="sm" className="h-3 w-32" />
+        <Skeleton radius="sm" className="mt-2 h-3.5 w-4/5" />
+      </div>
     </div>
   );
 }
@@ -360,36 +338,48 @@ export function CommentThread({ postId }: { postId: string }) {
   };
 
   const roots = comments.filter((c) => !c.parent_id);
+  const showSkeleton = useDelayedLoading(loading);
 
   return (
     <div className="mt-4">
       {authenticated ? (
-        <div className="glass glass-sm flex items-end gap-2 p-3">
+        <Card pad="sm" className="flex items-end gap-2">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value.slice(0, 600))}
             placeholder="Add your voice... (@raven answers when called)"
+            aria-label="Add your voice"
             rows={2}
             className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint outline-none"
           />
-          <button
+          <Button
+            variant="gold"
+            size="md"
             onClick={send}
+            loading={busy}
             disabled={busy || !draft.trim()}
-            className="btn-gold px-3.5 py-1.5 text-xs disabled:opacity-50"
+            className="shrink-0"
           >
-            <Icon name="send" className="h-3.5 w-3.5" />
-            {busy ? "Sending..." : "Reply"}
-          </button>
-        </div>
+            {busy ? null : <Icon name="send" className="h-3.5 w-3.5" />}
+            Reply
+          </Button>
+        </Card>
       ) : (
-        <p className="glass glass-sm p-3 text-center text-xs text-bone-faint">
-          <Link href="/signin" className="text-gold underline">
-            Enter the realm
-          </Link>{" "}
-          to join the thread.
-        </p>
+        <Card pad="sm">
+          <EmptyState
+            size="sm"
+            icon="user"
+            title="The thread is open to read"
+            body="Enter the realm to add your voice to it."
+            action={
+              <Button variant="gold" size="lg" render={<Link href="/signin" />}>
+                Enter the realm
+              </Button>
+            }
+          />
+        </Card>
       )}
-      {error && <p className="mt-2 text-xs text-ember-deep">{error}</p>}
+      {error && <p className="mt-2 text-xs text-state-danger">{error}</p>}
 
       {!loading && comments.length > 0 && (
         <p className="tnum mt-4 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-bone-faint">
@@ -399,13 +389,18 @@ export function CommentThread({ postId }: { postId: string }) {
 
       <div className="mt-2 divide-y divide-steel-line/40">
         {loading ? (
-          <p className="py-6 text-center text-xs text-bone-faint">
-            Unrolling the thread...
-          </p>
+          showSkeleton ? (
+            <>
+              <CommentSkeleton />
+              <CommentSkeleton />
+            </>
+          ) : null
         ) : roots.length === 0 ? (
-          <p className="py-6 text-center text-xs text-bone-faint">
-            No replies yet. Every great thread starts with one brave voice.
-          </p>
+          <EmptyState
+            icon="reply"
+            title="No replies yet"
+            body="Every great thread starts with one brave voice."
+          />
         ) : (
           roots.map((c) => (
             <CommentNode key={c.id} c={c} all={comments} depth={0} api={api} />
