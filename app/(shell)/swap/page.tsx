@@ -1,11 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
 import { Icon } from "@/components/ui/icon";
-import { BackButton } from "@/components/shell/back-button";
+import { cx } from "@/components/ui/cx";
+import { Badge } from "@/components/ui/badge";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { AdaptiveDialog } from "@/components/ui/sheet";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  Chip,
+  ChipRail,
+  ConsoleHeader,
+  ConsolePage,
+  ConsoleStat,
+  ConsoleToolbar,
+  CONSOLE_META,
+  CONSOLE_PAD,
+} from "@/components/console/console-shell";
 import { realmFetch } from "@/lib/auth/api";
 import { useVaultPrefs } from "@/components/wallet/wallet-prefs";
 import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
@@ -28,7 +43,10 @@ import {
 /* The Swap: trade any EVM coin for any other, non-custodially, best price via
    0x (which routes Uniswap and every major DEX). Opens on ETH to USDC, never
    gated on holdings. Both sides pick from a base token list, your own holdings,
-   or a live search of any coin by ticker or contract address. BETA. */
+   or a live search of any coin by ticker or contract address. BETA.
+
+   Console archetype: compact above `md`, controls on a toolbar rail that
+   collapses to a Sheet on a phone, zero ornament. */
 
 const SLIPPAGE_BPS = 100;
 const NATIVE_DECIMALS = 18;
@@ -122,6 +140,12 @@ function listedToRef(t: ListedToken): TokenRef {
 function zeroxToken(t: TokenRef): string {
   return t.address === null ? NATIVE_TOKEN_SENTINEL : t.address;
 }
+function fmtPriceUsd(price: number | null | undefined): string | undefined {
+  if (price === null || price === undefined) return undefined;
+  return price >= 1
+    ? `$${price.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+    : `$${price.toPrecision(2)}`;
+}
 
 export default function SwapPage() {
   const { wallets } = useWallets();
@@ -160,8 +184,6 @@ export default function SwapPage() {
   const [approvalHash, setApprovalHash] = useState<string | null>(null);
   const approvalSent = useRef(false);
   const [swapHash, setSwapHash] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   const chain = tradeChainById(chainId);
 
@@ -428,46 +450,36 @@ export default function SwapPage() {
     !!walletAddress && sellRaw > 0n && !overBalance && !quoteLoading && !!quote;
 
   return (
-    <div className="mx-auto w-full max-w-xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4">
-        <BackButton />
-      </div>
+    <ConsolePage width="form">
+      <ConsoleHeader
+        title="The Swap"
+        kicker="Trade any EVM coin"
+        badge={<Badge variant="beta">Beta</Badge>}
+      />
 
-      <div className="flex items-center gap-2.5">
-        <h1 className="font-display text-xl font-semibold text-bone">The Swap</h1>
-        <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
-          Beta
-        </span>
-      </div>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Trade any EVM coin
-      </p>
-
-      {/* Network chips */}
-      <div className="mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-        {TRADE_CHAINS.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => switchChain(c.id)}
-            className={`shrink-0 rounded-[--radius-sm] border px-3 py-1.5 text-xs font-medium transition ${
-              chainId === c.id
-                ? "border-gold/60 bg-panel-warm text-gold-bright"
-                : "border-steel-line bg-void text-bone-mut hover:border-gold/40"
-            }`}
-          >
-            {c.name}
-          </button>
-        ))}
+      <div className="mt-4 md:mt-3">
+        <ConsoleToolbar label="Network" summary={chain?.name}>
+          <ChipRail label="Network">
+            {TRADE_CHAINS.map((c) => (
+              <Chip
+                key={c.id}
+                active={chainId === c.id}
+                onClick={() => switchChain(c.id)}
+              >
+                {c.name}
+              </Chip>
+            ))}
+          </ChipRail>
+        </ConsoleToolbar>
       </div>
 
       {/* From */}
-      <div className="glass mt-3 p-4">
-        <div className="flex items-center justify-between">
+      <Card pad="none" className={cx("mt-3 md:mt-2", CONSOLE_PAD)}>
+        <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
             You pay
           </span>
-          <span className="text-[11px] text-bone-faint">
+          <span className="tnum text-[11px] text-bone-faint">
             Balance{" "}
             {fromHeld
               ? Number(fromHeld.balanceDisplay).toLocaleString("en-US", {
@@ -487,52 +499,59 @@ export default function SwapPage() {
             )}
           </span>
         </div>
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-2 flex items-center gap-3 md:mt-1.5">
           <TokenSelect token={from} onClick={() => setPickerSide("from")} />
           <input
             inputMode="decimal"
+            aria-label={`Amount of ${from.symbol} to pay`}
             value={amount}
             onChange={(e) => {
               const v = e.target.value;
               if (v === "" || /^\d*\.?\d*$/.test(v)) setAmount(v);
             }}
             placeholder="0"
-            className={`tnum min-w-0 flex-1 bg-transparent text-right font-display text-2xl outline-none placeholder-bone-faint ${
+            className={cx(
+              "tnum min-w-0 flex-1 bg-transparent text-right font-display text-2xl outline-none placeholder-bone-faint md:text-xl",
               overBalance ? "text-ember" : "text-bone"
-            }`}
+            )}
           />
         </div>
-        <div className="mt-1 flex items-center justify-between text-xs text-bone-faint">
+        <div
+          className={cx(
+            "mt-1 flex items-center justify-between text-bone-faint",
+            CONSOLE_META
+          )}
+        >
           <span>{chain?.name}</span>
           {payUsd !== null && <span className="tnum">{fmtUsd(payUsd)}</span>}
         </div>
         {overBalance && (
-          <p className="mt-1 text-xs text-ember">
+          <p className={cx("mt-1 text-ember", CONSOLE_META)}>
             More than your {from.symbol} balance.
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Flip */}
       <div className="relative z-10 -my-2.5 flex justify-center">
-        <button
-          type="button"
+        <IconButton
+          icon="repost"
+          label="Swap direction"
+          variant="glass"
+          size="sm"
           onClick={flip}
-          aria-label="Swap direction"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-steel-line bg-panel text-gold transition hover:border-gold/50"
-        >
-          <Icon name="repost" className="h-4 w-4" />
-        </button>
+          className="text-gold"
+        />
       </div>
 
       {/* To */}
-      <div className="glass p-4">
+      <Card pad="none" className={CONSOLE_PAD}>
         <span className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
           You receive
         </span>
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-2 flex items-center gap-3 md:mt-1.5">
           <TokenSelect token={to} onClick={() => setPickerSide("to")} />
-          <span className="tnum min-w-0 flex-1 truncate text-right font-display text-2xl text-bone">
+          <span className="tnum min-w-0 flex-1 truncate text-right font-display text-2xl text-bone md:text-xl">
             {quoteLoading
               ? "..."
               : quote
@@ -540,7 +559,12 @@ export default function SwapPage() {
                 : "0"}
           </span>
         </div>
-        <div className="mt-1 flex items-center justify-between text-xs text-bone-faint">
+        <div
+          className={cx(
+            "mt-1 flex items-center justify-between text-bone-faint",
+            CONSOLE_META
+          )}
+        >
           <span className="flex items-center gap-1.5">
             {toHeld
               ? `Balance ${Number(toHeld.balanceDisplay).toLocaleString("en-US", { maximumFractionDigits: 4 })}`
@@ -555,11 +579,16 @@ export default function SwapPage() {
           </span>
           {receiveUsd !== null && <span className="tnum">{fmtUsd(receiveUsd)}</span>}
         </div>
-      </div>
+      </Card>
 
       {/* Rate + fee line */}
       {quote && rate !== null && (
-        <div className="mt-2 flex items-center justify-between rounded-xl border border-steel-line bg-void/60 px-3.5 py-2 text-xs text-bone-mut">
+        <div
+          className={cx(
+            "mt-2 flex items-center justify-between rounded-lg border border-steel-line bg-void/60 px-3 py-2 text-bone-mut",
+            CONSOLE_META
+          )}
+        >
           <span className="tnum">
             1 {from.symbol} ={" "}
             {rate >= 1
@@ -567,28 +596,30 @@ export default function SwapPage() {
               : rate.toPrecision(3)}{" "}
             {to.symbol}
           </span>
-          <span className="text-bone-faint">
+          <span className="tnum text-bone-faint">
             {(PLATFORM_FEE_BPS / 100).toFixed(1)}% fee
           </span>
         </div>
       )}
 
       {quoteError && sellRaw > 0n && (
-        <p className="mt-2 text-xs text-ember">{quoteError}</p>
+        <p className={cx("mt-2 text-ember", CONSOLE_META)}>{quoteError}</p>
       )}
 
-      <button
-        type="button"
+      <Button
+        variant="gold"
+        size="lg"
+        block
         disabled={!canReview}
         onClick={() => setPhase("confirm")}
-        className="btn-gold mt-3 w-full py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-3 md:h-9 md:text-sm"
       >
         <Icon name="repost" className="h-4 w-4" />
         {overBalance ? `Not enough ${from.symbol}` : "Review swap"}
-      </button>
+      </Button>
 
       {!walletAddress && (
-        <p className="mt-2 text-center text-xs text-ember">
+        <p className={cx("mt-2 text-center text-ember", CONSOLE_META)}>
           No embedded wallet is ready to swap yet.
         </p>
       )}
@@ -597,139 +628,115 @@ export default function SwapPage() {
         Uniswap and every major DEX.
       </p>
 
-      {mounted && pickerSide && (
-        <TokenPicker
-          side={pickerSide}
-          chainId={chainId}
-          held={heldTokens}
-          onClose={() => setPickerSide(null)}
-          onPick={(t) => pickToken(pickerSide, t)}
-        />
-      )}
+      <TokenPicker
+        side={pickerSide}
+        chainId={chainId}
+        held={heldTokens}
+        onClose={() => setPickerSide(null)}
+        onPick={(t) => pickerSide && pickToken(pickerSide, t)}
+      />
 
-      {mounted &&
-        phase !== "idle" &&
-        chain &&
-        createPortal(
-          <div className="fixed inset-0 z-[100] flex items-stretch justify-center sm:items-center sm:p-4">
-            <button
-              aria-label="Close"
-              onClick={reset}
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      {chain && (
+        <AdaptiveDialog
+          open={phase !== "idle"}
+          onOpenChange={(next) => {
+            if (!next) reset();
+          }}
+          title={
+            phase === "success"
+              ? `Swapped ${from.symbol} to ${to.symbol}`
+              : `${from.symbol} to ${to.symbol}`
+          }
+          description={phase === "success" ? undefined : "Swap preview"}
+        >
+          {phase === "success" ? (
+            <SwapSuccess
+              to={to}
+              receive={`${fmtToken(quote?.buyAmount ?? null, to.decimals)} ${to.symbol}`}
+              chainId={chainId}
+              hash={swapHash}
+              onClose={reset}
             />
-            <div className="glass glass-warm relative flex h-full w-full flex-col overflow-y-auto p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] sm:h-auto sm:max-w-md sm:pt-6">
-              {phase === "success" ? (
-                <SwapSuccess
-                  from={from}
-                  to={to}
-                  receive={`${fmtToken(quote?.buyAmount ?? null, to.decimals)} ${to.symbol}`}
-                  chainId={chainId}
-                  hash={swapHash}
-                  onClose={reset}
+          ) : (
+            <>
+              <div className="flex flex-col gap-2 rounded-lg border border-steel-line bg-void/60 p-3">
+                <ConsoleStat
+                  label="You pay"
+                  value={`${amount} ${from.symbol}`}
                 />
-              ) : (
-                <>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
-                        Swap · Preview
-                      </p>
-                      <h3 className="mt-1 font-display text-lg font-semibold text-bone">
-                        {from.symbol} to {to.symbol}
-                      </h3>
-                    </div>
-                    <button
-                      aria-label="Close"
-                      onClick={reset}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-bone-faint transition hover:bg-panel hover:text-bone-mut"
-                    >
-                      <Icon name="plus" className="h-4 w-4 rotate-45" />
-                    </button>
-                  </div>
-                  <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-steel-line bg-void/60 p-4">
-                    <Row label="You pay" value={`${amount} ${from.symbol}`} />
-                    <Row
-                      label="You receive"
-                      value={`${fmtToken(quote?.buyAmount ?? null, to.decimals)} ${to.symbol}`}
-                      strong
-                    />
-                    {quote?.minBuyAmount && (
-                      <Row
-                        label="Minimum received"
-                        value={`${fmtToken(quote.minBuyAmount, to.decimals)} ${to.symbol}`}
-                      />
-                    )}
-                    <Row
-                      label={`Platform fee (${(PLATFORM_FEE_BPS / 100).toFixed(1)}%)`}
-                      value={
-                        quote?.feeAmount
-                          ? `${fmtToken(quote.feeAmount, to.decimals)} ${to.symbol}`
-                          : "included"
-                      }
-                    />
-                    {quote?.totalNetworkFee && (
-                      <Row
-                        label="Network fee (est.)"
-                        value={`~${fmtToken(quote.totalNetworkFee, NATIVE_DECIMALS)} ${chain.native}`}
-                      />
-                    )}
-                    <Row label="Network" value={chain.name} />
-                    {/* Order routing */}
-                    <div className="mt-1 flex items-center justify-between border-t border-steel-line pt-2.5 text-[11px] text-bone-faint">
-                      <span>Route</span>
-                      <span className="flex items-center gap-1.5">
-                        {from.symbol}
-                        <Icon name="arrow" className="h-3 w-3" />
-                        <span className="rounded bg-panel px-1.5 py-0.5 text-gold">
-                          0x
-                        </span>
-                        <Icon name="arrow" className="h-3 w-3" />
-                        {to.symbol}
-                      </span>
-                    </div>
-                  </div>
+                <ConsoleStat
+                  label="You receive"
+                  tone="strong"
+                  value={`${fmtToken(quote?.buyAmount ?? null, to.decimals)} ${to.symbol}`}
+                />
+                {quote?.minBuyAmount && (
+                  <ConsoleStat
+                    label="Minimum received"
+                    value={`${fmtToken(quote.minBuyAmount, to.decimals)} ${to.symbol}`}
+                  />
+                )}
+                <ConsoleStat
+                  label={`Platform fee (${(PLATFORM_FEE_BPS / 100).toFixed(1)}%)`}
+                  value={
+                    quote?.feeAmount
+                      ? `${fmtToken(quote.feeAmount, to.decimals)} ${to.symbol}`
+                      : "included"
+                  }
+                />
+                {quote?.totalNetworkFee && (
+                  <ConsoleStat
+                    label="Network fee (est.)"
+                    value={`~${fmtToken(quote.totalNetworkFee, NATIVE_DECIMALS)} ${chain.native}`}
+                  />
+                )}
+                <ConsoleStat label="Network" value={chain.name} />
+                {/* Order routing */}
+                <div className="mt-1 flex items-center justify-between border-t border-steel-line pt-2 text-[11px] text-bone-faint">
+                  <span>Route</span>
+                  <span className="flex items-center gap-1.5">
+                    {from.symbol}
+                    <Icon name="arrow" className="h-3 w-3" />
+                    <span className="rounded-sm bg-panel px-1.5 py-0.5 text-gold">
+                      0x
+                    </span>
+                    <Icon name="arrow" className="h-3 w-3" />
+                    {to.symbol}
+                  </span>
+                </div>
+              </div>
 
-                  {approvalHash && (
-                    <div className="mt-3 rounded-xl border border-gold/25 bg-panel-warm/50 p-3 text-xs text-bone-mut">
-                      Approval sent. Once it confirms (about 15 seconds), confirm
-                      the swap below.
-                    </div>
-                  )}
-                  {execError && <p className="mt-3 text-xs text-ember">{execError}</p>}
-
-                  <button
-                    type="button"
-                    disabled={phase === "swapping" || phase === "approving"}
-                    onClick={() => void execute()}
-                    className="btn-gold mt-4 w-full py-3 text-sm disabled:opacity-60"
-                  >
-                    {phase === "approving" ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
-                        Approving...
-                      </>
-                    ) : phase === "swapping" ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#171204]/40 border-t-[#171204]" />
-                        Confirm in your wallet...
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="repost" className="h-4 w-4" />
-                        Confirm swap
-                      </>
-                    )}
-                  </button>
-                  <p className="mt-3 text-center text-[11px] text-bone-faint">
-                    Signed by your own wallet. Non-custodial.
-                  </p>
-                </>
+              {approvalHash && (
+                <p className="mt-3 rounded-lg border border-gold/25 bg-panel-warm/50 p-3 text-xs text-bone-mut">
+                  Approval sent. Once it confirms (about 15 seconds), confirm
+                  the swap below.
+                </p>
               )}
-            </div>
-          </div>,
-          document.body
-        )}
-    </div>
+              {execError && (
+                <p className="mt-3 text-xs text-ember">{execError}</p>
+              )}
+
+              <Button
+                variant="gold"
+                size="lg"
+                block
+                loading={phase === "swapping" || phase === "approving"}
+                onClick={() => void execute()}
+                className="mt-4"
+              >
+                {phase === "approving"
+                  ? "Approving..."
+                  : phase === "swapping"
+                    ? "Confirm in your wallet..."
+                    : "Confirm swap"}
+              </Button>
+              <p className="mt-3 text-center text-[11px] text-bone-faint">
+                Signed by your own wallet. Non-custodial.
+              </p>
+            </>
+          )}
+        </AdaptiveDialog>
+      )}
+    </ConsolePage>
   );
 }
 
@@ -741,36 +748,16 @@ function TokenSelect({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="glass"
+      size="md"
       onClick={onClick}
-      className="btn-glass inline-flex shrink-0 items-center gap-2 rounded-full py-2 pl-2 pr-3 text-sm"
+      className="shrink-0 pl-2 pr-2.5"
     >
-      <TokenLogo logo={token.logo} symbol={token.symbol} size={24} />
+      <TokenLogo logo={token.logo} symbol={token.symbol} size={22} />
       <span className="font-semibold text-bone">{token.symbol}</span>
-      <Icon name="dots" className="h-3.5 w-3.5 text-bone-faint" />
-    </button>
-  );
-}
-
-function Row({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-bone-faint">{label}</span>
-      <span
-        className={`tnum text-right ${strong ? "font-semibold text-bone" : "text-bone-mut"}`}
-      >
-        {value}
-      </span>
-    </div>
+      <Icon name="chevron-down" className="h-3.5 w-3.5 text-bone-faint" />
+    </Button>
   );
 }
 
@@ -781,7 +768,7 @@ function TokenPicker({
   onClose,
   onPick,
 }: {
-  side: "from" | "to";
+  side: "from" | "to" | null;
   chainId: number;
   held: ReturnType<typeof useWalletTokens>["tokens"];
   onClose: () => void;
@@ -793,10 +780,16 @@ function TokenPicker({
   const [active, setActive] = useState<SearchResult[]>([]);
   const [activeLoading, setActiveLoading] = useState(true);
 
+  const open = side !== null;
+  const showSearchSkeleton = useDelayedLoading(searching, 300);
+  const showActiveSkeleton = useDelayedLoading(activeLoading, 300);
+
   /* The live active-coin roll for the selected chain, so the picker opens like
      a real DEX token list rather than a handful of majors. Refetched when the
-     chain changes. */
+     chain changes. Gated on `open` because the dialog now stays mounted for its
+     enter and exit transitions, and a closed picker must not call the roll. */
   useEffect(() => {
+    if (!open) return;
     let cancelled = false;
     setActiveLoading(true);
     void realmFetch<{ results?: SearchResult[] }>(
@@ -809,18 +802,10 @@ function TokenPicker({
     return () => {
       cancelled = true;
     };
-  }, [chainId]);
+  }, [chainId, open]);
 
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (query.trim().length < 2) {
+    if (!open || query.trim().length < 2) {
       setResults([]);
       return;
     }
@@ -838,7 +823,7 @@ function TokenPicker({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [query]);
+  }, [query, open]);
 
   const base = tokensForChain(chainId);
   const heldOnChain = held.filter(
@@ -875,126 +860,122 @@ function TokenPicker({
       priceUsd: r.priceUsd,
     });
 
-  return createPortal(
-    <div className="fixed inset-0 z-[110] flex items-stretch justify-center sm:items-center sm:p-4">
-      <button
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
-      <div className="glass glass-warm relative flex h-full w-full flex-col overflow-hidden p-5 pt-[calc(1.25rem+env(safe-area-inset-top))] sm:h-[72vh] sm:max-w-md sm:pt-5">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="font-display text-lg font-semibold text-bone">
-            Select a coin
-          </h3>
-          <button
-            aria-label="Close"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-bone-faint hover:bg-panel hover:text-bone-mut"
-          >
-            <Icon name="plus" className="h-4 w-4 rotate-45" />
-          </button>
-        </div>
-        <label className="mt-3 flex items-center gap-2 rounded-2xl border border-steel-line bg-void px-3.5 py-2.5 focus-within:border-gold/40">
-          <Icon name="search" className="h-4 w-4 text-bone-faint" />
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ticker, name or contract address"
-            spellCheck={false}
-            className="min-w-0 flex-1 bg-transparent text-sm text-bone placeholder-bone-faint outline-none"
-          />
-        </label>
+  return (
+    <AdaptiveDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (next) return;
+        /* A reopened picker starts blank, the way a freshly mounted one did. */
+        setQuery("");
+        onClose();
+      }}
+      title="Select a coin"
+      description={
+        side === "to" ? "Receiving on EVM chains only." : "Paying with, on EVM chains only."
+      }
+    >
+      <div className="relative">
+        <Icon
+          name="search"
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-faint"
+        />
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Ticker, name or contract address"
+          aria-label="Search coins"
+          spellCheck={false}
+          className="h-11 w-full rounded-md border border-steel-line bg-obsidian/60 pl-9 pr-3 text-sm text-bone placeholder:text-bone-faint transition-colors duration-fast focus:border-gold/60 md:h-9"
+        />
+      </div>
 
-        <div className="mt-3 flex-1 overflow-y-auto">
-          {query.trim().length >= 2 ? (
-            searching ? (
-              <Loading />
-            ) : results.length === 0 ? (
-              <Empty text="No coin found for that. Try the full contract address." />
-            ) : (
-              <Section label="Search results">
-                {results.map((r) => (
+      <div className="mt-3 max-h-[52vh] overflow-y-auto sm:max-h-[56vh]">
+        {query.trim().length >= 2 ? (
+          searching ? (
+            showSearchSkeleton ? (
+              <ChoiceSkeleton />
+            ) : null
+          ) : results.length === 0 ? (
+            <EmptyState
+              size="sm"
+              icon="search"
+              title="No coin found"
+              body="Nothing matched that. Try the full contract address."
+            />
+          ) : (
+            <Section label="Search results">
+              {results.map((r) => (
+                <Choice
+                  key={`${r.chainId}:${r.address}`}
+                  logo={r.logo}
+                  symbol={r.symbol}
+                  sub={`${r.name} · ${r.chainLabel}`}
+                  right={fmtPriceUsd(r.priceUsd)}
+                  onClick={() => pickResult(r)}
+                />
+              ))}
+            </Section>
+          )
+        ) : (
+          <>
+            {heldOnChain.length > 0 && (
+              <Section label="Your holdings">
+                {heldOnChain.map((h) => (
+                  <Choice
+                    key={h.key}
+                    logo={h.logo}
+                    symbol={h.symbol}
+                    sub={h.name}
+                    right={Number(h.balanceDisplay).toLocaleString("en-US", {
+                      maximumFractionDigits: 4,
+                    })}
+                    onClick={() => pickHeld(h)}
+                  />
+                ))}
+              </Section>
+            )}
+            <Section label="Popular on this chain">
+              {base.map((t) => (
+                <Choice
+                  key={t.symbol}
+                  logo={t.logo}
+                  symbol={t.symbol}
+                  sub={t.name}
+                  onClick={() => pickListed(t)}
+                />
+              ))}
+            </Section>
+            <Section label="Active coins, live by volume">
+              {activeLoading ? (
+                showActiveSkeleton ? (
+                  <ChoiceSkeleton />
+                ) : null
+              ) : activeCoins.length === 0 ? (
+                <EmptyState
+                  size="sm"
+                  icon="eye"
+                  title="No live coins"
+                  body="None could be read for this chain right now."
+                />
+              ) : (
+                activeCoins.map((r) => (
                   <Choice
                     key={`${r.chainId}:${r.address}`}
                     logo={r.logo}
                     symbol={r.symbol}
                     sub={`${r.name} · ${r.chainLabel}`}
-                    right={
-                      r.priceUsd !== null
-                        ? r.priceUsd >= 1
-                          ? `$${r.priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
-                          : `$${r.priceUsd.toPrecision(2)}`
-                        : undefined
-                    }
+                    right={fmtPriceUsd(r.priceUsd)}
                     onClick={() => pickResult(r)}
                   />
-                ))}
-              </Section>
-            )
-          ) : (
-            <>
-              {heldOnChain.length > 0 && (
-                <Section label="Your holdings">
-                  {heldOnChain.map((h) => (
-                    <Choice
-                      key={h.key}
-                      logo={h.logo}
-                      symbol={h.symbol}
-                      sub={h.name}
-                      right={Number(h.balanceDisplay).toLocaleString("en-US", {
-                        maximumFractionDigits: 4,
-                      })}
-                      onClick={() => pickHeld(h)}
-                    />
-                  ))}
-                </Section>
+                ))
               )}
-              <Section label="Popular on this chain">
-                {base.map((t) => (
-                  <Choice
-                    key={t.symbol}
-                    logo={t.logo}
-                    symbol={t.symbol}
-                    sub={t.name}
-                    onClick={() => pickListed(t)}
-                  />
-                ))}
-              </Section>
-              <Section label="Active coins, live by volume">
-                {activeLoading ? (
-                  <Loading />
-                ) : activeCoins.length === 0 ? (
-                  <Empty text="No live coins could be read for this chain right now." />
-                ) : (
-                  activeCoins.map((r) => (
-                    <Choice
-                      key={`${r.chainId}:${r.address}`}
-                      logo={r.logo}
-                      symbol={r.symbol}
-                      sub={`${r.name} · ${r.chainLabel}`}
-                      right={
-                        r.priceUsd !== null && r.priceUsd !== undefined
-                          ? r.priceUsd >= 1
-                            ? `$${r.priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
-                            : `$${r.priceUsd.toPrecision(2)}`
-                          : undefined
-                      }
-                      onClick={() => pickResult(r)}
-                    />
-                  ))
-                )}
-              </Section>
-            </>
-          )}
-        </div>
-        <p className="mt-2 text-center text-[10px] text-bone-faint">
-          {side === "from" ? "Paying with" : "Receiving"} on EVM chains only.
-        </p>
+            </Section>
+          </>
+        )}
       </div>
-    </div>,
-    document.body
+    </AdaptiveDialog>
   );
 }
 
@@ -1006,11 +987,11 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-4">
+    <div className="mb-4 md:mb-3">
       <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
         {label}
       </p>
-      <div className="flex flex-col gap-1">{children}</div>
+      <div className="flex flex-col gap-1 md:gap-0.5">{children}</div>
     </div>
   );
 }
@@ -1032,41 +1013,48 @@ function Choice({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-left hover:bg-panel-warm/60"
+      className="flex min-h-11 items-center gap-3 rounded-md px-2 py-2 text-left transition-colors duration-fast hover:bg-panel-warm/60 md:min-h-9 md:py-1.5"
     >
-      <TokenLogo logo={logo} symbol={symbol} size={32} />
+      <TokenLogo logo={logo} symbol={symbol} size={28} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-bone">{symbol}</p>
+        <p className="truncate text-sm font-semibold text-bone md:text-[13px]">
+          {symbol}
+        </p>
         <p className="truncate text-[11px] text-bone-faint">{sub}</p>
       </div>
       {right && (
-        <span className="tnum shrink-0 text-xs text-bone-mut">{right}</span>
+        <span className="tnum shrink-0 text-xs text-bone-mut md:text-[11px]">
+          {right}
+        </span>
       )}
     </button>
   );
 }
 
-function Loading() {
+/* Shaped like the rows it stands in for, not a grey slab the size of the list. */
+function ChoiceSkeleton() {
   return (
-    <div className="flex items-center gap-2 px-1 py-3 text-sm text-bone-faint">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
-      Searching the chains...
+    <div className="flex flex-col gap-1 md:gap-0.5">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="flex min-h-11 items-center gap-3 px-2 md:min-h-9">
+          <Skeleton radius="full" className="h-7 w-7 shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <Skeleton radius="sm" className="h-2.5 w-16" />
+            <Skeleton radius="sm" className="h-2 w-28" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
-function Empty({ text }: { text: string }) {
-  return <p className="px-1 py-3 text-sm text-bone-faint">{text}</p>;
-}
 
 function SwapSuccess({
-  from,
   to,
   receive,
   chainId,
   hash,
   onClose,
 }: {
-  from: TokenRef;
   to: TokenRef;
   receive: string;
   chainId: number;
@@ -1075,21 +1063,13 @@ function SwapSuccess({
 }) {
   const explorer = hash ? txExplorerUrlFor(chainId, hash) : null;
   return (
-    <div className="flex flex-col items-center gap-4 py-4 text-center">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-gold/40 bg-panel-warm">
-        <TokenLogo logo={to.logo} symbol={to.symbol} size={40} />
-      </span>
-      <div>
-        <p className="font-display text-lg font-semibold text-bone">
-          Swapped {from.symbol} to {to.symbol}
-        </p>
-        <p className="mt-1 text-sm text-bone-mut">
-          You received {receive}. Your Vault and Coffers will update as the chain
-          confirms.
-        </p>
-      </div>
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-bone-mut">
+        You received {receive}. Your Vault and Coffers will update as the chain
+        confirms.
+      </p>
       {hash && (
-        <div className="w-full rounded-2xl border border-steel-line bg-panel/50 p-3">
+        <div className="rounded-lg border border-steel-line bg-panel/50 p-3">
           <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
             Transaction
           </p>
@@ -1098,22 +1078,26 @@ function SwapSuccess({
               {shortAddress(hash, 10, 8)}
             </code>
             {explorer && (
-              <a
-                href={explorer}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
-              >
-                <Icon name="arrow" className="h-3.5 w-3.5" />
-                View
-              </a>
+              <Button
+                size="sm"
+                render={
+                  <a href={explorer} target="_blank" rel="noreferrer">
+                    <Icon name="arrow" className="h-3.5 w-3.5" />
+                    View
+                  </a>
+                }
+              />
             )}
           </div>
         </div>
       )}
-      <button onClick={onClose} className="btn-gold w-full py-2.5 text-sm">
+      <div className="flex items-center gap-2">
+        <TokenLogo logo={to.logo} symbol={to.symbol} size={20} />
+        <span className="text-xs text-bone-faint">{to.symbol} is in your Vault.</span>
+      </div>
+      <Button variant="gold" size="lg" block onClick={onClose}>
         Done
-      </button>
+      </Button>
     </div>
   );
 }
