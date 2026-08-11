@@ -11,8 +11,13 @@ import { EVM_DEX_CHAINS } from "@/lib/trade/config";
        with an exact-symbol + liquidity floor so an impostor can't mint a card.
    Never fabricated; when the match is not trustworthy we return null. */
 
-/* symbol -> CoinGecko id for the coins members ask about by name. */
-const COINGECKO_IDS: Record<string, string> = {
+/* symbol -> CoinGecko id for the coins members ask about by name.
+
+   Exported because a Call has to pin the identity it was sealed against rather
+   than re-resolving the ticker at settlement time (V2 finding P3). A major has
+   no single contract address, so its canonical identity is this id, and this
+   map is a fixed curated list that no impostor can enter. */
+export const COINGECKO_IDS: Record<string, string> = {
   eth: "ethereum",
   weth: "weth",
   btc: "bitcoin",
