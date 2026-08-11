@@ -4,8 +4,11 @@ The living source of truth for the V2 transformation. This document replaces the
 Wave 4 direction in `docs/PRODUCT-BACKLOG.md` as the primary plan. The 261-finding
 `docs/AUDIT.md` is retained as a historical record, not as the active backlog.
 
-Status: **awaiting product-owner decisions** (see section 22). Audit complete,
-plan drafted, implementation not started.
+Status: **awaiting product-owner decisions on section 22.** Audit complete and
+plan drafted. Feature work has not started, but the findings that were unsafe
+or broken to leave alone have been fixed and shipped already: a critical economy
+exploit, a broken production build, the missing baseline schema, WCAG AA text
+contrast, and keyboard focus. See section 21 for the log.
 
 ---
 
