@@ -1,9 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { realmFetch } from "@/lib/auth/api";
+import { Badge } from "@/components/ui/badge";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  AdminError,
+  AdminHeader,
+  AdminStack,
+  Board,
+  BoardCard,
+  BoardSkeleton,
+  SealedChamber,
+  StatSkeleton,
+  StatTile,
+} from "@/app/admin/ui";
 
 interface OverviewStats {
   users: number;
@@ -66,15 +81,17 @@ function actionLabel(a: string): string {
   return a.replace(/_/g, " ");
 }
 
+function authorName(a: RecentPost["author"]): string {
+  return a?.display_name?.trim() || (a?.handle ? `@${a.handle}` : "Unknown");
+}
+
+function actorName(a: AuditRow["actor"]): string {
+  return a?.display_name?.trim() || (a?.handle ? `@${a.handle}` : "System");
+}
+
 /* A minimal inline-SVG sparkline. No chart library: one polyline plus a soft
-   area fill, scaled to the data. */
-function Sparkline({
-  values,
-  labels,
-}: {
-  values: number[];
-  labels: string[];
-}) {
+   area fill, scaled to the data. Gold, off the token, never a hardcoded hex. */
+function Sparkline({ values, labels }: { values: number[]; labels: string[] }) {
   const w = 240;
   const h = 56;
   const pad = 3;
@@ -100,11 +117,11 @@ function Sparkline({
       role="img"
       aria-label={`Last ${n} days, ${last} on ${labels[labels.length - 1] ?? "today"}`}
     >
-      <polygon points={area} fill="rgba(200,162,76,0.10)" />
+      <polygon points={area} fill="var(--gold)" fillOpacity="0.1" />
       <polyline
         points={line}
         fill="none"
-        stroke="var(--gold, #C8A24C)"
+        stroke="var(--gold)"
         strokeWidth="1.5"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -119,11 +136,11 @@ export default function AdminOverviewPage() {
   const [status, setStatus] = useState<"loading" | "ok" | "sealed" | "error">(
     "loading"
   );
+  const showSkeleton = useDelayedLoading(status === "loading", 300);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    setStatus("loading");
     void realmFetch<OverviewData>("/api/admin/overview").then((res) => {
-      if (cancelled) return;
       if (res.status === 401 || res.status === 403) {
         setStatus("sealed");
       } else if (res.ok && res.data) {
@@ -133,32 +150,23 @@ export default function AdminOverviewPage() {
         setStatus("error");
       }
     });
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
-  if (status === "sealed") {
-    return (
-      <div className="glass p-8 text-center">
-        <Icon name="lock" className="mx-auto h-6 w-6 text-bone-faint" />
-        <p className="gold-text font-display mt-3 text-xl font-semibold">
-          The council chamber is sealed
-        </p>
-        <p className="mt-2 text-sm text-bone-mut">
-          Your seal does not open this ledger.
-        </p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (status === "sealed") return <SealedChamber />;
 
   if (status === "error") {
     return (
-      <div className="glass p-8 text-center">
-        <p className="text-sm text-bone-mut">
-          The ledger could not be read. Try again shortly.
-        </p>
-      </div>
+      <AdminStack>
+        <AdminHeader title="Overview" kicker="The state of the realm" back={false} />
+        <AdminError
+          body="The ledger could not be read. The archives may be resting."
+          onRetry={load}
+        />
+      </AdminStack>
     );
   }
 
@@ -177,19 +185,19 @@ export default function AdminOverviewPage() {
         { label: "War champions", value: data.stats.warPlayers, icon: "swords" },
         { label: "Open duels", value: data.stats.duelsLive, icon: "flag" },
         { label: "Tips revenue", value: data.stats.revenue, icon: "wallet" },
-        {
-          label: "Open reports",
-          value: data.stats.openReports,
-          icon: "shield",
-        },
+        { label: "Open reports", value: data.stats.openReports, icon: "shield" },
       ]
     : [];
 
-  /* The control center: every lever an admin has, each a card into its
-     sub-console, with a live "needs attention" badge where the platform is
-     waiting on a steward. */
+  /* The control center: every lever a steward has, each a card into its
+     sub-console, with a live attention badge where the platform is waiting. */
   const controls = [
-    { href: "/admin/users", icon: "user", label: "Users", desc: "Search, roles, bans and seals" },
+    {
+      href: "/admin/users",
+      icon: "user",
+      label: "Users",
+      desc: "Search, roles, bans and seals",
+    },
     {
       href: "/admin/moderation",
       icon: "shield",
@@ -204,84 +212,100 @@ export default function AdminOverviewPage() {
       desc: "Member reports awaiting a verdict",
       badge: data?.stats.openReports ?? 0,
     },
-    { href: "/admin/houses", icon: "banner", label: "Houses", desc: "Banners, glory and membership" },
-    { href: "/admin/seasons", icon: "crown", label: "Seasons", desc: "Season windows and settlement" },
-    { href: "/admin/crests", icon: "medal", label: "Crests", desc: "Award and revoke honors" },
-    { href: "/admin/war", icon: "swords", label: "The War", desc: "Champions, battles and rewards" },
-    { href: "/admin/flags", icon: "sliders", label: "Feature Flags", desc: "Roll features out or back" },
-    { href: "/admin/settings", icon: "wall", label: "Settings", desc: "Realm-wide configuration" },
+    {
+      href: "/admin/houses",
+      icon: "banner",
+      label: "Houses",
+      desc: "Banners, glory and membership",
+    },
+    {
+      href: "/admin/seasons",
+      icon: "crown",
+      label: "Seasons",
+      desc: "Season windows and settlement",
+    },
+    {
+      href: "/admin/crests",
+      icon: "medal",
+      label: "Crests",
+      desc: "Award and revoke honors",
+    },
+    {
+      href: "/admin/war",
+      icon: "swords",
+      label: "The War",
+      desc: "Champions, battles and rewards",
+    },
+    {
+      href: "/admin/flags",
+      icon: "sliders",
+      label: "Feature Flags",
+      desc: "Roll features out or back",
+    },
+    {
+      href: "/admin/settings",
+      icon: "wall",
+      label: "Settings",
+      desc: "Realm-wide configuration",
+    },
   ];
 
   return (
-    <div>
-      <h1 className="font-display text-xl font-semibold text-bone sm:text-2xl">
-        Overview
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        The state of the realm
-      </p>
+    <AdminStack>
+      <AdminHeader title="Overview" kicker="The state of the realm" back={false} />
 
-      {/* Control center, jump to any lever, with live attention badges. */}
-      <section className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-3">
+      <section aria-label="Council levers" className="grid grid-cols-2 gap-2.5 md:gap-2 lg:grid-cols-3">
         {controls.map((c) => (
-          <Link
+          <Card
             key={c.href}
-            href={c.href}
-            className="glass glass-sm group relative flex items-start gap-3 p-3.5 transition hover:border-gold/30 sm:p-4"
+            pad="sm"
+            interactive
+            className="group flex items-start gap-3"
+            render={<Link href={c.href} />}
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/25 bg-void text-gold">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-gold/25 bg-void text-gold">
               <Icon name={c.icon} className="h-4 w-4" />
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-bone">{c.label}</p>
-                {"badge" in c && (c.badge ?? 0) > 0 && (
-                  <span className="tnum inline-flex min-w-5 items-center justify-center rounded-[--radius-sm] border border-ember-deep/50 bg-ember/10 px-1.5 py-0.5 text-[10px] font-bold text-ember">
-                    {c.badge}
-                  </span>
-                )}
-              </div>
-              <p className="mt-0.5 truncate text-[11px] text-bone-faint">
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-bone">{c.label}</span>
+                {"badge" in c && (c.badge ?? 0) > 0 ? (
+                  <Badge variant="danger">{c.badge}</Badge>
+                ) : null}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] text-bone-faint">
                 {c.desc}
-              </p>
-            </div>
+              </span>
+            </span>
             <Icon
-              name="arrow"
-              className="mt-1 h-3.5 w-3.5 shrink-0 rotate-0 text-bone-faint transition group-hover:text-gold"
+              name="chevron-right"
+              className="mt-1 h-3.5 w-3.5 shrink-0 text-bone-faint transition-colors duration-fast group-hover:text-gold"
             />
-          </Link>
+          </Card>
         ))}
       </section>
 
-      <h2 className="mt-8 font-display text-lg font-semibold text-bone">
-        Pulse of the realm
-      </h2>
+      <section aria-label="Pulse of the realm" className="flex flex-col gap-3 md:gap-2">
+        <SectionHeader title="Pulse of the realm" />
+        {showSkeleton ? (
+          <StatSkeleton count={8} />
+        ) : status === "loading" ? null : (
+          <div className="grid grid-cols-2 gap-3 md:gap-2 lg:grid-cols-4">
+            {statCards.map((s) => (
+              <StatTile
+                key={s.label}
+                icon={s.icon}
+                value={s.value.toLocaleString()}
+                label={s.label}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
-      {status === "loading" ? (
-        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-            <div key={i} className="glass glass-sm h-28 animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {statCards.map((s) => (
-            <div key={s.label} className="glass glass-sm p-4 sm:p-5">
-              <Icon name={s.icon} className="h-4 w-4 text-bone-faint" />
-              <p className="tnum font-display mt-2 text-2xl font-semibold text-gold sm:text-3xl">
-                {s.value.toLocaleString()}
-              </p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                {s.label}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {data && (
-        <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="glass glass-sm p-4 sm:p-5">
+      {data ? (
+        <section aria-label="Seven day trend" className="grid grid-cols-1 gap-3 md:gap-2 sm:grid-cols-2">
+          <Card pad="sm">
             <p className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
               Signups, last 7 days
             </p>
@@ -289,8 +313,8 @@ export default function AdminOverviewPage() {
             <p className="tnum mt-1 text-xs text-bone-mut">
               {data.series.signups.reduce((a, b) => a + b, 0)} new in the week
             </p>
-          </div>
-          <div className="glass glass-sm p-4 sm:p-5">
+          </Card>
+          <Card pad="sm">
             <p className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
               Ravens, last 7 days
             </p>
@@ -298,119 +322,142 @@ export default function AdminOverviewPage() {
             <p className="tnum mt-1 text-xs text-bone-mut">
               {data.series.posts.reduce((a, b) => a + b, 0)} sent in the week
             </p>
-          </div>
+          </Card>
         </section>
-      )}
+      ) : null}
 
-      <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div>
-          <h2 className="font-display text-lg font-semibold text-bone">
-            Recent ravens
-          </h2>
-          <div className="glass mt-3 overflow-x-auto">
-            {status === "loading" ? (
-              <div className="h-40 animate-pulse" />
-            ) : data && data.recent.length > 0 ? (
-              <table className="w-full min-w-[28rem] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-steel-line text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                    <th className="px-4 py-3 font-medium">Author</th>
-                    <th className="px-4 py-3 font-medium">Raven</th>
-                    <th className="px-4 py-3 font-medium">Sent</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.recent.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="border-b border-steel-line last:border-b-0"
-                    >
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <span className="font-semibold text-bone">
-                          {p.author?.display_name?.trim() ||
-                            (p.author?.handle
-                              ? `@${p.author.handle}`
-                              : "Unknown")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-bone-mut">
-                        {p.deleted && (
-                          <span className="mr-2 rounded-[--radius-sm] border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ember">
-                            Removed
-                          </span>
-                        )}
-                        {truncate(p.body)}
-                      </td>
-                      <td className="tnum whitespace-nowrap px-4 py-3 text-xs text-bone-faint">
-                        {timeAgo(p.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="flex items-center gap-3 p-6">
-                <Icon name="raven" className="h-5 w-5 text-bone-faint" />
-                <p className="text-sm text-bone-mut">
-                  No ravens have flown yet. The rookery is quiet.
-                </p>
-              </div>
-            )}
-          </div>
+      <section className="grid grid-cols-1 gap-6 md:gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-3 md:gap-2">
+          <SectionHeader title="Recent ravens" />
+          {showSkeleton ? (
+            <BoardSkeleton rows={5} columns={3} />
+          ) : status === "loading" ? null : data && data.recent.length > 0 ? (
+            <Board
+              label="Recent ravens"
+              rows={data.recent}
+              rowKey={(p) => p.id}
+              columns={[
+                {
+                  key: "author",
+                  header: "Author",
+                  className: "whitespace-nowrap font-semibold text-bone",
+                  cell: (p) => authorName(p.author),
+                },
+                {
+                  key: "body",
+                  header: "Raven",
+                  cell: (p) => (
+                    <span className="flex items-center gap-2">
+                      {p.deleted ? <Badge variant="danger">Removed</Badge> : null}
+                      {truncate(p.body)}
+                    </span>
+                  ),
+                },
+                {
+                  key: "sent",
+                  header: "Sent",
+                  numeric: true,
+                  className: "whitespace-nowrap text-bone-faint",
+                  cell: (p) => timeAgo(p.created_at),
+                },
+              ]}
+              card={(p) => (
+                <BoardCard
+                  title={authorName(p.author)}
+                  subtitle={timeAgo(p.created_at)}
+                  badges={p.deleted ? <Badge variant="danger">Removed</Badge> : null}
+                >
+                  <p className="mt-2 text-xs text-bone-mut">{truncate(p.body, 140)}</p>
+                </BoardCard>
+              )}
+            />
+          ) : (
+            <Card pad="lg">
+              <EmptyState
+                icon="raven"
+                title="The rookery is quiet"
+                body="No ravens have flown yet. Members posting in the Ravenry will appear here."
+                action={
+                  <Link
+                    href="/home"
+                    className="rounded-md text-xs text-gold underline underline-offset-2"
+                  >
+                    Open the Ravenry
+                  </Link>
+                }
+              />
+            </Card>
+          )}
         </div>
 
-        <div>
-          <h2 className="font-display text-lg font-semibold text-bone">
-            Recent council actions
-          </h2>
-          <div className="glass mt-3 overflow-x-auto">
-            {status === "loading" ? (
-              <div className="h-40 animate-pulse" />
-            ) : data && data.audit.length > 0 ? (
-              <table className="w-full min-w-[28rem] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-steel-line text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                    <th className="px-4 py-3 font-medium">Steward</th>
-                    <th className="px-4 py-3 font-medium">Action</th>
-                    <th className="px-4 py-3 font-medium">When</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.audit.map((a) => (
-                    <tr
-                      key={a.id}
-                      className="border-b border-steel-line last:border-b-0"
-                    >
-                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-bone">
-                        {a.actor?.display_name?.trim() ||
-                          (a.actor?.handle ? `@${a.actor.handle}` : "System")}
-                      </td>
-                      <td className="px-4 py-3 text-bone-mut">
-                        <span className="capitalize">{actionLabel(a.action)}</span>
-                        {a.target_type && (
-                          <span className="ml-2 text-xs text-bone-faint">
-                            {a.target_type}
-                          </span>
-                        )}
-                      </td>
-                      <td className="tnum whitespace-nowrap px-4 py-3 text-xs text-bone-faint">
-                        {timeAgo(a.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="flex items-center gap-3 p-6">
-                <Icon name="scroll" className="h-5 w-5 text-bone-faint" />
-                <p className="text-sm text-bone-mut">
-                  No council actions recorded yet.
-                </p>
-              </div>
-            )}
-          </div>
+        <div className="flex flex-col gap-3 md:gap-2">
+          <SectionHeader title="Recent council actions" />
+          {showSkeleton ? (
+            <BoardSkeleton rows={5} columns={3} />
+          ) : status === "loading" ? null : data && data.audit.length > 0 ? (
+            <Board
+              label="Recent council actions"
+              rows={data.audit}
+              rowKey={(a) => a.id}
+              columns={[
+                {
+                  key: "actor",
+                  header: "Steward",
+                  className: "whitespace-nowrap font-semibold text-bone",
+                  cell: (a) => actorName(a.actor),
+                },
+                {
+                  key: "action",
+                  header: "Action",
+                  cell: (a) => (
+                    <span className="flex items-center gap-2">
+                      <span className="capitalize">{actionLabel(a.action)}</span>
+                      {a.target_type ? (
+                        <span className="text-[11px] text-bone-faint">
+                          {a.target_type}
+                        </span>
+                      ) : null}
+                    </span>
+                  ),
+                },
+                {
+                  key: "when",
+                  header: "When",
+                  numeric: true,
+                  className: "whitespace-nowrap text-bone-faint",
+                  cell: (a) => timeAgo(a.created_at),
+                },
+              ]}
+              card={(a) => (
+                <BoardCard
+                  title={actorName(a.actor)}
+                  subtitle={timeAgo(a.created_at)}
+                  stats={[
+                    { label: "Action", value: actionLabel(a.action) },
+                    { label: "Target", value: a.target_type ?? "none" },
+                  ]}
+                />
+              )}
+            />
+          ) : (
+            <Card pad="lg">
+              <EmptyState
+                icon="scroll"
+                title="No council actions recorded"
+                body="Every privileged action lands here once a steward acts. Start with the user roll."
+                action={
+                  <Link
+                    href="/admin/users"
+                    className="rounded-md text-xs text-gold underline underline-offset-2"
+                  >
+                    Open the user roll
+                  </Link>
+                }
+              />
+            </Card>
+          )}
         </div>
       </section>
-    </div>
+    </AdminStack>
   );
 }
