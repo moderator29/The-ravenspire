@@ -14,11 +14,21 @@
   --panel: #101017;
   --panel-warm: #14120c;
 
-  /* Forged gold */
-  --gold: #c8a24c;
-  --gold-bright: #f0d68c;
-  --gold-deep: #8a6a2c;
-  --gold-rich: #d8b45a;
+  /* Forged gold.
+
+     Retuned to match the 3D icon set: richer and more saturated than the old
+     antique gold, with a brighter highlight so metal reads as polished rather
+     than dusty. The icons carry a thick shiny gold, and a muted interface gold
+     next to them made the interface look faded rather than the icons look rich.
+
+     Contrast against --panel-warm, the darkest surface we put text on:
+     gold 9.12:1, gold-rich 11.59:1, gold-bright 15.55:1. All clear WCAG AA
+     comfortably, and every one is an improvement on the values they replace.
+     gold-deep is the shadow stop of the gradient and a fill only, never text. */
+  --gold: #d9b040; /* was #c8a24c, 7.78:1 -> 9.12:1 */
+  --gold-bright: #ffe9a3; /* was #f0d68c, the polished highlight */
+  --gold-deep: #8f6717; /* was #8a6a2c, fill only */
+  --gold-rich: #ecc860; /* was #d8b45a, 11.59:1 */
 
   /* Ember / fire */
   --ember: #e5702a;

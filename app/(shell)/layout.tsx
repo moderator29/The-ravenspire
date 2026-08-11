@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { SideNav } from "@/components/shell/side-nav";
 import { BottomNav } from "@/components/shell/bottom-nav";
 import { TopBar } from "@/components/shell/top-bar";
@@ -23,7 +24,13 @@ export default function ShellLayout({
               it, so it needs more clearance than the old fixed 64px bar. */}
           <main className="min-w-0 flex-1 pb-28 lg:pb-8">{children}</main>
           <RightRail />
-          <BottomNav />
+          {/* The dock reads the query string to mark the current sub
+              destination, and useSearchParams() opts a component out of static
+              rendering. Without this boundary every statically rendered page in
+              the shell fails to prerender at build time. */}
+          <Suspense fallback={null}>
+            <BottomNav />
+          </Suspense>
 
           <FloatingCompose />
         </div>
