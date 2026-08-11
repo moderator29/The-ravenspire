@@ -38,6 +38,12 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+      # Two founder rules are absolute and easy to break by accident. Both had
+      # already regressed once each after being swept clean, because a rule
+      # enforced by a human noticing is a rule that regresses.
+      - name: House rules
+        run: npm run check:rules
+
       - name: Typecheck
         run: npm run typecheck
 

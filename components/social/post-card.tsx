@@ -583,7 +583,7 @@ export function PostCard({ post }: { post: Post }) {
             <Link
               href={`/post/${post.id}`}
               aria-label="Reply"
-              className="flex items-center gap-1.5 rounded-full px-2 py-2 text-sm text-bone-faint transition hover:bg-panel hover:text-bone-mut"
+              className="flex items-center gap-1.5 rounded-[--radius-sm] px-2.5 py-2 text-sm text-bone-faint transition hover:bg-panel hover:text-bone-mut"
             >
               <Icon name="reply" className="h-[18px] w-[18px]" />
               {post.reply_count > 0 && (
