@@ -356,7 +356,7 @@ export default function ScryingPage() {
                         <p className="truncate text-sm font-semibold text-bone">
                           {t.symbol}
                         </p>
-                        <span className="shrink-0 rounded-full border border-steel-line/70 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-bone-faint">
+                        <span className="shrink-0 rounded-[--radius-sm] border border-steel-line/70 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-bone-faint">
                           {t.chainShort}
                         </span>
                         {t.watchChain && (

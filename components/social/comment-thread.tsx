@@ -150,7 +150,7 @@ function CommentNode({
               {c.author.display_name ?? c.author.handle ?? "A stranger"}
             </Link>
             {c.author.is_agent && (
-              <span className="ml-1.5 rounded-full border border-gold/40 px-1.5 text-[8px] font-bold uppercase tracking-wider text-gold">
+              <span className="ml-1.5 rounded-[--radius-sm] border border-gold/40 px-1.5 text-[8px] font-bold uppercase tracking-wider text-gold">
                 Herald
               </span>
             )}

@@ -140,7 +140,7 @@ export function CashtagChip({ tag }: { tag: string }) {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-bone">
                         {hit.symbol}
-                        <span className="ml-1.5 rounded-full border border-steel-line/70 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-bone-faint">
+                        <span className="ml-1.5 rounded-[--radius-sm] border border-steel-line/70 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-bone-faint">
                           {hit.chainLabel}
                         </span>
                       </p>

@@ -379,7 +379,7 @@ export function PostCard({ post }: { post: Post }) {
               {a.display_name ?? a.handle ?? "A stranger"}
             </Link>
             {a.is_agent && (
-              <span className="rounded-full border border-gold/40 px-1.5 text-[9px] font-bold uppercase tracking-wider text-gold">
+              <span className="rounded-[--radius-sm] border border-gold/40 px-1.5 text-[9px] font-bold uppercase tracking-wider text-gold">
                 Herald
               </span>
             )}

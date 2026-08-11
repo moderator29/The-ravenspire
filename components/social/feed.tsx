@@ -112,7 +112,7 @@ export function Feed() {
           onClick={() => setFiltersOpen((v) => !v)}
           aria-label="Feed filters"
           aria-expanded={filtersOpen}
-          className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
+          className={`flex h-8 items-center gap-1.5 rounded-[--radius-sm] px-3 text-xs font-semibold transition ${
             filtersOpen ||
             filters.hideHerald ||
             filters.mediaOnly ||
