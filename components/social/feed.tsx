@@ -7,6 +7,7 @@ import { CashtagChip } from "@/components/social/cashtag-chip";
 import { BackToTop } from "@/components/shell/back-to-top";
 import { Icon } from "@/components/ui/icon";
 import { fetchTrendingCashtags, type Cashtag } from "@/lib/social/explore-queries";
+import { InlineComposer } from "@/components/social/inline-composer";
 import {
   fetchFeed,
   subscribeToFeed,
@@ -105,6 +106,14 @@ export function Feed() {
 
   return (
     <div className="flex flex-col gap-2">
+      {/* Posting used to cost a floating button plus a navigation to /compose.
+          A new raven is prepended straight onto the current page rather than
+          triggering a refetch, so the member keeps their place in the feed. */}
+      <InlineComposer
+        onPosted={(post) => {
+          if (post) setPosts((prev) => [post, ...prev]);
+        }}
+      />
       {/* Filter sits on its own line above the tabs, right-aligned, so it never
           overlaps the Signal/Latest tabs or scatters the row. */}
       <div className="relative flex justify-end">
