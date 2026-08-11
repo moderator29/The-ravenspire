@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Composer } from "@/components/social/composer";
 import { Avatar } from "@/components/social/avatar";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import type { Post } from "@/lib/social/types";
@@ -37,7 +38,7 @@ export function InlineComposer({
 
   if (open) {
     return (
-      <div className="glass mb-3 rounded-[--radius-xl] p-3">
+      <Card pad="none">
         <Composer
           onPosted={(post) => {
             setOpen(false);
@@ -45,23 +46,27 @@ export function InlineComposer({
           }}
           onDone={() => setOpen(false)}
         />
-      </div>
+      </Card>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => setOpen(true)}
-      className="glass mb-3 flex w-full items-center gap-3 rounded-[--radius-xl] p-3 text-left transition-colors duration-150 hover:border-gold/25"
+    <Card
+      pad="sm"
+      interactive
+      render={<button type="button" onClick={() => setOpen(true)} />}
+      className="flex w-full items-center gap-3 text-left"
     >
       <Avatar author={author} size={34} />
-      <span className="flex-1 truncate text-sm text-bone-faint">
+      <span className="min-w-0 flex-1 truncate text-sm text-bone-faint">
         Send a raven, or seal a Call
       </span>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[--radius-md] border border-gold/30 bg-gold/10 text-gold">
+      <span
+        aria-hidden
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-gold/30 bg-gold/10 text-gold"
+      >
         <Icon name="plus" className="h-4 w-4" />
       </span>
-    </button>
+    </Card>
   );
 }

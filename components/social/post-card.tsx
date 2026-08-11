@@ -6,8 +6,12 @@ import { Avatar } from "@/components/social/avatar";
 import { RichBody } from "@/components/social/rich-body";
 import { PriceCard } from "@/components/social/price-card";
 import { CallChart } from "@/components/social/call-chart";
+import { Badge } from "@/components/ui/badge";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { OverflowMenu } from "@/components/ui/overflow-menu";
+import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
+import { StreamAction, StreamCard } from "@/components/stream/stream-shell";
 import { useDossier } from "@/components/social/user-dossier";
 import { TipDialog } from "@/components/tip/tip-dialog";
 import { shareOrCopy } from "@/lib/share";
@@ -16,6 +20,14 @@ import { muteMember, unmuteMember } from "@/lib/social/mutes";
 import { useViewerId } from "@/lib/social/use-viewer";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { timeAgo, TIER_NAMES, type Post } from "@/lib/social/types";
+
+/* A raven, on the Stream card chassis.
+
+   Section 5 of the design system: one chassis, many bodies. The outer shell is
+   identical for every card in the product and the type is encoded by the 2px
+   accent rail alone, never by changing the shape, radius or width. Here that
+   means gold for a member's raven, ember for a Call, steel for the Herald,
+   which is the realm's system voice and must read quieter than a person. */
 
 /* A whisper of haptic feedback on a positive action, where the device (and
    the browser) supports it. A no-op everywhere else, never throws. */
@@ -55,67 +67,36 @@ function PollBlock({ post }: { post: Post }) {
       {options.map((o, i) => {
         const pct = total > 0 ? Math.round((o.votes / total) * 100) : 0;
         return (
-          <button
+          <Button
             key={i}
-            onClick={(e) => {
+            variant="glass"
+            size="lg"
+            block
+            onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               e.stopPropagation();
               void vote(i);
             }}
-            className="hairline relative overflow-hidden rounded-xl bg-void px-3 py-2 text-left text-xs text-bone-mut transition hover:border-gold/40"
+            className="justify-between overflow-hidden px-3 text-xs font-medium text-bone-mut"
           >
             <span
+              aria-hidden
               className="absolute inset-y-0 left-0 bg-gold/12"
               style={{ width: `${pct}%` }}
             />
-            <span className="relative flex justify-between gap-2">
-              <span className="truncate">{o.text}</span>
-              {total > 0 && <span className="tnum shrink-0 text-bone-faint">{pct}%</span>}
-            </span>
-          </button>
+            <span className="relative min-w-0 truncate">{o.text}</span>
+            {total > 0 ? (
+              <span className="tnum relative shrink-0 text-bone-faint">
+                {pct}%
+              </span>
+            ) : null}
+          </Button>
         );
       })}
       <p className="tnum px-1 text-[10px] text-bone-faint">
         {total} {total === 1 ? "voice" : "voices"}
       </p>
     </div>
-  );
-}
-
-function ActionButton({
-  icon,
-  count,
-  active,
-  activeClass,
-  label,
-  onClick,
-  iconClassName,
-}: {
-  icon: string;
-  count?: number;
-  active?: boolean;
-  activeClass?: string;
-  label: string;
-  onClick?: () => void;
-  iconClassName?: string;
-}) {
-  return (
-    <button
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onClick?.();
-      }}
-      aria-label={label}
-      className={`flex items-center gap-1.5 rounded-[--radius-sm] px-2.5 py-2 text-sm transition hover:bg-panel active:scale-95 ${
-        active ? (activeClass ?? "text-gold") : "text-bone-faint hover:text-bone-mut"
-      }`}
-    >
-      <Icon name={icon} className={`h-[18px] w-[18px] ${iconClassName ?? ""}`} />
-      {count !== undefined && count > 0 && (
-        <span className="tnum text-xs">{count}</span>
-      )}
-    </button>
   );
 }
 
@@ -294,39 +275,50 @@ export function PostCard({ post }: { post: Post }) {
   };
   const a = post.author;
   const firstTag = post.cashtags[0];
+  /* Type by rail, never by shape. A Call is ember, the Herald is the realm's
+     own voice and takes the quieter steel, everything else is a member's gold. */
+  const rail = post.call ? "ember" : a.is_agent ? "steel" : "gold";
 
   if (removed) return null;
 
   if (hidden) {
     const who = a.handle ? `@${a.handle}` : "this member";
     return (
-      <article className="glass glass-sm flex items-center gap-3 p-4 text-xs text-bone-faint">
-        <Icon
-          name={hidden === "block" ? "shield" : "bell"}
-          className="h-4 w-4 shrink-0"
-        />
-        <span className="min-w-0 flex-1">
-          {hidden === "block"
-            ? `You have banished ${who} from your sight.`
-            : `You have silenced ${who}. Their ravens will not reach you.`}
-        </span>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            void undoHide();
-          }}
-          disabled={undoBusy}
-          className="btn-glass shrink-0 rounded-[--radius-sm] px-3 py-1 text-xs text-gold transition hover:text-gold-bright disabled:opacity-50"
-        >
-          Undo
-        </button>
-      </article>
+      <StreamCard rail="steel" pad="sm">
+        <div className="flex items-center gap-3 pl-2 text-xs text-bone-faint">
+          <Icon
+            name={hidden === "block" ? "shield" : "bell"}
+            className="h-4 w-4 shrink-0"
+          />
+          <span className="min-w-0 flex-1">
+            {hidden === "block"
+              ? `You have banished ${who} from your sight.`
+              : `You have silenced ${who}. Their ravens will not reach you.`}
+          </span>
+          <Button
+            variant="glass"
+            size="sm"
+            disabled={undoBusy}
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void undoHide();
+            }}
+            className="shrink-0 text-gold"
+          >
+            Undo
+          </Button>
+        </div>
+      </StreamCard>
     );
   }
 
   return (
-    <article ref={cardRef} className="glass glass-sm glass-hover relative p-4">
+    <StreamCard
+      rail={rail}
+      interactive
+      render={<article ref={cardRef} />}
+    >
       {heartBurst && (
         <span
           aria-hidden
@@ -365,127 +357,76 @@ export function PostCard({ post }: { post: Post }) {
             dossier.open(post.author_id, a.handle);
           }}
           aria-label={`Open ${a.handle ? `@${a.handle}` : "member"} dossier`}
-          className="shrink-0 rounded-full transition hover:opacity-90"
+          className="shrink-0 self-start rounded-[var(--radius-full)] transition-opacity duration-fast ease-out-quint hover:opacity-90"
         >
           <Avatar author={a} size={40} />
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 text-sm">
-            <Link
-              href={a.handle ? `/u/${a.handle}` : "#"}
-              className="font-semibold text-bone hover:underline"
-            >
-              {a.display_name ?? a.handle ?? "A stranger"}
-            </Link>
-            {a.is_agent && (
-              <span className="rounded-[--radius-sm] border border-gold/40 px-1.5 text-[9px] font-bold uppercase tracking-wider text-gold">
-                Herald
+              <Link
+                href={a.handle ? `/u/${a.handle}` : "#"}
+                className="font-semibold text-bone hover:underline"
+              >
+                {a.display_name ?? a.handle ?? "A stranger"}
+              </Link>
+              {a.is_agent && <Badge variant="gold">Herald</Badge>}
+              {a.handle && <span className="text-bone-faint">@{a.handle}</span>}
+              <span className="text-bone-faint">·</span>
+              <span className="text-xs text-bone-faint">
+                {timeAgo(post.created_at)}
               </span>
-            )}
-            {a.handle && (
-              <span className="text-bone-faint">@{a.handle}</span>
-            )}
-            <span className="text-bone-faint">·</span>
-            <span className="text-xs text-bone-faint">
-              {timeAgo(post.created_at)}
-            </span>
             </div>
-            <div className="relative flex shrink-0 items-center gap-1.5">
+            <div className="relative flex shrink-0 items-center gap-1">
               {a.tier && !a.is_agent && (
                 <span className="hidden text-[10px] uppercase tracking-[0.16em] text-bone-faint sm:inline">
                   {TIER_NAMES[a.tier] ?? a.tier}
                 </span>
               )}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  void toggleBookmark();
-                }}
-                aria-label="Bookmark"
-                className={`flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-panel ${
-                  bookmarked ? "text-gold" : "text-bone-faint hover:text-bone-mut"
-                }`}
+              <StreamAction
+                icon="bookmark"
+                label={bookmarked ? "Remove bookmark" : "Bookmark"}
+                active={bookmarked}
+                iconClassName={bmPop ? "action-pop" : ""}
+                onClick={() => void toggleBookmark()}
+              />
+              <Menu
+                trigger={<IconButton icon="dots" label="More" size="md" className="h-11 w-11" />}
               >
-                <Icon name="bookmark" className={`h-4 w-4 ${bmPop ? "action-pop" : ""}`} />
-              </button>
-              <OverflowMenu ariaLabel="More">
-                {(close) => {
-                  const copyItem = (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        doCopyLink();
-                        close();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                <MenuItem icon="share" onClick={doCopyLink}>
+                  {linkCopied ? "Link copied" : "Copy link"}
+                </MenuItem>
+                {isOwn ? (
+                  <>
+                    <MenuSeparator />
+                    <MenuItem
+                      icon="flag"
+                      tone="danger"
+                      onClick={() => void doDelete()}
                     >
-                      <Icon name="share" className="h-3.5 w-3.5" />
-                      {linkCopied ? "Link copied" : "Copy link"}
-                    </button>
-                  );
-                  return isOwn ? (
-                    <>
-                      {copyItem}
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          close();
-                          void doDelete();
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
-                      >
-                        <Icon name="flag" className="h-3.5 w-3.5" />
-                        Delete raven
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {copyItem}
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          close();
-                          void doReport();
-                        }}
-                        disabled={reported}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel disabled:opacity-50"
-                      >
-                        <Icon name="flag" className="h-3.5 w-3.5" />
-                        {reported ? "Reported" : "Report"}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          close();
-                          void doMute();
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                      >
-                        <Icon name="bell" className="h-3.5 w-3.5" />
-                        Mute
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          close();
-                          void doBlock();
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                      >
-                        <Icon name="shield" className="h-3.5 w-3.5" />
-                        Block
-                      </button>
-                    </>
-                  );
-                }}
-              </OverflowMenu>
+                      Delete raven
+                    </MenuItem>
+                  </>
+                ) : (
+                  <>
+                    <MenuItem icon="bell" onClick={() => void doMute()}>
+                      Mute
+                    </MenuItem>
+                    <MenuItem icon="shield" onClick={() => void doBlock()}>
+                      Block
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      icon="flag"
+                      tone="danger"
+                      disabled={reported}
+                      onClick={() => void doReport()}
+                    >
+                      {reported ? "Reported" : "Report"}
+                    </MenuItem>
+                  </>
+                )}
+              </Menu>
             </div>
           </div>
 
@@ -494,34 +435,42 @@ export function PostCard({ post }: { post: Post }) {
           </Link>
 
           {post.call && (
-            <div
-              className={`glass-sm mt-2 flex items-center gap-3 rounded-xl border px-3 py-2 ${
+            <Card
+              variant="inset"
+              pad="none"
+              className={`mt-2 flex items-center gap-3 px-3 py-2 ${
                 post.call.stance === "up"
-                  ? "border-gold/40 bg-panel-warm"
-                  : "border-ember-deep/40 bg-panel"
+                  ? "border-[color:var(--chart-up)]/40"
+                  : "border-[color:var(--chart-down)]/40"
               }`}
             >
               <Icon
                 name="target"
-                className={`h-4 w-4 ${post.call.stance === "up" ? "text-gold" : "text-ember-deep"}`}
+                className={`h-4 w-4 shrink-0 ${
+                  post.call.stance === "up"
+                    ? "text-[color:var(--chart-up)]"
+                    : "text-[color:var(--chart-down)]"
+                }`}
               />
-              <p className="text-xs text-bone-mut">
+              <p className="min-w-0 text-xs text-bone-mut">
                 <span className="font-bold text-bone">CALL</span> · $
                 {post.call.token} {post.call.stance === "up" ? "rises" : "falls"}{" "}
                 within {post.call.timeframe} · sealed at ${post.call.entry_price}
               </p>
-              <span
-                className={`ml-auto rounded-[--radius-sm] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                  post.call.verdict === "hit"
-                    ? "bg-gold/15 text-gold-bright"
-                    : post.call.verdict === "miss"
-                      ? "bg-ember-deep/15 text-ember-deep"
-                      : "bg-steel-deep text-bone-faint"
-                }`}
-              >
-                {post.call.verdict}
+              <span className="ml-auto shrink-0">
+                <Badge
+                  variant={
+                    post.call.verdict === "hit"
+                      ? "gold"
+                      : post.call.verdict === "miss"
+                        ? "danger"
+                        : "default"
+                  }
+                >
+                  {post.call.verdict}
+                </Badge>
               </span>
-            </div>
+            </Card>
           )}
 
           {post.call && (
@@ -580,33 +529,28 @@ export function PostCard({ post }: { post: Post }) {
               <Icon name="eye" className="h-[18px] w-[18px]" />
               <span className="tnum">{views.toLocaleString()}</span>
             </span>
-            <Link
-              href={`/post/${post.id}`}
-              aria-label="Reply"
-              className="flex items-center gap-1.5 rounded-[--radius-sm] px-2.5 py-2 text-sm text-bone-faint transition hover:bg-panel hover:text-bone-mut"
-            >
-              <Icon name="reply" className="h-[18px] w-[18px]" />
-              {post.reply_count > 0 && (
-                <span className="tnum text-xs">{post.reply_count}</span>
-              )}
-            </Link>
-            <ActionButton
+            <StreamAction
+              icon="reply"
+              label="Reply"
+              count={post.reply_count}
+              render={<Link href={`/post/${post.id}`} />}
+            />
+            <StreamAction
               icon="repost"
               count={reposts}
               active={reposted}
               label="Re-raven"
               onClick={toggleRepost}
             />
-            <ActionButton
+            <StreamAction
               icon="heart"
               count={likes}
               active={liked}
-              activeClass="text-gold"
               label="Like"
               iconClassName={likePop ? "action-pop" : ""}
               onClick={toggleLike}
             />
-            <ActionButton
+            <StreamAction
               icon="coin"
               active={tipSent || tipOpen}
               label="Tip"
@@ -615,7 +559,7 @@ export function PostCard({ post }: { post: Post }) {
                 setTipOpen(true);
               }}
             />
-            <ActionButton
+            <StreamAction
               icon="share"
               active={shared !== null}
               label="Share"
@@ -631,7 +575,7 @@ export function PostCard({ post }: { post: Post }) {
           )}
           {shared && (
             <p
-              className={`mt-1 flex items-center gap-1.5 pl-1 text-xs ${shared === "failed" ? "text-ember" : "text-gold"}`}
+              className={`mt-1 flex items-center gap-1.5 pl-1 text-xs ${shared === "failed" ? "text-state-danger" : "text-gold"}`}
             >
               <Icon name="share" className="h-3.5 w-3.5" />
               {shared === "shared"
@@ -656,6 +600,6 @@ export function PostCard({ post }: { post: Post }) {
           onSent={() => setTipSent(true)}
         />
       )}
-    </article>
+    </StreamCard>
   );
 }

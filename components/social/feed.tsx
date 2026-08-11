@@ -1,11 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { PostCard } from "@/components/social/post-card";
 import { WhoToFollow } from "@/components/social/who-to-follow";
 import { CashtagChip } from "@/components/social/cashtag-chip";
 import { BackToTop } from "@/components/shell/back-to-top";
+import { Button } from "@/components/ui/button";
+import { CardRow } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { Toggle } from "@/components/ui/field";
+import { AdaptiveDialog } from "@/components/ui/sheet";
+import { useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  StreamChip,
+  StreamChipRail,
+  StreamColumn,
+  StreamEmpty,
+  StreamList,
+  StreamSkeleton,
+} from "@/components/stream/stream-shell";
 import { fetchTrendingCashtags, type Cashtag } from "@/lib/social/explore-queries";
 import { InlineComposer } from "@/components/social/inline-composer";
 import {
@@ -17,6 +31,13 @@ import {
 import type { Post } from "@/lib/social/types";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+
+/* The Ravenry, on the Stream archetype.
+
+   One column at 640px at every width, a fixed gap with variable card heights,
+   and comfortable density throughout. The tabs are a chip rail rather than a
+   segmented control because the set is a filter that can grow, which is the
+   rule in section 3 of the design system. */
 
 const TABS: { key: FeedTab; label: string }[] = [
   { key: "foryou", label: "For You" },
@@ -31,6 +52,28 @@ interface FeedFilters {
   mediaOnly: boolean;
   callsOnly: boolean;
 }
+
+const FILTER_ROWS: {
+  key: keyof FeedFilters;
+  label: string;
+  desc: string;
+}[] = [
+  {
+    key: "hideHerald",
+    label: "Hide the Herald",
+    desc: "Keep the realm's own voice out of this timeline.",
+  },
+  {
+    key: "mediaOnly",
+    label: "Media only",
+    desc: "Only ravens carrying an image or a video.",
+  },
+  {
+    key: "callsOnly",
+    label: "Calls only",
+    desc: "Only sealed Calls, open or settled.",
+  },
+];
 
 export function Feed() {
   const { authenticated } = useRealmAuth();
@@ -104,8 +147,20 @@ export function Feed() {
     return subscribeToFeed(() => setHasNew(true));
   }, []);
 
+  /* A skeleton that flashes for 200ms reads as the layout breaking, not as
+     loading, so it only earns its place once the wait is real. */
+  const showSkeleton = useDelayedLoading(loading);
+  const activeFilters = FILTER_ROWS.filter((r) => filters[r.key]).length;
+
+  const visible = posts
+    .filter((p) => !blocked.has(p.author_id))
+    .filter((p) => !muted.has(p.author_id))
+    .filter((p) => !filters.hideHerald || !p.author.is_agent)
+    .filter((p) => !filters.mediaOnly || p.media.length > 0)
+    .filter((p) => !filters.callsOnly || p.kind === "call");
+
   return (
-    <div className="flex flex-col gap-2">
+    <StreamColumn className="flex flex-col gap-3">
       {/* Posting used to cost a floating button plus a navigation to /compose.
           A new raven is prepended straight onto the current page rather than
           triggering a refetch, so the member keeps their place in the feed. */}
@@ -114,158 +169,190 @@ export function Feed() {
           if (post) setPosts((prev) => [post, ...prev]);
         }}
       />
-      {/* Filter sits on its own line above the tabs, right-aligned, so it never
-          overlaps the Signal/Latest tabs or scatters the row. */}
-      <div className="relative flex justify-end">
-        <button
-          onClick={() => setFiltersOpen((v) => !v)}
+
+      <div className="flex items-center gap-2">
+        <StreamChipRail label="Feed views" className="flex-1">
+          {TABS.map((t) => (
+            <StreamChip
+              key={t.key}
+              active={tab === t.key}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+            </StreamChip>
+          ))}
+        </StreamChipRail>
+        <Button
+          variant={activeFilters > 0 ? "gold" : "glass"}
+          size="lg"
+          onClick={() => setFiltersOpen(true)}
           aria-label="Feed filters"
-          aria-expanded={filtersOpen}
-          className={`flex h-8 items-center gap-1.5 rounded-[--radius-sm] px-3 text-xs font-semibold transition ${
-            filtersOpen ||
-            filters.hideHerald ||
-            filters.mediaOnly ||
-            filters.callsOnly
-              ? "btn-gold"
-              : "btn-glass text-bone-mut"
-          }`}
+          className="shrink-0 px-3.5"
         >
           <Icon name="sliders" className="h-4 w-4" />
-          Filters
-        </button>
-        {filtersOpen && (
-          <>
-            <button
-              type="button"
-              aria-label="Close filters"
-              onClick={() => setFiltersOpen(false)}
-              className="fixed inset-0 z-40 cursor-default"
-            />
-            <div className="glass glass-sm absolute right-0 top-10 z-50 w-56 p-3">
-              {(
-                [
-                  ["hideHerald", "Hide the Herald's posts"],
-                  ["mediaOnly", "Media only"],
-                  ["callsOnly", "Calls only"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setFilters((f) => ({ ...f, [key]: !f[key] }))}
-                  className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs text-bone-mut hover:bg-panel"
-                >
-                  {label}
-                  <span
-                    className={`h-3.5 w-6 rounded-full border transition ${
-                      filters[key]
-                        ? "gold-metal border-gold-bright/60"
-                        : "border-steel-line bg-steel-deep"
-                    }`}
-                  />
-                </button>
-              ))}
-              <p className="mt-1 px-2 text-[10px] text-bone-faint">
-                Blocked members never appear.
-              </p>
-            </div>
-          </>
-        )}
-      </div>
-      <div className="scrollbar-none -mx-1 flex gap-1.5 overflow-x-auto px-1">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`shrink-0 rounded-[--radius-sm] px-3.5 py-1.5 text-xs font-semibold transition ${
-              tab === t.key ? "btn-gold" : "btn-glass text-bone-mut"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+          {activeFilters > 0 ? (
+            <span className="tnum text-xs">{activeFilters}</span>
+          ) : null}
+        </Button>
       </div>
 
+      <AdaptiveDialog
+        open={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        title="Feed filters"
+        description="Blocked members never appear, whatever is set here."
+        size="sm"
+      >
+        <div className="flex flex-col">
+          {FILTER_ROWS.map((row) => (
+            <CardRow key={row.key} title={row.label} desc={row.desc}>
+              <Toggle
+                checked={filters[row.key]}
+                onCheckedChange={(next) =>
+                  setFilters((f) => ({ ...f, [row.key]: next }))
+                }
+                label={row.label}
+              />
+            </CardRow>
+          ))}
+        </div>
+      </AdaptiveDialog>
+
       {trending.length > 0 && (
-        <div className="scrollbar-none -mx-1 flex items-center gap-2 overflow-x-auto px-1 py-0.5">
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint">
+        <StreamChipRail label="Trending cashtags">
+          <span className="shrink-0 pr-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint">
             Trending
           </span>
           {trending.map((t) => (
-            <span
-              key={t.tag}
-              className="shrink-0 rounded-[--radius-sm] border border-steel-line bg-void px-2.5 py-1 text-xs"
-            >
-              <CashtagChip tag={`$${t.tag}`} />
-            </span>
+            <CashtagChip key={t.tag} tag={`$${t.tag}`} chip />
           ))}
-        </div>
+        </StreamChipRail>
       )}
 
       {hasNew && (
-        <div className="sticky top-2 z-30 flex justify-center">
-          <button
+        <div className="sticky top-2 z-sticky flex justify-center">
+          <Button
+            variant="gold"
+            size="md"
             onClick={() => {
               window.scrollTo({ top: 0, behavior: "smooth" });
               void load();
             }}
-            className="btn-gold flex items-center gap-2 rounded-[--radius-sm] px-4 py-1.5 text-xs font-semibold shadow-xl active:scale-95"
           >
             <span className="relative flex h-2 w-2" aria-hidden>
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-obsidian/50" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-obsidian" />
             </span>
             New ravens have arrived
-          </button>
+          </Button>
         </div>
       )}
 
       <BackToTop />
 
       {loading ? (
-        <div className="flex flex-col gap-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="glass glass-sm h-28 animate-pulse" />
-          ))}
-        </div>
-      ) : posts.length === 0 ? (
-        <div className="flex flex-col gap-3">
-          <div className="glass p-8 text-center text-sm text-bone-mut">
-            {tab === "following"
-              ? authenticated
-                ? "You follow no one yet. The Crossroads is a fine place to find your people."
-                : "Sign in to see the creators you follow."
-              : tab === "houses"
-                ? authenticated
-                  ? "No word from your House yet. Send the first raven."
-                  : "Sign in and join a House to see its hall."
-                : "The ravens carry no word yet. Send the first raven of the realm."}
-          </div>
+        showSkeleton ? (
+          <StreamSkeleton />
+        ) : null
+      ) : visible.length === 0 ? (
+        <StreamList>
+          <FeedEmpty tab={tab} authenticated={authenticated} />
           {authenticated && <WhoToFollow />}
-        </div>
+        </StreamList>
       ) : (
-        <>
-          {posts
-            .filter((p) => !blocked.has(p.author_id))
-            .filter((p) => !muted.has(p.author_id))
-            .filter((p) => !filters.hideHerald || !p.author.is_agent)
-            .filter((p) => !filters.mediaOnly || p.media.length > 0)
-            .filter((p) => !filters.callsOnly || p.kind === "call")
-            .map((p) => (
-              <PostCard
-                key={`${p.id}:${p.repostedBy ? p.effectiveTime : "own"}`}
-                post={p}
-              />
-            ))}
+        <StreamList>
+          {visible.map((p) => (
+            <PostCard
+              key={`${p.id}:${p.repostedBy ? p.effectiveTime : "own"}`}
+              post={p}
+            />
+          ))}
           {!done && (
-            <button
+            <Button
+              variant="glass"
+              size="lg"
               onClick={() => void load(true)}
-              className="btn-glass mx-auto px-5 py-2 text-xs text-bone-mut"
+              className="mx-auto text-bone-mut"
             >
               Older ravens
-            </button>
+            </Button>
           )}
-        </>
+        </StreamList>
       )}
-    </div>
+    </StreamColumn>
+  );
+}
+
+/* An honest empty timeline, with a way out of it.
+
+   Real data only means empty is a first class state, so every branch here names
+   what is missing and offers the one action that fills it. Never a seeded row. */
+function FeedEmpty({
+  tab,
+  authenticated,
+}: {
+  tab: FeedTab;
+  authenticated: boolean;
+}) {
+  if (!authenticated) {
+    return (
+      <StreamEmpty
+        icon="gatehouse"
+        title="Enter the realm to see this"
+        body={
+          tab === "following"
+            ? "The people you follow appear here once you are signed in."
+            : "Your House hall opens once you are signed in and sworn."
+        }
+        action={
+          <Button variant="gold" size="lg" render={<Link href="/signin" />}>
+            Sign in
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (tab === "following") {
+    return (
+      <StreamEmpty
+        icon="gathering"
+        title="You follow no one yet"
+        body="The Crossroads is a fine place to find your people."
+        action={
+          <Button variant="gold" size="lg" render={<Link href="/explore" />}>
+            Visit the Crossroads
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (tab === "houses") {
+    return (
+      <StreamEmpty
+        icon="banner"
+        title="No word from your House yet"
+        body="Send the first raven and your hall has something to carry."
+        action={
+          <Button variant="gold" size="lg" render={<Link href="/compose" />}>
+            Send a raven
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <StreamEmpty
+      icon="raven"
+      title="The ravens carry no word yet"
+      body="Send the first raven of the realm, or seal a Call and let the market judge it."
+      action={
+        <Button variant="gold" size="lg" render={<Link href="/compose" />}>
+          Send a raven
+        </Button>
+      }
+    />
   );
 }
