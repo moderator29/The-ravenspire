@@ -53,9 +53,10 @@ export interface SeasonWindow {
   latest: SeasonRow | null;
   /* True when no season is running, which is when oaths may be sworn. */
   offSeason: boolean;
-  /* The id a new oath is stamped with. Never null: with no seasons defined at
-     all, the realm has not started keeping time and the oath is stamped with
-     nothing rather than a fabricated season. */
+  /* The id a new oath is stamped with. Null when the next season has not been
+     put on the calendar yet, which blocks swearing rather than inventing a
+     season number: house_members.season_id is a real foreign key, and an oath
+     is sworn FOR a season, so that season has to exist first. */
   nextSeasonId: number | null;
 }
 
@@ -86,18 +87,12 @@ export async function loadSeasonWindow(
   const started = seasons.filter((s) => Date.parse(s.starts_at) <= now);
   const latest = started.length > 0 ? started[started.length - 1] : null;
 
-  const maxId = seasons.reduce((max, s) => Math.max(max, s.id), 0);
-
   return {
     active,
     upcoming,
     latest,
     offSeason: active === null,
-    nextSeasonId: upcoming
-      ? upcoming.id
-      : seasons.length > 0
-        ? maxId + 1
-        : null,
+    nextSeasonId: upcoming?.id ?? null,
   };
 }
 
@@ -191,17 +186,18 @@ export function blockMessage(
   e: OathEligibility
 ): string {
   switch (reason) {
-    case "in_season":
-      return `A season is running. Oaths may only be sworn between seasons, so no one can defect to the winning House at the death. ${
-        e.window.active ? `${e.window.active.name} closes ` : "The season closes "
-      }${
-        e.window.active
-          ? new Date(e.window.active.ends_at).toLocaleDateString(undefined, {
-              day: "numeric",
-              month: "long",
-            })
-          : "soon"
-      }.`;
+    case "in_season": {
+      const active = e.window.active;
+      const closes = active
+        ? new Date(active.ends_at).toLocaleDateString(undefined, {
+            day: "numeric",
+            month: "long",
+          })
+        : null;
+      return `${active ? active.name : "A season"} is running${
+        closes ? ` and closes ${closes}` : ""
+      }. Oaths may only be sworn between seasons, so no one can switch to the winning House on the last day.`;
+    }
     case "cooldown":
       return `You swore your current oath for Season ${e.current?.season_id}. An oath costs a full season of cooldown, so the earliest you may swear again is Season ${e.earliestSeason}.`;
     case "same_house":
@@ -209,7 +205,7 @@ export function blockMessage(
     case "no_current_oath":
       return "You hold no oath yet. Choose your House when the Maester welcomes you.";
     case "no_calendar":
-      return "The realm keeps no season calendar yet, so there is no season to swear for.";
+      return "The next season has not been called yet. An oath is sworn for a season, so there has to be one to swear for.";
   }
 }
 
