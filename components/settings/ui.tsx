@@ -1,11 +1,25 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card as UICard,
+  CardBody,
+  CardHeader,
+  CardRow,
+  SectionHeader as UISectionHeader,
+} from "@/components/ui/card";
+import { Toggle as UIToggle } from "@/components/ui/field";
 
-/* Shared chrome for the settings experience so every card, row, toggle, and
-   section header speak the same visual language across page.tsx and the
-   Privy-powered security section. */
+/* Settings chrome, now a thin adapter over components/ui.
+
+   This file was where the good version of Card, Row, Toggle and the section
+   header lived, quarantined inside one feature folder while the rest of the
+   product re-derived worse copies inline. Those four are now primitives, so
+   what remains here is only the settings-specific signature, kept so the two
+   call sites do not have to change in the same commit as the promotion.
+
+   Prefer importing from @/components/ui directly in new work. */
 
 export function SectionHeader({
   title,
@@ -14,17 +28,7 @@ export function SectionHeader({
   title: string;
   hint?: string;
 }) {
-  return (
-    <div className="flex items-baseline gap-3 px-1 pt-2">
-      <h2 className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-bone-mut">
-        {title}
-      </h2>
-      {hint ? (
-        <span className="text-[11px] text-bone-faint">{hint}</span>
-      ) : null}
-      <span className="h-px flex-1 bg-steel-line" />
-    </div>
-  );
+  return <UISectionHeader title={title} hint={hint} />;
 }
 
 export function Card({
@@ -41,20 +45,14 @@ export function Card({
   children: ReactNode;
 }) {
   return (
-    <section className={`glass p-5 sm:p-6 ${warm ? "glass-warm" : ""}`}>
-      <div className="flex items-center gap-2.5">
-        <Icon name={icon} className="h-4 w-4 text-gold" />
-        <h2 className="font-display text-base font-semibold text-bone">
-          {title}
-        </h2>
-        {plain ? (
-          <span className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-            {plain}
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-4">{children}</div>
-    </section>
+    <UICard
+      render={<section />}
+      variant={warm ? "warm" : "default"}
+      pad="none"
+    >
+      <CardHeader icon={icon} title={title} hint={plain} />
+      <CardBody className="pt-3">{children}</CardBody>
+    </UICard>
   );
 }
 
@@ -68,13 +66,9 @@ export function Row({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-steel-line py-3 first:border-t-0 first:pt-0 last:pb-0">
-      <div className="min-w-0">
-        <p className="text-sm text-bone">{title}</p>
-        {desc ? <p className="mt-0.5 text-xs text-bone-faint">{desc}</p> : null}
-      </div>
+    <CardRow title={title} desc={desc}>
       {children}
-    </div>
+    </CardRow>
   );
 }
 
@@ -90,27 +84,17 @@ export function Toggle({
   label: string;
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
+    <UIToggle
+      checked={on}
+      onCheckedChange={onChange}
       disabled={disabled}
-      onClick={() => onChange(!on)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-        on ? "border-gold bg-gold/25" : "border-steel-line bg-panel"
-      }`}
-    >
-      <span
-        className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full transition-all ${
-          on ? "left-6 bg-gold-bright" : "left-1 bg-bone-faint"
-        }`}
-      />
-    </button>
+      label={label}
+    />
   );
 }
 
-/* Small pill used to show a linked/enrolled status at a glance. */
+/* Was a capsule, which the design rules forbid. Now the shared Badge, so a
+   linked account status and a Beta marker are the same shape everywhere. */
 export function StatusPill({
   tone,
   children,
@@ -119,14 +103,6 @@ export function StatusPill({
   children: ReactNode;
 }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] ${
-        tone === "on"
-          ? "border-gold/40 bg-gold/10 text-gold"
-          : "border-steel-line bg-panel text-bone-faint"
-      }`}
-    >
-      {children}
-    </span>
+    <Badge variant={tone === "on" ? "gold" : "default"}>{children}</Badge>
   );
 }
