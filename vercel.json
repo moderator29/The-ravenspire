@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/verdicts",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/houses/recompute",
+      "schedule": "20 0 * * *"
     }
   ]
 }

@@ -174,6 +174,8 @@ export default function AdminHousesPage() {
         </div>
       )}
 
+      {status === "ok" ? <HouseOps /> : null}
+
       <div className="mt-4 flex flex-col gap-2">
         {status === "loading" &&
           [0, 1, 2].map((i) => (
@@ -281,6 +283,124 @@ export default function AdminHousesPage() {
             );
           })}
       </div>
+    </div>
+  );
+}
+
+/* Steward controls for the two Houses V2 jobs that are not automatic.
+
+   Recompute is idempotent and derives everything from the ledger and the oath
+   history, so pressing it twice is safe. The cron hits the same route. */
+function HouseOps() {
+  const [busy, setBusy] = useState<"recompute" | "clash" | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [token, setToken] = useState("");
+
+  async function recompute() {
+    setBusy("recompute");
+    setNote(null);
+    const res = await realmFetch<{
+      ok?: boolean;
+      recomputed?: boolean;
+      season_id?: number;
+      standings?: { slug: string; rank: number; score: number }[];
+      reason?: string;
+    }>("/api/houses/recompute", { method: "POST" });
+    setBusy(null);
+    if (!res.ok || !res.data?.ok) {
+      setNote("The recompute did not run.");
+      return;
+    }
+    if (!res.data.recomputed) {
+      setNote("No season has started, so there is nothing to resolve.");
+      return;
+    }
+    const leader = res.data.standings?.[0];
+    setNote(
+      `Season ${res.data.season_id} resolved. ${
+        leader ? `${leader.slug} leads on ${leader.score.toLocaleString()}.` : ""
+      }`
+    );
+  }
+
+  async function callClash() {
+    const name = title.trim();
+    const ticker = token.trim().replace(/^\$/, "");
+    if (!name || !ticker) {
+      setNote("A Clash needs a name and a token.");
+      return;
+    }
+    setBusy("clash");
+    setNote(null);
+    const res = await realmFetch<{ ok?: boolean; error?: string }>(
+      "/api/houses/clashes",
+      { method: "POST", json: { title: name, token: ticker } }
+    );
+    setBusy(null);
+    if (res.ok && res.data?.ok) {
+      setTitle("");
+      setToken("");
+      setNote(`The Clash is called. It runs 48 hours from now.`);
+    } else {
+      setNote(res.data?.error ?? "The Clash could not be called.");
+    }
+  }
+
+  return (
+    <div className="glass glass-sm mt-4 p-4 sm:p-5">
+      <h2 className="font-display text-base font-semibold text-bone">
+        Season operations
+      </h2>
+      <p className="mt-1 text-xs text-bone-mut">
+        Standings are the sum of each House&apos;s top 20 contributors, and the
+        six seasonal titles are derived from what members actually did. Both
+        are recomputed here and by the cron.
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={recompute}
+          disabled={busy !== null}
+          className="btn-glass px-4 py-1.5 text-sm disabled:opacity-50"
+        >
+          {busy === "recompute" ? "Resolving..." : "Recompute standings and leadership"}
+        </button>
+      </div>
+
+      <div className="mt-4 border-t border-steel-line pt-4">
+        <h3 className="text-xs uppercase tracking-[0.2em] text-bone-faint">
+          Call a Clash
+        </h3>
+        <p className="mt-1 text-xs text-bone-mut">
+          A 48 hour window on one token. Only Calls made inside it count.
+        </p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="The name of the Clash"
+            className="min-w-0 flex-1 rounded-md border border-steel-line bg-panel px-3 py-1.5 text-sm text-bone placeholder:text-bone-faint"
+          />
+          <input
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="TOKEN"
+            className="w-full rounded-md border border-steel-line bg-panel px-3 py-1.5 text-sm text-bone uppercase placeholder:text-bone-faint sm:w-32"
+          />
+          <button
+            type="button"
+            onClick={callClash}
+            disabled={busy !== null}
+            className="btn-gold shrink-0 px-4 py-1.5 text-sm disabled:opacity-50"
+          >
+            {busy === "clash" ? "Calling..." : "Call it"}
+          </button>
+        </div>
+      </div>
+
+      {note ? <p className="mt-3 text-xs text-gold">{note}</p> : null}
     </div>
   );
 }

@@ -4,20 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { RavenMark } from "@/components/brand/raven-mark";
-import { houses } from "@/lib/data/houses";
+import { houses, sigilIcon } from "@/lib/data/houses";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { Icon } from "@/components/ui/icon";
 import { markOnboardedLocal } from "@/lib/auth/session";
-
-const sigilIcon: Record<string, string> = {
-  raven: "raven",
-  flame: "flame",
-  snowflake: "shield",
-  storm: "signal",
-  moon: "eye",
-  lion: "crown",
-};
 
 export default function WelcomePage() {
   const router = useRouter();

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PostCard } from "@/components/social/post-card";
 import { EarningsSection } from "@/components/profile/earnings-section";
 import { Avatar } from "@/components/social/avatar";
+import { OathHistory } from "@/components/social/oath-history";
 import { CrestRoundel, findCrest } from "@/components/brand/crests";
 import { Icon } from "@/components/ui/icon";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
@@ -400,10 +401,13 @@ export function ProfileView({
 
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-bone-faint">
           {house && (
-            <span className="flex items-center gap-1.5">
+            <Link
+              href={`/houses/${house.slug}`}
+              className="flex items-center gap-1.5 hover:text-gold"
+            >
               <Icon name="banner" className="h-3.5 w-3.5" />
               {house.name}
-            </span>
+            </Link>
           )}
           <span className="flex items-center gap-1.5">
             <Icon name="medal" className="h-3.5 w-3.5" />
@@ -422,6 +426,10 @@ export function ProfileView({
             </span>
           )}
         </div>
+
+        {/* The public oath record. Renders only once there is more than one
+            oath to show, since a single oath is what the banner above says. */}
+        <OathHistory profileId={profile.id} />
 
         <div className="tnum mt-3 flex gap-5 text-sm">
           <span>

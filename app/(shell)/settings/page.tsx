@@ -9,6 +9,7 @@ import { ReferralPanel } from "@/components/referral/referral-panel";
 import { WalletSection } from "@/components/wallet/wallet-section";
 import { AccountSecurity } from "@/components/settings/account-security";
 import { Card, Row, Toggle, SectionHeader } from "@/components/settings/ui";
+import { OathSection } from "@/components/settings/oath-section";
 import { BackButton } from "@/components/shell/back-button";
 
 interface MeProfile {
@@ -286,6 +287,13 @@ export default function SettingsPage() {
                 </p>
               </Card>
             )}
+
+            {/* --------------------------------------------------- Oath */}
+            <SectionHeader
+              title="House"
+              hint="Sworn between seasons, never during one"
+            />
+            <OathSection locked={locked} />
 
             {/* ------------------------------------------------- Wallet */}
             <SectionHeader title="Wallet" hint="Keys and coin" />

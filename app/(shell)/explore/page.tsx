@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { houses } from "@/lib/data/houses";
+import { houses, sigilIcon } from "@/lib/data/houses";
 import { Avatar } from "@/components/social/avatar";
 import { Icon } from "@/components/ui/icon";
 import { FollowButton } from "@/components/social/follow-button";
@@ -33,15 +33,6 @@ interface CallRow {
   call: { token: string; stance: "up" | "down"; timeframe: string } | null;
   author: { handle: string | null; display_name: string | null } | null;
 }
-
-const sigilIcon: Record<string, string> = {
-  raven: "raven",
-  flame: "flame",
-  snowflake: "shield",
-  storm: "signal",
-  moon: "eye",
-  lion: "crown",
-};
 
 export default function ExplorePage() {
   const [query, setQuery] = useState("");
