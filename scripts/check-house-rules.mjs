@@ -58,12 +58,20 @@ for (const f of files(["*.ts", "*.tsx", "*.md", "*.sql", "*.yml", "*.mjs"])) {
 }
 
 /* Rule 2: buttons, tabs, chips and toggles are clean rounded rectangles.
-   A rounded-full carrying horizontal padding is a chip, not a circle. */
+   A rounded-full carrying horizontal padding is a chip, not a circle.
+
+   Horizontal padding is not only `px-`. The floating compose bar shipped two
+   pill shaped links written as `py-2 pl-3.5 pr-2`, and this check walked past
+   both of them because it only understood the shorthand. Any of px, pl or pr
+   means the control has width beyond its content, which is what makes a
+   rounded-full a capsule rather than a circle. */
+const HORIZONTAL_PAD = /\b(?:px|pl|pr)-[\d.]+/;
+
 for (const f of files(["*.tsx"])) {
   const text = readFileSync(f, "utf8");
   text.split("\n").forEach((line, i) => {
     if (!line.includes("rounded-full")) return;
-    if (!/\bpx-[\d.]+/.test(line)) return; // no horizontal padding, so a circle
+    if (!HORIZONTAL_PAD.test(line)) return; // no horizontal padding, so a circle
     if (PILL_ALLOWED.some((re) => re.test(line))) return;
     problems.push(
       `${f}:${i + 1}  pill shaped control. Controls use --radius-sm through --radius-2xl, never rounded-full.`
