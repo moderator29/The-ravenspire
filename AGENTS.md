@@ -75,3 +75,16 @@ The full V2 plan lives in `docs/RAVENSPIRE-V2.md`.
     is missing, add it there rather than re-deriving it inline.
 19. No new paid service without justification. Prefer free tiers, open source,
     and browser-native capability. Assume the budget is zero.
+
+## Design system
+
+20. **Read `docs/DESIGN-SYSTEM.md` before designing any surface.** It is the
+    design law: two registers (Ledger and Forge), six surface archetypes, three
+    tab patterns, two densities, one card chassis. Every screen must resolve to
+    something in it.
+21. **Ornament is earned, never ambient.** The Ledger register (about ninety
+    percent of the product) is flat, dense and quiet. The Forge register (Crest
+    unlocks, Call resolutions, House victories, onboarding) is where gold,
+    3D icons, glow and heavy motion are allowed. If a surface glows all the
+    time, nothing on it means anything.
+22. **Never label a 3D icon with its own name.** No captions under icons.
