@@ -216,9 +216,6 @@ function OathDialog({
   onClose: () => void;
   onConfirm: (slug: string) => void;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -227,7 +224,10 @@ function OathDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  if (!mounted) return null;
+  /* No mount gate needed: this dialog is only ever rendered in response to a
+     click, so it cannot be reached during server rendering. The guard is here
+     purely so the portal target is never read on a server pass. */
+  if (typeof document === "undefined") return null;
 
   const currentSlug = state.current?.house_slug ?? null;
   const currentMeta = houseBySlug(currentSlug);

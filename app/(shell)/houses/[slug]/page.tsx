@@ -41,6 +41,13 @@ export default function HousePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
+  /* Keyed on the slug so walking from one hall to the next remounts with fresh
+     state, rather than showing the previous House's roster while the new one
+     loads. */
+  return <HouseHallView key={slug} slug={slug} />;
+}
+
+function HouseHallView({ slug }: { slug: string }) {
   const meta = houseBySlug(slug);
 
   const [hall, setHall] = useState<HouseHall | null>(null);
@@ -51,7 +58,6 @@ export default function HousePage({
 
   useEffect(() => {
     let live = true;
-    setLoading(true);
     void fetch(`/api/houses/${encodeURIComponent(slug)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((payload: HouseHall | null) => {
