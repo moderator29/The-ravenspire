@@ -3,7 +3,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { emit } from "@/lib/realm/events";
 import { HOUSE_TOP_N, houses } from "@/lib/data/houses";
 import {
-  HOUSE_ROLES,
   MASTER_OF_RAVENS_MIN_CALLS,
   type HouseRole,
 } from "@/lib/houses/roles";
@@ -509,5 +508,3 @@ export async function recomputeSeason(
 
   return { seasonId: season.id, standings, roles, overtakes };
 }
-
-export { HOUSE_ROLES };
