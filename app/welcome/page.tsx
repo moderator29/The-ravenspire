@@ -7,6 +7,9 @@ import { RavenMark } from "@/components/brand/raven-mark";
 import { houses, sigilIcon } from "@/lib/data/houses";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
 import { markOnboardedLocal } from "@/lib/auth/session";
 
@@ -123,15 +126,20 @@ export default function WelcomePage() {
       </p>
 
       {step === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass mt-8 w-full max-w-md p-6"
+        <Card
+          pad="lg"
+          render={
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+            />
+          }
+          className="mt-8 w-full max-w-md"
         >
           {xHandle ? (
             /* Signed in with X: the handle is the X username, no need to pick
                one. It can still be changed later in settings. */
-            <div className="rounded-xl border border-steel-line bg-void px-3 py-2.5">
+            <div className="rounded-[--radius-md] border border-steel-line bg-void px-3 py-2.5">
               <p className="text-xs uppercase tracking-wider text-bone-faint">
                 Your handle
               </p>
@@ -143,13 +151,10 @@ export default function WelcomePage() {
               </p>
             </div>
           ) : (
-            <>
-              <label className="text-xs font-semibold uppercase tracking-wider text-bone-mut">
-                Claim your name
-              </label>
-              <div className="mt-2 flex items-center gap-1 rounded-xl border border-steel-line bg-void px-3 py-2.5">
+            <Field label="Claim your name">
+              <div className="flex items-center gap-1">
                 <span className="text-bone-faint">@</span>
-                <input
+                <Input
                   value={handle}
                   onChange={(e) =>
                     setHandle(
@@ -160,29 +165,34 @@ export default function WelcomePage() {
                     )
                   }
                   placeholder="your_handle"
-                  className="min-w-0 flex-1 bg-transparent text-sm text-bone outline-none"
+                  className="flex-1"
                 />
               </div>
-            </>
+            </Field>
           )}
-          <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-bone-mut">
-            Display name (optional)
-          </label>
-          <input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value.slice(0, 40))}
-            placeholder="How the realm knows you"
-            className="mt-2 w-full rounded-xl border border-steel-line bg-void px-3 py-2.5 text-sm text-bone outline-none"
-          />
-          {error && <p className="mt-3 text-xs text-ember-deep">{error}</p>}
-          <button
-            onClick={() => handle.length >= 3 && setStep(1)}
+          <Field label="Display name (optional)" className="mt-4">
+            <Input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value.slice(0, 40))}
+              placeholder="How the realm knows you"
+            />
+          </Field>
+          {error && (
+            <p role="alert" className="mt-3 text-xs text-state-danger">
+              {error}
+            </p>
+          )}
+          <Button
+            variant="gold"
+            size="lg"
+            block
+            className="mt-5"
             disabled={handle.length < 3}
-            className="btn-gold mt-5 w-full py-2.5 text-sm disabled:opacity-50"
+            onClick={() => handle.length >= 3 && setStep(1)}
           >
             Choose your House
-          </button>
-        </motion.div>
+          </Button>
+        </Card>
       )}
 
       {step === 1 && (
@@ -191,14 +201,25 @@ export default function WelcomePage() {
           animate={{ opacity: 1, y: 0 }}
           className="mt-8 w-full max-w-2xl"
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* Choosing a House is an exclusive choice among a small named set,
+              so it carries radio semantics rather than a row of pressed
+              buttons. A screen reader now announces "2 of 4" instead of
+              reading four unrelated toggles. */}
+          <div
+            role="radiogroup"
+            aria-label="Choose your House"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+          >
             {houses.map((h) => (
-              <button
+              <Card
                 key={h.slug}
+                pad="md"
+                interactive
+                render={<button type="button" />}
+                role="radio"
+                aria-checked={house === h.slug}
                 onClick={() => setHouse(h.slug)}
-                className={`glass glass-sm glass-hover p-4 text-left transition ${
-                  house === h.slug ? "border-gold/60" : ""
-                }`}
+                className={`text-left ${house === h.slug ? "border-gold/60" : ""}`}
                 style={
                   house === h.slug
                     ? { boxShadow: `0 0 30px ${h.color}22` }
@@ -223,24 +244,28 @@ export default function WelcomePage() {
                 <p className="mt-1.5 text-xs leading-relaxed text-bone-mut">
                   {h.desc}
                 </p>
-              </button>
+              </Card>
             ))}
           </div>
-          {error && <p className="mt-3 text-xs text-ember-deep">{error}</p>}
+          {error && (
+            <p role="alert" className="mt-3 text-xs text-state-danger">
+              {error}
+            </p>
+          )}
           <div className="mt-5 flex gap-3">
-            <button
-              onClick={() => setStep(0)}
-              className="btn-glass px-5 py-2.5 text-sm text-bone-mut"
-            >
+            <Button variant="glass" size="lg" onClick={() => setStep(0)}>
               Back
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="gold"
+              size="lg"
+              className="flex-1"
+              loading={busy}
+              disabled={!house}
               onClick={finish}
-              disabled={!house || busy}
-              className="btn-gold flex-1 py-2.5 text-sm disabled:opacity-50"
             >
               {busy ? "Swearing your oath..." : "Swear your sword"}
-            </button>
+            </Button>
           </div>
           <p className="mt-4 text-center text-[11px] text-bone-faint">
             Finishing onboarding earns your first crest: Took the Black.
