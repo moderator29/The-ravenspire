@@ -25,12 +25,17 @@ type Stat = {
   label: string;
 };
 
+/* Every figure here is counted from the code, not rounded for effect.
+   Champions from lib/game/champions, Houses and the top-N rule from
+   lib/data/houses, Crests from components/brand/crests, tools from the
+   landing rail, ladders from the leaderboards route. "Games at launch" used
+   to read 2 and counted Claim the Throne, which is not a game you can play. */
 const stats: Stat[] = [
-  { icon: "user", value: 60, label: "Champions to muster" },
+  { icon: "user", value: 62, label: "Champions to muster" },
   { icon: "banner", value: 6, label: "Houses to swear to" },
-  { icon: "medal", value: 10, label: "Crests to earn" },
-  { icon: "sliders", value: 5, label: "Serious tools" },
-  { icon: "crown", value: 2, label: "Games at launch" },
+  { icon: "medal", value: 10, label: "Crests designed" },
+  { icon: "sliders", value: 8, label: "Serious tools" },
+  { icon: "crown", value: 4, label: "Ladders on the Roll of Honour" },
   { icon: "shield", value: 100, suffix: "%", label: "Your keys, always" },
 ];
 

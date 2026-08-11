@@ -13,7 +13,7 @@ import { RavenMark } from "@/components/brand/raven-mark";
 const realmLinks = [
   { href: "/home", label: "The Ravenry" },
   { href: "/houses", label: "Houses" },
-  { href: "/throne", label: "The Season" },
+  { href: "/calls", label: "Calls" },
   { href: "/war", label: "The War" },
   { href: "/renown", label: "Crests & Renown" },
 ];

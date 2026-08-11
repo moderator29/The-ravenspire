@@ -19,17 +19,17 @@ const steps = [
   {
     icon: "home",
     title: "Live in the realm",
-    body: "Post, banter, duel with wit and swear to a House. Fun comes first, and no token is ever needed to belong.",
+    body: "Post, argue, swear to a House and find your people. No token is ever needed to belong.",
   },
   {
-    icon: "crown",
-    title: "Play the games",
-    body: "Claim the Throne with your House each Season, then take the field yourself in The War for the whole realm.",
+    icon: "orb",
+    title: "Make your Calls",
+    body: "Seal a public claim and let it settle against real data. Renown for reading it right, and a Season Rating that carries the risk.",
   },
   {
     icon: "medal",
-    title: "Earn and claim",
-    body: "Real deeds earn points that convert to $RSP at Season's end, claimed straight to the wallet only you control.",
+    title: "Earn your standing",
+    body: "Real deeds earn points on the server against verified events. Balances show as points, and they convert to $RSP at the token generation event.",
   },
 ];
 

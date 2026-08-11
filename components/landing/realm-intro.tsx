@@ -34,7 +34,7 @@ const pillars: Pillar[] = [
     icon: "vision",
     kicker: "Vision",
     title: "A realm where reputation is the real currency",
-    body: "A world of Houses, champions and Seasons where standing is earned in the open, never bought, and every wallet, Call and victory is proven against real data.",
+    body: "A world of Houses, champions and Seasons where standing is earned in the open, never bought, and every wallet, Call and victory is proven against real data. Renown you earn is permanent and can never be taken back.",
   },
   {
     icon: "history",
@@ -66,11 +66,12 @@ export function RealmIntro() {
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-relaxed text-bone-mut sm:text-base">
           The Ravenspire is a competitive realm where communities earn reputation
-          through participation. You post, banter and duel with wit, swear to a House and play
-          for the Throne, while a full suite of portfolio, safety and market
-          tools works underneath, reading only real on-chain data. A wallet is
-          minted to you on sign-up and the keys are yours alone. We never hold
-          your funds, and everything of worth is earned, never bought.
+          through participation. You post, you argue, you swear to a House and
+          you make Calls the realm keeps a record of, while a full suite of
+          portfolio, safety and market tools works underneath, reading only real
+          on-chain data. A wallet is minted to you on sign-up and the keys are
+          yours alone. We never hold your funds, and everything of worth is
+          earned, never bought.
         </p>
       </motion.div>
 

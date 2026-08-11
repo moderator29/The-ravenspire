@@ -17,20 +17,32 @@ type Teaser = {
   points: string[];
 };
 
+/* Both teasers must name a chapter that actually exists in comingSoonNav.
+
+   They previously did not. One was billed as "The Oracle", which is the name
+   of a live tool (the account scanner at /scanner), attached to a prediction
+   market that is really called Prophecies. The other described the Mint as a
+   creator monetization vault with subscriptions and gated courts, a feature
+   that appears nowhere in the roadmap, the navigation or the codebase. Both
+   now match their entry in lib/nav.ts. */
 const teasers: Teaser[] = [
   {
-    eyebrow: "The Oracle",
-    title: "A prediction market for the realm",
-    body: "Stake your read on the questions that matter, from token moves to House standings, and let the crowd's wisdom settle on-chain. Sharp calls earn $RSP, reputation and a seat at the high table.",
+    eyebrow: "Prophecies",
+    title: "Prediction markets for the realm",
+    body: "Call the market. Win the realm. Take a position on the questions that matter, from token moves to House standings, and let resolution settle in the open where anyone can check it.",
     icon: "eye",
-    points: ["On-chain, transparent resolution", "Reputation-weighted odds", "Earn $RSP for sharp reads"],
+    points: [
+      "Transparent, checkable resolution",
+      "Built on the Calls engine already running",
+      "Call the market, win the realm",
+    ],
   },
   {
     eyebrow: "The Mint",
-    title: "A creator monetization vault",
-    body: "Turn your ravens, courts and Calls into a living treasury. Followers back the creators they trust, tips and subscriptions flow to a vault you alone control, and every coin is yours to withdraw.",
-    icon: "wallet",
-    points: ["Non-custodial creator vaults", "Tips, subs and gated courts", "Withdraw to your own keys"],
+    title: "Trading across every chain",
+    body: "Trade any token across chains, shielded from MEV, and gasless. The Swap already trades non-custodially on a single chain today; the Mint is what it becomes when the routing crosses chains.",
+    icon: "coin",
+    points: ["Any token, any chain", "Shielded from MEV", "Gasless, and still non-custodial"],
   },
 ];
 
@@ -63,14 +75,15 @@ export function ComingSoonTeasers() {
         variants={rise}
         className="mt-3 font-display text-2xl font-semibold text-bone sm:text-3xl"
       >
-        Two more surfaces, forging now
+        Two chapters on the horizon
       </motion.h2>
       <motion.p
         variants={rise}
         className="mt-3 max-w-prose text-[15px] leading-relaxed text-bone-mut"
       >
-        The realm keeps building. These two arrive after launch, each designed to
-        put more of the upside in the hands of the people who play.
+        The realm keeps building. Neither is built yet. Both are chapters on the
+        map, shown here so you can see where the realm is going rather than
+        discover it later.
       </motion.p>
 
       <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2">

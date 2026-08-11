@@ -43,9 +43,9 @@ const phases: Phase[] = [
     title: "Social layer launch",
     body: "The social realm opens its gates to all who ride.",
     points: [
-      "Whispers, Calls and Courts go wide",
+      "Whispers, the Rookery and the Roll of Honour",
       "The Herald @raven with real-data reads",
-      "Claim the Throne and The War playable",
+      "Calls scored on difficulty, Houses and The War playable",
     ],
     icon: "users",
     status: "live",
@@ -91,8 +91,8 @@ const phases: Phase[] = [
     title: "Presale",
     body: "Presale coming soon, announced plainly and in the open.",
     points: [
+      "Runs on an external launchpad, never on the platform",
       "Terms, caps and timing shared openly",
-      "Non-custodial from the first transaction",
       "No seats sold that must be earned",
     ],
     icon: "coin",
