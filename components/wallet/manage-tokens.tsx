@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { isAddress } from "viem";
 import { Icon } from "@/components/ui/icon";
+import { Button, IconButton } from "@/components/ui/button";
+import { Toggle } from "@/components/ui/field";
+import { Chip } from "@/components/console/console-shell";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import { EVM_CHAINS } from "@/components/wallet/chains";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
@@ -74,28 +77,24 @@ export function ManageTokens({
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4 md:gap-3">
       {/* Add custom token */}
       <section className="flex flex-col gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
           Add a custom token
         </p>
 
-        <div className="flex flex-col gap-2.5 rounded-2xl border border-steel-line bg-panel/40 p-3.5">
+        <div className="flex flex-col gap-2 rounded-lg border border-steel-line bg-panel/40 p-3">
           <div className="flex flex-wrap gap-1.5">
             {EVM_CHAINS.map((c) => (
-              <button
+              <Chip
                 key={c.id}
-                type="button"
+                active={chainId === c.id}
                 onClick={() => setChainId(c.id)}
-                className={`rounded-[--radius-sm] border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                  chainId === c.id
-                    ? "border-gold/50 bg-panel-warm text-gold"
-                    : "border-steel-line bg-panel/40 text-bone-mut"
-                }`}
+                className="h-8 md:h-7"
               >
                 {c.name}
-              </button>
+              </Chip>
             ))}
           </div>
 
@@ -105,7 +104,8 @@ export function ManageTokens({
             spellCheck={false}
             autoComplete="off"
             placeholder="Contract address 0x..."
-            className={`tnum w-full rounded-xl border bg-panel/60 px-3 py-2.5 font-mono text-sm text-bone outline-none transition-colors placeholder:text-bone-faint focus:border-gold ${
+            aria-label="Contract address"
+            className={`tnum h-11 w-full rounded-md border bg-panel/60 px-3 font-mono text-sm text-bone outline-none transition-colors duration-fast placeholder:font-sans placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px] ${
               contractValid ? "border-steel-line" : "border-ember/60"
             }`}
           />
@@ -122,14 +122,16 @@ export function ManageTokens({
               spellCheck={false}
               autoComplete="off"
               placeholder="Symbol"
-              className="w-1/2 rounded-xl border border-steel-line bg-panel/60 px-3 py-2.5 text-sm text-bone outline-none placeholder:text-bone-faint focus:border-gold"
+              aria-label="Token symbol"
+              className="h-11 w-1/2 rounded-md border border-steel-line bg-panel/60 px-3 text-sm text-bone outline-none transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px]"
             />
             <input
               value={decimals}
               onChange={(e) => setDecimals(e.target.value)}
               inputMode="numeric"
               placeholder="Decimals"
-              className="tnum w-1/2 rounded-xl border border-steel-line bg-panel/60 px-3 py-2.5 text-sm text-bone outline-none placeholder:text-bone-faint focus:border-gold"
+              aria-label="Token decimals"
+              className="tnum h-11 w-1/2 rounded-md border border-steel-line bg-panel/60 px-3 text-sm text-bone outline-none transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px]"
             />
           </div>
           <input
@@ -138,17 +140,14 @@ export function ManageTokens({
             spellCheck={false}
             autoComplete="off"
             placeholder="Name (optional)"
-            className="w-full rounded-xl border border-steel-line bg-panel/60 px-3 py-2.5 text-sm text-bone outline-none placeholder:text-bone-faint focus:border-gold"
+            aria-label="Token name"
+            className="h-11 w-full rounded-md border border-steel-line bg-panel/60 px-3 text-sm text-bone outline-none transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px]"
           />
 
-          <button
-            type="button"
-            onClick={add}
-            className="btn-gold w-full px-4 py-2.5 text-sm"
-          >
+          <Button variant="gold" size="lg" block onClick={add} className="md:h-9 md:text-sm">
             <Icon name="plus" className="h-4 w-4" />
             Add token
-          </button>
+          </Button>
           {note ? <p className="text-xs text-bone-mut">{note}</p> : null}
           <p className="text-xs leading-relaxed text-bone-faint">
             Custom tokens are EVM only. Its live balance shows once the wallet
@@ -166,24 +165,25 @@ export function ManageTokens({
           {custom.map((c) => (
             <div
               key={`${c.chainId}:${c.contract}`}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3"
+              className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-steel-line bg-panel/40 p-2.5 md:min-h-9 md:p-2"
             >
               <div className="min-w-0">
-                <p className="text-sm font-medium text-bone">{c.symbol}</p>
-                <p className="truncate text-xs text-bone-faint">
+                <p className="text-sm font-medium text-bone md:text-[13px]">
+                  {c.symbol}
+                </p>
+                <p className="truncate text-xs text-bone-faint md:text-[11px]">
                   {EVM_CHAINS.find((x) => x.id === c.chainId)?.name ??
                     `Chain ${c.chainId}`}{" "}
                   / {c.contract.slice(0, 6)}...{c.contract.slice(-4)}
                 </p>
               </div>
-              <button
-                type="button"
+              <IconButton
+                icon="close"
+                label={`Remove ${c.symbol}`}
+                size="sm"
+                variant="glass"
                 onClick={() => onRemoveCustom(c.chainId, c.contract)}
-                aria-label={`Remove ${c.symbol}`}
-                className="btn-glass inline-flex h-8 w-8 items-center justify-center p-0"
-              >
-                <Icon name="plus" className="h-4 w-4 rotate-45" />
-              </button>
+              />
             </div>
           ))}
         </section>
@@ -195,7 +195,7 @@ export function ManageTokens({
           Show or hide
         </p>
         {tokens.length === 0 ? (
-          <p className="rounded-2xl border border-steel-line bg-panel/40 p-3.5 text-sm text-bone-mut">
+          <p className="rounded-lg border border-steel-line bg-panel/40 p-3 text-sm text-bone-mut">
             No tokens to manage yet. They appear here once your balances load.
           </p>
         ) : (
@@ -204,18 +204,20 @@ export function ManageTokens({
             return (
               <div
                 key={t.key}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3"
+                className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-steel-line bg-panel/40 p-2.5 md:min-h-9 md:p-2"
               >
-                <div className="flex min-w-0 items-center gap-3">
-                  <TokenLogo logo={t.logo} symbol={t.symbol} size={34} />
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <TokenLogo logo={t.logo} symbol={t.symbol} size={28} />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-bone">
+                    <p className="truncate text-sm font-medium text-bone md:text-[13px]">
                       {t.symbol}
                       <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-gold">
                         {t.chainShort}
                       </span>
                     </p>
-                    <p className="truncate text-xs text-bone-faint">{t.name}</p>
+                    <p className="truncate text-xs text-bone-faint md:text-[11px]">
+                      {t.name}
+                    </p>
                   </div>
                 </div>
                 {t.isNative ? (
@@ -223,24 +225,12 @@ export function ManageTokens({
                     Always
                   </span>
                 ) : (
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={!isHidden}
-                    aria-label={isHidden ? `Show ${t.symbol}` : `Hide ${t.symbol}`}
-                    onClick={() => onToggleHidden(t.key)}
-                    className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors ${
-                      !isHidden
-                        ? "border-gold/50 bg-gold/30"
-                        : "border-steel-line bg-panel"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-gold transition-all ${
-                        !isHidden ? "left-4" : "left-0.5"
-                      }`}
-                    />
-                  </button>
+                  <Toggle
+                    size="sm"
+                    checked={!isHidden}
+                    onCheckedChange={() => onToggleHidden(t.key)}
+                    label={isHidden ? `Show ${t.symbol}` : `Hide ${t.symbol}`}
+                  />
                 )}
               </div>
             );
