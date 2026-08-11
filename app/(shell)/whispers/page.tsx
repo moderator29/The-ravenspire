@@ -14,6 +14,11 @@ import { Icon } from "@/components/ui/icon";
 import { Modal } from "@/components/ui/modal";
 import { AdaptiveDialog, useIsMobile } from "@/components/ui/sheet";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  StreamColumn,
+  StreamEmpty,
+  StreamList,
+} from "@/components/stream/stream-shell";
 import { timeAgo } from "@/lib/social/types";
 
 /* Whispers, as the Stream archetype: one 640px column, comfortable density, a
@@ -602,25 +607,30 @@ export default function WhispersPage() {
 
   /* ── The corridor ─────────────────────────────────────────────────────── */
 
+  /* Shaped like a conversation row, not like a grey slab: portrait, name,
+     handle. */
+  const corridorSkeleton = (
+    <StreamList>
+      {[0, 1, 2].map((i) => (
+        <Card key={i} pad="sm" className="flex items-center gap-3">
+          <Skeleton radius="full" className="h-10 w-10 shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <Skeleton radius="sm" className="h-3.5 w-2/5" />
+            <Skeleton radius="sm" className="h-3 w-1/4" />
+          </div>
+        </Card>
+      ))}
+    </StreamList>
+  );
+
   const corridor =
     convos === null ? (
       showCorridorSkeleton ? (
-        <div className="flex flex-col gap-3">
-          {[0, 1, 2].map((i) => (
-            <Card key={i} pad="sm" className="flex items-center gap-3">
-              <Skeleton radius="full" className="h-10 w-10 shrink-0" />
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <Skeleton radius="sm" className="h-3.5 w-2/5" />
-                <Skeleton radius="sm" className="h-3 w-1/4" />
-              </div>
-            </Card>
-          ))}
-        </div>
+        corridorSkeleton
       ) : null
     ) : convos.length === 0 ? (
-      <EmptyState
-        bordered
-        icon="send"
+      <StreamEmpty
+        icon="whispers"
         title="No whispers yet"
         body="Find a Keep at the Crossroads and speak. Whispers travel only between two citizens."
         action={
@@ -630,7 +640,7 @@ export default function WhispersPage() {
         }
       />
     ) : (
-      <div className="flex flex-col gap-3">
+      <StreamList>
         {convos.map((c) => (
           <Card
             key={c.id}
@@ -675,7 +685,7 @@ export default function WhispersPage() {
             </span>
           </Card>
         ))}
-      </div>
+      </StreamList>
     );
 
   /* ── The page ─────────────────────────────────────────────────────────── */
@@ -683,7 +693,7 @@ export default function WhispersPage() {
   const threadOpen = Boolean(activeId);
 
   return (
-    <div className="mx-auto w-full max-w-[640px] px-3 py-4 sm:px-4 sm:py-6">
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       {!threadOpen && (
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -710,23 +720,12 @@ export default function WhispersPage() {
 
       {!ready ? (
         showCorridorSkeleton ? (
-          <div className="mt-5 flex flex-col gap-3">
-            {[0, 1, 2].map((i) => (
-              <Card key={i} pad="sm" className="flex items-center gap-3">
-                <Skeleton radius="full" className="h-10 w-10 shrink-0" />
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <Skeleton radius="sm" className="h-3.5 w-2/5" />
-                  <Skeleton radius="sm" className="h-3 w-1/4" />
-                </div>
-              </Card>
-            ))}
-          </div>
+          <div className="mt-5">{corridorSkeleton}</div>
         ) : null
       ) : !authenticated ? (
         <div className="mt-5">
-          <EmptyState
-            bordered
-            icon="mail"
+          <StreamEmpty
+            icon="whispers"
             title="Whispers travel only between citizens"
             body="Enter the realm to open a private line to another Keep."
             action={
@@ -879,6 +878,6 @@ export default function WhispersPage() {
           />
         )}
       </Modal>
-    </div>
+    </StreamColumn>
   );
 }
