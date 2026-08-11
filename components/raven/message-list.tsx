@@ -1,5 +1,8 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import {
   PriceMiniCard,
@@ -48,30 +51,26 @@ export function MessageList({
 }) {
   if (messages.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-5 px-4 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gold/25 bg-panel-warm">
-          <Icon name="raven" className="h-7 w-7 text-gold" />
-        </div>
-        <div>
-          <p className="font-display text-base font-semibold text-bone">
-            The rookery is quiet
-          </p>
-          <p className="mt-1 text-sm text-bone-mut">
-            Nothing has been asked yet. The Raven waits on its perch.
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          {OPENERS.map((o) => (
-            <button
-              key={o}
-              type="button"
-              onClick={() => onSend(o)}
-              className="btn-glass rounded-[--radius-sm] px-3.5 py-1.5 text-xs text-bone"
-            >
-              {o}
-            </button>
-          ))}
-        </div>
+      <div className="flex h-full flex-col items-center justify-center px-4">
+        <EmptyState
+          icon="raven"
+          title="The rookery is quiet"
+          body="Nothing has been asked yet. The Raven waits on its perch."
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              {OPENERS.map((o) => (
+                <Button
+                  key={o}
+                  size="sm"
+                  variant="glass"
+                  onClick={() => onSend(o)}
+                >
+                  {o}
+                </Button>
+              ))}
+            </div>
+          }
+        />
       </div>
     );
   }
@@ -82,9 +81,13 @@ export function MessageList({
         if (m.role === "user") {
           return (
             <div key={i} className="flex justify-end">
-              <div className="glass-sm max-w-[85%] px-4 py-2.5 text-sm leading-relaxed text-bone">
+              <Card
+                variant="warm"
+                pad="none"
+                className="max-w-[85%] px-4 py-2.5 text-sm leading-relaxed text-bone"
+              >
                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
-              </div>
+              </Card>
             </div>
           );
         }
@@ -93,9 +96,13 @@ export function MessageList({
             <div key={i} className="flex justify-start">
               <div className="flex max-w-[90%] items-start gap-2.5">
                 <RavenAvatar />
-                <div className="glass-sm border border-ember-deep/40 px-4 py-2.5 text-sm leading-relaxed text-bone-mut">
+                <Card
+                  pad="none"
+                  role="alert"
+                  className="border-state-danger/40 px-4 py-2.5 text-sm leading-relaxed text-bone-mut"
+                >
                   <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                </div>
+                </Card>
               </div>
             </div>
           );

@@ -1,13 +1,21 @@
 "use client";
 
 import { useRef } from "react";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 
 /**
- * The bottom composer: a full-width, rounded input with the send button
- * attached inside it and the live-browsing toggle as a small inline control,
- * ChatGPT style. Auto-grows with content. The parent owns the draft and the
- * browse flag so this stays a controlled, presentational surface.
+ * The bottom composer: a full width input with the send control attached inside
+ * it and the live browsing toggle as a small inline control. Auto grows with
+ * content. The parent owns the draft and the browse flag so this stays a
+ * controlled, presentational surface.
+ *
+ * Converted off two hand rolled controls. The send button pasted in `btn-gold`
+ * at a hardcoded `rounded-xl`, which predates the radius scale, and the browse
+ * toggle rebuilt the button chassis inline in two states. Both now come off the
+ * primitive layer, so the focus ring, the disabled treatment and the radius are
+ * the same ones the rest of the realm uses.
  */
 export function ChatInput({
   value,
@@ -49,7 +57,10 @@ export function ChatInput({
         reset();
       }}
     >
-      <div className="glass-sm flex flex-col gap-2 px-3 py-2.5 focus-within:border-gold/35">
+      <Card
+        pad="none"
+        className="flex flex-col gap-2 px-3 py-2.5 focus-within:border-gold/35"
+      >
         <textarea
           ref={areaRef}
           value={value}
@@ -70,30 +81,36 @@ export function ChatInput({
           className="max-h-[168px] min-h-[24px] w-full resize-none bg-transparent px-1.5 text-sm leading-relaxed text-bone placeholder:text-bone-faint"
         />
         <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
+          <Button
+            size="sm"
+            variant={browse ? "glass" : "ghost"}
             onClick={onToggleBrowse}
             aria-pressed={browse}
             title="Toggle live web browsing"
-            className={`flex items-center gap-1.5 rounded-[--radius-sm] border px-3 py-1.5 text-[11px] font-medium transition-colors ${
-              browse
-                ? "border-gold/45 bg-panel-warm text-gold"
-                : "border-steel-line/70 bg-panel text-bone-mut hover:border-gold/30 hover:text-bone"
-            }`}
+            className={browse ? "border-gold/45 text-gold" : undefined}
           >
             <Icon name="search" className="h-3.5 w-3.5" />
             {browse ? "Browsing on" : "Browse"}
-          </button>
-          <button
-            type="submit"
+          </Button>
+          {/* Deliberately not a submit button. `IconButton` swaps a real
+              `disabled` for `aria-disabled` whenever `render` is supplied, so
+              rendering this as `type="submit"` would leave it clickable while
+              it looks disabled. Enter is already handled on the textarea, so
+              wiring the click directly loses nothing. */}
+          <IconButton
+            icon="send"
+            label="Send to the Raven"
+            variant="gold"
+            size="md"
             disabled={!canSend}
-            aria-label="Send to the Raven"
-            className="btn-gold flex h-9 w-9 shrink-0 items-center justify-center rounded-xl p-0 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <Icon name="send" className="h-4 w-4" />
-          </button>
+            onClick={() => {
+              if (!canSend) return;
+              onSend();
+              reset();
+            }}
+          />
         </div>
-      </div>
+      </Card>
       <p className="mt-1.5 px-2 text-center text-[10px] text-bone-faint">
         The Raven can be wrong. Verify anything that moves coin.
       </p>

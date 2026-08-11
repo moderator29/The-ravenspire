@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 
 export type Holding = {
@@ -71,7 +73,7 @@ export function PriceMiniCard({
   const cap = fmtCompact(marketCap);
   const vol = volume24h != null ? fmtCompact(volume24h) : null;
   return (
-    <div className="glass-sm glass-hover flex min-w-[212px] flex-col gap-1.5 px-3.5 py-3">
+    <Card pad="none" interactive className="flex min-w-[212px] flex-col gap-1.5 px-3.5 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-display text-sm font-semibold text-bone">
@@ -88,7 +90,7 @@ export function PriceMiniCard({
         {change24h !== null && (
           <span
             className={`tnum inline-flex items-center gap-1 text-xs font-semibold ${
-              up ? "text-gold-bright" : "text-ember-deep"
+              up ? "text-chart-up" : "text-chart-down"
             }`}
           >
             <Icon
@@ -131,7 +133,7 @@ export function PriceMiniCard({
           </a>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -150,7 +152,7 @@ export function RealmPulseCard({ pulse }: { pulse: RealmPulse }) {
   const copy = PULSE_COPY[pulse.tone];
   const avgUp = pulse.avgChange !== null && pulse.avgChange >= 0;
   return (
-    <div className="glass-sm flex min-w-[212px] max-w-[320px] flex-col gap-2 px-3.5 py-3">
+    <Card pad="none" className="flex min-w-[212px] max-w-[320px] flex-col gap-2 px-3.5 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Icon name="signal" className="h-4 w-4 shrink-0 text-gold" />
@@ -167,7 +169,7 @@ export function RealmPulseCard({ pulse }: { pulse: RealmPulse }) {
         {pulse.avgChange !== null && (
           <span
             className={`tnum text-xs font-semibold ${
-              avgUp ? "text-gold-bright" : "text-ember-deep"
+              avgUp ? "text-chart-up" : "text-chart-down"
             }`}
           >
             {avgUp ? "+" : ""}
@@ -177,15 +179,15 @@ export function RealmPulseCard({ pulse }: { pulse: RealmPulse }) {
       </div>
       <div className="flex items-center justify-between gap-3 text-[11px] text-bone-mut">
         <span className="tnum">
-          <span className="text-gold-bright">{pulse.green} up</span>
+          <span className="text-chart-up">{pulse.green} up</span>
           {" / "}
-          <span className="text-ember-deep">{pulse.red} down</span>
+          <span className="text-chart-down">{pulse.red} down</span>
         </span>
         <span className="truncate uppercase tracking-[0.12em] text-bone-faint">
           {pulse.symbols.slice(0, 4).join(" ")}
         </span>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -204,15 +206,10 @@ export function SuggestionChips({
   return (
     <div className="mt-2.5 flex flex-wrap gap-2">
       {suggestions.map((s) => (
-        <button
-          key={s}
-          type="button"
-          onClick={() => onSelect(s)}
-          className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-steel-line/70 bg-panel px-3 py-1 text-[11px] text-bone-mut transition-colors hover:border-gold/40 hover:text-gold"
-        >
+        <Button key={s} size="sm" variant="glass" onClick={() => onSelect(s)}>
           <Icon name="arrow" className="h-3 w-3 shrink-0 text-gold/70" />
           {s}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -229,7 +226,7 @@ export function WalletMiniCard({
 }) {
   const rows = holdings.slice(0, 5);
   return (
-    <div className="glass-sm flex min-w-[240px] max-w-[320px] flex-col gap-2.5 px-3.5 py-3">
+    <Card pad="none" className="flex min-w-[240px] max-w-[320px] flex-col gap-2.5 px-3.5 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Icon name="wallet" className="h-4 w-4 shrink-0 text-gold" />
@@ -274,6 +271,6 @@ export function WalletMiniCard({
           No holdings surfaced for this address.
         </p>
       )}
-    </div>
+    </Card>
   );
 }

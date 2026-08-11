@@ -118,6 +118,13 @@
   --color-state-success: var(--state-success);
   --color-state-info: var(--state-info);
 
+  /* Chart direction was defined in the token layer but never exposed to
+     Tailwind, so `text-chart-up` compiled to nothing and every caller had to
+     reach it through an inline `style` instead. Exposing it here means a
+     direction colour can be a class like every other colour in the system. */
+  --color-chart-up: var(--chart-up);
+  --color-chart-down: var(--chart-down);
+
   --font-display: var(--font-cinzel), serif;
   --font-sans: var(--font-inter), system-ui, sans-serif;
 
