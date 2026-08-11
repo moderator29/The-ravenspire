@@ -8,25 +8,34 @@ export type NavItem = {
   badge?: string;
 };
 
-/* The two anchors of the realm, shown at the top of the desktop side nav. The
-   mobile bottom nav already carries Home and Explore, so this group is only
-   rendered in the side nav (which the bottom nav never duplicates). */
+/* The anchors of the realm. These four are always visible in the side nav and
+   never collapse, because they are the product: the feed, the flagship
+   mechanic, discovery, and the community unit. Everything else is depth.
+
+   Calls previously appeared in no navigation group at all despite being the
+   stated flagship, which is why they were invisible to members. */
 export const primaryNav: NavItem[] = [
-  { slug: "home", href: "/home", themed: "The Ravenry", plain: "Home feed", icon: "home" },
+  { slug: "home", href: "/home", themed: "The Ravenry", plain: "Feed", icon: "home" },
+  { slug: "calls", href: "/calls", themed: "Calls", plain: "Predictions", icon: "orb" },
   { slug: "explore", href: "/explore", themed: "The Crossroads", plain: "Explore", icon: "compass" },
+  { slug: "houses", href: "/houses", themed: "Houses", plain: "Your banner", icon: "banner" },
 ];
 
-/* Social-first grouping: the social realm and the games lead, tools support. */
+/* The realm's depth: reputation, competition and the social surfaces that are
+   not the daily loop. Collapsible, open by default.
+
+   Claim the Throne is deliberately absent. It was a coming soon marketing page
+   occupying a navigation slot, and its mechanics (quests, duels, streaks, House
+   Glory) are dissolving into the Ravenry and the House halls rather than
+   returning as a destination. */
 export const socialNav: NavItem[] = [
-  { slug: "rookery", href: "/rookery", themed: "The Rookery", plain: "Live", icon: "signal" },
-  { slug: "houses", href: "/houses", themed: "Houses", plain: "Communities", icon: "banner" },
-  { slug: "throne", href: "/throne", themed: "Claim the Throne", plain: "Season game", icon: "crown" },
+  { slug: "rookery", href: "/rookery", themed: "The Rookery", plain: "Live rooms", icon: "signal" },
   { slug: "war", href: "/war", themed: "The War", plain: "Battle for the Realm", icon: "swords" },
   { slug: "renown", href: "/renown", themed: "Crests & Renown", plain: "Reputation", icon: "medal" },
   { slug: "leaderboards", href: "/leaderboards", themed: "The Roll of Honour", plain: "Leaderboards", icon: "crown" },
-  { slug: "banners", href: "/banners", themed: "Raise Your Banners", plain: "Refer & Earn", icon: "flag" },
   { slug: "whispers", href: "/whispers", themed: "Whispers", plain: "Messages", icon: "mail" },
   { slug: "bookmarks", href: "/bookmarks", themed: "Bookmarks", plain: "Saved", icon: "bookmark" },
+  { slug: "banners", href: "/banners", themed: "Raise Your Banners", plain: "Refer and earn", icon: "flag" },
 ];
 
 export const toolsNav: NavItem[] = [
