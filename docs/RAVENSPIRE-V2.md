@@ -333,16 +333,170 @@ blank card.
 
 ## 9. Calls V2
 
-Categories, resolvers, and scoring per 6.3, plus:
+Categories and resolvers per 6.3. The scoring design below is drawn from a
+survey of how Metaculus, Manifold, Lichess, Chess.com, Duolingo, Strava and
+Stack Overflow solve these exact problems. Formulas taken from Manifold's and
+Lichess's open source are exact; the Metaculus and Stack Overflow figures came
+from search summaries because those domains were unreachable, so spot-check
+them before they ship.
 
-- **Confidence** (low/medium/high) set at creation, which scales both reward and penalty.
-- **Magnitude-aware verdicts.** Replace `price > entry` with a threshold and a graded result. A 0.01% move is not a hit.
-- **A real cost to being wrong.** Today a miss costs nothing, so spamming calls is free. Confidence-weighted Renown movement in both directions, with a floor so newcomers cannot go negative.
+### 9.1 The difficulty problem, solved without a crowd
+
+The root bug is not that `price > entry` lacks a threshold. It is that the
+system has no idea which Calls are hard. "BTC up in 24h" and "a fresh memecoin
+up 40% in 24h" score identically today.
+
+Metaculus scores a forecast against a baseline probability rather than against
+raw correctness. Their baseline is a fixed 0.5. Ours can be better, because we
+already hold the price history: derive the baseline from the token's own
+realized volatility.
+
+For a driftless lognormal walk, the chance a token clears a move of `k` over
+horizon `t` is approximately:
+
+```
+pi_0 = Phi( -ln(1 + k) / (sigma * sqrt(t)) )
+```
+
+where `sigma` is trailing realized volatility and `Phi` is the standard normal
+CDF. (The exact form carries a `sigma^2 * t / 2` drift term; the simplified
+version is accurate enough for scoring and far easier to explain.)
+
+This one line does a great deal of work:
+
+- "BTC up 0.1% in 24h" gets a `pi_0` near 1, so it scores near zero on its own.
+- A +40% call on a volatile new token gets a low `pi_0` and scores heavily.
+- **The `+0.01% = hit` bug disappears at the root** rather than being patched
+  with an arbitrary threshold.
+- Difficulty is graded with no crowd, no manual tiers, and no admin work.
+
+`pi_0` is computed and **frozen at Call time, and shown to the member before
+they commit**. You can see how hard your Call is before you make it.
+
+### 9.2 Scoring
+
+A Call carries `token, direction, threshold k, horizon t, confidence p`, where
+`p` is a slider in `[0.55, 0.99]` rather than three buttons. Granularity is
+worth supporting: forecasting research finds that people who say 63%
+genuinely outperform people who say "about 60%".
+
+```
+S = clamp( 100 * log2( p_o / pi_0 ), -100, +100 )
+```
+
+where `p_o = p` when the Call lands and `1 - p` when it does not.
+
+When at least 3 independent members Call the same `(token, k, t)` bucket, switch
+to a peer score, `100 * (ln p_o - ln GM(q_o))`, which sums to zero across
+participants and is therefore immune to difficulty by construction.
+
+### 9.3 The answer to "should being wrong cost you"
+
+**Yes, but not from the same pot.** Run two currencies, which is what every
+platform surveyed does and what Ravenspire currently collapses into one ladder:
+
+| | Renown | Season Rating |
+| --- | --- | --- |
+| Formula | `+= max(0, S)` | `+= S` |
+| Direction | Monotonic, never falls | Can go negative |
+| Lifetime | Permanent | Resets each season |
+| Purpose | **Unlocks capabilities** | Drives standings and promotion |
+
+This resolves the tension completely. Renown is a permanent legacy that can
+never be taken away, so the system stays safe to play. Season Rating carries
+real stakes, so Calls still mean something. The clamp at -100 plus a confidence
+ceiling means a member who never exceeds 85% confidence cannot approach the
+floor.
+
+### 9.4 Renown should unlock things, not just print a title
+
+Ravenspire has seven tiers (Smallfolk to Monarch) that do nothing but display a
+name. Stack Overflow's ladder hands over a piece of governance at each step,
+which is both the progression system and the anti-farming system, because it
+recruits the best members into policing the rest. Proposed ladder:
+
+| Renown | Unlocks |
+| --- | --- |
+| 50 | Comment on others' Calls |
+| 250 | Call an unlisted token |
+| 500 | Vote on Call resolution disputes |
+| 1000 | Author House Clash topics |
+| 2500 | Your Calls join the peer-score baseline others are measured against |
+| 10000 | Void suspicious Calls |
+
+The 2500 unlock is the interesting one: joining the crowd that defines the
+baseline is a genuinely coveted, entirely non-cosmetic reward.
+
+### 9.5 Streaks and anti-farming
+
+From Lichess's tournament source: two consecutive positive Calls put a member
+"on fire" and the next scores double. Conversely a run of Calls sitting near
+the baseline scores zero, which nullifies low-information spam without needing
+to detect intent.
+
+Concrete anti-farming rules, each adapted from a shipped system:
+
+1. **No Calling your own bag.** A member cannot Call a token they hold
+   significantly, or within an hour of changing that position. This is
+   Manifold's self-trade exclusion, which strips self-dealing at the data layer
+   rather than trying to detect it afterwards.
+2. **Cap concurrent open Calls** at around 5, so nobody can fire off a hundred
+   and cherry-pick the winners for their profile.
+3. **Exclude House-mates from each other's peer baseline**, which kills the
+   obvious six-person collusion ring.
+4. **Cap daily Renown from social actions, leave resolved Calls uncapped.** This
+   also closes the existing hole where two colluding accounts farm renown
+   through unlimited, un-rate-limited likes and comments.
+5. **Show Call rarity**, Xbox-style: "only 4% of members Called this correctly."
+   Free difficulty signalling, and it makes hard wins feel legendary.
+
+### 9.6 Leaderboards that reward skill, not volume
+
+Rank by a shrunk mean, `sum(S_i) / (n + 20)`, with medals gated at 25 resolved
+Calls. A plain sum rewards spraying; a plain average rewards cherry-picking one
+lucky Call. Shrinkage divides 3 lucky Calls by 23 while letting 200 Calls
+converge on true skill. It is one line of SQL.
+
+Follow Metaculus in running **four separate ladders** rather than one: accuracy,
+peer accuracy, commentary, and Call authorship. These are different talents, and
+four ladders means four times as many members can be visibly good at something.
+
+### 9.7 The spectator problem
+
+A Call is already the right object: public, timestamped, name attached. What it
+lacks is motion. It renders as a receipt rather than an event.
+
+- Render every open Call as a live line from entry toward its threshold, with a
+  countdown. That is the difference between a record and a spectacle.
+- Add a "Calls closing within the hour" surface, which is Polymarket's trending
+  section and the cheapest drama available.
+- Put discussion inline with the price line, as Manifold does, so the argument
+  and the number are the same object.
+
+### 9.8 The profile artifact
+
+Ship a calibration curve: predicted probability against realized frequency, with
+the diagonal drawn. Use Manifold's deliberately tail-dense buckets (1, 3, 5, 10,
+20, ... 90, 95, 97, 99), because the tails are where miscalibration is largest
+and most interesting. It is roughly forty lines of code and it is the single
+most credible-looking artifact a prediction profile can carry. It is also what
+makes asking members for a confidence percentage feel worth their while.
+
+Forecasting skill is a real, persistent trait (year-over-year correlation around
+0.65 in the Good Judgment Project data), which is the business case for ranking
+people on it at all. That same research found a one-hour training module
+measurably improved accuracy, so a "Calls Academy" unlockable is a cheap way to
+turn an intimidating mechanic into a learnable one.
+
+### 9.9 Correctness fixes carried over
+
 - Settle by contract address and chain, not ticker (P3).
 - Raise the settlement ceiling and exclude immature calls from the batch (P4).
 - Make the award conditional on `verdict = 'open'` to kill the double-award race.
-- `/calls` index, per-call detail pages with discussion, caller profiles with a real accuracy record computed server-side over all calls (not a 50-post window).
-- Follow a caller's calls (the notification path already exists, it is just wired to a broken column).
+- `/calls` index, per-call detail pages, caller leaderboard.
+- Compute accuracy server-side over all calls, not a 50-post window (B3).
+- Follow a caller's calls (the notification path exists; it is wired to a broken
+  column, C3).
 
 ## 10. Raven AI V2
 
@@ -372,17 +526,70 @@ Easier to explain, thematically stronger ("you swore for this season"), and it
 aligns the mechanic with the thing it affects. A raw day counter is arbitrary; a
 season boundary is a story.
 
-**Refinement 2: lock oaths during the final two weeks of a season.**
-Without this, everyone defects to the winning House at the death. This one rule is
-what makes the underdog narrative in the directive actually possible: to help an
-underdog rise, you have to commit *early*, when it is still a risk.
+**Refinement 2: allow oaths only in the off-season window between seasons.**
+I originally proposed locking the final two weeks. Off-season-only is stricter,
+simpler to explain, and is the rule competitive team ladders converge on. Without
+it, everyone defects to the winning House at the death. This is what makes the
+underdog narrative in the directive actually possible: to help an underdog rise,
+you have to commit *early*, while it is still a risk.
 
-Glory already contributed stays with the House that earned it. It does not follow
-the member. This is both fairer and simpler.
+Full rule set:
+
+- Switching is allowed only during the off-season window.
+- Contributions already made stay with the House that earned them, permanently.
+  They never transfer and never follow the member.
+- The switcher's House contribution resets to 0 for the new season.
+- One-season cooldown before switching again.
 
 **Data model:** `house_members` already exists, is written at onboarding, and is
 **never read anywhere**. It becomes the oath history table with `sworn_at`,
-`left_at`, `season_id`. No new table.
+`left_at`, `season_id`. Note its primary key is currently `profile_id` alone, so
+it can hold only the current House; that needs relaxing to keep history. No new
+table required.
+
+### 11.1b House scoring must be size-neutral
+
+With six Houses of unequal membership, any sum-of-all-members score is won by
+headcount rather than skill. Lichess solves this in team battles by scoring a
+team as **the sum of its top N members only** (their default is 5, configurable
+to 20). Fixed-N is exactly size-neutral.
+
+**Recommendation: House score = the sum of its top 20 members' Season Rating,
+recomputed on every Call resolution, with the contributing 20 shown live.** Ties
+break on those members' mean.
+
+The live leaderboard is the real prize here. "Who is currently carrying our
+House" is a named, churning, public list, and it is the single best driver of a
+House feeling alive. Lichess recomputes it after every finished game for exactly
+this reason.
+
+As a secondary metric, borrow Chess.com's club-league multiplier, where match
+points scale with the number of players fielded. That is the participation lever:
+it rewards a House for getting lurkers to act, so Houses optimise for depth and
+breadth at once.
+
+### 11.1c Two clocks, not one
+
+Duolingo's league system retains extraordinarily well, and the mechanism is
+worth copying precisely: cohorts of 30, weekly Monday reset, seeded from members
+who were first active at a similar time of day so the race feels close. The
+design consequence, in their words, is that winning by 100 points two weeks
+running beats winning by 5,000 once. **No week can be skipped.**
+
+Run a **weekly cross-House personal ladder in cohorts of 30** alongside the
+**monthly House season**. Two clocks means two independent reasons to return, and
+the weekly one is where retention actually lives.
+
+For the tier structure, Manifold's league config is the model. Two rules matter
+most:
+
+- **The bottom division never demotes.** This is the entire answer to "how do we
+  add stakes without scaring people."
+- **The top division churns hard** (Manifold demotes 60% of Masters each season),
+  which is how the summit stays contested.
+
+Double-promotion for the top one or two in a cohort lets a genuinely strong new
+member reach their level in two seasons rather than six.
 
 ### 11.2 Verdict on leadership
 
@@ -404,11 +611,31 @@ Zero admin burden, zero new voting infrastructure, and it rotates every season,
 which is a built-in re-engagement loop. Elections become a Phase 3 upgrade once
 there is a population that makes voting meaningful.
 
-### 11.3 The rest
+### 11.3 House Clashes
+
+The reason nobody cares about a team they joined arbitrarily is that standings
+tables are not events. Lichess team battles and Chess.com club matches work
+because they are *scheduled, bounded, and have a live scoreboard*.
+
+**A Clash is a 48-hour window on one nominated token or theme. Only Calls made
+inside that window count. Top-20 scoring, live scoreboard, named contributors.**
+
+This is the single highest-value thing we can build for Houses, it reuses the
+entire Calls V2 engine, and it needs no new scoring maths.
+
+### 11.4 The rest
 
 House hall with a real roster, oath history, season standing, house-scoped events
-from the spine, rivalries (the closest House by Glory, named), and progression
-(House level from cumulative seasonal Glory).
+from the spine, rivalries (the closest House by score, named), and progression
+(House level from cumulative seasonal contribution).
+
+Two cheap additions worth taking from Strava: run **both a peak and a
+consistency ladder** (their KOM versus Local Legend split), so a "Standard
+Bearer" title for the most resolved Calls on a token over a rolling 90 days sits
+beside the raw accuracy ladder. Different people win each, so twice as many
+people win. And make every leaderboard **filterable to House, to people you
+follow, or to your own tier**: shrinking the reference group is the cheapest
+retention mechanic in the entire survey.
 
 ## 12. Games V2
 
@@ -613,11 +840,14 @@ button links to `/ravens` and registers nothing. Make them real (a
 `feature_interest` table and a working notify), or cut to two? They currently
 account for 6 of ~30 nav destinations.
 
-**Q8. Calls and the cost of being wrong.** Today a miss costs nothing, so
-low-conviction spam is free. I want confidence-weighted Renown that can move
-down as well as up, with a floor for newcomers. **Is downward Renown movement
-acceptable to you?** Some communities hate it. It is the single biggest lever on
-Call quality.
+**Q8. Calls and the cost of being wrong. RESOLVED by research, confirm only.**
+I originally asked whether Renown should be able to fall, and flagged that many
+communities hate that. The survey in section 9 produced a better answer than the
+one I proposed: run **two currencies**. Renown becomes monotonic and never
+falls, and instead **unlocks capabilities** (Stack Overflow's model). A separate
+Season Rating carries the downside and resets each season. Nothing permanent can
+ever be taken away, and Calls still carry real stakes. Confirm you are happy
+with the split and I will build it.
 
 ### Operational
 
