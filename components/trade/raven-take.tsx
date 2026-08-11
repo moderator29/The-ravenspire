@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 
@@ -78,27 +81,32 @@ export function RavenTake({
   };
 
   return (
-    <div className="glass-warm mt-3 p-4">
+    <Card variant="warm" pad="md" className="mt-3">
       <div className="flex items-center gap-2">
         <Icon name="raven" className="h-4 w-4 shrink-0 text-gold" />
         <p className="text-sm font-semibold text-bone">The Raven&apos;s read</p>
       </div>
 
       {state === "idle" && (
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant="glass"
+          className="mt-3 text-gold"
           onClick={() => void summon()}
-          className="btn-glass mt-3 inline-flex items-center gap-1.5 rounded-[--radius-sm] px-3.5 py-1.5 text-xs text-gold"
         >
           <Icon name="eye" className="h-3.5 w-3.5" />
           Summon the Raven&apos;s take
-        </button>
+        </Button>
       )}
 
       {state === "loading" && (
-        <div className="mt-3 flex items-center gap-2 text-sm text-bone-faint">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
-          The Raven studies the coin...
+        <div className="mt-3 flex flex-col gap-2">
+          <Skeleton className="h-3.5 w-full" />
+          <Skeleton className="h-3.5 w-11/12" />
+          <Skeleton className="h-3.5 w-2/3" />
+          <p className="mt-1 text-xs text-bone-faint">
+            The Raven studies the coin...
+          </p>
         </div>
       )}
 
@@ -109,13 +117,14 @@ export function RavenTake({
       {state === "error" && (
         <div className="mt-2.5">
           <p className="text-sm text-bone-mut">{error}</p>
-          <button
-            type="button"
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mt-2 text-gold"
             onClick={() => void summon()}
-            className="mt-2 text-xs text-gold underline"
           >
             Try again
-          </button>
+          </Button>
         </div>
       )}
 
@@ -125,6 +134,6 @@ export function RavenTake({
           promise of price, only a read. Do your own research.
         </p>
       )}
-    </div>
+    </Card>
   );
 }
