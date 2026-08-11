@@ -194,7 +194,7 @@ export default function RookeryPage() {
             }}
             maxLength={80}
             placeholder="Name the matter before the court"
-            className="mt-3 w-full rounded-lg border border-steel-line bg-panel px-3 py-2.5 text-sm text-bone placeholder:text-bone-faint focus:outline-none"
+            className="mt-3 w-full rounded-lg border border-steel-line bg-panel px-3 py-2.5 text-sm text-bone placeholder:text-bone-faint"
           />
 
           {houses.length > 0 && (

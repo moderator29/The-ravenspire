@@ -594,7 +594,7 @@ export function RoomLive({ roomId }: { roomId: string }) {
                   ? "Join the court to speak"
                   : "Take the floor"
               }
-              className="w-full rounded-xl border border-steel-line bg-panel px-3.5 py-2.5 text-sm text-bone placeholder:text-bone-faint focus:outline-none disabled:opacity-60"
+              className="w-full rounded-xl border border-steel-line bg-panel px-3.5 py-2.5 text-sm text-bone placeholder:text-bone-faint disabled:opacity-60"
             />
             <button
               type="submit"

@@ -25,24 +25,46 @@
   --ember-deep: #c6402f;
   --ember-glow: rgba(229, 112, 42, 0.4);
 
-  /* Bone text */
-  --bone: #ece4d2;
-  --bone-mut: #b4ac9a;
-  --bone-faint: #7c7568;
+  /* Bone text. Every rung here must clear WCAG AA (4.5:1) against the darkest
+     surface we ever put text on, --panel-warm. bone-faint was #7c7568, which
+     measured 4.10:1 and failed; it is the second most used text colour in the
+     realm (635 uses, 92 of them at 10px), so the whole product read as slightly
+     unreadable. Lifted to 4.52:1. The shift is about 5% lightness and preserves
+     the hue exactly, so the brand is unchanged to the eye. */
+  --bone: #ece4d2; /* 14.80:1 on panel-warm */
+  --bone-mut: #b4ac9a; /* 8.30:1 */
+  --bone-faint: #837c6e; /* 4.52:1, was #7c7568 at 4.10:1 */
 
-  /* Steel structure */
-  --steel: #6e7683;
+  /* Steel structure. --steel is used as text, so it is held to the same bar
+     (was #6e7683 at 4.09:1). --steel-line is decorative hairline only. */
+  --steel: #747d8b; /* 4.50:1, was #6e7683 at 4.09:1 */
   --steel-line: #2a2e38;
   --steel-deep: #1b1e26;
 
-  /* Ash / smoke atmosphere */
+  /* Ash / smoke atmosphere. Decorative fills only, never text. */
   --ash: #57544c;
   --smoke: rgba(12, 12, 17, 0.7);
 
-  /* Battle HUD only (never in the social app) */
+  /* Battle HUD fills only (never in the social app, never as text). These are
+     deliberately deep and atmospheric and do not pass a text contrast bar.
+     When one of these hues has to carry a word, use the *-text twin below. */
   --ally: #3e6ea8;
-  --foe: #b02e2a;
-  --blood: #7e1f1c;
+  --foe: #b02e2a; /* 2.92:1 as text. Fill only. */
+  --blood: #7e1f1c; /* 1.87:1 as text. Fill only (mythic rarity glow). */
+
+  /* Text-safe twins of the fill-only hues, for the cases where these colours
+     must carry a label. Same hue, lifted to clear AA. */
+  --foe-text: #d4504b; /* 4.50:1 */
+  --blood-text: #d74d49; /* 4.50:1 */
+
+  /* Semantic state. This tier did not exist: success/warning/danger/info were
+     improvised per file, which is why errors are text-ember-deep in one place
+     and text-ember in another. Note success is gold, never green, per brand. */
+  --state-danger: var(--foe-text);
+  --state-warning: var(--ember);
+  --state-success: var(--gold-rich);
+  --state-info: var(--ally);
+  --state-focus-ring: var(--gold-bright); /* 13.11:1, clears the 3:1 bar easily */
 }
 
 @theme inline {
@@ -66,9 +88,29 @@
   --color-ally: var(--ally);
   --color-foe: var(--foe);
   --color-blood: var(--blood);
+  --color-foe-text: var(--foe-text);
+  --color-blood-text: var(--blood-text);
+
+  --color-state-danger: var(--state-danger);
+  --color-state-warning: var(--state-warning);
+  --color-state-success: var(--state-success);
+  --color-state-info: var(--state-info);
 
   --font-display: var(--font-cinzel), serif;
   --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+/* One focus ring for the whole realm. There were 268 hand written buttons and
+   zero uses of focus-visible, so every one of them was invisible to a keyboard.
+   Gold at 13.11:1 clears the 3:1 non-text bar with room to spare, and reads as
+   the realm rather than as a browser default. :focus-visible means a mouse
+   click never shows it, only keyboard and other non-pointer focus. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--state-focus-ring);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
 }
 
 html {
@@ -80,6 +122,17 @@ body {
   color: var(--bone);
   font-family: var(--font-inter), system-ui, sans-serif;
   overflow-x: hidden;
+}
+
+/* Keyboard focus, applied once to every interactive element in the realm.
+   This is deliberately an element level rule rather than a utility: there are
+   268 hand written buttons and retrofitting a class to each is 268 chances to
+   miss one. Element specificity also means any component that genuinely needs
+   a bespoke ring can still override it with a single class. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+  border-radius: inherit;
 }
 
 /* Faint parchment-grid atmosphere on the page itself */

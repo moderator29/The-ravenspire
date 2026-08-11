@@ -67,7 +67,7 @@ export function ChatInput({
               reset();
             }
           }}
-          className="max-h-[168px] min-h-[24px] w-full resize-none bg-transparent px-1.5 text-sm leading-relaxed text-bone placeholder:text-bone-faint focus:outline-none"
+          className="max-h-[168px] min-h-[24px] w-full resize-none bg-transparent px-1.5 text-sm leading-relaxed text-bone placeholder:text-bone-faint"
         />
         <div className="flex items-center justify-between gap-2">
           <button

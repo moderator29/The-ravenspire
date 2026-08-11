@@ -128,7 +128,7 @@ export default function ExplorePage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the realm by name or handle"
-          className="w-full bg-transparent text-sm text-bone placeholder:text-bone-faint focus:outline-none"
+          className="w-full bg-transparent text-sm text-bone placeholder:text-bone-faint"
         />
       </div>
 

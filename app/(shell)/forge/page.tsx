@@ -124,7 +124,7 @@ export default function ForgePage() {
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.0"
               disabled={stoking}
-              className="tnum mt-2 w-full rounded-2xl border border-steel-line bg-panel/70 px-4 py-3 font-mono text-lg text-bone placeholder:text-bone-faint focus:border-gold focus:outline-none disabled:opacity-60"
+              className="tnum mt-2 w-full rounded-2xl border border-steel-line bg-panel/70 px-4 py-3 font-mono text-lg text-bone placeholder:text-bone-faint focus:border-gold disabled:opacity-60"
             />
           </label>
 

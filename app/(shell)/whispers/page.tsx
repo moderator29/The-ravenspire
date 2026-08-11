@@ -399,7 +399,7 @@ export default function WhispersPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search citizens by handle"
-                  className="w-full bg-transparent text-sm text-bone placeholder:text-bone-faint focus:outline-none"
+                  className="w-full bg-transparent text-sm text-bone placeholder:text-bone-faint"
                 />
               </div>
               {composeErr && (
@@ -707,7 +707,7 @@ export default function WhispersPage() {
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder="Speak softly"
-                    className="w-full rounded-xl border border-steel-line bg-panel px-3.5 py-2.5 text-sm text-bone placeholder:text-bone-faint focus:outline-none"
+                    className="w-full rounded-xl border border-steel-line bg-panel px-3.5 py-2.5 text-sm text-bone placeholder:text-bone-faint"
                   />
                   <button
                     type="submit"

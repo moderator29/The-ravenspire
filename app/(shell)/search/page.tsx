@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
@@ -40,7 +40,29 @@ interface Results {
   cashtags: CashtagResult[];
 }
 
+/* useSearchParams() opts a component out of static rendering, so Next requires
+   it to sit under a Suspense boundary. Without one the production build fails
+   while prerendering this route, which is exactly what it was doing. The
+   boundary lives here rather than in the shell layout so only the search body
+   waits on the URL, not the whole page frame. */
 export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchFallback />}>
+      <SearchBody />
+    </Suspense>
+  );
+}
+
+function SearchFallback() {
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 py-6">
+      <BackButton />
+      <div className="glass mt-4 h-12 animate-pulse rounded-2xl" />
+    </div>
+  );
+}
+
+function SearchBody() {
   /* Seed the query from the URL so deep links like /search?q=$NAKA (from the
      right rail's trending cashtags) land pre-searched. */
   const params = useSearchParams();

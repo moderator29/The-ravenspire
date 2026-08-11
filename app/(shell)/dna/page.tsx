@@ -129,7 +129,7 @@ function Analyzer() {
             spellCheck={false}
             autoCapitalize="none"
             autoCorrect="off"
-            className="min-w-0 flex-1 bg-transparent py-2 text-sm text-bone placeholder:text-bone-faint focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent py-2 text-sm text-bone placeholder:text-bone-faint"
           />
           <button
             type="submit"
