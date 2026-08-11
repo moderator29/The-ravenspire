@@ -8,10 +8,25 @@ import { adminClient } from "@/lib/supabase/admin";
    is ever surfaced here. */
 
 const METRICS = {
+  /* Accuracy leads deliberately. Renown, Glory and Points are all monotonic
+     accumulation measures: because Renown takes greatest(S, 0), a caller with
+     no edge at all still climbs on the upside tail of their own variance. A
+     board that led with Renown would therefore rank persistence and call it
+     skill. Accuracy is a shrunk mean over settled Calls, so it ranks judgment.
+
+     The others stay, because a participation legacy is worth seeing. They are
+     just no longer the headline. */
+  accuracy: "accuracy",
   renown: "renown",
   glory: "glory",
   points: "points",
 } as const;
+
+/* Shrinkage constant, matching the caller board in app/api/calls. A plain sum
+   rewards spraying Calls and a plain average lets one lucky Call top the board.
+   Dividing by (n + 20) leaves three lucky Calls divided by 23 while a long
+   record converges on its true rate. */
+const ACCURACY_SHRINK = 20;
 
 type Metric = keyof typeof METRICS;
 
@@ -27,9 +42,11 @@ export async function GET(req: Request) {
     raw as Metric
   )
     ? (raw as Metric)
-    : "renown";
-  const column = METRICS[metric];
+    : "accuracy";
 
+  if (metric === "accuracy") return accuracyBoard(db);
+
+  const column = METRICS[metric];
   const { data, error } = await db
     .from("profiles")
     .select(
@@ -71,4 +88,69 @@ export async function GET(req: Request) {
   }));
 
   return json({ metric, entries });
+}
+
+/* The accuracy board. Ranked by a shrunk mean over settled Calls so that
+   judgment outranks volume, with the raw rate shown alongside for legibility. */
+async function accuracyBoard(db: ReturnType<typeof adminClient>) {
+  if (!db) return json({ metric: "accuracy", entries: [] });
+
+  const { data, error } = await db
+    .from("posts")
+    .select(
+      "author_id, call, author:profiles!posts_author_id_fkey (handle, display_name, avatar_url, house_slug, tier, is_verified, is_banned, is_agent)"
+    )
+    .eq("kind", "call")
+    .eq("deleted", false)
+    .neq("call->>verdict", "open")
+    .limit(4000);
+
+  if (error) return json({ metric: "accuracy", entries: [] });
+
+  type Row = {
+    author_id: string;
+    call: { verdict?: string } | null;
+    author: {
+      handle: string | null;
+      display_name: string | null;
+      avatar_url: string | null;
+      house_slug: string | null;
+      tier: string | null;
+      is_verified: boolean | null;
+      is_banned: boolean | null;
+      is_agent: boolean | null;
+    } | null;
+  };
+
+  const tally = new Map<string, { hits: number; total: number; a: Row["author"] }>();
+  for (const row of (data ?? []) as unknown as Row[]) {
+    const v = row.call?.verdict;
+    if (v !== "hit" && v !== "miss") continue;
+    if (!row.author || row.author.is_banned || row.author.is_agent) continue;
+    if (!row.author.handle) continue;
+    const e = tally.get(row.author_id) ?? { hits: 0, total: 0, a: row.author };
+    e.total += 1;
+    if (v === "hit") e.hits += 1;
+    tally.set(row.author_id, e);
+  }
+
+  const entries = [...tally.entries()]
+    .map(([id, e]) => ({
+      id,
+      handle: e.a?.handle ?? null,
+      display_name: e.a?.display_name ?? null,
+      avatar_url: e.a?.avatar_url ?? null,
+      house_slug: e.a?.house_slug ?? null,
+      tier: e.a?.tier ?? null,
+      is_verified: Boolean(e.a?.is_verified),
+      hits: e.hits,
+      total: e.total,
+      hit_rate: e.total > 0 ? e.hits / e.total : 0,
+      value: Math.round((e.hits / (e.total + ACCURACY_SHRINK)) * 1000),
+    }))
+    .sort((x, y) => y.value - x.value)
+    .slice(0, 50)
+    .map((x, i) => ({ ...x, rank: i + 1 }));
+
+  return json({ metric: "accuracy", entries });
 }

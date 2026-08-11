@@ -20,10 +20,15 @@ interface Entry {
   tier: string | null;
   isVerified: boolean;
   value: number;
+  /* Accuracy board only: the raw rate and its sample size. The board ranks on
+     a shrunk mean, but a member should see the honest numbers behind it. */
+  hit_rate?: number;
+  total?: number;
   isViewer: boolean;
 }
 
 const METRICS = [
+  { key: "accuracy", label: "Accuracy", icon: "target", blurb: "Judgment on settled Calls, weighted so a long record beats a lucky streak" },
   { key: "renown", label: "Renown", icon: "medal", blurb: "Standing earned across the realm" },
   { key: "glory", label: "Glory", icon: "swords", blurb: "Won in the games and the War" },
   { key: "points", label: "Points", icon: "flame", blurb: "Earned toward $RSP at TGE" },
@@ -40,7 +45,7 @@ function rankGlyph(rank: number): string {
 }
 
 export default function LeaderboardsPage() {
-  const [metric, setMetric] = useState<MetricKey>("renown");
+  const [metric, setMetric] = useState<MetricKey>("accuracy");
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState(false);
 
@@ -168,9 +173,20 @@ export default function LeaderboardsPage() {
                     {e.tier ? `${e.handle ? " · " : ""}${e.tier}` : ""}
                   </p>
                 </div>
-                <span className="tnum shrink-0 gold-text text-sm font-semibold">
-                  {fmt(e.value)}
-                </span>
+                {metric === "accuracy" ? (
+                  <span className="shrink-0 text-right">
+                    <span className="tnum gold-text block text-sm font-semibold">
+                      {Math.round((e.hit_rate ?? 0) * 100)}%
+                    </span>
+                    <span className="tnum block text-[10px] text-bone-faint">
+                      {e.total ?? 0} settled
+                    </span>
+                  </span>
+                ) : (
+                  <span className="tnum shrink-0 gold-text text-sm font-semibold">
+                    {fmt(e.value)}
+                  </span>
+                )}
               </Link>
             );
           })
