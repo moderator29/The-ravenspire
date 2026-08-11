@@ -111,8 +111,10 @@ export async function POST(req: Request) {
 
   // Follower / following counts (real).
   const [{ count: followers }, { count: following }] = await Promise.all([
-    db.from("follows").select("follower_id", { count: "exact", head: true }).eq("followed_id", profile.id),
-    db.from("follows").select("followed_id", { count: "exact", head: true }).eq("follower_id", profile.id),
+    /* C3: the follows columns are follower_id and followee_id. `followed_id`
+       does not exist, so both of these read zero for every member. */
+    db.from("follows").select("follower_id", { count: "exact", head: true }).eq("followee_id", profile.id),
+    db.from("follows").select("followee_id", { count: "exact", head: true }).eq("follower_id", profile.id),
   ]);
 
   const wallet = profile.wallet_address

@@ -12,6 +12,8 @@ export const contentType = "image/png";
 
 interface PostRow {
   body: string | null;
+  deleted: boolean | null;
+  visibility: string | null;
   like_count: number | null;
   reply_count: number | null;
   repost_count: number | null;
@@ -34,11 +36,15 @@ export default async function Image({
       const { data } = await db
         .from("posts")
         .select(
-          "body, like_count, reply_count, repost_count, author:profiles!posts_author_id_fkey (display_name, handle)"
+          "body, deleted, visibility, like_count, reply_count, repost_count, author:profiles!posts_author_id_fkey (display_name, handle)"
         )
         .eq("id", id)
         .maybeSingle();
-      post = (data as unknown as PostRow) ?? null;
+      const row = (data as unknown as PostRow) ?? null;
+      /* C1: a share card is read by anyone holding the link, so only a public
+         raven may unfurl. A restricted or removed raven falls back to the
+         house card rather than leaking its words into a preview. */
+      post = row && !row.deleted && row.visibility === "public" ? row : null;
     }
   } catch {
     post = null;

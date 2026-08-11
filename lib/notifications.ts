@@ -130,10 +130,14 @@ export async function notifyFollowers(
   }
 ): Promise<void> {
   try {
+    /* C3: this filtered `followed_id`, a column that does not exist. PostgREST
+       answered with an error, the catch swallowed it, and so every follower
+       fan-out (follow_call, follow_trade) has silently never fired. The column
+       is followee_id. */
     const { data } = await db
       .from("follows")
       .select("follower_id")
-      .eq("followed_id", opts.actorId)
+      .eq("followee_id", opts.actorId)
       .limit(1000);
     for (const row of data ?? []) {
       const recipient = row.follower_id as string;
