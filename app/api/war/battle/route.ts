@@ -180,16 +180,24 @@ export async function POST(req: Request) {
     });
   }
 
-  const totals = {
-    battles: state.battles + 1,
-    wins: state.wins + (victory ? 1 : 0),
-    war_glory: state.war_glory + glory,
-    gold: state.gold + (victory ? 40 : 10),
-  };
-  await db
-    .from("war_state")
-    .update({ ...totals, updated_at: new Date().toISOString() })
-    .eq("profile_id", profile.id);
+  const gold = victory ? 40 : 10;
+  /* B6: one statement banks the battle and hands back the running totals, so
+     two battles settling together cannot each write over the other's, and the
+     numbers reported are the true post-battle standing rather than the values
+     read before the write. */
+  const { data: settledTotals } = await db.rpc("war_settle_battle", {
+    p_profile_id: profile.id,
+    p_victory: victory,
+    p_glory: glory,
+    p_gold: gold,
+  });
+  const totals = (
+    Array.isArray(settledTotals) ? settledTotals[0] : settledTotals
+  ) as
+    | { battles: number; wins: number; war_glory: number; gold: number }
+    | null
+    | undefined;
+
   await award(db, profile.id, {
     glory,
     reason: victory ? "war_victory" : "war_fought",
@@ -198,10 +206,10 @@ export async function POST(req: Request) {
   return json({
     ok: true,
     glory,
-    gold: victory ? 40 : 10,
-    battles: totals.battles,
-    wins: totals.wins,
-    war_glory: totals.war_glory,
+    gold,
+    battles: totals?.battles ?? state.battles + 1,
+    wins: totals?.wins ?? state.wins + (victory ? 1 : 0),
+    war_glory: totals?.war_glory ?? state.war_glory + glory,
   });
 }
 

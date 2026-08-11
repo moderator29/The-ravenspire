@@ -35,6 +35,27 @@ export async function POST(req: Request) {
   } | null;
   if (!body?.action) return json({ error: "bad request" }, 400);
 
+  /* B6: every counter below moves through an atomic RPC. The old shape read
+     the count and wrote count + 1 in a second statement, so two likes landing
+     together both read the same value and one increment was simply lost. */
+  const bumpLikes = async (
+    subjectType: "post" | "comment",
+    subjectId: string,
+    delta: number
+  ) => {
+    if (subjectType === "post") {
+      await db.rpc("bump_post_counts", {
+        p_post_id: subjectId,
+        p_likes: delta,
+      });
+    } else {
+      await db.rpc("bump_comment_likes", {
+        p_comment_id: subjectId,
+        p_delta: delta,
+      });
+    }
+  };
+
   if (body.action === "like") {
     const { subject_type, subject_id, on } = body;
     if (!subject_type || !subject_id) return json({ error: "bad request" }, 400);
@@ -46,16 +67,13 @@ export async function POST(req: Request) {
         subject_id,
       });
       if (!error) {
+        await bumpLikes(subject_type, subject_id, 1);
         const { data: row } = await db
           .from(table)
-          .select("like_count, author_id")
+          .select("author_id")
           .eq("id", subject_id)
           .single();
         if (row) {
-          await db
-            .from(table)
-            .update({ like_count: row.like_count + 1 })
-            .eq("id", subject_id);
           if (row.author_id !== profile.id) {
             /* First like from this member only: no unlike-relike minting. */
             const { data: prior } = await db
@@ -88,18 +106,9 @@ export async function POST(req: Request) {
         .eq("profile_id", profile.id)
         .eq("subject_type", subject_type)
         .eq("subject_id", subject_id);
-      if (!error && count) {
-        const { data: row } = await db
-          .from(table)
-          .select("like_count")
-          .eq("id", subject_id)
-          .single();
-        if (row)
-          await db
-            .from(table)
-            .update({ like_count: Math.max(0, row.like_count - 1) })
-            .eq("id", subject_id);
-      }
+      /* Only the delete that actually removed a row decrements, so a repeated
+         un-like cannot walk the count down. */
+      if (!error && count) await bumpLikes(subject_type, subject_id, -1);
     }
     return json({ ok: true });
   }
@@ -168,16 +177,16 @@ export async function POST(req: Request) {
       /* error here is the duplicate-key conflict on a re-tap: already reposted,
          so we neither increment nor notify again. */
       if (!error) {
+        await db.rpc("bump_post_counts", {
+          p_post_id: body.subject_id,
+          p_reposts: 1,
+        });
         const { data: row } = await db
           .from("posts")
-          .select("repost_count, author_id")
+          .select("author_id")
           .eq("id", body.subject_id)
           .single();
         if (row) {
-          await db
-            .from("posts")
-            .update({ repost_count: row.repost_count + 1 })
-            .eq("id", body.subject_id);
           if (row.author_id !== profile.id)
             await db.from("notifications").insert({
               profile_id: row.author_id,
@@ -193,18 +202,11 @@ export async function POST(req: Request) {
         .delete({ count: "exact" })
         .eq("profile_id", profile.id)
         .eq("post_id", body.subject_id);
-      if (!error && count) {
-        const { data: row } = await db
-          .from("posts")
-          .select("repost_count")
-          .eq("id", body.subject_id)
-          .single();
-        if (row)
-          await db
-            .from("posts")
-            .update({ repost_count: Math.max(0, row.repost_count - 1) })
-            .eq("id", body.subject_id);
-      }
+      if (!error && count)
+        await db.rpc("bump_post_counts", {
+          p_post_id: body.subject_id,
+          p_reposts: -1,
+        });
     }
     return json({ ok: true });
   }

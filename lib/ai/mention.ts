@@ -84,17 +84,9 @@ async function fileRavenReply(
     .select("id")
     .single();
 
-  const { data: post } = await db
-    .from("posts")
-    .select("reply_count")
-    .eq("id", opts.postId)
-    .single();
-  if (post) {
-    await db
-      .from("posts")
-      .update({ reply_count: post.reply_count + 1 })
-      .eq("id", opts.postId);
-  }
+  /* B6: atomic. The Herald replies off the request path, so its increment can
+     land at the same moment as a member's, which is what used to lose one. */
+  await db.rpc("bump_post_counts", { p_post_id: opts.postId, p_replies: 1 });
 
   /* Tell the member the Raven answered them, not the raven's original author. */
   if (opts.notifyProfileId && opts.notifyProfileId !== opts.ravenId) {

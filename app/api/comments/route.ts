@@ -154,16 +154,8 @@ export async function POST(req: Request) {
     .single();
   if (error || !comment) return json({ error: "Could not reply" }, 500);
 
-  const { data: counted } = await db
-    .from("posts")
-    .select("reply_count")
-    .eq("id", post.id)
-    .single();
-  if (counted)
-    await db
-      .from("posts")
-      .update({ reply_count: counted.reply_count + 1 })
-      .eq("id", post.id);
+  /* B6: atomic, so two replies landing together cannot lose a count. */
+  await db.rpc("bump_post_counts", { p_post_id: post.id, p_replies: 1 });
 
   /* Ring the people this reply concerns, each at most once: the raven's author,
      the parent comment's author (when replying inside a thread), and anyone
