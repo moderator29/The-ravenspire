@@ -3,7 +3,13 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
-import { BackButton } from "@/components/shell/back-button";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  ConsoleHeader,
+  ConsolePage,
+} from "@/components/console/console-shell";
 import { Sequencing } from "@/components/dna/sequencing";
 import { DnaCard } from "@/components/dna/dna-card";
 import type { DnaResult } from "@/components/dna/types";
@@ -84,26 +90,10 @@ function Analyzer() {
   /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4">
-        <BackButton />
-      </div>
+    <ConsolePage width="data">
+      <ConsoleHeader title="DNA Analyzer" kicker="Intel engine" />
 
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/25 bg-panel">
-          <Icon name="orb" className="h-5 w-5 text-gold" />
-        </div>
-        <div>
-          <h1 className="gold-text font-display text-xl font-semibold">
-            DNA Analyzer
-          </h1>
-          <p className="text-[11px] uppercase tracking-[0.26em] text-bone-faint">
-            Intel engine
-          </p>
-        </div>
-      </div>
-
-      <p className="mt-3 text-sm text-bone-mut">
+      <p className="mt-3 text-sm text-bone-mut md:mt-2 md:text-[13px]">
         Drop an EVM wallet address or a member&apos;s @handle. The engine reads
         real data and returns a DNA profile: the archetype, the traits, the
         signal. Nothing invented.
@@ -111,14 +101,19 @@ function Analyzer() {
 
       {/* Input */}
       <form
-        className="mt-5"
+        className="mt-4 md:mt-3"
         onSubmit={(e) => {
           e.preventDefault();
           void analyze(query);
         }}
       >
-        <div className="glass glass-sm flex items-center gap-2 p-2 pl-4">
-          <Icon name="search" className="h-4 w-4 shrink-0 text-bone-faint" />
+        {/* The one control rail on this Console: subject in, analysis out. */}
+        <div className="flex items-center gap-2 rounded-lg border border-steel-line bg-void/50 p-1.5 pl-3">
+          <Icon
+            name="search"
+            aria-hidden
+            className="h-4 w-4 shrink-0 text-bone-faint"
+          />
           <input
             value={query}
             onChange={(e) => {
@@ -126,25 +121,28 @@ function Analyzer() {
               if (error) setError(null);
             }}
             placeholder="0x address or @handle"
+            aria-label="EVM address or member handle"
             spellCheck={false}
             autoCapitalize="none"
             autoCorrect="off"
-            className="min-w-0 flex-1 bg-transparent py-2 text-sm text-bone placeholder:text-bone-faint"
+            className="min-w-0 flex-1 bg-transparent py-2 text-sm text-bone outline-none placeholder:text-bone-faint md:py-1 md:text-[13px]"
           />
-          <button
+          <Button
+            variant="gold"
+            size="md"
             type="submit"
+            className="shrink-0"
             disabled={loading || !kind}
-            className="btn-gold shrink-0 rounded-xl px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+            loading={loading}
           >
             {loading ? "Sequencing" : "Analyze"}
-          </button>
+          </Button>
         </div>
 
         {/* Live detect hint */}
         <div className="mt-2 flex min-h-[1rem] items-center gap-2 px-1 text-[11px]">
           {kind && !loading && (
-            <span className="inline-flex items-center gap-1.5 text-gold">
-              <span className="h-1 w-1 rounded-full bg-gold" />
+            <span className="text-gold">
               Reads as {kind === "wallet" ? "an EVM wallet" : "a member handle"}
             </span>
           )}
@@ -153,32 +151,36 @@ function Analyzer() {
       </form>
 
       {/* Result zone */}
-      <div className="mt-6">
+      <div className="mt-4 md:mt-3">
         {loading ? (
           <Sequencing subject={shortSubject(query, kind)} />
         ) : result ? (
           <DnaCard result={result} />
         ) : (
-          <div className="glass glass-sm px-5 py-8 text-center">
-            <p className="text-sm text-bone-mut">
-              Two strands to read: a wallet&apos;s on-chain trail, or a
-              member&apos;s public voice. Enter one above to sequence it.
-            </p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2 text-[11px] text-bone-faint">
-              <span className="rounded-[--radius-sm] border border-steel-line/70 px-3 py-1">
-                The Patient Whale
-              </span>
-              <span className="rounded-[--radius-sm] border border-steel-line/70 px-3 py-1">
-                The Degen Sniper
-              </span>
-              <span className="rounded-[--radius-sm] border border-steel-line/70 px-3 py-1">
-                The Realm Herald
-              </span>
-            </div>
-          </div>
+          <Card pad="none">
+            <EmptyState
+              size="sm"
+              icon="orb"
+              title="Two strands to read"
+              body="A wallet's on-chain trail, or a member's public voice. Enter one above to sequence it."
+              action={
+                <div className="flex flex-wrap justify-center gap-1.5 text-[11px] text-bone-faint">
+                  <span className="rounded-sm border border-steel-line/70 px-2.5 py-1">
+                    The Patient Whale
+                  </span>
+                  <span className="rounded-sm border border-steel-line/70 px-2.5 py-1">
+                    The Degen Sniper
+                  </span>
+                  <span className="rounded-sm border border-steel-line/70 px-2.5 py-1">
+                    The Realm Herald
+                  </span>
+                </div>
+              }
+            />
+          </Card>
         )}
       </div>
-    </div>
+    </ConsolePage>
   );
 }
 
