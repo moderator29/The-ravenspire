@@ -1,11 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { encodeFunctionData, erc20Abi } from "viem";
 import { Icon } from "@/components/ui/icon";
-import { BackButton } from "@/components/shell/back-button";
+import { cx } from "@/components/ui/cx";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  Chip,
+  ChipRail,
+  ConsoleHeader,
+  ConsolePage,
+  ConsoleToolbar,
+  CONSOLE_BODY,
+  CONSOLE_META,
+  CONSOLE_PAD,
+} from "@/components/console/console-shell";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { shareOrCopy } from "@/lib/share";
@@ -15,6 +29,10 @@ import type {
   WatchVerdict,
   CheckGroup,
 } from "@/lib/tools/watch-types";
+
+/* The Watch: a Console. Compact above md, the address field and chain filter
+   live on a toolbar rail rather than scattered through the panels, and the
+   check groups read as dense rows rather than as cards with air. */
 
 const CHAINS = [
   { id: "1", label: "Ethereum" },
@@ -271,127 +289,168 @@ export default function WatchPage() {
   const scoreColor =
     score >= 70 ? "text-gold" : score >= 40 ? "text-ember" : "text-ember-deep";
 
-  return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4">
-        <BackButton />
-      </div>
-      <h1 className="font-display text-xl font-semibold text-bone">The Watch</h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Token security scanner
-      </p>
+  const showScanSkeleton = useDelayedLoading(loading, 300);
+  const showApprovalsSkeleton = useDelayedLoading(
+    approvalsLoading && !approvals,
+    300
+  );
+  const chainLabel = CHAINS.find((c) => c.id === chain)?.label;
 
-      <div className="glass mt-5 p-4 sm:p-5">
-        <label
-          htmlFor="watch-address"
-          className="text-xs uppercase tracking-[0.2em] text-bone-faint"
-        >
-          Token contract address
-        </label>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+  return (
+    <ConsolePage width="data">
+      <ConsoleHeader
+        title="The Watch"
+        kicker="Token security scanner"
+        badge={<Badge icon="shield">Live chain reads</Badge>}
+      />
+
+      {/* The scan rail: address, chain, action. One row on desktop, a Sheet
+          on a phone rather than three wrapped rows of controls. */}
+      <div className="mt-4 flex flex-col gap-2 md:mt-3">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             id="watch-address"
+            aria-label="Token contract address"
             value={contract}
             onChange={(e) => setContract(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void scan();
             }}
-            placeholder="0x..."
+            placeholder="Token contract address, 0x..."
             spellCheck={false}
-            className="glass-sm min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-bone placeholder:text-bone-faint"
+            className="h-11 min-w-0 flex-1 rounded-md border border-steel-line bg-obsidian/60 px-3 font-mono text-sm text-bone placeholder:font-sans placeholder:text-bone-faint transition-colors duration-fast focus:border-gold/60 md:h-9 md:text-[13px]"
           />
-          <button
-            type="button"
-            className="btn-gold shrink-0"
+          <Button
+            variant="gold"
+            size="lg"
+            className="shrink-0 md:h-9 md:text-sm"
             disabled={!valid || loading}
+            loading={loading}
             onClick={() => void scan()}
           >
             {loading ? "Scanning" : "Scan"}
-          </button>
+          </Button>
         </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {CHAINS.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setChain(c.id)}
-              className={`rounded-[--radius-sm] border px-3 py-1 text-xs transition-colors ${
-                chain === c.id
-                  ? "border-gold bg-gold/15 text-gold-bright"
-                  : "border-steel-line bg-panel/70 text-bone-mut hover:text-bone"
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+
+        <ConsoleToolbar label="Chain" summary={chainLabel}>
+          <ChipRail label="Chain">
+            {CHAINS.map((c) => (
+              <Chip
+                key={c.id}
+                active={chain === c.id}
+                onClick={() => setChain(c.id)}
+              >
+                {c.label}
+              </Chip>
+            ))}
+          </ChipRail>
+        </ConsoleToolbar>
+
         {contract.trim() !== "" && !valid && (
-          <p className="mt-2 text-xs text-bone-faint">
+          <p className={cx("text-bone-faint", CONSOLE_META)}>
             The Watch reads EVM contract addresses: 0x followed by 40 hex
             characters.
           </p>
         )}
       </div>
 
-      {loading && <div className="glass mt-3 h-32 animate-pulse" />}
+      {loading && showScanSkeleton && (
+        <Card pad="none" className={cx("mt-3 md:mt-2", CONSOLE_PAD)}>
+          <div className="flex flex-col items-center gap-2 py-2">
+            <Skeleton radius="md" className="h-10 w-20" />
+            <Skeleton radius="sm" className="h-2.5 w-32" />
+          </div>
+        </Card>
+      )}
 
       {result?.error && (
-        <div className="glass mt-3 p-6 text-center text-sm text-bone-mut">
-          {result.error}
-        </div>
+        <Card pad="none" className="mt-3 md:mt-2">
+          <EmptyState
+            size="sm"
+            icon="alert"
+            title="No reading"
+            body={result.error}
+          />
+        </Card>
       )}
 
       {result && !result.error && (
-        <>
-          <div className="glass mt-3 p-6 text-center">
-            <p
-              className={`tnum font-display text-5xl font-semibold ${scoreColor}`}
-            >
+        <div className="mt-3 flex flex-col gap-3 md:mt-2 md:gap-2">
+          <Card pad="none" className={cx("text-center", CONSOLE_PAD)}>
+            <p className={cx("tnum font-display text-4xl font-semibold md:text-3xl", scoreColor)}>
               {score}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
+            <p className="mt-0.5 text-[11px] uppercase tracking-[0.26em] text-bone-faint">
               Defenses score
             </p>
             {result.verdict && (
               <p
-                className={`mt-3 font-display text-lg font-semibold ${verdictStyle[result.verdict]}`}
+                className={cx(
+                  "mt-2 font-display text-base font-semibold",
+                  verdictStyle[result.verdict]
+                )}
               >
                 {result.headline}
               </p>
             )}
-            {scanned && (
-              <button
-                type="button"
-                onClick={shareReport}
-                className="btn-glass mx-auto mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-bone-mut"
-              >
-                <Icon name="share" className="h-4 w-4" />
-                {shared ? "Link copied" : "Share report"}
-              </button>
-            )}
-          </div>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              {scanned && (
+                <Button size="sm" onClick={shareReport}>
+                  <Icon name="share" className="h-3.5 w-3.5" />
+                  {shared ? "Link copied" : "Share report"}
+                </Button>
+              )}
+              {result.explorer && (
+                <Button
+                  size="sm"
+                  render={
+                    <a
+                      href={result.explorer}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Icon name="arrow" className="h-3.5 w-3.5" />
+                      Verify on the explorer
+                    </a>
+                  }
+                />
+              )}
+            </div>
+          </Card>
 
           {GROUPS.map((g) => {
             const rows = (result.checks ?? []).filter((c) => c.group === g.id);
             if (rows.length === 0) return null;
             return (
-              <div key={g.id} className="glass mt-3 p-2">
+              <Card key={g.id} pad="none" className="px-1 py-1">
                 <p className="px-3 pb-1 pt-2 text-[11px] uppercase tracking-[0.2em] text-bone-faint">
                   {g.label}
                 </p>
                 <div className="flex flex-col divide-y divide-steel-line">
                   {rows.map((c, i) => (
-                    <div key={i} className="flex items-start gap-3 px-3 py-3">
+                    <div
+                      key={i}
+                      className="flex min-h-11 items-start gap-2.5 px-3 py-2.5 md:min-h-9 md:py-2"
+                    >
                       <Icon
                         name={statusIcon[c.status]}
-                        className={`mt-0.5 h-4.5 w-4.5 shrink-0 ${statusColor[c.status]}`}
+                        aria-hidden
+                        className={cx(
+                          "mt-0.5 h-5 w-5 shrink-0 md:h-[17px] md:w-[17px]",
+                          statusColor[c.status]
+                        )}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className={`text-sm ${statusColor[c.status]}`}>
+                        <p className={cx(CONSOLE_BODY, statusColor[c.status])}>
                           {c.label}
                         </p>
                         {c.detail && (
-                          <p className="mt-0.5 text-xs text-bone-faint">
+                          <p
+                            className={cx(
+                              "mt-0.5 text-bone-faint",
+                              CONSOLE_META
+                            )}
+                          >
                             {c.detail}
                           </p>
                         )}
@@ -399,120 +458,129 @@ export default function WatchPage() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             );
           })}
 
           {result.raw && (
-            <div className="glass glass-sm mt-3 flex items-center justify-between px-4 py-3 text-sm">
+            <Card
+              pad="none"
+              className={cx(
+                "flex items-center justify-between gap-3",
+                CONSOLE_BODY,
+                CONSOLE_PAD
+              )}
+            >
               <span className="text-bone-mut">
                 Trade taxes
                 {result.raw.taxSource === "simulation" && (
                   <span className="ml-1 text-[11px] text-gold">simulated</span>
                 )}
               </span>
-              <span className="tnum text-bone">
+              <span className="tnum text-right text-bone">
                 Buy {result.raw.buyTax.toFixed(1)}% / Sell{" "}
                 {result.raw.sellTax.toFixed(1)}%
               </span>
-            </div>
+            </Card>
           )}
-
-          {result.explorer && (
-            <a
-              href={result.explorer}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-glass mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm"
-            >
-              <Icon name="arrow" className="h-4 w-4" />
-              Verify on the block explorer
-            </a>
-          )}
-        </>
+        </div>
       )}
 
-      <section className="mt-8">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-display text-lg font-semibold text-bone">
-              Your open approvals
-            </h2>
-            <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-              Spenders you have granted
-            </p>
-          </div>
-          {authenticated && address && (
-            <button
-              type="button"
-              className="btn-glass shrink-0"
+      <section className="mt-6 md:mt-4">
+        <SectionHeader title="Your open approvals" hint="Spenders you granted" />
+
+        {authenticated && address && (
+          <div className="mt-2 flex justify-end">
+            <Button
+              size="sm"
               disabled={approvalsLoading}
+              loading={approvalsLoading}
               onClick={() => void loadApprovals()}
             >
               {approvalsLoading ? "Reading" : "Refresh"}
-            </button>
-          )}
-        </div>
+            </Button>
+          </div>
+        )}
 
         {!authenticated || !address ? (
-          <div className="glass mt-3 p-6 text-center text-sm text-bone-mut">
-            <Icon name="lock" className="mx-auto mb-3 h-6 w-6 text-bone-faint" />
-            Enter the realm with a connected wallet to audit the approvals you
-            have signed.
-          </div>
+          <Card pad="none" className="mt-2">
+            <EmptyState
+              size="sm"
+              icon="lock"
+              title="Not signed in"
+              body="Enter the realm with a connected wallet to audit the approvals you have signed."
+            />
+          </Card>
         ) : approvalsLoading && !approvals ? (
-          <div className="glass mt-3 h-32 animate-pulse" />
+          showApprovalsSkeleton ? (
+            <Card pad="none" className="mt-2 px-1 py-1">
+              <ApprovalSkeleton />
+            </Card>
+          ) : null
         ) : approvals && approvals.configured === false ? (
-          <div className="glass mt-3 p-6 text-center text-sm text-bone-mut">
-            Live approval reads need the GoldRush lens, which is not configured
-            in this environment yet.
-          </div>
+          <Card pad="none" className="mt-2">
+            <EmptyState
+              size="sm"
+              icon="eye"
+              title="Lens not mounted"
+              body="Live approval reads need the GoldRush lens, which is not configured in this environment yet."
+            />
+          </Card>
         ) : approvals && approvals.error ? (
-          <div className="glass mt-3 p-6 text-center text-sm text-bone-mut">
-            {approvals.error}
-          </div>
+          <Card pad="none" className="mt-2">
+            <EmptyState size="sm" icon="alert" title="No reading" body={approvals.error} />
+          </Card>
         ) : approvals && approvals.approvals.length === 0 ? (
-          <div className="glass mt-3 p-6 text-center text-sm text-bone-mut">
-            <Icon name="shield" className="mx-auto mb-3 h-6 w-6 text-gold" />
-            No open approvals found for this address. Nothing to revoke.
-          </div>
+          <Card pad="none" className="mt-2">
+            <EmptyState
+              size="sm"
+              icon="shield"
+              title="Nothing to revoke"
+              body="No open approvals were found for this address."
+            />
+          </Card>
         ) : approvals ? (
           <>
             {revokeError && (
-              <p className="mt-2 text-xs text-ember">{revokeError}</p>
+              <p className={cx("mt-2 text-ember", CONSOLE_META)}>{revokeError}</p>
             )}
-            <div className="glass mt-3 flex flex-col divide-y divide-steel-line p-2">
+            {/* Five fields per approval, so this is a card list on a phone and
+                a dense row above md. It never scrolls sideways. */}
+            <Card pad="none" className="mt-2 flex flex-col divide-y divide-steel-line px-1 py-1">
               {approvals.approvals.map((a, i) => {
                 const rowKey = `${a.token}-${a.spender}`;
                 const busy = revoking === rowKey;
                 return (
                   <div
                     key={`${rowKey}-${i}`}
-                    className="flex items-center gap-3 px-3 py-3"
+                    className="flex min-h-11 items-center gap-3 px-2 py-2.5 md:py-2"
                   >
                     <TokenLogo
                       logo={a.tokenLogo}
                       symbol={a.tokenSymbol ?? "?"}
-                      size={34}
+                      size={28}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate text-sm font-semibold text-bone">
+                        <p
+                          className={cx(
+                            "truncate font-semibold text-bone",
+                            CONSOLE_BODY
+                          )}
+                        >
                           {a.tokenSymbol ?? shortHex(a.token)}
                         </p>
-                        {a.risky && (
-                          <span className="rounded-[--radius-sm] border border-ember-deep/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-ember">
-                            Risk
-                          </span>
-                        )}
+                        {a.risky && <Badge variant="danger">Risk</Badge>}
                       </div>
-                      <p className="mt-0.5 truncate text-xs text-bone-faint">
+                      <p
+                        className={cx("mt-0.5 truncate text-bone-faint", CONSOLE_META)}
+                      >
                         {a.spenderLabel ?? `Spender ${shortHex(a.spender)}`}
                       </p>
-                      <p className="mt-0.5 text-xs text-ember">
+                      <p className={cx("mt-0.5 text-ember", CONSOLE_META)}>
                         {allowanceLabel(a.allowance ?? "")}
                         {a.valueAtRiskUsd && a.valueAtRiskUsd > 0.01 ? (
-                          <span className="ml-1.5 text-bone-faint">
+                          <span className="tnum ml-1.5 text-bone-faint">
                             ~$
                             {a.valueAtRiskUsd.toLocaleString("en-US", {
                               maximumFractionDigits: 2,
@@ -522,48 +590,72 @@ export default function WatchPage() {
                         ) : null}
                       </p>
                     </div>
-                    <button
-                      type="button"
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      className="shrink-0"
                       disabled={busy}
+                      loading={busy}
                       onClick={() => void revoke(a)}
-                      className="btn-glass shrink-0 text-ember disabled:opacity-60"
-                      aria-label="Revoke this approval"
                     >
-                      {busy ? "Revoking..." : "Revoke"}
-                    </button>
+                      {busy ? "Revoking" : "Revoke"}
+                    </Button>
                   </div>
                 );
               })}
-            </div>
+            </Card>
 
-            <div className="glass mt-3 p-4 text-sm text-bone-mut">
-              <div className="flex items-start gap-3">
-                <Icon
-                  name="shield"
-                  className="mt-0.5 h-4.5 w-4.5 shrink-0 text-gold"
-                />
-                <p>
-                  Revoking is non-custodial: it never moves your keys. Each
-                  revoke is a wallet signature that sets the spender allowance to
-                  zero, signed in your own wallet. You pay only network gas.
-                </p>
-              </div>
-            </div>
+            <Note>
+              Revoking is non-custodial: it never moves your keys. Each revoke is
+              a wallet signature that sets the spender allowance to zero, signed
+              in your own wallet. You pay only network gas.
+            </Note>
           </>
-        ) : (
-          <div className="glass mt-3 h-32 animate-pulse" />
-        )}
+        ) : null}
       </section>
 
-      <div className="glass mt-5 p-4 text-sm text-bone-mut">
-        <div className="flex items-start gap-3">
-          <Icon name="wall" className="mt-0.5 h-4.5 w-4.5 shrink-0 text-gold" />
-          <p>
-            The Watch reads public defenses and approvals from live chain data.
-            It never holds your keys or moves your assets.
-          </p>
+      <Note>
+        The Watch reads public defenses and approvals from live chain data. It
+        never holds your keys or moves your assets.
+      </Note>
+    </ConsolePage>
+  );
+}
+
+function Note({ children }: { children: React.ReactNode }) {
+  return (
+    <Card
+      pad="none"
+      className={cx(
+        "mt-3 flex items-start gap-2.5 text-bone-mut md:mt-2",
+        CONSOLE_BODY,
+        CONSOLE_PAD
+      )}
+    >
+      <Icon
+        name="shield"
+        aria-hidden
+        className="mt-0.5 h-5 w-5 shrink-0 text-gold md:h-[17px] md:w-[17px]"
+      />
+      <p>{children}</p>
+    </Card>
+  );
+}
+
+/* Shaped like the approval rows it replaces, not a grey slab. */
+function ApprovalSkeleton() {
+  return (
+    <div className="flex flex-col divide-y divide-steel-line">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex min-h-11 items-center gap-3 px-2 py-2.5">
+          <Skeleton radius="full" className="h-7 w-7 shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <Skeleton radius="sm" className="h-2.5 w-20" />
+            <Skeleton radius="sm" className="h-2 w-40" />
+          </div>
+          <Skeleton radius="md" className="h-8 w-16 shrink-0" />
         </div>
-      </div>
+      ))}
     </div>
   );
 }
