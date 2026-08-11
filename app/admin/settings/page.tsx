@@ -1,9 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { realmFetch } from "@/lib/auth/api";
+import { Button } from "@/components/ui/button";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  AdminError,
+  AdminHeader,
+  AdminStack,
+  Board,
+  BoardCard,
+  BoardSkeleton,
+  SealedChamber,
+  TOUCH,
+} from "@/app/admin/ui";
 
 interface AuditRow {
   id: string;
@@ -36,6 +50,51 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function actorName(a: AuditRow["actor"]): string {
+  return a?.display_name?.trim() || (a?.handle ? `@${a.handle}` : "System");
+}
+
+/* A configuration tile: a glyph, the current reading, and the one link that
+   changes it. Ornament budget zero, so nothing here glows. */
+function ConfigTile({
+  icon,
+  headline,
+  detail,
+  href,
+  action,
+}: {
+  icon: string;
+  headline: string;
+  detail: string;
+  href: string;
+  action: string;
+}) {
+  return (
+    <Card pad="sm" className="flex flex-col">
+      <Icon
+        name={icon}
+        className="h-5 w-5 text-bone-faint md:h-[17px] md:w-[17px]"
+      />
+      <p className="mt-2 font-display text-base font-semibold text-bone md:text-sm">
+        {headline}
+      </p>
+      <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-bone-faint">
+        {detail}
+      </p>
+      <div className="mt-3">
+        <Button
+          variant="glass"
+          size="sm"
+          className={TOUCH}
+          render={<Link href={href} />}
+        >
+          {action}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 export default function AdminSettingsPage() {
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [seasons, setSeasons] = useState<SeasonRow[]>([]);
@@ -43,15 +102,15 @@ export default function AdminSettingsPage() {
   const [status, setStatus] = useState<"loading" | "ok" | "sealed" | "error">(
     "loading"
   );
+  const showSkeleton = useDelayedLoading(status === "loading", 300);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    setStatus("loading");
     void Promise.all([
       realmFetch<{ audit: AuditRow[] }>("/api/admin/overview"),
       realmFetch<{ seasons: SeasonRow[] }>("/api/admin/seasons"),
       realmFetch<{ flags: FlagRow[] }>("/api/admin/flags"),
     ]).then(([ov, se, fl]) => {
-      if (cancelled) return;
       if (ov.status === 401 || ov.status === 403) {
         setStatus("sealed");
         return;
@@ -61,134 +120,128 @@ export default function AdminSettingsPage() {
       if (fl.ok && fl.data?.flags) setFlags(fl.data.flags);
       setStatus(ov.ok ? "ok" : "error");
     });
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
-  if (status === "sealed") {
-    return (
-      <div className="glass p-8 text-center">
-        <Icon name="lock" className="mx-auto h-6 w-6 text-bone-faint" />
-        <p className="gold-text font-display mt-3 text-xl font-semibold">
-          The council chamber is sealed
-        </p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (status === "sealed") return <SealedChamber />;
 
   const activeSeason = seasons.find((s) => s.status === "active") ?? null;
   const enabledFlags = flags.filter((f) => f.enabled).length;
 
   return (
-    <div>
-      <h1 className="font-display text-xl font-semibold text-bone sm:text-2xl">
-        Settings
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Platform configuration and the audit trail
-      </p>
+    <AdminStack>
+      <AdminHeader
+        title="Settings"
+        kicker="Platform configuration and the audit trail"
+      />
 
-      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="glass glass-sm p-4 sm:p-5">
-          <Icon name="crown" className="h-4 w-4 text-bone-faint" />
-          <p className="mt-2 font-display text-base font-semibold text-bone">
-            {activeSeason ? activeSeason.name : "No active season"}
-          </p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-            {activeSeason
+      <div className="grid grid-cols-1 gap-3 md:gap-2 sm:grid-cols-3">
+        <ConfigTile
+          icon="crown"
+          headline={activeSeason ? activeSeason.name : "No active season"}
+          detail={
+            activeSeason
               ? `Closes ${activeSeason.ends_at ? new Date(activeSeason.ends_at).toLocaleDateString() : "unset"}`
-              : "Open one in Seasons"}
-          </p>
-          <Link
-            href="/admin/seasons"
-            className="mt-3 inline-block text-xs text-gold hover:underline"
-          >
-            Manage seasons
-          </Link>
-        </div>
-        <div className="glass glass-sm p-4 sm:p-5">
-          <Icon name="sliders" className="h-4 w-4 text-bone-faint" />
-          <p className="tnum mt-2 font-display text-2xl font-semibold text-gold">
-            {enabledFlags}/{flags.length}
-          </p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-            Feature flags enabled
-          </p>
-          <Link
-            href="/admin/flags"
-            className="mt-3 inline-block text-xs text-gold hover:underline"
-          >
-            Manage flags
-          </Link>
-        </div>
-        <div className="glass glass-sm p-4 sm:p-5">
-          <Icon name="shield" className="h-4 w-4 text-bone-faint" />
-          <p className="mt-2 font-display text-base font-semibold text-bone">
-            Moderation
-          </p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-            Reports and takedowns
-          </p>
-          <Link
-            href="/admin/reports"
-            className="mt-3 inline-block text-xs text-gold hover:underline"
-          >
-            View report history
-          </Link>
-        </div>
+              : "Open one in Seasons"
+          }
+          href="/admin/seasons"
+          action="Manage seasons"
+        />
+        <ConfigTile
+          icon="sliders"
+          headline={`${enabledFlags} of ${flags.length} enabled`}
+          detail="Feature flags"
+          href="/admin/flags"
+          action="Manage flags"
+        />
+        <ConfigTile
+          icon="shield"
+          headline="Moderation"
+          detail="Reports and takedowns"
+          href="/admin/reports"
+          action="View report history"
+        />
       </div>
 
-      <section className="mt-6">
-        <h2 className="font-display text-lg font-semibold text-bone">
-          Audit trail
-        </h2>
-        <p className="mt-1 text-xs text-bone-faint">
-          Every privileged action is recorded with who acted and when.
-        </p>
-        <div className="glass mt-3 overflow-x-auto">
-          {status === "loading" ? (
-            <div className="h-40 animate-pulse" />
-          ) : audit.length === 0 ? (
-            <div className="flex items-center gap-3 p-6">
-              <Icon name="scroll" className="h-5 w-5 text-bone-faint" />
-              <p className="text-sm text-bone-mut">
-                No council actions recorded yet.
-              </p>
-            </div>
-          ) : (
-            <table className="w-full min-w-[36rem] text-left text-sm">
-              <thead>
-                <tr className="border-b border-steel-line text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                  <th className="px-4 py-3 font-medium">Steward</th>
-                  <th className="px-4 py-3 font-medium">Action</th>
-                  <th className="px-4 py-3 font-medium">Target</th>
-                  <th className="px-4 py-3 font-medium">When</th>
-                </tr>
-              </thead>
-              <tbody>
-                {audit.map((a) => (
-                  <tr key={a.id} className="border-b border-steel-line last:border-b-0">
-                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-bone">
-                      {a.actor?.display_name?.trim() ||
-                        (a.actor?.handle ? `@${a.actor.handle}` : "System")}
-                    </td>
-                    <td className="px-4 py-3 capitalize text-bone-mut">
-                      {a.action.replace(/_/g, " ")}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-bone-faint">
-                      {a.target_type ?? "-"}
-                    </td>
-                    <td className="tnum whitespace-nowrap px-4 py-3 text-xs text-bone-faint">
-                      {timeAgo(a.created_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+      <section className="flex flex-col gap-3 md:gap-2">
+        <SectionHeader
+          title="Audit trail"
+          hint="Who acted, and when"
+        />
+        {showSkeleton ? (
+          <BoardSkeleton rows={6} columns={4} />
+        ) : status === "loading" ? null : status === "error" ? (
+          <AdminError
+            title="The audit trail could not be read"
+            body="The record of privileged actions did not come back. Try reading it again."
+            onRetry={load}
+          />
+        ) : audit.length === 0 ? (
+          <Card pad="lg">
+            <EmptyState
+              icon="scroll"
+              title="No council actions recorded"
+              body="Every privileged action is recorded here with who acted and when. Nothing has been done yet."
+              action={
+                <Button
+                  variant="glass"
+                  size="md"
+                  className={TOUCH}
+                  render={<Link href="/admin/users" />}
+                >
+                  Open the user roll
+                </Button>
+              }
+            />
+          </Card>
+        ) : (
+          <Board
+            label="Audit trail"
+            rows={audit}
+            rowKey={(a) => a.id}
+            columns={[
+              {
+                key: "actor",
+                header: "Steward",
+                className: "whitespace-nowrap font-semibold text-bone",
+                cell: (a) => actorName(a.actor),
+              },
+              {
+                key: "action",
+                header: "Action",
+                className: "capitalize",
+                cell: (a) => a.action.replace(/_/g, " "),
+              },
+              {
+                key: "target",
+                header: "Target",
+                className: "whitespace-nowrap text-bone-faint",
+                cell: (a) => a.target_type ?? "none",
+              },
+              {
+                key: "when",
+                header: "When",
+                numeric: true,
+                className: "whitespace-nowrap text-bone-faint",
+                cell: (a) => timeAgo(a.created_at),
+              },
+            ]}
+            card={(a) => (
+              <BoardCard
+                title={actorName(a.actor)}
+                subtitle={timeAgo(a.created_at)}
+                stats={[
+                  { label: "Action", value: a.action.replace(/_/g, " ") },
+                  { label: "Target", value: a.target_type ?? "none" },
+                ]}
+              />
+            )}
+          />
+        )}
       </section>
-    </div>
+    </AdminStack>
   );
 }

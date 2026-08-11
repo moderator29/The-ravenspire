@@ -1,9 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { champions } from "@/lib/game/champions";
 import { realmFetch } from "@/lib/auth/api";
-import { Icon } from "@/components/ui/icon";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  AdminError,
+  AdminHeader,
+  AdminStack,
+  Board,
+  BoardCard,
+  BoardSkeleton,
+  SealedChamber,
+  StatSkeleton,
+  StatTile,
+} from "@/app/admin/ui";
 
 interface WarBattle {
   id: string;
@@ -34,43 +47,39 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function warriorName(p: WarBattle["profile"]): string {
+  return p?.display_name?.trim() || (p?.handle ? `@${p.handle}` : "Unknown");
+}
+
 export default function AdminWarPage() {
   const [data, setData] = useState<WarData | null>(null);
   const [status, setStatus] = useState<"loading" | "ok" | "sealed" | "error">(
     "loading"
   );
+  const showSkeleton = useDelayedLoading(status === "loading", 300);
 
   /* Static roster is used only to label slugs; every count below is live. */
   const nameFor = useMemo(() => {
     const map = new Map(champions.map((c) => [c.slug, c.name]));
-    return (slug: string | null) => (slug ? map.get(slug) ?? slug : "Unknown");
+    return (slug: string | null) => (slug ? (map.get(slug) ?? slug) : "Unknown");
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    setStatus("loading");
     void realmFetch<WarData>("/api/admin/war").then((res) => {
-      if (cancelled) return;
       if (res.status === 401 || res.status === 403) setStatus("sealed");
       else if (res.ok && res.data) {
         setData(res.data);
         setStatus("ok");
       } else setStatus("error");
     });
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
-  if (status === "sealed") {
-    return (
-      <div className="glass p-8 text-center">
-        <Icon name="lock" className="mx-auto h-6 w-6 text-bone-faint" />
-        <p className="gold-text font-display mt-3 text-xl font-semibold">
-          The council chamber is sealed
-        </p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (status === "sealed") return <SealedChamber />;
 
   const statCards = data
     ? [
@@ -82,140 +91,168 @@ export default function AdminWarPage() {
     : [];
 
   return (
-    <div>
-      <h1 className="font-display text-xl font-semibold text-bone sm:text-2xl">
-        The War
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Live battle ledger, read from the realm
-      </p>
+    <AdminStack>
+      <AdminHeader title="The War" kicker="Live battle ledger, read from the realm" />
 
-      {status === "error" && (
-        <div className="glass glass-sm mt-4 p-5">
-          <p className="text-sm text-bone-mut">
-            The war ledger could not be reached. Try again shortly.
-          </p>
-        </div>
-      )}
+      {status === "error" ? (
+        <AdminError
+          title="The war ledger could not be reached"
+          body="The battle records did not come back. Try reading them again."
+          onRetry={load}
+        />
+      ) : null}
 
-      {status === "loading" ? (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="glass glass-sm h-24 animate-pulse" />
-          ))}
-        </div>
+      {showSkeleton ? (
+        <StatSkeleton count={4} />
       ) : data ? (
         <>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-2 sm:grid-cols-4">
             {statCards.map((s) => (
-              <div key={s.label} className="glass glass-sm p-4">
-                <Icon name={s.icon} className="h-4 w-4 text-bone-faint" />
-                <p className="tnum font-display mt-2 text-2xl font-semibold text-gold">
-                  {s.value.toLocaleString()}
-                </p>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                  {s.label}
-                </p>
-              </div>
+              <StatTile
+                key={s.label}
+                icon={s.icon}
+                value={s.value.toLocaleString()}
+                label={s.label}
+              />
             ))}
           </div>
 
-          <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="glass glass-sm p-4 sm:p-5">
+          <section className="grid grid-cols-1 gap-3 md:gap-2 sm:grid-cols-2">
+            <Card pad="sm">
               <h2 className="font-display text-sm font-semibold text-bone">
                 Outcomes
               </h2>
               <div className="mt-3 flex flex-col gap-2">
                 {Object.keys(data.resultCounts).length === 0 ? (
-                  <p className="text-sm text-bone-mut">No battles recorded yet.</p>
+                  <EmptyState
+                    size="sm"
+                    icon="swords"
+                    title="No battles recorded yet"
+                    body="Outcomes appear here the moment the first champion takes the field."
+                  />
                 ) : (
                   Object.entries(data.resultCounts).map(([k, v]) => (
-                    <div key={k} className="flex items-center justify-between text-sm">
+                    <div
+                      key={k}
+                      className="flex items-center justify-between text-sm md:text-[13px]"
+                    >
                       <span className="capitalize text-bone-mut">{k}</span>
                       <span className="tnum text-gold">{v.toLocaleString()}</span>
                     </div>
                   ))
                 )}
               </div>
-            </div>
-            <div className="glass glass-sm p-4 sm:p-5">
+            </Card>
+            <Card pad="sm">
               <h2 className="font-display text-sm font-semibold text-bone">
                 Most-fielded champions
               </h2>
               <div className="mt-3 flex flex-col gap-2">
                 {data.topChampions.length === 0 ? (
-                  <p className="text-sm text-bone-mut">No champions fielded yet.</p>
+                  <EmptyState
+                    size="sm"
+                    icon="medal"
+                    title="No champions fielded yet"
+                    body="The roster fills as members choose who fights for them."
+                  />
                 ) : (
                   data.topChampions.map((c) => (
-                    <div key={c.slug} className="flex items-center justify-between text-sm">
-                      <span className="truncate text-bone-mut">{nameFor(c.slug)}</span>
-                      <span className="tnum text-gold">{c.count.toLocaleString()}</span>
+                    <div
+                      key={c.slug}
+                      className="flex items-center justify-between text-sm md:text-[13px]"
+                    >
+                      <span className="truncate text-bone-mut">
+                        {nameFor(c.slug)}
+                      </span>
+                      <span className="tnum text-gold">
+                        {c.count.toLocaleString()}
+                      </span>
                     </div>
                   ))
                 )}
               </div>
-            </div>
+            </Card>
           </section>
 
-          <section className="mt-6">
-            <h2 className="font-display text-lg font-semibold text-bone">
-              Battle log
-            </h2>
-            <div className="glass mt-3 overflow-x-auto">
-              {data.recent.length === 0 ? (
-                <div className="flex items-center gap-3 p-6">
-                  <Icon name="scroll" className="h-5 w-5 text-bone-faint" />
-                  <p className="text-sm text-bone-mut">
-                    No battles have been fought yet. The ledger stands empty.
-                  </p>
-                </div>
-              ) : (
-                <table className="w-full min-w-[44rem] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-steel-line text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                      <th className="px-4 py-3 font-medium">Warrior</th>
-                      <th className="px-4 py-3 font-medium">Champion</th>
-                      <th className="px-4 py-3 font-medium">Field</th>
-                      <th className="px-4 py-3 font-medium">Result</th>
-                      <th className="px-4 py-3 font-medium">Kills</th>
-                      <th className="px-4 py-3 font-medium">Glory</th>
-                      <th className="px-4 py-3 font-medium">When</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.recent.map((b) => (
-                      <tr key={b.id} className="border-b border-steel-line last:border-b-0">
-                        <td className="whitespace-nowrap px-4 py-3 font-semibold text-bone">
-                          {b.profile?.display_name?.trim() ||
-                            (b.profile?.handle ? `@${b.profile.handle}` : "Unknown")}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-bone-mut">
-                          {nameFor(b.champion_slug)}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-bone-mut">
-                          {b.battlefield ?? "-"}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 capitalize text-bone-mut">
-                          {b.result ?? "-"}
-                        </td>
-                        <td className="tnum whitespace-nowrap px-4 py-3 text-bone-mut">
-                          {b.kills}
-                        </td>
-                        <td className="tnum whitespace-nowrap px-4 py-3 text-gold">
-                          {b.glory_earned}
-                        </td>
-                        <td className="tnum whitespace-nowrap px-4 py-3 text-xs text-bone-faint">
-                          {timeAgo(b.created_at)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+          <section className="flex flex-col gap-3 md:gap-2">
+            <SectionHeader title="Battle log" />
+            {data.recent.length === 0 ? (
+              <Card pad="lg">
+                <EmptyState
+                  icon="scroll"
+                  title="The ledger stands empty"
+                  body="No battles have been fought yet. Every clash lands here as it resolves."
+                />
+              </Card>
+            ) : (
+              <Board
+                label="Battle log"
+                rows={data.recent}
+                rowKey={(b) => b.id}
+                columns={[
+                  {
+                    key: "warrior",
+                    header: "Warrior",
+                    className: "whitespace-nowrap font-semibold text-bone",
+                    cell: (b) => warriorName(b.profile),
+                  },
+                  {
+                    key: "champion",
+                    header: "Champion",
+                    className: "whitespace-nowrap",
+                    cell: (b) => nameFor(b.champion_slug),
+                  },
+                  {
+                    key: "field",
+                    header: "Field",
+                    className: "whitespace-nowrap",
+                    cell: (b) => b.battlefield ?? "none",
+                  },
+                  {
+                    key: "result",
+                    header: "Result",
+                    className: "whitespace-nowrap capitalize",
+                    cell: (b) => b.result ?? "none",
+                  },
+                  {
+                    key: "kills",
+                    header: "Kills",
+                    numeric: true,
+                    cell: (b) => b.kills,
+                  },
+                  {
+                    key: "glory",
+                    header: "Glory",
+                    numeric: true,
+                    className: "text-gold",
+                    cell: (b) => b.glory_earned,
+                  },
+                  {
+                    key: "when",
+                    header: "When",
+                    numeric: true,
+                    className: "whitespace-nowrap text-bone-faint",
+                    cell: (b) => timeAgo(b.created_at),
+                  },
+                ]}
+                card={(b) => (
+                  <BoardCard
+                    title={warriorName(b.profile)}
+                    subtitle={timeAgo(b.created_at)}
+                    stats={[
+                      { label: "Champion", value: nameFor(b.champion_slug) },
+                      { label: "Field", value: b.battlefield ?? "none" },
+                      { label: "Result", value: b.result ?? "none" },
+                      { label: "Kills", value: b.kills },
+                      { label: "Glory", value: b.glory_earned },
+                    ]}
+                  />
+                )}
+              />
+            )}
           </section>
         </>
       ) : null}
-    </div>
+    </AdminStack>
   );
 }
