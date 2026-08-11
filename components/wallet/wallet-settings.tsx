@@ -1,6 +1,8 @@
 "use client";
 
 import { Icon } from "@/components/ui/icon";
+import { Toggle } from "@/components/ui/field";
+import { Chip } from "@/components/console/console-shell";
 import { CopyButton } from "@/components/wallet/copy-button";
 import { WalletBackup } from "@/components/wallet/wallet-backup";
 import {
@@ -33,7 +35,7 @@ export function WalletSettings({ address }: { address?: string }) {
         </p>
 
         {address ? (
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3.5">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-steel-line bg-panel/40 p-3">
             <div className="min-w-0">
               <p className="text-xs text-bone-faint">Wallet address</p>
               <code className="tnum mt-0.5 block font-mono text-sm text-bone">
@@ -49,10 +51,10 @@ export function WalletSettings({ address }: { address?: string }) {
             href={explorer}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-between gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3.5 transition-colors hover:border-gold/40"
+            className="flex items-center justify-between gap-3 rounded-lg border border-steel-line bg-panel/40 p-3 transition-colors hover:border-gold/40"
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line bg-panel">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-steel-line bg-panel">
                 <Icon name="search" className="h-4 w-4 text-gold" />
               </span>
               <div>
@@ -74,9 +76,9 @@ export function WalletSettings({ address }: { address?: string }) {
         </p>
 
         {/* Default network */}
-        <div className="rounded-2xl border border-steel-line bg-panel/40 p-3.5">
+        <div className="rounded-lg border border-steel-line bg-panel/40 p-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line bg-panel">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-steel-line bg-panel">
               <Icon name="signal" className="h-4 w-4 text-gold" />
             </span>
             <div>
@@ -88,26 +90,22 @@ export function WalletSettings({ address }: { address?: string }) {
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {EVM_CHAINS.map((c) => (
-              <button
+              <Chip
                 key={c.id}
-                type="button"
+                active={settings.defaultChainId === c.id}
                 onClick={() => setSettings({ defaultChainId: c.id })}
-                className={`rounded-[--radius-sm] border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                  settings.defaultChainId === c.id
-                    ? "border-gold/50 bg-panel-warm text-gold"
-                    : "border-steel-line bg-panel/40 text-bone-mut"
-                }`}
+                className="h-8 md:h-7"
               >
                 {c.name}
-              </button>
+              </Chip>
             ))}
           </div>
         </div>
 
         {/* Hide small balances */}
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3.5">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-steel-line bg-panel/40 p-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line bg-panel">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-steel-line bg-panel">
               <Icon name="eye" className="h-4 w-4 text-gold" />
             </span>
             <div>
@@ -119,30 +117,18 @@ export function WalletSettings({ address }: { address?: string }) {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={settings.hideSmall}
-            aria-label="Hide small balances"
-            onClick={() => setSettings({ hideSmall: !settings.hideSmall })}
-            className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors ${
-              settings.hideSmall
-                ? "border-gold/50 bg-gold/30"
-                : "border-steel-line bg-panel"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-gold transition-all ${
-                settings.hideSmall ? "left-4" : "left-0.5"
-              }`}
-            />
-          </button>
+          <Toggle
+            size="sm"
+            label="Hide small balances"
+            checked={settings.hideSmall}
+            onCheckedChange={(next) => setSettings({ hideSmall: next })}
+          />
         </div>
 
         {/* Currency display */}
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3.5">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-steel-line bg-panel/40 p-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line bg-panel">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-steel-line bg-panel">
               <Icon name="coin" className="h-4 w-4 text-gold" />
             </span>
             <div>
@@ -154,18 +140,14 @@ export function WalletSettings({ address }: { address?: string }) {
           </div>
           <div className="flex gap-1">
             {CURRENCIES.map((c) => (
-              <button
+              <Chip
                 key={c}
-                type="button"
+                active={settings.currency === c}
                 onClick={() => setSettings({ currency: c })}
-                className={`rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors ${
-                  settings.currency === c
-                    ? "border-gold/50 bg-panel-warm text-gold"
-                    : "border-steel-line bg-panel/40 text-bone-mut"
-                }`}
+                className="h-8 md:h-7"
               >
                 {c}
-              </button>
+              </Chip>
             ))}
           </div>
         </div>
