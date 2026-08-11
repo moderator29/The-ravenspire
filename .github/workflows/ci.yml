@@ -41,6 +41,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # The Call scoring maths is the highest risk pure logic in the product:
+      # it decides Renown, and a sign error in it is a minting bug rather than a
+      # cosmetic one. Its tests already caught three errors in the written spec.
+      - name: Test
+        run: npm test
+
       # The build prerenders every static route, which is the step that catches
       # missing Suspense boundaries and server/client boundary mistakes. The
       # Supabase values are build-time placeholders: the browser client is
