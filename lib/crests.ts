@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { grantCrest } from "@/lib/points";
+import { emit } from "@/lib/realm/events";
 
 /* Crests earned automatically from renown and streak milestones. Each entry
    is checked against the caller's current standing; grants are idempotent. */
@@ -29,7 +30,7 @@ export async function checkAndGrantCrests(
 ) {
   const { data: prof } = await db
     .from("profiles")
-    .select("renown, streak")
+    .select("renown, streak, house_slug")
     .eq("id", profileId)
     .single();
   if (!prof) return;
@@ -56,6 +57,18 @@ export async function checkAndGrantCrests(
       kind: "crest",
       subject_id: crest.slug,
       body: `You earned the ${crest.title} crest.`,
+    });
+    /* Earning a crest is one of the few genuinely rare things that happens in
+       the realm and until now nobody but its owner ever saw it. The spine puts
+       it in the Ravenry. The unique index makes this idempotent, so the crest
+       check running on every award cannot produce a second card. */
+    await emit(db, {
+      kind: "crest.earned",
+      actorId: profileId,
+      subjectType: "crest",
+      subjectId: crest.slug,
+      houseSlug: prof.house_slug ?? null,
+      payload: { v: 1, crest_slug: crest.slug, title: crest.title },
     });
   }
 }

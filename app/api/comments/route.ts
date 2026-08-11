@@ -188,11 +188,15 @@ export async function POST(req: Request) {
     excludeIds: notified,
   });
 
+  /* Replying is unlimited and reciprocal, so it draws on the daily social
+     allowance (V2 section 9.5, rule 4). Two accounts commenting on each other
+     forever used to mint unbounded Renown. */
   await award(db, profile.id, {
     points: 2,
     glory: 1,
     reason: "replied",
     ref: comment.id,
+    category: "social",
   });
 
   after(async () => {

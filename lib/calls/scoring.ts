@@ -42,6 +42,10 @@ export function clamp(value: number, min: number, max: number): number {
    erf(-x) = -erf(x). */
 export function erf(x: number): number {
   if (!Number.isFinite(x)) return x > 0 ? 1 : -1;
+  /* The series is off by 1e-9 at the origin, which is inside its error bound
+     but leaves Phi(0) at 0.5000000005 and a coin-flip baseline very slightly
+     off a coin flip. Exact at zero costs one comparison. */
+  if (x === 0) return 0;
   const sign = x < 0 ? -1 : 1;
   const z = Math.abs(x);
 
@@ -85,6 +89,14 @@ export interface BaselineInput {
    k over horizon t on its own, with no skill involved. The exact form carries a
    sigma^2 * t / 2 drift term; the simplified version is accurate enough for
    scoring and far easier to explain to a member.
+
+   Section 9.1's illustration says "BTC up 0.1% in 24h gets a pi_0 near 1". That
+   gloss does not match the formula it is describing and the formula is the one
+   that is right: on a driftless walk the chance of ANY upward move is a half,
+   so requiring a further 0.1% puts the baseline just under a half, not near
+   one. The consequence the document actually wants still holds, because a
+   member Calling something at a half cannot state much more than a half either,
+   and a score is the gap between the two. The gloss is corrected in section 9.1.
 
    A down Call is the exact mirror in log space, ln(1 - k) rather than
    -ln(1 + k), so that a 40% fall is measured as the 40% fall it is rather than
@@ -142,16 +154,21 @@ export interface ScoreInput {
    outcome, is what a log score against a baseline means and is plainly what
    9.1 intends when it says a forecast is scored against a baseline probability.
    The corrected form is identical whenever the Call lands, so the numbers in
-   the document that motivate the design are unchanged, and every property it
-   claims now actually holds:
+   the document that motivate the design are unchanged:
 
-     baseline 0.99, confidence 0.99, lands      ->    0, the 0.1% BTC Call
-     baseline 0.50, confidence 0.70, lands      -> +49
-     baseline 0.50, confidence 0.70, misses     -> -74
+     baseline 0.50, confidence 0.70, lands      ->  +49
+     baseline 0.50, confidence 0.70, misses     ->  -74
      baseline 0.10, confidence 0.70, lands      -> +100, capped
      baseline 0.10, confidence 0.70, misses     -> -100, capped
+     baseline == confidence, either way         ->    0
 
-   Section 9.2 has been amended to match. */
+   Section 9.2 has been amended to match.
+
+   Note that a score is signed against the BASELINE, not against being right, so
+   a member who states less confidence than the baseline does better by being
+   wrong. That is correct for a scoring rule of this shape: they were closer to
+   the truth than the baseline was, and they can see the baseline before they
+   commit. It is also why a Call is refused unless a real baseline exists. */
 export function callScore(input: ScoreInput): number {
   const { confidence, baseline, hit } = input;
   if (!Number.isFinite(confidence) || !Number.isFinite(baseline)) return 0;

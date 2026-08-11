@@ -90,10 +90,15 @@ export async function POST(req: Request) {
                 actor_id: profile.id,
                 subject_id,
               });
+              /* The first like from this member is already un-farmable by
+                 unlike-and-relike. What it was not protected against is a
+                 second account liking everything the first ever posted, which
+                 the daily social allowance now bounds (V2 section 9.5). */
               await award(db, row.author_id, {
                 points: 1,
                 reason: `liked_by_${profile.id}`,
                 ref: subject_id,
+                category: "social",
               });
             }
           }
