@@ -186,7 +186,7 @@ function PhaseNode({ p }: { p: Phase }) {
             {p.tag}
           </span>
           <span
-            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${st.className}`}
+            className={`inline-flex items-center rounded-[--radius-sm] border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${st.className}`}
           >
             {st.label}
           </span>
@@ -252,7 +252,7 @@ export function Roadmap() {
         <h2 className="font-display text-2xl font-semibold text-bone sm:text-3xl">
           The march ahead
         </h2>
-        <span className="glass-sm inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-panel px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-gold">
+        <span className="glass-sm inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-gold/25 bg-panel px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-gold">
           <LandingIcon name="layers" className="h-3.5 w-3.5" />
           Built on Ethereum
         </span>

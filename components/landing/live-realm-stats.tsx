@@ -56,7 +56,7 @@ export function LiveRealmStats({ className = "" }: { className?: string }) {
       {items.map((i) => (
         <span
           key={i.label}
-          className="inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-panel-warm/40 px-3 py-1.5 text-xs text-bone-mut"
+          className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-gold/25 bg-panel-warm/40 px-3 py-1.5 text-xs text-bone-mut"
         >
           <Icon name={i.icon} className="h-3.5 w-3.5 text-gold" />
           <span className="tnum font-semibold text-bone">{fmt(i.value)}</span>

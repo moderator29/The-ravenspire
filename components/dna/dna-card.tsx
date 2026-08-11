@@ -61,7 +61,7 @@ export function DnaCard({ result }: { result: DnaResult }) {
           {result.traits.map((t) => (
             <span
               key={t}
-              className="rounded-full border border-gold/25 bg-panel-warm px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-bone"
+              className="rounded-[--radius-sm] border border-gold/25 bg-panel-warm px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-bone"
             >
               {t}
             </span>
@@ -111,7 +111,7 @@ export function DnaCard({ result }: { result: DnaResult }) {
         <button
           type="button"
           onClick={() => void share()}
-          className="btn-glass rounded-full px-4 py-2 text-xs font-medium text-bone"
+          className="btn-glass rounded-[--radius-sm] px-4 py-2 text-xs font-medium text-bone"
         >
           <Icon name="share" className="h-4 w-4 text-gold" />
           {copied ? "Copied" : "Share"}

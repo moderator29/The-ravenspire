@@ -89,7 +89,7 @@ export function ComingSoonTeasers() {
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-void">
                 <LandingIcon name={t.icon} className="h-5 w-5 text-gold" />
               </span>
-              <span className="inline-flex items-center rounded-full border border-gold/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gold/80">
+              <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gold/80">
                 Coming soon
               </span>
             </div>

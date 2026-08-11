@@ -3,12 +3,12 @@ import { callerKey, rateLimit } from "@/lib/rate-limit";
 import { TRADE_CHAINS, tradeChainByGecko } from "@/lib/trade/config";
 import { chainLogo } from "@/lib/trade/token-list";
 
-/* THE SCRYING GLASS — live altcoin discovery.
+/* THE SCRYING GLASS, live altcoin discovery.
 
    The glass surfaces coins members can actually act on: real, actively-traded
    EVM tokens UNDER $100M market cap, drawn live from GeckoTerminal's trending
    and top pools across every chain we trade. Majors, stablecoins and wrapped
-   natives are filtered OUT — the point is active altcoins and memecoins, not
+   natives are filtered OUT, the point is active altcoins and memecoins, not
    USDC/ETH. Everything returned is swappable in-app through the 0x route.
 
    Three lenses (tabs):
@@ -22,7 +22,7 @@ import { chainLogo } from "@/lib/trade/token-list";
 
 export const dynamic = "force-dynamic";
 
-const MAX_MARKET_CAP_USD = 100_000_000; // under $100M only — active altcoins
+const MAX_MARKET_CAP_USD = 100_000_000; // under $100M only, active altcoins
 const MIN_LIQUIDITY_USD = 15_000;
 const MIN_VOLUME_USD = 15_000;
 const PER_TAB = 40;

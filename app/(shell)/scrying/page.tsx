@@ -230,7 +230,7 @@ export default function ScryingPage() {
         <h1 className="font-display text-xl font-semibold text-bone">
           The Scrying Glass
         </h1>
-        <span className="inline-flex items-center rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+        <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
           Beta
         </span>
       </div>
@@ -238,14 +238,14 @@ export default function ScryingPage() {
         Live altcoin discovery
       </p>
       <p className="mt-3 text-sm text-bone-mut">
-        Active, tradable EVM coins under $100M market cap — no stablecoins, no
+        Active, tradable EVM coins under $100M market cap, no stablecoins, no
         majors. Tap any coin to read it, chart it and swap it in-app,
         non-custodially.
       </p>
 
       <Link
         href="/swap"
-        className="btn-glass mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs text-gold"
+        className="btn-glass mt-3 inline-flex items-center gap-1.5 rounded-[--radius-sm] px-3.5 py-1.5 text-xs text-gold"
       >
         <Icon name="repost" className="h-3.5 w-3.5" />
         Open The Swap
@@ -281,13 +281,13 @@ export default function ScryingPage() {
         {TABS.find((t) => t.key === tab)?.blurb}
       </p>
 
-      {/* Chain filter — only chains present in the current lens are shown. */}
+      {/* Chain filter, only chains present in the current lens are shown. */}
       {availableChains.length > 1 && (
         <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           <button
             type="button"
             onClick={() => setChainFilter(null)}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+            className={`shrink-0 rounded-[--radius-sm] border px-3 py-1.5 text-xs font-medium transition ${
               chainFilter === null
                 ? "border-gold/60 bg-panel-warm text-gold-bright"
                 : "border-steel-line bg-void text-bone-mut hover:border-gold/40"
@@ -300,7 +300,7 @@ export default function ScryingPage() {
               key={c.id}
               type="button"
               onClick={() => setChainFilter(c.id)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              className={`shrink-0 rounded-[--radius-sm] border px-3 py-1.5 text-xs font-medium transition ${
                 chainFilter === c.id
                   ? "border-gold/60 bg-panel-warm text-gold-bright"
                   : "border-steel-line bg-void text-bone-mut hover:border-gold/40"

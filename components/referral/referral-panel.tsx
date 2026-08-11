@@ -160,7 +160,7 @@ export function ReferralPanel({ enabled }: { enabled: boolean }) {
                     ) : null}
                   </div>
                   <span
-                    className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                    className={`shrink-0 rounded-[--radius-sm] border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
                       r.activated
                         ? "border-gold/50 bg-gold/15 text-gold-bright"
                         : "border-steel-line bg-panel text-bone-faint"

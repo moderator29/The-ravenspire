@@ -155,7 +155,7 @@ export default function BattlePreparePage() {
             {selected.rarity}
           </span>
           {typeof mastery === "number" && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gold">
+            <span className="inline-flex items-center gap-1 rounded-[--radius-sm] border border-gold/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gold">
               <Icon name="medal" className="h-3 w-3" />
               Mastery {mastery}
             </span>

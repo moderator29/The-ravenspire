@@ -8,8 +8,8 @@ import { TokenLogo } from "@/components/coin/token-logo";
 import { realmFetch } from "@/lib/auth/api";
 import { tradeChainById } from "@/lib/trade/config";
 
-/* A tappable $cashtag. Tapping it opens a quick coin sheet — real price, chain
-   and logo pulled live from the same search The Swap uses — with one tap to
+/* A tappable $cashtag. Tapping it opens a quick coin sheet, real price, chain
+   and logo pulled live from the same search The Swap uses, with one tap to
    read the coin or trade it. Rendered as a button (never an anchor) so it can
    live inside a post's body link without nesting anchors. */
 
@@ -25,11 +25,11 @@ interface CoinHit {
 }
 
 function formatPrice(n: number | null): string {
-  if (n === null || !Number.isFinite(n)) return "—";
+  if (n === null || !Number.isFinite(n)) return "·";
   if (n >= 1) return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
   if (n >= 0.01) return `$${n.toFixed(4)}`;
   if (n > 0) return `$${n.toPrecision(2)}`;
-  return "—";
+  return "·";
 }
 
 function coinHref(hit: CoinHit): string {

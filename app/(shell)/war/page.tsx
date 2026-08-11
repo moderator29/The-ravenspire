@@ -163,7 +163,7 @@ export default function WarPage() {
                   <span className="font-display text-base font-semibold text-bone">
                     {m.name}
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-wide text-gold">
+                  <span className="inline-flex items-center gap-1 rounded-[--radius-sm] border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-wide text-gold">
                     <Icon name="lock" className="h-3 w-3" />
                     Soon
                   </span>

@@ -88,7 +88,7 @@ export function RavenTake({
         <button
           type="button"
           onClick={() => void summon()}
-          className="btn-glass mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs text-gold"
+          className="btn-glass mt-3 inline-flex items-center gap-1.5 rounded-[--radius-sm] px-3.5 py-1.5 text-xs text-gold"
         >
           <Icon name="eye" className="h-3.5 w-3.5" />
           Summon the Raven&apos;s take

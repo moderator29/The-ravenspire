@@ -221,7 +221,7 @@ export function WalletSendFlow({
           {token.name} on {chain?.name ?? token.chainName}
         </p>
       </div>
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gold/25 bg-panel-warm/60 px-2.5 py-1 text-[11px] font-medium text-bone">
+      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[--radius-sm] border border-gold/25 bg-panel-warm/60 px-2.5 py-1 text-[11px] font-medium text-bone">
         <span className="h-1.5 w-1.5 rounded-full bg-gold" />
         {token.chainShort}
       </span>

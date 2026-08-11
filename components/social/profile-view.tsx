@@ -155,7 +155,7 @@ export function ProfileView({
   const callsWon = callPosts.filter((p) => p.call?.verdict === "hit").length;
   const callsLost = callPosts.filter((p) => p.call?.verdict === "miss").length;
   const settledCalls = callsWon + callsLost;
-  /* Hit-rate on settled calls only — an honest track record, blank until at
+  /* Hit-rate on settled calls only, an honest track record, blank until at
      least a few calls have resolved so a lone lucky call can't read as 100%. */
   const hitRate =
     settledCalls >= 3 ? Math.round((callsWon / settledCalls) * 100) : null;
@@ -366,7 +366,7 @@ export function ProfileView({
             ) : null;
           })}
           {profile.is_agent && (
-            <span className="rounded-full border border-gold/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gold">
+            <span className="rounded-[--radius-sm] border border-gold/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gold">
               Herald of the realm
             </span>
           )}
@@ -390,7 +390,7 @@ export function ProfileView({
                   href={l.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="glass-sm flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 text-xs text-bone-mut hover:text-bone"
+                  className="glass-sm flex max-w-full items-center gap-1.5 rounded-[--radius-sm] px-3 py-1 text-xs text-bone-mut hover:text-bone"
                 >
                   <Icon name="compass" className="h-3 w-3 shrink-0 text-gold" />
                   <span className="truncate">{l.label || l.url}</span>
@@ -447,7 +447,7 @@ export function ProfileView({
           {hitRate !== null && (
             <span
               title={`${callsWon} of ${settledCalls} settled calls hit`}
-              className="inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold/5 px-2 py-0.5 text-xs font-semibold text-gold"
+              className="inline-flex items-center gap-1 rounded-[--radius-sm] border border-gold/30 bg-gold/5 px-2 py-0.5 text-xs font-semibold text-gold"
             >
               <Icon name="target" className="h-3 w-3" />
               {hitRate}% hit rate
@@ -502,7 +502,7 @@ export function ProfileView({
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold capitalize ${
+            className={`rounded-[--radius-sm] px-4 py-1.5 text-xs font-semibold capitalize ${
               tab === t ? "btn-gold" : "btn-glass text-bone-mut"
             }`}
           >

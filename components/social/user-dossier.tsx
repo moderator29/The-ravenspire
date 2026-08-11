@@ -17,8 +17,8 @@ import { createClient } from "@/lib/supabase/client";
 import { TIER_NAMES } from "@/lib/social/types";
 
 /* THE DOSSIER
-   A quick, non-navigating read on a member — opened by tapping their avatar in
-   the feed — so a reader can size someone up and follow them without leaving
+   A quick, non-navigating read on a member, opened by tapping their avatar in
+   the feed, so a reader can size someone up and follow them without leaving
    the timeline. Renders as a portal slide-over (right on desktop, bottom sheet
    on mobile) so it never reflows the page, mirroring the OverflowMenu pattern:
    backdrop + fixed panel, closes on outside click or Escape. All figures are
@@ -65,7 +65,7 @@ function joinLabel(iso: string | null): string | null {
   return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
-/* Read the member's public standing and settle-record. Public fields only —
+/* Read the member's public standing and settle-record. Public fields only , 
    never privy_id, wallet_address, settings or is_admin. */
 async function fetchDossier(profileId: string): Promise<DossierData | null> {
   const db = createClient();
@@ -239,7 +239,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
 
               {data && data.callsWon + data.callsLost >= 3 && (
                 <p className="mt-2 flex items-center justify-center">
-                  <span className="inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 text-xs font-semibold text-gold">
+                  <span className="inline-flex items-center gap-1 rounded-[--radius-sm] border border-gold/30 bg-gold/5 px-2.5 py-0.5 text-xs font-semibold text-gold">
                     <Icon name="target" className="h-3 w-3" />
                     {Math.round(
                       (data.callsWon / (data.callsWon + data.callsLost)) * 100

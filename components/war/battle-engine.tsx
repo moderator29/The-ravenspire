@@ -187,7 +187,7 @@ export function BattleEngine({
     const s = stateRef.current;
     const withArt = champions.filter((c) => c.art && c.slug !== champion.slug);
 
-    /* The chosen champion's real combat kit — attack, pace, reach, damage
+    /* The chosen champion's real combat kit, attack, pace, reach, damage
        reduction and their passive/ultimate mechanics all flow from here, so
        every champion actually plays to their stats and their written kit. */
     const prof = buildCombatProfile(champion);
@@ -332,9 +332,9 @@ export function BattleEngine({
     s.ultCd = 12;
     h.lunge = 1;
 
-    /* Each champion's ultimate resolves to its own shape — a single-target
+    /* Each champion's ultimate resolves to its own shape, a single-target
        nuke, a wide cleave, a double-striking storm, a heal, a shield, or a
-       stun — so the written ultimate finally plays the way it reads. */
+       stun, so the written ultimate finally plays the way it reads. */
     const prof = buildCombatProfile(champion);
     const amt = h.atk * prof.ultDamageMul;
     const inRange = s.units
@@ -738,7 +738,7 @@ function damage(
   }
 }
 
-/* The support half of a champion ultimate — heal / shield the host or freeze
+/* The support half of a champion ultimate, heal / shield the host or freeze
    foes. Kept at module scope (like damage/step) so it can mutate live units
    freely; the in-component callbacks stay pure for the React Compiler. */
 function applyUltSupport(
@@ -992,14 +992,14 @@ function HowToPlay({
         {totalFoes} foes to win.
       </p>
 
-      {/* The champion's real kit — passive and ultimate that actually shape how
+      {/* The champion's real kit, passive and ultimate that actually shape how
           they play, not flavor text. */}
       <div className="glass glass-warm mt-5 w-full max-w-md p-5 text-left">
         <div className="flex items-center justify-between gap-3">
           <p className="font-display text-base font-semibold text-bone">
             {champion.name}
           </p>
-          <span className="rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-gold">
+          <span className="rounded-[--radius-sm] border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-gold">
             {battleKit.tag}
           </span>
         </div>
@@ -1093,7 +1093,7 @@ function Rule({
 
 function RotateHint() {
   return (
-    <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-obsidian/80 px-4 py-2 text-center backdrop-blur-sm">
+    <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-[--radius-sm] bg-obsidian/80 px-4 py-2 text-center backdrop-blur-sm">
       <p className="flex items-center gap-2 text-xs text-gold">
         <Icon name="compass" className="h-4 w-4" />
         Turn sideways for the full field

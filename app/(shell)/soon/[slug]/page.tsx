@@ -23,7 +23,7 @@ export default async function ComingSoonPage({
         <BackButton />
       </div>
       <div className="glass mt-6 flex w-full max-w-md flex-col items-center p-8">
-        <span className="hairline mb-5 rounded-full bg-panel-warm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-gold">
+        <span className="hairline mb-5 rounded-[--radius-sm] bg-panel-warm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-gold">
           Chapter II
         </span>
         <div className="glass glass-sm flex h-16 w-16 items-center justify-center text-gold">

@@ -62,7 +62,7 @@ export default function ExplorePage() {
     void fetchHouseStats().then(setHouseStats);
 
     /* Resolve the viewer, then the people to follow, then which of them the
-       viewer already follows — all so every Follow button loads truthfully
+       viewer already follows, all so every Follow button loads truthfully
        and in a single batched query, not one lookup per row. */
     void fetchViewer().then((v) => {
       setViewerId(v?.id ?? null);
@@ -152,7 +152,7 @@ export default function ExplorePage() {
                       @{p.handle}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full border border-steel-line px-2.5 py-1 text-[11px] text-bone-mut">
+                  <span className="shrink-0 rounded-[--radius-sm] border border-steel-line px-2.5 py-1 text-[11px] text-bone-mut">
                     {TIER_NAMES[p.tier] ?? p.tier}
                   </span>
                 </Link>
@@ -248,7 +248,7 @@ export default function ExplorePage() {
                 {cashtags.map((c) => (
                   <span
                     key={c.tag}
-                    className="glass glass-sm flex items-center gap-2 rounded-full px-3.5 py-1.5"
+                    className="glass glass-sm flex items-center gap-2 rounded-[--radius-sm] px-3.5 py-1.5"
                   >
                     <Icon name="coin" className="h-3.5 w-3.5 text-gold" />
                     <span className="text-sm font-semibold text-gold-bright">

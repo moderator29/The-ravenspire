@@ -39,7 +39,7 @@ function Row({ position }: { position: Position }) {
           <span className="truncate font-medium text-bone">
             {position.symbol}
           </span>
-          <span className="shrink-0 rounded-full border border-steel-line bg-panel px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-bone-faint">
+          <span className="shrink-0 rounded-[--radius-sm] border border-steel-line bg-panel px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-bone-faint">
             {position.chainShort}
           </span>
         </div>

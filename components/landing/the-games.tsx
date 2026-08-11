@@ -81,7 +81,7 @@ export function TheGames() {
               <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/40 bg-void text-gold">
                 <Icon name="crown" className="h-5 w-5" />
               </span>
-              <span className="rounded-full border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
+              <span className="rounded-[--radius-sm] border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
                 Season game
               </span>
             </div>
@@ -127,7 +127,7 @@ export function TheGames() {
               <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-ember/40 bg-void text-ember">
                 <Icon name="swords" className="h-5 w-5" />
               </span>
-              <span className="rounded-full border border-ember/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-ember">
+              <span className="rounded-[--radius-sm] border border-ember/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-ember">
                 Battle RPG
               </span>
             </div>

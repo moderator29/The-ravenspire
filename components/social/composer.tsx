@@ -327,7 +327,7 @@ export function Composer({
             }
           >
             <label
-              className={`flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
+              className={`flex cursor-pointer items-center gap-1.5 rounded-[--radius-sm] px-2.5 py-1 text-xs transition ${
                 uploading
                   ? "text-gold"
                   : "text-bone-faint hover:bg-panel hover:text-bone-mut"
@@ -349,7 +349,7 @@ export function Composer({
             <button
               onClick={() => setPollOpen((v) => !v)}
               aria-label="Add a poll"
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
+              className={`flex items-center gap-1.5 rounded-[--radius-sm] px-2.5 py-1 text-xs transition ${
                 pollOpen
                   ? "bg-gold/15 text-gold"
                   : "text-bone-faint hover:bg-panel hover:text-bone-mut"
@@ -361,7 +361,7 @@ export function Composer({
               onClick={() => void suggest()}
               disabled={suggesting}
               aria-label="Let the Herald draft a raven"
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition disabled:cursor-wait ${
+              className={`flex items-center gap-1.5 rounded-[--radius-sm] px-2.5 py-1 text-xs transition disabled:cursor-wait ${
                 suggesting
                   ? "bg-gold/15 text-gold"
                   : "text-bone-faint hover:bg-panel hover:text-bone-mut"
@@ -375,7 +375,7 @@ export function Composer({
             </button>
             <button
               onClick={() => setCallOpen((v) => !v)}
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
+              className={`flex items-center gap-1.5 rounded-[--radius-sm] px-2.5 py-1 text-xs transition ${
                 callOpen
                   ? "bg-gold/15 text-gold"
                   : "text-bone-faint hover:bg-panel hover:text-bone-mut"
@@ -388,7 +388,7 @@ export function Composer({
               <button
                 onClick={() => setAudienceOpen((v) => !v)}
                 aria-label="Choose who can see this raven"
-                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
+                className={`flex items-center gap-1.5 rounded-[--radius-sm] px-2.5 py-1 text-xs transition ${
                   audienceOpen || visibility !== "public"
                     ? "bg-gold/15 text-gold"
                     : "text-bone-faint hover:bg-panel hover:text-bone-mut"

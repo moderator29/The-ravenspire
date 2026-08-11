@@ -88,7 +88,7 @@ export function TokenFilter({
                   key={c.id}
                   type="button"
                   onClick={() => toggleChain(c.id)}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  className={`rounded-[--radius-sm] border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                     explicit
                       ? "border-gold/50 bg-panel-warm text-gold"
                       : on

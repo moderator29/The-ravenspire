@@ -169,7 +169,7 @@ export default function RenownPage() {
                   {c.rarity}
                 </span>
                 <span
-                  className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${
+                  className={`rounded-[--radius-sm] border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${
                     c.status === "live"
                       ? "border-steel-line text-bone-mut"
                       : "border-steel-line text-bone-faint"
@@ -178,7 +178,7 @@ export default function RenownPage() {
                   {c.status === "live" ? "Live" : "Locked"}
                 </span>
                 {isEarned && (
-                  <span className="rounded-full border border-gold/60 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-gold-bright">
+                  <span className="rounded-[--radius-sm] border border-gold/60 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-gold-bright">
                     Earned
                   </span>
                 )}

@@ -69,7 +69,7 @@ export function WatchBadge({
 
   const chip = (
     <span
-      className={`tnum inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${styleFor[state.verdict]} ${className}`}
+      className={`tnum inline-flex shrink-0 items-center gap-1 rounded-[--radius-sm] border px-2 py-0.5 text-[11px] font-medium ${styleFor[state.verdict]} ${className}`}
       title={`Watch defenses score ${state.score}/100`}
     >
       <Icon name="shield" className="h-3 w-3" />

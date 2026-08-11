@@ -165,13 +165,13 @@ function Analyzer() {
               member&apos;s public voice. Enter one above to sequence it.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2 text-[11px] text-bone-faint">
-              <span className="rounded-full border border-steel-line/70 px-3 py-1">
+              <span className="rounded-[--radius-sm] border border-steel-line/70 px-3 py-1">
                 The Patient Whale
               </span>
-              <span className="rounded-full border border-steel-line/70 px-3 py-1">
+              <span className="rounded-[--radius-sm] border border-steel-line/70 px-3 py-1">
                 The Degen Sniper
               </span>
-              <span className="rounded-full border border-steel-line/70 px-3 py-1">
+              <span className="rounded-[--radius-sm] border border-steel-line/70 px-3 py-1">
                 The Realm Herald
               </span>
             </div>

@@ -435,7 +435,7 @@ export default function SwapPage() {
 
       <div className="flex items-center gap-2.5">
         <h1 className="font-display text-xl font-semibold text-bone">The Swap</h1>
-        <span className="inline-flex items-center rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+        <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
           Beta
         </span>
       </div>
@@ -450,7 +450,7 @@ export default function SwapPage() {
             key={c.id}
             type="button"
             onClick={() => switchChain(c.id)}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+            className={`shrink-0 rounded-[--radius-sm] border px-3 py-1.5 text-xs font-medium transition ${
               chainId === c.id
                 ? "border-gold/60 bg-panel-warm text-gold-bright"
                 : "border-steel-line bg-void text-bone-mut hover:border-gold/40"

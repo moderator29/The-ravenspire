@@ -262,7 +262,7 @@ export default function RavenPage() {
             <h1 className="gold-text font-display text-base font-semibold leading-tight">
               The Raven
             </h1>
-            <span className="rounded-full border border-gold/40 bg-panel-warm/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
+            <span className="rounded-[--radius-sm] border border-gold/40 bg-panel-warm/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
               Beta
             </span>
           </div>

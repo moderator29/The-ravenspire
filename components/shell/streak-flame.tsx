@@ -30,7 +30,7 @@ export function StreakFlame({ className = "" }: { className?: string }) {
   return (
     <span
       title={`${streak} day streak. Come back tomorrow to keep it alive.`}
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${
+      className={`inline-flex items-center gap-1 rounded-[--radius-sm] border px-2 py-0.5 ${
         hot
           ? "border-gold/50 bg-panel-warm/70 text-gold-bright"
           : "border-gold/25 bg-panel-warm/40 text-gold"

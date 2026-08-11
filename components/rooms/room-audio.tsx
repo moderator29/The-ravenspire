@@ -149,7 +149,7 @@ export function RoomAudio({ roomId }: { roomId: string }) {
           <Icon name="signal" className="h-4 w-4 text-gold" />
           <p className="text-sm font-semibold text-bone">Audio stage</p>
           {status === "live" && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold">
+            <span className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
               Live
             </span>
@@ -211,7 +211,7 @@ export function RoomAudio({ roomId }: { roomId: string }) {
               return (
                 <div
                   key={p.identity}
-                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                  className={`flex items-center gap-1.5 rounded-[--radius-sm] border px-2.5 py-1 text-xs transition ${
                     isSpeaking
                       ? "border-gold/60 bg-panel-warm text-gold-bright"
                       : "border-steel-line bg-panel/50 text-bone-mut"

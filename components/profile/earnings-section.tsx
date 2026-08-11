@@ -178,7 +178,7 @@ export function EarningsSection({
   /* Live holdings + wallet balance. The route enforces the gate on the token
      LIST (owners and public-positions members only), but the aggregate wallet
      total is public on-chain data and comes back for every Keep with a linked
-     wallet. So we fetch for every profile — even one that seals its PnL — so
+     wallet. So we fetch for every profile, even one that seals its PnL, so
      The Coffers can always show a real balance instead of a reputation stand-in. */
   useEffect(() => {
     let alive = true;
@@ -230,7 +230,7 @@ export function EarningsSection({
 
   /* The public wallet balance total (on-chain, so it is shown for every Keep
      that has linked a wallet). Null when no wallet is linked or the balance
-     service is unavailable — in that case The Coffers falls back to standing. */
+     service is unavailable, in that case The Coffers falls back to standing. */
   const publicBalanceUsd: number | null =
     typeof positions?.totalUsd === "number" ? positions.totalUsd : null;
   const hasPublicBalance = publicBalanceUsd !== null;
@@ -346,7 +346,7 @@ export function EarningsSection({
           {hasEarnings ? (
             <div className="mt-2 flex items-center gap-2">
               <span
-                className={`tnum inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                className={`tnum inline-flex items-center gap-1 rounded-[--radius-sm] border px-2 py-0.5 text-xs font-semibold ${
                   windowDelta === 0
                     ? "border-steel-line/70 text-bone-faint"
                     : up
@@ -443,7 +443,7 @@ export function EarningsSection({
                 role="tab"
                 aria-selected={active}
                 onClick={() => setTf(f)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                className={`rounded-[--radius-sm] px-3 py-1 text-xs font-semibold transition ${
                   active
                     ? "bg-gold/15 text-gold"
                     : "text-bone-faint hover:text-bone-mut"

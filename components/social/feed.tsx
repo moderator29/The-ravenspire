@@ -167,7 +167,7 @@ export function Feed() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+            className={`shrink-0 rounded-[--radius-sm] px-3.5 py-1.5 text-xs font-semibold transition ${
               tab === t.key ? "btn-gold" : "btn-glass text-bone-mut"
             }`}
           >
@@ -184,7 +184,7 @@ export function Feed() {
           {trending.map((t) => (
             <span
               key={t.tag}
-              className="shrink-0 rounded-full border border-steel-line bg-void px-2.5 py-1 text-xs"
+              className="shrink-0 rounded-[--radius-sm] border border-steel-line bg-void px-2.5 py-1 text-xs"
             >
               <CashtagChip tag={`$${t.tag}`} />
             </span>
@@ -199,7 +199,7 @@ export function Feed() {
               window.scrollTo({ top: 0, behavior: "smooth" });
               void load();
             }}
-            className="btn-gold flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold shadow-xl active:scale-95"
+            className="btn-gold flex items-center gap-2 rounded-[--radius-sm] px-4 py-1.5 text-xs font-semibold shadow-xl active:scale-95"
           >
             <span className="relative flex h-2 w-2" aria-hidden>
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-obsidian/50" />

@@ -59,7 +59,7 @@ export default function ScannerPage() {
         <h1 className="font-display text-xl font-semibold text-bone">
           The Oracle
         </h1>
-        <span className="inline-flex items-center rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+        <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
           Beta
         </span>
       </div>

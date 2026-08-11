@@ -165,7 +165,7 @@ export default function AdminCrestsPage() {
                       {c.rarity}
                     </span>
                     <span
-                      className={`rounded-full border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${
+                      className={`rounded-[--radius-sm] border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${
                         c.status === "live" ? "text-gold" : "text-bone-faint"
                       }`}
                     >

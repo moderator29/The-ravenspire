@@ -75,12 +75,12 @@ export default function ForgePage() {
           {live === null ? (
             <div className="mt-4 h-6 w-40 animate-pulse rounded-full bg-panel" />
           ) : stoking ? (
-            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-steel-line bg-panel/70 px-3 py-1 text-xs text-ember">
+            <span className="mt-4 inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-steel-line bg-panel/70 px-3 py-1 text-xs text-ember">
               <Icon name="flame" className="h-3.5 w-3.5" />
               The Forge is being stoked
             </span>
           ) : (
-            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-steel-line bg-panel/70 px-3 py-1 text-xs text-gold">
+            <span className="mt-4 inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-steel-line bg-panel/70 px-3 py-1 text-xs text-gold">
               <Icon name="orb" className="h-3.5 w-3.5" />
               Staking is live on-chain
             </span>
@@ -139,7 +139,7 @@ export default function ForgePage() {
                   type="button"
                   onClick={() => setLock(l.id)}
                   disabled={stoking}
-                  className={`tnum rounded-full border px-4 py-1.5 text-sm transition-colors disabled:opacity-60 ${
+                  className={`tnum rounded-[--radius-sm] border px-4 py-1.5 text-sm transition-colors disabled:opacity-60 ${
                     lock === l.id
                       ? "border-gold bg-gold/15 text-gold-bright"
                       : "border-steel-line bg-panel/70 text-bone-mut"

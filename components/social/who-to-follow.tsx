@@ -7,7 +7,7 @@ import { FollowButton } from "@/components/social/follow-button";
 import { fetchViewer, fetchFollowingSet } from "@/lib/social/profile-queries";
 import { fetchTopPeople, type PersonHit } from "@/lib/social/explore-queries";
 
-/* A compact "who to follow" card — the realm's most renowned, with inline
+/* A compact "who to follow" card, the realm's most renowned, with inline
    Follow. Dropped into empty feed states so a quiet timeline immediately points
    a member at people worth following. Follow-state is batched so every button
    loads truthfully with one query. */

@@ -61,7 +61,7 @@ function ActionBit({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs transition hover:bg-panel ${
+      className={`flex items-center gap-1 rounded-[--radius-sm] px-2 py-1 text-xs transition hover:bg-panel ${
         active ? (activeClass ?? "text-gold") : "text-bone-faint hover:text-bone-mut"
       }`}
     >

@@ -188,7 +188,7 @@ export default function AdminModerationPage() {
           return (
             <div key={r.id} className="glass glass-sm p-4 sm:p-5">
               <div className="flex flex-wrap items-center gap-2 text-xs text-bone-faint">
-                <span className="rounded-full border border-steel-line bg-panel px-2 py-0.5 uppercase tracking-[0.16em] text-bone-mut">
+                <span className="rounded-[--radius-sm] border border-steel-line bg-panel px-2 py-0.5 uppercase tracking-[0.16em] text-bone-mut">
                   {r.subject_type}
                 </span>
                 <span>Reported by {reporterName(r.reporter)}</span>

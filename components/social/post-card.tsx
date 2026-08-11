@@ -18,7 +18,7 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { timeAgo, TIER_NAMES, type Post } from "@/lib/social/types";
 
 /* A whisper of haptic feedback on a positive action, where the device (and
-   the browser) supports it. A no-op everywhere else — never throws. */
+   the browser) supports it. A no-op everywhere else, never throws. */
 function buzz(ms = 12) {
   try {
     if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
@@ -107,7 +107,7 @@ function ActionButton({
         onClick?.();
       }}
       aria-label={label}
-      className={`flex items-center gap-1.5 rounded-full px-2.5 py-2 text-sm transition hover:bg-panel active:scale-95 ${
+      className={`flex items-center gap-1.5 rounded-[--radius-sm] px-2.5 py-2 text-sm transition hover:bg-panel active:scale-95 ${
         active ? (activeClass ?? "text-gold") : "text-bone-faint hover:text-bone-mut"
       }`}
     >
@@ -142,7 +142,7 @@ export function PostCard({ post }: { post: Post }) {
   const [linkCopied, setLinkCopied] = useState(false);
 
   /* Live view count. An impression is recorded the first time this raven
-     scrolls into view — as it is on X — not only when its full page is
+     scrolls into view, as it is on X, not only when its full page is
      opened, so the tally reflects reality. The server dedupes one view per
      member per day, and we only bump the visible number when it actually
      counted, so the figure stays honest. */
@@ -317,7 +317,7 @@ export function PostCard({ post }: { post: Post }) {
             void undoHide();
           }}
           disabled={undoBusy}
-          className="btn-glass shrink-0 rounded-full px-3 py-1 text-xs text-gold transition hover:text-gold-bright disabled:opacity-50"
+          className="btn-glass shrink-0 rounded-[--radius-sm] px-3 py-1 text-xs text-gold transition hover:text-gold-bright disabled:opacity-50"
         >
           Undo
         </button>
@@ -511,7 +511,7 @@ export function PostCard({ post }: { post: Post }) {
                 within {post.call.timeframe} · sealed at ${post.call.entry_price}
               </p>
               <span
-                className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                className={`ml-auto rounded-[--radius-sm] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                   post.call.verdict === "hit"
                     ? "bg-gold/15 text-gold-bright"
                     : post.call.verdict === "miss"
@@ -638,7 +638,7 @@ export function PostCard({ post }: { post: Post }) {
                 ? "Shared"
                 : shared === "copied"
                   ? "Link copied"
-                  : "Could not share — try again"}
+                  : "Could not share, try again"}
             </p>
           )}
         </div>

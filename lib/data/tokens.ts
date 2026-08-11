@@ -7,7 +7,7 @@ import { EVM_DEX_CHAINS } from "@/lib/trade/config";
        CoinGecko, the canonical price, so "$eth" is real Ether and never a
        Solana impostor named ETH.
      - Everything else resolves through DexScreener, restricted to the EVM
-       chains the realm trades — Solana and other non-EVM results are dropped —
+       chains the realm trades, Solana and other non-EVM results are dropped , 
        with an exact-symbol + liquidity floor so an impostor can't mint a card.
    Never fabricated; when the match is not trustworthy we return null. */
 
@@ -192,7 +192,7 @@ export async function lookupToken(query: string): Promise<TokenCard | null> {
     //    highest-liquidity "closest guess" fallback, which renders a
     //    confidently wrong token.
     const matches = allPairs
-      // EVM chains only — the realm never trades Solana or other non-EVM coins,
+      // EVM chains only, the realm never trades Solana or other non-EVM coins,
       // and dropping them here is what keeps a Solana impostor out of the card.
       .filter((p) => p.chainId && EVM_DEX_CHAINS.has(p.chainId))
       .filter((p) => {

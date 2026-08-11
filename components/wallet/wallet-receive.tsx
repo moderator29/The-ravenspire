@@ -39,7 +39,7 @@ export function WalletReceive({
 
       <div className="flex flex-col items-center gap-4 rounded-2xl border border-steel-line bg-panel/40 p-5">
         <AddressQR value={address} />
-        <div className="flex items-center gap-2 rounded-full border border-gold/25 bg-panel-warm/60 px-3 py-1">
+        <div className="flex items-center gap-2 rounded-[--radius-sm] border border-gold/25 bg-panel-warm/60 px-3 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-gold" />
           <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-bone-mut">
             EVM / Ethereum only

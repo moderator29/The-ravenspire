@@ -235,7 +235,7 @@ export default function CoinPage({
               <p className="truncate text-xs text-bone-mut">{coin.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 {coin.chainLabel && (
-                  <span className="inline-block rounded-full border border-steel-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                  <span className="inline-block rounded-[--radius-sm] border border-steel-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
                     {coin.chainLabel}
                   </span>
                 )}
@@ -247,7 +247,7 @@ export default function CoinPage({
                       window.setTimeout(() => setCopiedAddr(false), 1600);
                     });
                   }}
-                  className="inline-flex items-center gap-1 rounded-full border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition hover:border-gold/40 hover:text-gold"
+                  className="inline-flex items-center gap-1 rounded-[--radius-sm] border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition hover:border-gold/40 hover:text-gold"
                 >
                   <Icon name={copiedAddr ? "shield" : "share"} className="h-3 w-3" />
                   {copiedAddr
@@ -290,7 +290,7 @@ export default function CoinPage({
             <div className="mt-4">
               {chart ? (
                 <>
-                  {/* Line / candle toggle — candles only when real OHLC exists
+                  {/* Line / candle toggle, candles only when real OHLC exists
                       (never on an implied line). */}
                   {!chart.implied && chart.points.some((p) => p.o != null) && (
                     <div className="mb-2 flex justify-end">
@@ -300,7 +300,7 @@ export default function CoinPage({
                             key={m}
                             type="button"
                             onClick={() => setChartMode(m)}
-                            className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize transition ${
+                            className={`rounded-[--radius-sm] px-3 py-1 text-[11px] font-semibold capitalize transition ${
                               chartMode === m
                                 ? "bg-gold/15 text-gold"
                                 : "text-bone-faint hover:text-bone-mut"
@@ -438,7 +438,7 @@ export default function CoinPage({
                 href={coin.dexUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-glass inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs text-bone-mut hover:text-bone"
+                className="btn-glass inline-flex items-center gap-1.5 rounded-[--radius-sm] px-3.5 py-1.5 text-xs text-bone-mut hover:text-bone"
               >
                 <Icon name="signal" className="h-3.5 w-3.5" />
                 {coin.dexId ? `View on ${coin.dexId}` : "View on DEX"}
@@ -450,7 +450,7 @@ export default function CoinPage({
                 href={coin.explorerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-glass inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs text-bone-mut hover:text-bone"
+                className="btn-glass inline-flex items-center gap-1.5 rounded-[--radius-sm] px-3.5 py-1.5 text-xs text-bone-mut hover:text-bone"
               >
                 <Icon name="search" className="h-3.5 w-3.5" />
                 Explorer

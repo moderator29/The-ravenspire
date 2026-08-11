@@ -302,7 +302,7 @@ export default function AdminSeasonsPage() {
                   {s.name}
                 </p>
                 <span
-                  className={`rounded-full border border-steel-line bg-panel px-2.5 py-0.5 text-[10px] uppercase tracking-[0.2em] ${
+                  className={`rounded-[--radius-sm] border border-steel-line bg-panel px-2.5 py-0.5 text-[10px] uppercase tracking-[0.2em] ${
                     isActive ? "text-gold" : "text-bone-faint"
                   }`}
                 >

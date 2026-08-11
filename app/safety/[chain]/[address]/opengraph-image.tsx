@@ -144,7 +144,7 @@ export default async function Image({
         <div style={{ display: "flex", alignItems: "flex-end", gap: 60 }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ color: verdictColor, fontSize: 96, fontWeight: 700 }}>
-              {score === null ? "—" : score}
+              {score === null ? "·" : score}
               {score === null ? "" : "/100"}
             </span>
             <span style={{ color: "#8C877B", fontSize: 26, letterSpacing: 4 }}>

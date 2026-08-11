@@ -147,7 +147,7 @@ export function WalletLive({ address }: { address?: string }) {
               <p className="font-display text-sm font-semibold text-bone">
                 The Vault
               </p>
-              <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-steel-line bg-panel/60 px-2.5 py-0.5 text-[11px] font-medium text-bone-mut">
+              <span className="mt-1 inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-steel-line bg-panel/60 px-2.5 py-0.5 text-[11px] font-medium text-bone-mut">
                 <span className="h-1.5 w-1.5 rounded-full bg-gold" />
                 Multi-chain EVM
               </span>

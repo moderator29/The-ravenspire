@@ -86,7 +86,11 @@ export async function POST(req: Request) {
      which is every client shipping today, still seals exactly the Call it
      always did. */
   const wantsCall =
-    !!body.call && (!!body.call.token || body.call.resolver === "internal");
+    !!body.call &&
+    (!!body.call.token ||
+      !!body.call.claim ||
+      body.call.resolver === "internal" ||
+      body.call.category === "realm");
   if (wantsCall) {
     const draft = await prepareCall(db, profile.id, body.call as CallInput);
     if (!draft.ok) return json({ error: draft.error }, draft.status);

@@ -29,7 +29,7 @@ function Chip({ label, tone = "gold" }: { label: string; tone?: "gold" | "ember"
   const border = tone === "ember" ? "border-ember/40" : "border-gold/30";
   return (
     <span
-      className={`rounded-full border ${border} px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${color}`}
+      className={`rounded-[--radius-sm] border ${border} px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${color}`}
     >
       {label}
     </span>
@@ -93,7 +93,7 @@ function RavenryMock() {
           <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-gold/20 bg-panel-warm px-3 py-2">
             <Icon name="target" className="h-4 w-4 text-gold" />
             <span className="text-[11px] font-semibold text-bone">Call sealed</span>
-            <span className="ml-auto rounded-full border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-gold">
+            <span className="ml-auto rounded-[--radius-sm] border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-gold">
               Judged live
             </span>
           </div>
@@ -157,7 +157,7 @@ function WhispersMock() {
           </div>
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-2 rounded-full border border-steel-line bg-void px-3 py-2">
+      <div className="mt-3 flex items-center gap-2 rounded-[--radius-sm] border border-steel-line bg-void px-3 py-2">
         <span className="text-[11px] text-bone-faint">Send a whisper</span>
         <Icon name="send" className="ml-auto h-4 w-4 text-gold" />
       </div>
@@ -224,7 +224,7 @@ function KeepMock() {
           <p className="font-display text-[15px] font-semibold text-bone">Aeron Blackwood</p>
           <p className="text-[11px] text-bone-faint">@aeron · House Corvane</p>
         </div>
-        <span className="mb-1 ml-auto rounded-full border border-gold/40 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-gold">
+        <span className="mb-1 ml-auto rounded-[--radius-sm] border border-gold/40 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-gold">
           Warden
         </span>
       </div>

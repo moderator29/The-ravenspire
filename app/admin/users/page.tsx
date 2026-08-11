@@ -201,17 +201,17 @@ export default function AdminUsersPage() {
                     {u.handle ? `@${u.handle}` : "unclaimed"}
                     <span className="ml-2 inline-flex gap-1 align-middle">
                       {u.is_admin && (
-                        <span className="rounded-full border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-gold">
+                        <span className="rounded-[--radius-sm] border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-gold">
                           Steward
                         </span>
                       )}
                       {u.is_verified && (
-                        <span className="rounded-full border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-gold">
+                        <span className="rounded-[--radius-sm] border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-gold">
                           Verified
                         </span>
                       )}
                       {u.is_banned && (
-                        <span className="rounded-full border border-ember/40 bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ember">
+                        <span className="rounded-[--radius-sm] border border-ember/40 bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ember">
                           Banned
                         </span>
                       )}

@@ -332,16 +332,16 @@ export function RoomLive({ roomId }: { roomId: string }) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             {live ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-ember/40 bg-ember/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-ember">
+              <span className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-ember/40 bg-ember/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-ember">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ember" />
                 Live now
               </span>
             ) : ended ? (
-              <span className="inline-flex items-center rounded-full border border-steel-line bg-panel px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-mut">
+              <span className="inline-flex items-center rounded-[--radius-sm] border border-steel-line bg-panel px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-mut">
                 Adjourned
               </span>
             ) : (
-              <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+              <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
                 Upcoming
               </span>
             )}
@@ -467,7 +467,7 @@ export function RoomLive({ roomId }: { roomId: string }) {
             now the floor speaks in the chronicle below.
           </p>
         </div>
-        <span className="shrink-0 rounded-full border border-steel-line bg-panel px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
+        <span className="shrink-0 rounded-[--radius-sm] border border-steel-line bg-panel px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
           Coming
         </span>
       </div>

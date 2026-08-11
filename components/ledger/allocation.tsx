@@ -29,7 +29,7 @@ export function Allocation({
               key={m}
               type="button"
               onClick={() => setMode(m)}
-              className={`rounded-full px-3 py-1 font-medium capitalize transition-colors ${
+              className={`rounded-[--radius-sm] px-3 py-1 font-medium capitalize transition-colors ${
                 mode === m
                   ? "bg-gold/15 text-gold"
                   : "text-bone-faint hover:text-bone-mut"

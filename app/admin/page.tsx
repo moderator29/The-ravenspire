@@ -221,7 +221,7 @@ export default function AdminOverviewPage() {
         The state of the realm
       </p>
 
-      {/* Control center — jump to any lever, with live attention badges. */}
+      {/* Control center, jump to any lever, with live attention badges. */}
       <section className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-3">
         {controls.map((c) => (
           <Link
@@ -236,7 +236,7 @@ export default function AdminOverviewPage() {
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold text-bone">{c.label}</p>
                 {"badge" in c && (c.badge ?? 0) > 0 && (
-                  <span className="tnum inline-flex min-w-5 items-center justify-center rounded-full border border-ember-deep/50 bg-ember/10 px-1.5 py-0.5 text-[10px] font-bold text-ember">
+                  <span className="tnum inline-flex min-w-5 items-center justify-center rounded-[--radius-sm] border border-ember-deep/50 bg-ember/10 px-1.5 py-0.5 text-[10px] font-bold text-ember">
                     {c.badge}
                   </span>
                 )}
@@ -335,7 +335,7 @@ export default function AdminOverviewPage() {
                       </td>
                       <td className="px-4 py-3 text-bone-mut">
                         {p.deleted && (
-                          <span className="mr-2 rounded-full border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ember">
+                          <span className="mr-2 rounded-[--radius-sm] border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ember">
                             Removed
                           </span>
                         )}

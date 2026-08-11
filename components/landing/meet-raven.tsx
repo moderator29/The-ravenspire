@@ -148,7 +148,7 @@ export function MeetRaven() {
               ].map((r) => (
                 <div key={r.k} className="flex items-center justify-between text-[11px]">
                   <span className="text-bone-faint">{r.k}</span>
-                  <span className="rounded-full border border-gold/25 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-gold">
+                  <span className="rounded-[--radius-sm] border border-gold/25 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-gold">
                     {r.v}
                   </span>
                 </div>

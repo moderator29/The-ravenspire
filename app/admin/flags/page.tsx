@@ -168,7 +168,7 @@ export default function AdminFlagsPage() {
                       {f.key}
                     </p>
                     {f.consumed === false && (
-                      <span className="rounded-full border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                      <span className="rounded-[--radius-sm] border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
                         Not yet wired
                       </span>
                     )}

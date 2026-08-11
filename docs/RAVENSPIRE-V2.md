@@ -367,7 +367,13 @@ version is accurate enough for scoring and far easier to explain.)
 
 This one line does a great deal of work:
 
-- "BTC up 0.1% in 24h" gets a `pi_0` near 1, so it scores near zero on its own.
+- "BTC up 0.1% in 24h" gets a `pi_0` just under 0.5, and because a member
+  cannot state much more than 0.5 for it either, it scores near zero on its
+  own. **Corrected in build.** The original draft of this line said `pi_0` lands
+  "near 1", which does not follow from the formula directly above it: on a
+  driftless walk the chance of *any* upward move is one half, so requiring a
+  further 0.1% puts the baseline just below one half, not near one. The formula
+  is right and the gloss was wrong. The conclusion the line draws is unchanged.
 - A +40% call on a volatile new token gets a low `pi_0` and scores heavily.
 - **The `+0.01% = hit` bug disappears at the root** rather than being patched
   with an arbitrary threshold.
@@ -384,14 +390,36 @@ worth supporting: forecasting research finds that people who say 63%
 genuinely outperform people who say "about 60%".
 
 ```
-S = clamp( 100 * log2( p_o / pi_0 ), -100, +100 )
+S = clamp( 100 * log2( p_o / pi_o ), -100, +100 )
 ```
 
-where `p_o = p` when the Call lands and `1 - p` when it does not.
+where `p_o = p` when the Call lands and `1 - p` when it does not, and
+`pi_o = pi_0` when the Call lands and `1 - pi_0` when it does not.
+
+**Corrected in build.** The original draft divided by `pi_0` in both cases. That
+is a minting bug rather than a rounding detail: with `pi_0 = 0.1` and `p = 0.7`,
+landing scores `100 * log2(0.7 / 0.1) = +281` and *missing* scores
+`100 * log2(0.3 / 0.1) = +158`. Both clamp to `+100`, so being wrong about a
+hard Call would have paid the maximum Renown available in the realm, and the
+optimal strategy would have been to make the most absurd Call possible and lose
+it. Comparing like with like, the member's probability for the realized outcome
+against the baseline's probability for that same outcome, is what "scored
+against a baseline probability" means in 9.1. The corrected form is identical
+whenever a Call lands, so every worked figure elsewhere in this section stands.
+Covered by `lib/calls/scoring.test.ts`.
+
+Note a consequence that is correct but worth stating: a score is signed against
+the baseline, not against being right, so a member who states *less* confidence
+than the baseline scores better by being wrong. They were closer to the truth
+than the baseline was. The baseline is shown before they commit, so this is a
+choice rather than a trap.
 
 When at least 3 independent members Call the same `(token, k, t)` bucket, switch
-to a peer score, `100 * (ln p_o - ln GM(q_o))`, which sums to zero across
-participants and is therefore immune to difficulty by construction.
+to a peer score, `100 * (log2 p_o - log2 GM(q_o))`, which sums to zero across
+participants and is therefore immune to difficulty by construction. The draft
+wrote this with a natural logarithm; it is expressed in `log2` in build so that
+a peer score and a baseline score share one scale and one clamp. Independence
+excludes the member's own Calls and every House-mate's, per 9.5 rule 3.
 
 ### 9.3 The answer to "should being wrong cost you"
 
@@ -407,9 +435,19 @@ platform surveyed does and what Ravenspire currently collapses into one ladder:
 
 This resolves the tension completely. Renown is a permanent legacy that can
 never be taken away, so the system stays safe to play. Season Rating carries
-real stakes, so Calls still mean something. The clamp at -100 plus a confidence
-ceiling means a member who never exceeds 85% confidence cannot approach the
-floor.
+real stakes, so Calls still mean something.
+
+**Corrected in build.** The draft added that "the clamp at -100 plus a
+confidence ceiling means a member who never exceeds 85% confidence cannot
+approach the floor". That is not true of the formula in 9.2: 85% confidence
+against an even baseline that then misses is `100 * log2(0.15 / 0.5) = -174`,
+which the clamp takes to the floor exactly. The claim was wrong; the behaviour
+is right, and the clamp is what makes it safe, because no single Call can cost
+more than one Call's worth of Season Rating and Renown is untouched either way.
+What genuinely limits exposure is the confidence *floor*: the least confident
+Call available, 0.55 against an even baseline, loses well under half the
+maximum. Asserted in `lib/calls/scoring.test.ts` so the bounds cannot be
+retuned by accident.
 
 ### 9.4 Renown should unlock things, not just print a title
 

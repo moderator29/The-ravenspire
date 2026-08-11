@@ -113,7 +113,7 @@ export function PriceMiniCard({
         {swapHref && (
           <Link
             href={swapHref}
-            className="inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-panel-warm px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold transition-colors hover:border-gold/50 hover:text-gold-bright"
+            className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-gold/25 bg-panel-warm px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold transition-colors hover:border-gold/50 hover:text-gold-bright"
           >
             <Icon name="repost" className="h-3 w-3" />
             Swap
@@ -124,7 +124,7 @@ export function PriceMiniCard({
             href={dexUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full border border-steel-line/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-bone-faint transition-colors hover:border-gold/40 hover:text-gold"
+            className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-steel-line/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-bone-faint transition-colors hover:border-gold/40 hover:text-gold"
           >
             <Icon name="eye" className="h-3 w-3" />
             Chart
@@ -158,7 +158,7 @@ export function RealmPulseCard({ pulse }: { pulse: RealmPulse }) {
             Realm Pulse
           </span>
         </div>
-        <span className="rounded-full border border-steel-line/70 bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-bone-faint">
+        <span className="rounded-[--radius-sm] border border-steel-line/70 bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-bone-faint">
           {copy.label}
         </span>
       </div>
@@ -208,7 +208,7 @@ export function SuggestionChips({
           key={s}
           type="button"
           onClick={() => onSelect(s)}
-          className="inline-flex items-center gap-1.5 rounded-full border border-steel-line/70 bg-panel px-3 py-1 text-[11px] text-bone-mut transition-colors hover:border-gold/40 hover:text-gold"
+          className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-steel-line/70 bg-panel px-3 py-1 text-[11px] text-bone-mut transition-colors hover:border-gold/40 hover:text-gold"
         >
           <Icon name="arrow" className="h-3 w-3 shrink-0 text-gold/70" />
           {s}

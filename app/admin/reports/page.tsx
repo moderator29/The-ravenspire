@@ -106,7 +106,7 @@ export default function AdminReportsPage() {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`rounded-full border px-3 py-1 text-xs capitalize transition-colors ${
+            className={`rounded-[--radius-sm] border px-3 py-1 text-xs capitalize transition-colors ${
               filter === f
                 ? "border-gold bg-panel text-gold"
                 : "border-steel-line text-bone-mut hover:text-bone"

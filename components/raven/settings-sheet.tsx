@@ -26,7 +26,7 @@ function SegButton({
       onClick={onClick}
       title={title}
       aria-pressed={active}
-      className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
+      className={`rounded-[--radius-sm] px-3.5 py-1.5 text-xs font-medium transition-colors ${
         active
           ? "border border-gold/45 bg-panel-warm text-gold"
           : "border border-steel-line/70 bg-panel text-bone-mut hover:border-gold/30 hover:text-bone"
@@ -150,7 +150,7 @@ export function SettingsSheet({
               type="button"
               onClick={() => onBrowse(!browse)}
               aria-pressed={browse}
-              className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex shrink-0 items-center gap-2 rounded-[--radius-sm] border px-3 py-1.5 text-xs font-medium transition-colors ${
                 browse
                   ? "border-gold/45 bg-panel-warm text-gold"
                   : "border-steel-line/70 bg-panel text-bone-mut hover:border-gold/30 hover:text-bone"

@@ -42,12 +42,12 @@ function CourtCard({ c }: { c: Court }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           {c.status === "live" ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-ember/40 bg-ember/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-ember">
+            <span className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-ember/40 bg-ember/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-ember">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ember" />
               Live
             </span>
           ) : (
-            <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+            <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
               Upcoming
             </span>
           )}
@@ -210,7 +210,7 @@ export default function RookeryPage() {
                       key={h.slug}
                       type="button"
                       onClick={() => setHouseSlug(on ? null : h.slug)}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                      className={`inline-flex items-center gap-1.5 rounded-[--radius-sm] border px-2.5 py-1 text-xs transition ${
                         on
                           ? "border-gold/50 bg-gold/10 text-bone"
                           : "border-steel-line bg-panel text-bone-mut hover:text-bone"

@@ -315,7 +315,7 @@ export default function WatchPage() {
               key={c.id}
               type="button"
               onClick={() => setChain(c.id)}
-              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              className={`rounded-[--radius-sm] border px-3 py-1 text-xs transition-colors ${
                 chain === c.id
                   ? "border-gold bg-gold/15 text-gold-bright"
                   : "border-steel-line bg-panel/70 text-bone-mut hover:text-bone"
@@ -501,7 +501,7 @@ export default function WatchPage() {
                           {a.tokenSymbol ?? shortHex(a.token)}
                         </p>
                         {a.risky && (
-                          <span className="rounded-full border border-ember-deep/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-ember">
+                          <span className="rounded-[--radius-sm] border border-ember-deep/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-ember">
                             Risk
                           </span>
                         )}
