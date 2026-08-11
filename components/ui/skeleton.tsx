@@ -79,12 +79,18 @@ export function SkeletonText({
    same way as the first. */
 export function useDelayedLoading(loading: boolean, ms = 300): boolean {
   const [elapsed, setElapsed] = useState(false);
+  const [previous, setPrevious] = useState(loading);
+
+  /* React's documented way to reset state when an input changes: adjust it
+     during render rather than in an effect, so there is no wasted commit and
+     no cascading render on every start and stop. */
+  if (previous !== loading) {
+    setPrevious(loading);
+    setElapsed(false);
+  }
 
   useEffect(() => {
-    if (!loading) {
-      setElapsed(false);
-      return;
-    }
+    if (!loading) return;
     const timer = window.setTimeout(() => setElapsed(true), ms);
     return () => window.clearTimeout(timer);
   }, [loading, ms]);

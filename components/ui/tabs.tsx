@@ -143,8 +143,12 @@ export function TabsPanel({
   className?: string;
   children: ReactNode;
 }) {
+  /* Deliberately no `outline-none` here. Base UI gives the panel a tabindex so
+     a keyboard user can reach its content directly from the tab strip, which
+     means it is a focus target and the global focus-visible ring has to be
+     allowed to draw on it. */
   return (
-    <BaseTabs.Panel value={value} className={cx("outline-none", className)}>
+    <BaseTabs.Panel value={value} className={className}>
       {children}
     </BaseTabs.Panel>
   );

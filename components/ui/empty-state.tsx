@@ -53,7 +53,7 @@ export function EmptyState({
         <span
           aria-hidden
           className={cx(
-            "flex items-center justify-center rounded-lg border border-gold/20 bg-gold/[0.06] text-gold",
+            "flex items-center justify-center rounded-lg border border-gold/20 bg-gold/5 text-gold",
             small ? "h-8 w-8" : "h-11 w-11"
           )}
         >
