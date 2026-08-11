@@ -5,9 +5,18 @@ import { motion, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 
 /*
-  The Games. Two cinematic teasers. The War uses public/game/battlefield.png
-  as a backdrop (verified present); Claim the Throne is drawn from divs and a
-  gold motif so it needs no art.
+  The contests. Two cinematic teasers. The War uses public/game/battlefield.png
+  as a backdrop (verified present); Calls is drawn from divs and a gold motif
+  so it needs no art.
+
+  This card used to be Claim the Throne, billed as a live Season game. It is
+  not one: it holds no navigation slot, /throne is a coming soon teaser, and
+  its mechanics (quests, duels, streaks) are dissolving into the Ravenry and
+  the House halls rather than returning as a destination. Calls take the slot,
+  which also fixes the stranger omission: the stated flagship of the product
+  appeared nowhere on the landing page at all.
+
+  The section id stays "games" because the landing nav anchors to it.
 */
 
 const container: Variants = {
@@ -19,14 +28,14 @@ const rise: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 
-const throneFeatures = [
-  { icon: "scroll", text: "Quests, streaks and daily deeds" },
-  { icon: "swords", text: "Duels of wit, judged by the realm" },
-  { icon: "crown", text: "The top House claims the Throne each Season" },
+const callFeatures = [
+  { icon: "target", text: "Difficulty read from the token's own volatility" },
+  { icon: "orb", text: "Frozen when you seal, so the bar cannot move" },
+  { icon: "medal", text: "Renown never falls. Season Rating carries the risk" },
 ];
 
 const warFeatures = [
-  { icon: "user", text: "Sixty champions across five rarities" },
+  { icon: "user", text: "Sixty two champions, from rare blades to mythic" },
   { icon: "flame", text: "A legendary arsenal of arms and gear" },
   { icon: "banner", text: "Every victory feeds your House's Glory" },
 ];
@@ -55,17 +64,17 @@ export function TheGames() {
         className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold"
       >
         <Icon name="crown" className="h-4 w-4" />
-        The Games
+        The contests
       </motion.div>
       <motion.h2
         variants={rise}
         className="mt-3 font-display text-2xl font-semibold text-bone sm:text-3xl"
       >
-        Two games at launch. One realm at stake.
+        Two contests. One realm at stake.
       </motion.h2>
 
       <div className="mt-7 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Claim the Throne */}
+        {/* Calls */}
         <motion.div
           variants={rise}
           className="group relative overflow-hidden rounded-3xl border border-steel-line bg-panel"
@@ -79,30 +88,31 @@ export function TheGames() {
           <div className="relative p-6">
             <div className="flex items-center gap-2">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/40 bg-void text-gold">
-                <Icon name="crown" className="h-5 w-5" />
+                <Icon name="orb" className="h-5 w-5" />
               </span>
               <span className="rounded-[--radius-sm] border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
-                Season game
+                The flagship
               </span>
             </div>
             <h3 className="mt-4 font-display text-xl font-semibold text-bone">
-              Claim the Throne
+              Calls
             </h3>
             <p className="mt-2 text-[13px] leading-relaxed text-bone-mut">
-              Swear to a House and earn Glory through quests, duels of wit and
-              streaks. Every deed lifts your banner. When the Season closes, the
-              House standing highest takes the Throne.
+              A public, timestamped claim with your name on it. The realm reads
+              the token's own volatility to work out how hard your Call actually
+              is, and freezes that difficulty the moment you seal, so an easy
+              Call and a hard one can never score the same.
             </p>
             <ul className="mt-4 flex flex-col gap-2">
-              {throneFeatures.map((f) => (
+              {callFeatures.map((f) => (
                 <Feature key={f.text} icon={f.icon} text={f.text} />
               ))}
             </ul>
             <Link
-              href="/throne"
+              href="/calls"
               className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
             >
-              Enter the Season
+              See the Calls running now
               <Icon name="arrow" className="h-4 w-4" />
             </Link>
           </div>
@@ -136,7 +146,7 @@ export function TheGames() {
             </h3>
             <p className="mt-2 text-[13px] leading-relaxed text-bone-mut">
               Take the field in a real-time battle for the realm. Muster your
-              champions, arm them from the Forge, and lead the charge yourself
+              champions, arm them from the Arsenal, and lead the charge yourself
               across sprawling battlefields.
             </p>
             <ul className="mt-4 flex flex-col gap-2">

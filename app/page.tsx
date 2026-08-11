@@ -25,12 +25,14 @@ import { LiveRealmStats } from "@/components/landing/live-realm-stats";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { RefCapture } from "@/components/referral/ref-capture";
 
+/* Every chip is a live destination in lib/nav.ts. Claim the Throne held a slot
+   here while being a coming soon page, and Calls, the flagship, held none. */
 const chips = [
   { label: "The Ravenry", href: "/home" },
-  { label: "Claim the Throne", href: "/throne" },
+  { label: "Calls", href: "/calls" },
+  { label: "Houses", href: "/houses" },
   { label: "The War", href: "/war" },
   { label: "Ask @raven", href: "/raven" },
-  { label: "The Vault", href: "/vault" },
 ];
 
 /* Fixed positions for the ten drifting crests (percent based, no randomness). */
@@ -50,7 +52,7 @@ const floatSpots = [
 const faqs = [
   {
     q: "What is The Ravenspire?",
-    a: "A social realm first, a crypto tool second. You post, banter, duel with wit, swear to a House and play The War. The chains and charts serve the story, never the other way round.",
+    a: "A competitive online realm where communities earn reputation through participation. You post, you argue, you make Calls about what happens next, and the realm keeps the record. Crypto is infrastructure here, community is the product, and reputation is the progression system.",
   },
   {
     q: "Is it non-custodial?",
@@ -58,19 +60,27 @@ const faqs = [
   },
   {
     q: "How do I earn?",
-    a: "Real actions earn points: ravens that move the realm, verified Calls, courts you host, newcomers you welcome. At Season's end, points convert to $RSP you claim straight to your own wallet. Earned, never bought.",
+    a: "Real actions earn points: ravens that move the realm, Calls that land, replies people value, courts you host, newcomers you bring who stay. Points and Glory settle on the server against verified events, never on the word of a browser. Balances are shown as points, and they convert to $RSP at the token generation event.",
   },
   {
     q: "What is a Call?",
-    a: "A Call is a public, timestamped market read you put your name to. It is scored against real on-chain data over time, so a good record is proof of skill, not noise.",
+    a: "A public, timestamped claim you put your name to. The realm measures how hard it is from the token's own volatility and freezes that difficulty when you seal, so an easy Call and a hard one cannot score the same. Settlement is against the exact contract you Called, never a ticker anyone can copy.",
+  },
+  {
+    q: "Does being wrong cost me?",
+    a: "Yes, but not from the same pot. Renown is permanent and never falls, so a bad month cannot erase a good year. Season Rating takes the loss and resets when the season does. Nothing you have earned can be taken from you, and a Call still means something.",
   },
   {
     q: "Do I need crypto to play?",
-    a: "No. You can sign in, post, banter, join a House and play The War without ever touching a token. The wallet waits quietly until you choose to use it.",
+    a: "No. You can sign in, post, join a House, make Calls and play The War without ever touching a token. The wallet waits quietly until you choose to use it.",
   },
   {
     q: "What are Houses?",
-    a: "Houses are the teams of the realm. Swear to one, earn Glory through quests, duels and streaks, and each Season the leading House claims the Throne. Your standing lifts the whole House.",
+    a: "The teams of the realm. Six banners, and a House scores the sum of its top twenty contributors only, so it is a contest of skill rather than headcount. Leadership is computed from what people actually did each season, across six titles, and House Clashes run as forty eight hour windows where only Calls made inside them count.",
+  },
+  {
+    q: "Can I switch House?",
+    a: "Only between seasons, and your whole oath history stays public on your Keep. Contribution you have already made stays with the House that earned it, forever. That is what makes backing an underdog early mean something.",
   },
 ];
 
@@ -231,9 +241,9 @@ export default function Landing() {
                 Everything the realm gives you
               </h2>
               <p className="mt-3 text-[15px] leading-relaxed text-bone-mut">
-                The Ravenry feed, Claim the Throne, The War, the serious tools and
-                the Herald @raven are not the pitch, they are the product. Here is
-                what you actually get when you enter.
+                The Ravenry feed, Calls, the Houses, The War, the serious tools
+                and the Herald @raven are not the pitch, they are the product.
+                Here is what you actually get when you enter.
               </p>
             </div>
 
@@ -284,9 +294,9 @@ export default function Landing() {
               The map, not a finished castle
             </h2>
             <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-bone-mut">
-              The Forge stands at the gates today. These chapters follow, in
-              rough order. Intentions, not oaths, and we will say so plainly when
-              they shift.
+              None of these is built. Each has a page in the realm so you can
+              see what is coming, and each is labelled as exactly what it is.
+              Intentions, not oaths, and we will say so plainly when they shift.
             </p>
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {comingSoonNav.map((c) => (
