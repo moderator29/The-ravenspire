@@ -9,6 +9,7 @@ import { BackButton } from "@/components/shell/back-button";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { shareOrCopy } from "@/lib/share";
+import { realmFetch } from "@/lib/auth/api";
 import type {
   WatchCheck,
   WatchVerdict,
@@ -186,10 +187,16 @@ export default function WatchPage() {
     setApprovalsLoading(true);
     setRevokeError(null);
     try {
-      const res = await fetch(
+      const res = await realmFetch<ApprovalsResult>(
         `/api/approvals?address=${encodeURIComponent(address)}&chain=${chain}`
       );
-      setApprovals((await res.json()) as ApprovalsResult);
+      setApprovals(
+        res.data ?? {
+          configured: true,
+          approvals: [],
+          error: "The Watch could not reach the ledger",
+        }
+      );
     } catch {
       setApprovals({
         configured: true,

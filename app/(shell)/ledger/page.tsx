@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { realmFetch } from "@/lib/auth/api";
 import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
@@ -49,11 +50,11 @@ export default function LedgerPage() {
     setRefreshing(true);
     setFailed(false);
     try {
-      const res = await fetch(
+      const res = await realmFetch<BalancesResponse>(
         `/api/wallet/balances?address=${encodeURIComponent(address)}`
       );
-      const body = (await res.json()) as BalancesResponse;
-      setData(body);
+      if (!res.data) throw new Error("unreachable");
+      setData(res.data);
       setUpdatedAt(Date.now());
     } catch {
       setFailed(true);
