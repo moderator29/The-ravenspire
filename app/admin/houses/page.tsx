@@ -1,9 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { realmFetch } from "@/lib/auth/api";
 import { houses as houseData } from "@/lib/data/houses";
-import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field, Input } from "@/components/ui/field";
+import { ConfirmDialog } from "@/components/ui/modal";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  AdminError,
+  AdminHeader,
+  AdminNote,
+  AdminStack,
+  SealedChamber,
+  StatTile,
+  TOUCH,
+} from "@/app/admin/ui";
 
 interface HouseRow {
   slug: string;
@@ -15,6 +29,27 @@ interface HouseRow {
   glory: number;
 }
 
+/* Shaped like a house row: a rank, a name, a motto, a glory bar. */
+function HousesSkeleton() {
+  return (
+    <div className="flex flex-col gap-2">
+      {[0, 1, 2].map((i) => (
+        <Card key={i} pad="sm">
+          <div className="flex items-center gap-3">
+            <Skeleton radius="sm" className="h-5 w-5 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <Skeleton radius="sm" className="h-3.5 w-2/5" />
+              <Skeleton radius="sm" className="mt-1.5 h-2.5 w-3/5" />
+              <Skeleton radius="sm" className="mt-2 h-1.5 w-full" />
+            </div>
+            <Skeleton radius="md" className="h-9 w-20 shrink-0" />
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminHousesPage() {
   const [rows, setRows] = useState<HouseRow[]>([]);
   const [status, setStatus] = useState<"loading" | "ok" | "sealed" | "error">(
@@ -22,14 +57,19 @@ export default function AdminHousesPage() {
   );
   const [openSlug, setOpenSlug] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<{ tone: "gold" | "danger"; text: string } | null>(
+    null
+  );
+  const [pendingAdjust, setPendingAdjust] = useState<HouseRow | null>(null);
+  const showSkeleton = useDelayedLoading(status === "loading", 300);
 
   const [nameDraft, setNameDraft] = useState("");
   const [mottoDraft, setMottoDraft] = useState("");
   const [gloryDelta, setGloryDelta] = useState("");
   const [reason, setReason] = useState("");
 
-  function load() {
+  const load = useCallback(() => {
+    setStatus("loading");
     void realmFetch<{ houses: HouseRow[] }>("/api/admin/houses").then((res) => {
       if (res.status === 401 || res.status === 403) {
         setStatus("sealed");
@@ -40,11 +80,11 @@ export default function AdminHousesPage() {
         setStatus("error");
       }
     });
-  }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   function openEditor(row: HouseRow) {
     if (openSlug === row.slug) {
@@ -83,16 +123,22 @@ export default function AdminHousesPage() {
       }
     );
     if (res.ok && res.data?.ok && res.data.house) applyUpdated(res.data.house);
-    else setNote("The edit did not take. Try again.");
+    else setNote({ tone: "danger", text: "The edit did not take. Try again." });
     setBusy(false);
+  }
+
+  function requestAdjust(row: HouseRow) {
+    const delta = Number(gloryDelta);
+    if (!Number.isFinite(delta) || delta === 0) {
+      setNote({ tone: "danger", text: "Enter a non-zero glory adjustment." });
+      return;
+    }
+    setNote(null);
+    setPendingAdjust(row);
   }
 
   async function adjustGlory(row: HouseRow) {
     const delta = Number(gloryDelta);
-    if (!Number.isFinite(delta) || delta === 0) {
-      setNote("Enter a non-zero glory adjustment.");
-      return;
-    }
     setBusy(true);
     setNote(null);
     const res = await realmFetch<{ ok?: boolean; house?: HouseRow; error?: string }>(
@@ -111,88 +157,87 @@ export default function AdminHousesPage() {
       applyUpdated(res.data.house);
       setGloryDelta("");
       setReason("");
+      setNote({
+        tone: "gold",
+        text: `${row.name} adjusted by ${delta.toLocaleString()} Glory. The change is in the audit log.`,
+      });
     } else if (res.data?.error === "delta_too_large") {
-      setNote("That adjustment is too large.");
+      setNote({ tone: "danger", text: "That adjustment is too large." });
     } else {
-      setNote("The adjustment did not take. Try again.");
+      setNote({ tone: "danger", text: "The adjustment did not take. Try again." });
     }
     setBusy(false);
   }
 
-  if (status === "sealed") {
-    return (
-      <div className="glass p-8 text-center">
-        <Icon name="lock" className="mx-auto h-6 w-6 text-bone-faint" />
-        <p className="gold-text font-display mt-3 text-xl font-semibold">
-          The council chamber is sealed
-        </p>
-      </div>
-    );
-  }
+  if (status === "sealed") return <SealedChamber />;
 
   const maxGlory = Math.max(1, ...rows.map((r) => r.glory));
   const totalSworn = rows.reduce((s, r) => s + r.member_count, 0);
   const totalGlory = rows.reduce((s, r) => s + r.glory, 0);
+  const pendingDelta = Number(gloryDelta);
 
   return (
-    <div>
-      <h1 className="font-display text-xl font-semibold text-bone sm:text-2xl">
-        Houses
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Rename, re-motto, and adjust the glory of the six great houses
-      </p>
+    <AdminStack>
+      <AdminHeader
+        title="Houses"
+        kicker="Rename, re-motto, and adjust the glory of the six great houses"
+      />
 
-      {note && <p className="mt-3 text-xs text-ember">{note}</p>}
+      {note ? <AdminNote tone={note.tone}>{note.text}</AdminNote> : null}
 
-      {status === "error" && (
-        <div className="glass glass-sm mt-4 p-5">
-          <p className="text-sm text-bone-mut">
-            The house rolls could not be read. Try again shortly.
-          </p>
+      {status === "error" ? (
+        <AdminError
+          title="The house rolls could not be read"
+          body="The banners did not come back. Try reading them again."
+          onRetry={load}
+        />
+      ) : null}
+
+      {status === "ok" && rows.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 md:gap-2 sm:max-w-md">
+          <StatTile
+            icon="user"
+            value={totalSworn.toLocaleString()}
+            label="Sworn members"
+          />
+          <StatTile
+            icon="medal"
+            value={totalGlory.toLocaleString()}
+            label="Total glory"
+          />
         </div>
-      )}
-
-      {status === "ok" && rows.length > 0 && (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:max-w-md">
-          <div className="glass glass-sm p-4">
-            <p className="tnum font-display text-2xl font-semibold text-gold">
-              {totalSworn.toLocaleString()}
-            </p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-              Sworn members
-            </p>
-          </div>
-          <div className="glass glass-sm p-4">
-            <p className="tnum font-display text-2xl font-semibold text-gold">
-              {totalGlory.toLocaleString()}
-            </p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-              Total glory
-            </p>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {status === "ok" ? <HouseOps /> : null}
 
-      <div className="mt-4 flex flex-col gap-2">
-        {status === "loading" &&
-          [0, 1, 2].map((i) => (
-            <div key={i} className="glass glass-sm h-20 animate-pulse" />
-          ))}
-        {status === "ok" &&
-          rows.map((row, i) => {
+      {showSkeleton ? (
+        <HousesSkeleton />
+      ) : status === "loading" ? null : status === "ok" && rows.length === 0 ? (
+        <Card pad="lg">
+          <EmptyState
+            icon="banner"
+            title="No houses stand on the rolls"
+            body="The six great houses are seeded by the realm's own migration. If none appear, the archives have not been reached."
+            action={
+              <Button variant="glass" size="md" className={TOUCH} onClick={load}>
+                Read the rolls again
+              </Button>
+            }
+          />
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {rows.map((row, i) => {
             const meta = houseData.find((h) => h.slug === row.slug);
             const open = openSlug === row.slug;
             return (
-              <div key={row.slug} className="glass glass-sm p-4 sm:p-5">
-                <div className="flex items-center gap-3 sm:gap-4">
+              <Card key={row.slug} pad="sm">
+                <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
                   <span className="tnum w-5 shrink-0 text-center font-display text-lg text-bone-faint">
                     {i + 1}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-display text-sm font-semibold text-bone sm:text-base">
+                  <div className="min-w-0 flex-1 basis-40">
+                    <p className="truncate font-display text-sm font-semibold text-bone">
                       {row.name}
                     </p>
                     <p className="truncate text-xs text-bone-faint">
@@ -215,75 +260,115 @@ export default function AdminHousesPage() {
                       {row.member_count.toLocaleString()} sworn
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="btn-glass shrink-0 px-3 py-1 text-xs"
+                  <Button
+                    variant="glass"
+                    size="md"
+                    className={`shrink-0 ${TOUCH}`}
+                    aria-expanded={open}
                     onClick={() => openEditor(row)}
                   >
                     {open ? "Close" : "Manage"}
-                  </button>
+                  </Button>
                 </div>
 
-                {open && (
+                {open ? (
                   <div className="mt-4 grid grid-cols-1 gap-4 border-t border-steel-line pt-4 sm:grid-cols-2">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                        Name and motto
-                      </p>
-                      <input
-                        value={nameDraft}
-                        onChange={(e) => setNameDraft(e.target.value)}
-                        placeholder="House name"
-                        className="mt-2 w-full rounded-xl border border-steel-line bg-panel px-3 py-2 text-sm text-bone outline-none"
-                      />
-                      <input
-                        value={mottoDraft}
-                        onChange={(e) => setMottoDraft(e.target.value)}
-                        placeholder="Motto"
-                        className="mt-2 w-full rounded-xl border border-steel-line bg-panel px-3 py-2 text-sm text-bone outline-none"
-                      />
-                      <button
-                        type="button"
-                        className="btn-gold mt-2 px-3 py-1.5 text-xs"
-                        disabled={busy}
-                        onClick={() => void saveDetails(row)}
-                      >
-                        Save details
-                      </button>
+                    <div className="flex flex-col gap-3">
+                      <SectionHeader title="Name and motto" className="px-0 pt-0" />
+                      <Field label="House name" required>
+                        <Input
+                          value={nameDraft}
+                          onChange={(e) => setNameDraft(e.target.value)}
+                          placeholder="House name"
+                          className="min-h-11 md:min-h-0"
+                        />
+                      </Field>
+                      <Field label="Motto">
+                        <Input
+                          value={mottoDraft}
+                          onChange={(e) => setMottoDraft(e.target.value)}
+                          placeholder="What the banner says"
+                          className="min-h-11 md:min-h-0"
+                        />
+                      </Field>
+                      <div>
+                        <Button
+                          variant="gold"
+                          size="md"
+                          className={TOUCH}
+                          loading={busy}
+                          onClick={() => void saveDetails(row)}
+                        >
+                          Save details
+                        </Button>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                        Glory adjustment
-                      </p>
-                      <input
-                        value={gloryDelta}
-                        onChange={(e) => setGloryDelta(e.target.value)}
-                        inputMode="numeric"
-                        placeholder="Delta (e.g. -500)"
-                        className="mt-2 w-full rounded-xl border border-steel-line bg-panel px-3 py-2 text-sm text-bone outline-none"
-                      />
-                      <input
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        placeholder="Reason (logged)"
-                        className="mt-2 w-full rounded-xl border border-steel-line bg-panel px-3 py-2 text-sm text-bone outline-none"
-                      />
-                      <button
-                        type="button"
-                        className="btn-gold mt-2 px-3 py-1.5 text-xs"
-                        disabled={busy}
-                        onClick={() => void adjustGlory(row)}
+
+                    <div className="flex flex-col gap-3">
+                      <SectionHeader title="Glory adjustment" className="px-0 pt-0" />
+                      <Field
+                        label="Delta"
+                        description="Positive adds, negative removes. Recorded in the audit log."
                       >
-                        Apply adjustment
-                      </button>
+                        <Input
+                          value={gloryDelta}
+                          onChange={(e) => setGloryDelta(e.target.value)}
+                          inputMode="numeric"
+                          placeholder="-500"
+                          className="tnum min-h-11 md:min-h-0"
+                        />
+                      </Field>
+                      <Field label="Reason">
+                        <Input
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          placeholder="Why the realm is moving this glory"
+                          className="min-h-11 md:min-h-0"
+                        />
+                      </Field>
+                      <div>
+                        <Button
+                          variant="gold"
+                          size="md"
+                          className={TOUCH}
+                          disabled={busy}
+                          onClick={() => requestAdjust(row)}
+                        >
+                          Apply adjustment
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
+                ) : null}
+              </Card>
             );
           })}
-      </div>
-    </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={pendingAdjust !== null}
+        onOpenChange={(next) => {
+          if (!next) setPendingAdjust(null);
+        }}
+        title="Move this House's Glory?"
+        description={
+          pendingAdjust
+            ? `${pendingAdjust.name} goes from ${pendingAdjust.glory.toLocaleString()} to ${(pendingAdjust.glory + pendingDelta).toLocaleString()} Glory. Standings shift for every member sworn to it, and only an opposite adjustment can put it back.`
+            : undefined
+        }
+        confirmLabel="Apply it"
+        cancelLabel="Leave the Glory alone"
+        tone="danger"
+        pending={busy}
+        onConfirm={() => {
+          const row = pendingAdjust;
+          if (!row) return;
+          setPendingAdjust(null);
+          void adjustGlory(row);
+        }}
+      />
+    </AdminStack>
   );
 }
 
@@ -293,7 +378,9 @@ export default function AdminHousesPage() {
    history, so pressing it twice is safe. The cron hits the same route. */
 function HouseOps() {
   const [busy, setBusy] = useState<"recompute" | "clash" | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<{ tone: "gold" | "danger"; text: string } | null>(
+    null
+  );
   const [title, setTitle] = useState("");
   const [token, setToken] = useState("");
 
@@ -309,26 +396,30 @@ function HouseOps() {
     }>("/api/houses/recompute", { method: "POST" });
     setBusy(null);
     if (!res.ok || !res.data?.ok) {
-      setNote("The recompute did not run.");
+      setNote({ tone: "danger", text: "The recompute did not run." });
       return;
     }
     if (!res.data.recomputed) {
-      setNote("No season has started, so there is nothing to resolve.");
+      setNote({
+        tone: "danger",
+        text: "No season has started, so there is nothing to resolve.",
+      });
       return;
     }
     const leader = res.data.standings?.[0];
-    setNote(
-      `Season ${res.data.season_id} resolved. ${
+    setNote({
+      tone: "gold",
+      text: `Season ${res.data.season_id} resolved. ${
         leader ? `${leader.slug} leads on ${leader.score.toLocaleString()}.` : ""
-      }`
-    );
+      }`,
+    });
   }
 
   async function callClash() {
     const name = title.trim();
     const ticker = token.trim().replace(/^\$/, "");
     if (!name || !ticker) {
-      setNote("A Clash needs a name and a token.");
+      setNote({ tone: "danger", text: "A Clash needs a name and a token." });
       return;
     }
     setBusy("clash");
@@ -341,66 +432,81 @@ function HouseOps() {
     if (res.ok && res.data?.ok) {
       setTitle("");
       setToken("");
-      setNote(`The Clash is called. It runs 48 hours from now.`);
+      setNote({ tone: "gold", text: "The Clash is called. It runs 48 hours from now." });
     } else {
-      setNote(res.data?.error ?? "The Clash could not be called.");
+      setNote({
+        tone: "danger",
+        text: res.data?.error ?? "The Clash could not be called.",
+      });
     }
   }
 
   return (
-    <div className="glass glass-sm mt-4 p-4 sm:p-5">
-      <h2 className="font-display text-base font-semibold text-bone">
+    <Card pad="sm">
+      <h2 className="font-display text-base font-semibold text-bone md:text-sm">
         Season operations
       </h2>
       <p className="mt-1 text-xs text-bone-mut">
         Standings are the sum of each House&apos;s top 20 contributors, and the
-        six seasonal titles are derived from what members actually did. Both
-        are recomputed here and by the cron.
+        six seasonal titles are derived from what members actually did. Both are
+        recomputed here and by the cron.
       </p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={recompute}
+      <div className="mt-3">
+        <Button
+          variant="glass"
+          size="md"
+          className={TOUCH}
+          loading={busy === "recompute"}
           disabled={busy !== null}
-          className="btn-glass px-4 py-1.5 text-sm disabled:opacity-50"
+          onClick={() => void recompute()}
         >
-          {busy === "recompute" ? "Resolving..." : "Recompute standings and leadership"}
-        </button>
+          {busy === "recompute"
+            ? "Resolving"
+            : "Recompute standings and leadership"}
+        </Button>
       </div>
 
       <div className="mt-4 border-t border-steel-line pt-4">
-        <h3 className="text-xs uppercase tracking-[0.2em] text-bone-faint">
-          Call a Clash
-        </h3>
-        <p className="mt-1 text-xs text-bone-mut">
+        <SectionHeader title="Call a Clash" className="px-0 pt-0" />
+        <p className="mt-2 text-xs text-bone-mut">
           A 48 hour window on one token. Only Calls made inside it count.
         </p>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="The name of the Clash"
-            className="min-w-0 flex-1 rounded-md border border-steel-line bg-panel px-3 py-1.5 text-sm text-bone placeholder:text-bone-faint"
-          />
-          <input
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="TOKEN"
-            className="w-full rounded-md border border-steel-line bg-panel px-3 py-1.5 text-sm text-bone uppercase placeholder:text-bone-faint sm:w-32"
-          />
-          <button
-            type="button"
-            onClick={callClash}
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <Field label="Clash name" className="min-w-0 flex-1" required>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="The name of the Clash"
+              className="min-h-11 md:min-h-0"
+            />
+          </Field>
+          <Field label="Token" className="sm:w-32" required>
+            <Input
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="TOKEN"
+              className="min-h-11 uppercase md:min-h-0"
+            />
+          </Field>
+          <Button
+            variant="gold"
+            size="md"
+            className={`shrink-0 ${TOUCH}`}
+            loading={busy === "clash"}
             disabled={busy !== null}
-            className="btn-gold shrink-0 px-4 py-1.5 text-sm disabled:opacity-50"
+            onClick={() => void callClash()}
           >
-            {busy === "clash" ? "Calling..." : "Call it"}
-          </button>
+            {busy === "clash" ? "Calling" : "Call it"}
+          </Button>
         </div>
       </div>
 
-      {note ? <p className="mt-3 text-xs text-gold">{note}</p> : null}
-    </div>
+      {note ? (
+        <div className="mt-3">
+          <AdminNote tone={note.tone}>{note.text}</AdminNote>
+        </div>
+      ) : null}
+    </Card>
   );
 }

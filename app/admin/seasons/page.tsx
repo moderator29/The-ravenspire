@@ -1,8 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { realmFetch } from "@/lib/auth/api";
-import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field, Input } from "@/components/ui/field";
+import { ConfirmDialog } from "@/components/ui/modal";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  AdminError,
+  AdminHeader,
+  AdminNote,
+  AdminStack,
+  SealedChamber,
+  TOUCH,
+} from "@/app/admin/ui";
 
 interface SeasonRow {
   id: number;
@@ -25,9 +39,77 @@ interface SettlementRow {
   } | null;
 }
 
+/* The three decrees that cannot be taken back with a second click, so each one
+   asks first. Activating retires whichever season is active today, closing ends
+   the window members are competing in, and settling freezes the ledger. */
+type Decree = "activate" | "close" | "settle";
+
+interface PendingDecree {
+  id: number;
+  name: string;
+  decree: Decree;
+}
+
+const DECREE_COPY: Record<
+  Decree,
+  { title: string; confirm: string; tone: "gold" | "danger"; body: (n: string) => string }
+> = {
+  activate: {
+    title: "Make this the active season?",
+    confirm: "Activate",
+    tone: "gold",
+    body: (n) =>
+      `${n} becomes the season the realm competes in, and whichever season is active today stops being so. Oaths, standings and Calls all follow the active season.`,
+  },
+  close: {
+    title: "Close this season?",
+    confirm: "Close it",
+    tone: "danger",
+    body: (n) =>
+      `${n} stops accepting contribution the moment it closes. Members can no longer earn toward it, and the standings stand as they are.`,
+  },
+  settle: {
+    title: "Settle this season?",
+    confirm: "Settle",
+    tone: "danger",
+    body: (n) =>
+      `Every member's final Points, Renown and Glory for ${n} are frozen into the settlement ledger, kept in points. Re-running this refreshes the snapshot and overwrites the last one.`,
+  },
+};
+
 function toDateInput(iso: string | null): string {
   if (!iso) return "";
   return new Date(iso).toISOString().slice(0, 10);
+}
+
+function memberName(m: SettlementRow["member"]): string {
+  return m?.display_name?.trim() || (m?.handle ? `@${m.handle}` : "A member");
+}
+
+/* Shaped like a season card: a title rule, three stats, a row of decrees. */
+function SeasonsSkeleton() {
+  return (
+    <div className="flex flex-col gap-2">
+      {[0, 1].map((i) => (
+        <Card key={i} pad="sm">
+          <Skeleton radius="sm" className="h-4 w-2/5" />
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            {[0, 1, 2].map((c) => (
+              <div key={c}>
+                <Skeleton radius="sm" className="h-3.5 w-3/4" />
+                <Skeleton radius="sm" className="mt-1.5 h-2.5 w-1/2" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Skeleton radius="md" className="h-9 w-24" />
+            <Skeleton radius="md" className="h-9 w-20" />
+            <Skeleton radius="md" className="h-9 w-20" />
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
 }
 
 export default function AdminSeasonsPage() {
@@ -36,13 +118,17 @@ export default function AdminSeasonsPage() {
     "loading"
   );
   const [busyId, setBusyId] = useState<number | "new" | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<{ tone: "gold" | "danger"; text: string } | null>(
+    null
+  );
   const [openId, setOpenId] = useState<number | null>(null);
   const [settlementForId, setSettlementForId] = useState<number | null>(null);
   const [settlementRows, setSettlementRows] = useState<SettlementRow[] | null>(
     null
   );
   const [settlementTotal, setSettlementTotal] = useState(0);
+  const [pending, setPending] = useState<PendingDecree | null>(null);
+  const showSkeleton = useDelayedLoading(status === "loading", 300);
 
   const [newName, setNewName] = useState("");
   const [newStart, setNewStart] = useState("");
@@ -54,7 +140,8 @@ export default function AdminSeasonsPage() {
   const [editEnd, setEditEnd] = useState("");
   const [editVault, setEditVault] = useState("");
 
-  function load() {
+  const load = useCallback(() => {
+    setStatus("loading");
     void realmFetch<{ seasons: SeasonRow[] }>("/api/admin/seasons").then(
       (res) => {
         if (res.status === 401 || res.status === 403) {
@@ -67,11 +154,11 @@ export default function AdminSeasonsPage() {
         }
       }
     );
-  }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   function applyUpdated(updated: SeasonRow) {
     setRows((prev) => {
@@ -85,7 +172,7 @@ export default function AdminSeasonsPage() {
 
   async function create() {
     if (!newName.trim()) {
-      setNote("A season needs a name.");
+      setNote({ tone: "danger", text: "A season needs a name." });
       return;
     }
     setBusyId("new");
@@ -110,7 +197,7 @@ export default function AdminSeasonsPage() {
       setNewEnd("");
       setNewVault("");
     } else {
-      setNote("The season could not be written. Try again.");
+      setNote({ tone: "danger", text: "The season could not be written. Try again." });
     }
     setBusyId(null);
   }
@@ -146,7 +233,7 @@ export default function AdminSeasonsPage() {
       }
     );
     if (res.ok && res.data?.ok && res.data.season) applyUpdated(res.data.season);
-    else setNote("The edit did not take. Try again.");
+    else setNote({ tone: "danger", text: "The edit did not take. Try again." });
     setBusyId(null);
   }
 
@@ -158,7 +245,7 @@ export default function AdminSeasonsPage() {
       { method: "POST", json: { action, id } }
     );
     if (res.ok && res.data?.ok && res.data.season) applyUpdated(res.data.season);
-    else setNote("The decree did not take. Try again.");
+    else setNote({ tone: "danger", text: "The decree did not take. Try again." });
     setBusyId(null);
   }
 
@@ -174,12 +261,6 @@ export default function AdminSeasonsPage() {
   }
 
   async function settleSeason(id: number) {
-    if (
-      !window.confirm(
-        "Settle this season? Every member's final Points, Renown and Glory are frozen into the settlement ledger (kept in points). This can be re-run to refresh the snapshot."
-      )
-    )
-      return;
     setBusyId(id);
     setNote(null);
     const res = await realmFetch<{
@@ -190,298 +271,325 @@ export default function AdminSeasonsPage() {
     }>("/api/admin/seasons", { method: "POST", json: { action: "settle", id } });
     if (res.ok && res.data?.ok) {
       if (res.data.season) applyUpdated(res.data.season);
-      setNote(
-        `Season settled: ${res.data.settled ?? 0} members, ${(res.data.totalPoints ?? 0).toLocaleString()} points frozen.`
-      );
+      setNote({
+        tone: "gold",
+        text: `Season settled: ${res.data.settled ?? 0} members, ${(res.data.totalPoints ?? 0).toLocaleString()} points frozen.`,
+      });
       await viewSettlement(id);
     } else {
-      setNote("The settlement did not take. Try again.");
+      setNote({ tone: "danger", text: "The settlement did not take. Try again." });
     }
     setBusyId(null);
   }
 
-  if (status === "sealed") {
-    return (
-      <div className="glass p-8 text-center">
-        <Icon name="lock" className="mx-auto h-6 w-6 text-bone-faint" />
-        <p className="gold-text font-display mt-3 text-xl font-semibold">
-          The council chamber is sealed
-        </p>
-      </div>
-    );
+  function runDecree(p: PendingDecree) {
+    if (p.decree === "settle") void settleSeason(p.id);
+    else void setSeasonStatus(p.id, p.decree);
   }
 
-  const inputCls =
-    "w-full rounded-xl border border-steel-line bg-panel px-3 py-2 text-sm text-bone outline-none placeholder:text-bone-faint";
+  if (status === "sealed") return <SealedChamber />;
+
+  const copy = pending ? DECREE_COPY[pending.decree] : null;
 
   return (
-    <div>
-      <h1 className="font-display text-xl font-semibold text-bone sm:text-2xl">
-        Seasons
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        The realm calendar
-      </p>
+    <AdminStack>
+      <AdminHeader title="Seasons" kicker="The realm calendar" />
 
-      {note && <p className="mt-3 text-xs text-ember">{note}</p>}
+      {note ? <AdminNote tone={note.tone}>{note.text}</AdminNote> : null}
 
-      <div className="glass glass-sm mt-4 p-4 sm:p-5">
-        <p className="font-display text-sm font-semibold text-bone">
-          Open a new season
-        </p>
+      <Card pad="sm">
+        <SectionHeader title="Open a new season" className="px-0 pt-0" />
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Season name"
-            className={inputCls}
-          />
-          <input
-            value={newVault}
-            onChange={(e) => setNewVault(e.target.value)}
-            inputMode="numeric"
-            placeholder="Vault (RAVEN)"
-            className={inputCls}
-          />
-          <label className="text-xs text-bone-faint">
-            Opens
-            <input
+          <Field label="Season name" required>
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="The Long Dusk"
+              className="min-h-11 md:min-h-0"
+            />
+          </Field>
+          <Field label="Vault (RAVEN)">
+            <Input
+              value={newVault}
+              onChange={(e) => setNewVault(e.target.value)}
+              inputMode="numeric"
+              placeholder="0"
+              className="tnum min-h-11 md:min-h-0"
+            />
+          </Field>
+          <Field label="Opens">
+            <Input
               type="date"
               value={newStart}
               onChange={(e) => setNewStart(e.target.value)}
-              className={`${inputCls} mt-1`}
+              className="min-h-11 md:min-h-0"
             />
-          </label>
-          <label className="text-xs text-bone-faint">
-            Closes
-            <input
+          </Field>
+          <Field label="Closes">
+            <Input
               type="date"
               value={newEnd}
               onChange={(e) => setNewEnd(e.target.value)}
-              className={`${inputCls} mt-1`}
+              className="min-h-11 md:min-h-0"
             />
-          </label>
+          </Field>
         </div>
-        <button
-          type="button"
-          className="btn-gold mt-3 px-4 py-2 text-sm"
-          disabled={busyId === "new"}
+        <Button
+          variant="gold"
+          size="md"
+          className={`mt-3 ${TOUCH}`}
+          loading={busyId === "new"}
           onClick={() => void create()}
         >
           {busyId === "new" ? "Writing" : "Create season"}
-        </button>
-      </div>
+        </Button>
+      </Card>
 
-      <div className="mt-4 flex flex-col gap-2">
-        {status === "loading" &&
-          [0, 1].map((i) => (
-            <div key={i} className="glass glass-sm h-28 animate-pulse" />
-          ))}
-        {status === "error" && (
-          <div className="glass glass-sm p-5">
-            <p className="text-sm text-bone-mut">
-              The calendar could not be read. Try again shortly.
-            </p>
-          </div>
-        )}
-        {status === "ok" && rows.length === 0 && (
-          <div className="glass glass-sm flex items-center gap-3 p-5">
-            <Icon name="crown" className="h-5 w-5 text-bone-faint" />
-            <p className="text-sm text-bone-mut">
-              No seasons are written in the calendar yet.
-            </p>
-          </div>
-        )}
-        {rows.map((s) => {
-          const isActive = s.status === "active";
-          const open = openId === s.id;
-          return (
-            <div key={s.id} className="glass glass-sm p-4 sm:p-5">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-display text-base font-semibold text-bone">
-                  {s.name}
-                </p>
-                <span
-                  className={`rounded-[--radius-sm] border border-steel-line bg-panel px-2.5 py-0.5 text-[10px] uppercase tracking-[0.2em] ${
-                    isActive ? "text-gold" : "text-bone-faint"
-                  }`}
-                >
-                  {s.status}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div>
-                  <p className="tnum text-sm text-bone">
-                    {s.starts_at ? new Date(s.starts_at).toLocaleDateString() : "unset"}
+      {showSkeleton ? (
+        <SeasonsSkeleton />
+      ) : status === "loading" ? null : status === "error" ? (
+        <AdminError
+          title="The calendar could not be read"
+          body="The season list did not come back. Try reading it again."
+          onRetry={load}
+        />
+      ) : rows.length === 0 ? (
+        <Card pad="lg">
+          <EmptyState
+            icon="crown"
+            title="No seasons are written in the calendar"
+            body="The realm needs a season before oaths, standings and Calls have a window to sit in. Open the first one above."
+          />
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {rows.map((s) => {
+            const isActive = s.status === "active";
+            const open = openId === s.id;
+            const settled = s.status === "settled";
+            return (
+              <Card key={s.id} pad="sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-display text-base font-semibold text-bone md:text-sm">
+                    {s.name}
                   </p>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                    Opens
-                  </p>
+                  <Badge variant={isActive ? "gold" : "default"}>{s.status}</Badge>
                 </div>
-                <div>
-                  <p className="tnum text-sm text-bone">
-                    {s.ends_at ? new Date(s.ends_at).toLocaleDateString() : "unset"}
-                  </p>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                    Closes
-                  </p>
-                </div>
-                <div>
-                  <p className="tnum text-sm text-gold">
-                    {s.vault_raven.toLocaleString()}
-                  </p>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                    Vault (RAVEN)
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={busyId === s.id || isActive}
-                  onClick={() => void setSeasonStatus(s.id, "activate")}
-                  className="btn-gold px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Activate
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === s.id || s.status === "closed" || s.status === "settled"}
-                  onClick={() => void setSeasonStatus(s.id, "close")}
-                  className="btn-glass px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === s.id}
-                  onClick={() => void settleSeason(s.id)}
-                  className="btn-gold px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {s.status === "settled" ? "Re-settle" : "Settle"}
-                </button>
-                {s.status === "settled" && (
-                  <button
-                    type="button"
-                    onClick={() => void viewSettlement(s.id)}
-                    className="btn-glass px-3 py-1.5 text-xs"
-                  >
-                    View settlement
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn-glass px-3 py-1.5 text-xs"
-                  onClick={() => openEditor(s)}
-                >
-                  {open ? "Close editor" : "Edit"}
-                </button>
-              </div>
 
-              {settlementForId === s.id && (
-                <div className="mt-4 border-t border-steel-line pt-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
-                      Settlement (points)
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setSettlementForId(null)}
-                      className="text-[11px] text-bone-faint hover:text-bone-mut"
-                    >
-                      Hide
-                    </button>
+                <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div>
+                    <dd className="tnum text-sm text-bone">
+                      {s.starts_at
+                        ? new Date(s.starts_at).toLocaleDateString()
+                        : "unset"}
+                    </dd>
+                    <dt className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
+                      Opens
+                    </dt>
                   </div>
-                  {settlementRows === null ? (
-                    <p className="mt-2 text-xs text-bone-faint">
-                      Reading the ledger...
-                    </p>
-                  ) : settlementRows.length === 0 ? (
-                    <p className="mt-2 text-xs text-bone-mut">
-                      No standings were frozen for this season.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="mt-1 text-[11px] text-bone-faint">
-                        {settlementRows.length} members,{" "}
-                        {settlementTotal.toLocaleString()} points frozen. Kept in
-                        points; $RSP conversion comes later.
+                  <div>
+                    <dd className="tnum text-sm text-bone">
+                      {s.ends_at ? new Date(s.ends_at).toLocaleDateString() : "unset"}
+                    </dd>
+                    <dt className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
+                      Closes
+                    </dt>
+                  </div>
+                  <div>
+                    <dd className="tnum text-sm text-gold">
+                      {s.vault_raven.toLocaleString()}
+                    </dd>
+                    <dt className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
+                      Vault (RAVEN)
+                    </dt>
+                  </div>
+                </dl>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    variant="gold"
+                    size="md"
+                    className={TOUCH}
+                    disabled={busyId === s.id || isActive}
+                    onClick={() =>
+                      setPending({ id: s.id, name: s.name, decree: "activate" })
+                    }
+                  >
+                    Activate
+                  </Button>
+                  <Button
+                    variant="glass"
+                    size="md"
+                    className={TOUCH}
+                    disabled={busyId === s.id || s.status === "closed" || settled}
+                    onClick={() =>
+                      setPending({ id: s.id, name: s.name, decree: "close" })
+                    }
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    variant="gold"
+                    size="md"
+                    className={TOUCH}
+                    disabled={busyId === s.id}
+                    onClick={() =>
+                      setPending({ id: s.id, name: s.name, decree: "settle" })
+                    }
+                  >
+                    {settled ? "Re-settle" : "Settle"}
+                  </Button>
+                  {settled ? (
+                    <Button
+                      variant="glass"
+                      size="md"
+                      className={TOUCH}
+                      onClick={() => void viewSettlement(s.id)}
+                    >
+                      View settlement
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="glass"
+                    size="md"
+                    className={TOUCH}
+                    aria-expanded={open}
+                    onClick={() => openEditor(s)}
+                  >
+                    {open ? "Close editor" : "Edit"}
+                  </Button>
+                </div>
+
+                {settlementForId === s.id ? (
+                  <div className="mt-4 border-t border-steel-line pt-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
+                        Settlement (points)
                       </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={TOUCH}
+                        onClick={() => setSettlementForId(null)}
+                      >
+                        Hide
+                      </Button>
+                    </div>
+                    {settlementRows === null ? (
                       <div className="mt-2 flex flex-col gap-1">
-                        {settlementRows.slice(0, 25).map((r) => (
-                          <div
-                            key={r.rank}
-                            className="flex items-center gap-2 rounded-lg bg-panel/50 px-2.5 py-1.5"
-                          >
-                            <span className="tnum w-6 shrink-0 text-xs text-bone-faint">
-                              {r.rank}
-                            </span>
-                            <span className="min-w-0 flex-1 truncate text-xs text-bone">
-                              {r.member?.display_name ??
-                                (r.member?.handle
-                                  ? `@${r.member.handle}`
-                                  : "A member")}
-                            </span>
-                            <span className="tnum shrink-0 gold-text text-xs font-semibold">
-                              {r.points.toLocaleString()}
-                            </span>
-                          </div>
+                        {[0, 1, 2, 3, 4].map((i) => (
+                          <Skeleton key={i} radius="sm" className="h-7 w-full" />
                         ))}
                       </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {open && (
-                <div className="mt-4 grid grid-cols-1 gap-3 border-t border-steel-line pt-4 sm:grid-cols-2">
-                  <input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Season name"
-                    className={inputCls}
-                  />
-                  <input
-                    value={editVault}
-                    onChange={(e) => setEditVault(e.target.value)}
-                    inputMode="numeric"
-                    placeholder="Vault (RAVEN)"
-                    className={inputCls}
-                  />
-                  <label className="text-xs text-bone-faint">
-                    Opens
-                    <input
-                      type="date"
-                      value={editStart}
-                      onChange={(e) => setEditStart(e.target.value)}
-                      className={`${inputCls} mt-1`}
-                    />
-                  </label>
-                  <label className="text-xs text-bone-faint">
-                    Closes
-                    <input
-                      type="date"
-                      value={editEnd}
-                      onChange={(e) => setEditEnd(e.target.value)}
-                      className={`${inputCls} mt-1`}
-                    />
-                  </label>
-                  <div className="sm:col-span-2">
-                    <button
-                      type="button"
-                      className="btn-gold px-3 py-1.5 text-xs"
-                      disabled={busyId === s.id}
-                      onClick={() => void saveEdit(s)}
-                    >
-                      Save changes
-                    </button>
+                    ) : settlementRows.length === 0 ? (
+                      <EmptyState
+                        size="sm"
+                        icon="ledger"
+                        title="No standings were frozen"
+                        body="Settle the season to write every member's final Points, Renown and Glory into the ledger."
+                      />
+                    ) : (
+                      <>
+                        <p className="mt-1 text-[11px] text-bone-faint">
+                          {settlementRows.length} members,{" "}
+                          {settlementTotal.toLocaleString()} points frozen. Kept in
+                          points; $RSP conversion comes later.
+                        </p>
+                        <ol className="mt-2 flex flex-col gap-1">
+                          {settlementRows.slice(0, 25).map((r) => (
+                            <li
+                              key={r.rank}
+                              className="flex items-center gap-2 rounded-sm bg-panel/50 px-2.5 py-1.5"
+                            >
+                              <span className="tnum w-6 shrink-0 text-xs text-bone-faint">
+                                {r.rank}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-xs text-bone">
+                                {memberName(r.member)}
+                              </span>
+                              <span className="tnum shrink-0 text-xs font-semibold text-gold">
+                                {r.points.toLocaleString()}
+                              </span>
+                            </li>
+                          ))}
+                        </ol>
+                      </>
+                    )}
                   </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+                ) : null}
+
+                {open ? (
+                  <div className="mt-4 grid grid-cols-1 gap-3 border-t border-steel-line pt-4 sm:grid-cols-2">
+                    <Field label="Season name" required>
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Season name"
+                        className="min-h-11 md:min-h-0"
+                      />
+                    </Field>
+                    <Field label="Vault (RAVEN)">
+                      <Input
+                        value={editVault}
+                        onChange={(e) => setEditVault(e.target.value)}
+                        inputMode="numeric"
+                        placeholder="0"
+                        className="tnum min-h-11 md:min-h-0"
+                      />
+                    </Field>
+                    <Field label="Opens">
+                      <Input
+                        type="date"
+                        value={editStart}
+                        onChange={(e) => setEditStart(e.target.value)}
+                        className="min-h-11 md:min-h-0"
+                      />
+                    </Field>
+                    <Field label="Closes">
+                      <Input
+                        type="date"
+                        value={editEnd}
+                        onChange={(e) => setEditEnd(e.target.value)}
+                        className="min-h-11 md:min-h-0"
+                      />
+                    </Field>
+                    <div className="sm:col-span-2">
+                      <Button
+                        variant="gold"
+                        size="md"
+                        className={TOUCH}
+                        loading={busyId === s.id}
+                        onClick={() => void saveEdit(s)}
+                      >
+                        Save changes
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(next) => {
+          if (!next) setPending(null);
+        }}
+        title={copy?.title ?? ""}
+        description={pending && copy ? copy.body(pending.name) : undefined}
+        confirmLabel={copy?.confirm ?? "Confirm"}
+        cancelLabel="Leave it as it is"
+        tone={copy?.tone ?? "gold"}
+        pending={pending !== null && busyId === pending.id}
+        onConfirm={() => {
+          const p = pending;
+          if (!p) return;
+          setPending(null);
+          runDecree(p);
+        }}
+      />
+    </AdminStack>
   );
 }
