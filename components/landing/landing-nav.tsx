@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { RavenMark } from "@/components/brand/raven-mark";
+import { Button } from "@/components/ui/button";
 import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
 
 /*
@@ -111,22 +112,23 @@ export function LandingNav({
 
         {/* Right group: CTA + mobile toggle */}
         <div className="flex flex-1 items-center justify-end gap-2">
-          <Link href={ctaHref} className="btn-gold px-4 py-2 text-[13px]">
+          <Button variant="gold" size="md" render={<Link href={ctaHref} />}>
             <span className="hidden sm:inline">{ctaLabel}</span>
             <span className="sm:hidden">Enter</span>
             <LandingIcon name="arrowRight" className="h-4 w-4" />
-          </Link>
+          </Button>
 
           {/* Mobile menu toggle */}
-          <button
-            type="button"
+          <Button
+            variant="glass"
+            size="md"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-void/60 text-bone-mut transition hover:text-bone md:hidden"
+            className="h-9 w-9 shrink-0 p-0 md:hidden"
           >
             <LandingIcon name={open ? "close" : "menu"} className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Mobile dropdown */}

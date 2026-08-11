@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
 
 /*
@@ -297,11 +298,13 @@ export function Roadmap() {
       </motion.ol>
 
       {rest.length > 0 && (
-        <motion.button
-          variants={rise}
-          type="button"
+        <Button
+          variant="glass"
+          size="lg"
+          aria-expanded={expanded}
           onClick={() => setExpanded((v) => !v)}
-          className="btn-glass mt-6 inline-flex items-center gap-2 px-5 py-2.5 text-sm text-gold"
+          render={<motion.button variants={rise} type="button" />}
+          className="mt-6 text-gold"
         >
           {expanded ? "Show less" : `View the full march (${rest.length} more)`}
           <LandingIcon
@@ -310,7 +313,7 @@ export function Roadmap() {
               expanded ? "rotate-180" : ""
             }`}
           />
-        </motion.button>
+        </Button>
       )}
     </motion.section>
   );
