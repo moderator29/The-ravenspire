@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { isAddress, parseEther } from "viem";
+import { AdaptiveDialog } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, Input } from "@/components/ui/field";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { TipSuccessCard } from "@/components/tip/tip-success-card";
@@ -46,16 +51,13 @@ export function TipDialog({
   const [sentAmount, setSentAmount] = useState<string>("");
   const [mounted, setMounted] = useState(false);
 
-  /* Portal to the body so the overlay is never trapped inside a transformed
-     card ancestor (which pinned it to the top of the page); lock body scroll
-     so the tribute reads as a full page, not a floating tab. */
+  /* `AdaptiveDialog` owns the portal, the scroll lock, the focus trap, focus
+     restore and the Escape handling that this component used to approximate by
+     hand, and it renders as a bottom sheet on a phone rather than a full bleed
+     panel. All that is left here is waiting for the client so the dialog is
+     never opened during prerender. */
   useEffect(() => {
     setMounted(true);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
   }, []);
 
   /* The tipper's embedded wallet decides the chain. If none is present (they
@@ -193,16 +195,28 @@ export function TipDialog({
 
   if (!mounted) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-stretch justify-center sm:items-center sm:p-4">
-      <button
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
-
-      {phase === "success" ? (
-        <div className="relative flex w-full items-center justify-center p-3 sm:max-w-md sm:p-0">
+  /* Success is a Ceremony, not a dialog, so it deliberately does not go through
+     AdaptiveDialog. That primitive always draws a titled header, which would
+     sit directly above the card's own "Tribute sent" heading and say the same
+     thing twice. It still portals to the body, because the overlay was
+     otherwise trapped inside a transformed card ancestor and pinned to the top
+     of the page, which is the bug the original hand rolled portal existed to
+     fix and which is worth keeping fixed. */
+  if (phase === "success") {
+    return createPortal(
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Tribute sent to ${recipientName}`}
+        className="fixed inset-0 z-modal flex items-center justify-center p-4"
+      >
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="absolute inset-0 bg-obsidian/85 backdrop-blur-sm"
+        />
+        <div className="relative w-full max-w-md">
           <TipSuccessCard
             amount={sentAmount}
             symbol={chain.symbol}
@@ -212,147 +226,151 @@ export function TipDialog({
             onClose={onClose}
           />
         </div>
-      ) : (
-        <div className="glass glass-warm relative flex h-full w-full flex-col overflow-y-auto p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] sm:h-auto sm:max-w-md sm:pt-6">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
-                Pay tribute
-              </p>
-              <h2 className="mt-1 font-display text-lg font-semibold text-bone">
-                Tip {recipientName}
-              </h2>
-            </div>
-            <button
-              aria-label="Close"
-              onClick={onClose}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-bone-faint transition hover:bg-panel hover:text-bone-mut"
-            >
-              <Icon name="plus" className="h-4 w-4 rotate-45" />
-            </button>
-          </div>
+      </div>,
+      document.body
+    );
+  }
 
-          {phase === "loading" && (
-            <div className="mt-6 flex items-center gap-3 text-sm text-bone-faint">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
-              Finding their wallet...
-            </div>
-          )}
-
-          {phase === "error" && (
-            <div className="mt-5">
-              <div className="glass-sm flex items-start gap-3 rounded-xl border border-ember-deep/40 bg-panel p-3 text-xs text-bone-mut">
-                <Icon
-                  name="shield"
-                  className="h-4 w-4 shrink-0 text-ember-deep"
-                />
-                <span>{error ?? "Something went awry."}</span>
-              </div>
-              <div className="mt-5 flex justify-end gap-2">
-                {recipientWallet && (
-                  <button
-                    onClick={() => {
-                      setError(null);
-                      setPhase("amount");
-                    }}
-                    className="btn-glass px-4 py-2 text-xs text-bone-mut"
-                  >
-                    Try again
-                  </button>
-                )}
-                <button onClick={onClose} className="btn-gold px-5 py-2 text-xs">
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-
-          {(phase === "amount" || phase === "sending") && (
-            <>
-              <p className="mt-4 text-xs text-bone-faint">
-                A real, wallet-to-wallet transfer of{" "}
-                <span className="text-bone-mut">{chain.symbol}</span> on{" "}
-                {chain.name}. You pay network gas; THE RAVENSPIRE takes nothing.
-              </p>
-
-              <div className="mt-4 grid grid-cols-4 gap-2">
-                {TIP_PRESETS.map((p) => {
-                  const active = choice === p;
-                  return (
-                    <button
-                      key={p}
-                      disabled={phase === "sending"}
-                      onClick={() => {
-                        setChoice(p);
-                        setCustom("");
-                      }}
-                      className={`tnum rounded-xl border px-2 py-2.5 text-center text-xs transition disabled:opacity-50 ${
-                        active
-                          ? "border-gold/60 bg-panel-warm text-gold-bright"
-                          : "border-steel-line bg-void text-bone-mut hover:border-gold/40"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <label className="mt-3 flex items-center gap-2 rounded-xl border border-steel-line bg-void px-3 py-2 focus-within:border-gold/40">
-                <span className="text-xs text-bone-faint">Custom</span>
-                <input
-                  inputMode="decimal"
-                  value={custom}
-                  disabled={phase === "sending"}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                      setCustom(v);
-                      setChoice(null);
-                    }
-                  }}
-                  placeholder="0.00"
-                  className="tnum min-w-0 flex-1 bg-transparent text-right text-sm text-bone placeholder-bone-faint outline-none"
-                />
-                <span className="text-xs font-semibold text-bone-mut">
-                  {chain.symbol}
-                </span>
-              </label>
-
-              {selfTip && (
-                <p className="mt-3 text-xs text-ember">
-                  This is your own wallet. Tribute is for others.
-                </p>
-              )}
-
-              <button
-                onClick={confirm}
-                disabled={!amountValid || selfTip || phase === "sending"}
-                className="btn-gold mt-5 w-full py-2.5 text-sm disabled:opacity-50"
-              >
-                {phase === "sending" ? (
-                  <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#171204]/40 border-t-[#171204]" />
-                    Sending tribute...
-                  </>
-                ) : (
-                  <>
-                    <Icon name="coin" className="h-4 w-4" />
-                    Send{amountValid ? ` ${amountStr} ${chain.symbol}` : " tribute"}
-                  </>
-                )}
-              </button>
-
-              {phase === "sending" && (
-                <p className="mt-3 text-center text-[11px] text-bone-faint">
-                  Confirm in your wallet. Do not close this window.
-                </p>
-              )}
-            </>
-          )}
+  return (
+    <AdaptiveDialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={`Tip ${recipientName}`}
+      description="Pay tribute"
+      size="md"
+    >
+      {phase === "loading" && (
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-16 w-full" />
+          <p className="text-sm text-bone-faint">Finding their wallet...</p>
         </div>
       )}
-    </div>,
-    document.body
+
+      {phase === "error" && (
+        <div>
+          <Card
+            variant="inset"
+            pad="sm"
+            role="alert"
+            className="flex items-start gap-3 border-state-danger/40 text-xs text-bone-mut"
+          >
+            <Icon name="alert" className="h-4 w-4 shrink-0 text-state-danger" />
+            <span>{error ?? "Something went awry."}</span>
+          </Card>
+          <div className="mt-5 flex justify-end gap-2">
+            {recipientWallet && (
+              <Button
+                variant="glass"
+                size="md"
+                onClick={() => {
+                  setError(null);
+                  setPhase("amount");
+                }}
+              >
+                Try again
+              </Button>
+            )}
+            <Button variant="gold" size="md" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {(phase === "amount" || phase === "sending") && (
+        <>
+          <p className="text-xs text-bone-faint">
+            A real, wallet to wallet transfer of{" "}
+            <span className="text-bone-mut">{chain.symbol}</span> on{" "}
+            {chain.name}. You pay network gas; THE RAVENSPIRE takes nothing.
+          </p>
+
+          {/* Presets are not a SegmentedControl. That primitive always has
+              exactly one selected value, and this group is legitimately empty
+              whenever a custom amount is typed. Buttons carrying aria-pressed
+              are the honest shape for a group that can have nothing chosen. */}
+          <div className="mt-4 grid grid-cols-4 gap-2" role="group" aria-label="Tribute presets">
+            {TIP_PRESETS.map((preset) => (
+              <Button
+                key={preset}
+                size="md"
+                variant={choice === preset ? "glass" : "ghost"}
+                aria-pressed={choice === preset}
+                disabled={phase === "sending"}
+                className={
+                  choice === preset
+                    ? "tnum border-gold/60 text-gold-bright"
+                    : "tnum border border-steel-line"
+                }
+                onClick={() => {
+                  setChoice(preset);
+                  setCustom("");
+                }}
+              >
+                {preset}
+              </Button>
+            ))}
+          </div>
+
+          <Field label="Custom amount" className="mt-3">
+            <div className="flex items-center gap-2">
+              <Input
+                inputMode="decimal"
+                value={custom}
+                disabled={phase === "sending"}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                    setCustom(v);
+                    setChoice(null);
+                  }
+                }}
+                placeholder="0.00"
+                className="tnum flex-1 text-right"
+              />
+              <span className="text-xs font-semibold text-bone-mut">
+                {chain.symbol}
+              </span>
+            </div>
+          </Field>
+
+          {selfTip && (
+            <p className="mt-3 text-xs text-state-warning">
+              This is your own wallet. Tribute is for others.
+            </p>
+          )}
+
+          <Button
+            variant="gold"
+            size="lg"
+            block
+            className="mt-5"
+            loading={phase === "sending"}
+            disabled={!amountValid || selfTip}
+            onClick={() => {
+              void confirm();
+            }}
+          >
+            {phase === "sending" ? (
+              "Sending tribute..."
+            ) : (
+              <>
+                <Icon name="coin" className="h-4 w-4" />
+                Send{amountValid ? ` ${amountStr} ${chain.symbol}` : " tribute"}
+              </>
+            )}
+          </Button>
+
+          {phase === "sending" && (
+            <p className="mt-3 text-center text-[11px] text-bone-faint">
+              Confirm in your wallet. Do not close this window.
+            </p>
+          )}
+        </>
+      )}
+    </AdaptiveDialog>
   );
 }
