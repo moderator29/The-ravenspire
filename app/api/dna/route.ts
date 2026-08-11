@@ -1,8 +1,8 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { json } from "@/lib/auth/server";
+import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
-import { rateLimit } from "@/lib/rate-limit";
+import { callerKey, rateLimit } from "@/lib/rate-limit";
 import { fetchPortfolio } from "@/lib/market/goldrush";
 
 /* The DNA Analyzer. A presale hype tool: paste an EVM address or an @handle
@@ -51,12 +51,6 @@ const HOUSE_NAMES: Record<string, string> = {
 
 function authHeader(key: string): string {
   return `Basic ${Buffer.from(`${key}:`).toString("base64")}`;
-}
-
-function clientIp(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return req.headers.get("x-real-ip")?.trim() || "anon";
 }
 
 function formatUsd(value: number): string {
@@ -505,11 +499,23 @@ export async function POST(req: Request) {
       503
     );
 
-  /* Public presale tool: rate-limit by IP so the model spend stays sane. */
-  const rl = await rateLimit(`dna:${clientIp(req)}`, 20, 3600);
+  /* C4: a public presale tool that makes a paid Anthropic call per read. It
+     stays open to visitors, so it meters on the account when the caller is a
+     member and only falls back to the (spoofable) address when they are not.
+     A member keying on their own id cannot rotate an X-Forwarded-For to get a
+     fresh bucket. */
+  const profile = await getProfile(req);
+  const rl = await rateLimit(
+    callerKey("dna", req, profile?.id),
+    profile ? 60 : 20,
+    3600
+  );
   if (!rl.ok)
     return json(
-      { error: "Too many reads for now. Try again within the hour." },
+      {
+        error: "Too many reads for now. Try again within the hour.",
+        retryAfter: rl.retryAfter,
+      },
       429
     );
 

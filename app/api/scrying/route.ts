@@ -1,4 +1,5 @@
-import { json } from "@/lib/auth/server";
+import { getProfile, json } from "@/lib/auth/server";
+import { callerKey, rateLimit } from "@/lib/rate-limit";
 import { TRADE_CHAINS, tradeChainByGecko } from "@/lib/trade/config";
 import { chainLogo } from "@/lib/trade/token-list";
 
@@ -313,6 +314,30 @@ async function scry() {
   };
 }
 
-export async function GET() {
+/* C4: one call to the glass fans out to two GeckoTerminal pages per chain plus
+   a trending page per chain, then batched DexScreener enrichment on top. It is
+   the heaviest request in the app and it stays open to visitors, so it is
+   metered: on the account when someone is signed in, on the address when they
+   are not. The glass refreshes itself every 60s while open, so both ceilings
+   sit well above an hour of honest watching; a shared address is the reason
+   the signed-out bucket is not tighter still. */
+export async function GET(req: Request) {
+  const profile = await getProfile(req);
+  const rl = await rateLimit(
+    callerKey("scrying", req, profile?.id),
+    profile ? 300 : 150,
+    3600
+  );
+  if (!rl.ok)
+    return json(
+      {
+        heating: [],
+        trending: [],
+        top: [],
+        error: "rate_limited" as const,
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
   return json(await scry());
 }

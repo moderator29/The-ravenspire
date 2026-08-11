@@ -2,6 +2,7 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { createNotification } from "@/lib/notifications";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* One endpoint for the small social verbs: like, bookmark, follow, repost.
    Body: { action, subject_type?, subject_id?, on?, quote? } */
@@ -10,6 +11,20 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* C4: the social verbs each write a row, move a counter and can raise a
+     notification and a points award. Generous enough that no real session of
+     liking and following ever touches it, tight enough that a script cannot
+     farm points or spray follows. */
+  const rl = await rateLimit(profileKey("social", profile.id), 300, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "You move faster than the ravens can fly. Rest a moment.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     action?: string;

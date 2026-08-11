@@ -9,6 +9,7 @@ import { TokenLogo } from "@/components/coin/token-logo";
 import { WatchStar } from "@/components/coin/watch-star";
 import { RealmTrades } from "@/components/trade/realm-trades";
 import { TRADE_CHAINS } from "@/lib/trade/config";
+import { realmFetch } from "@/lib/auth/api";
 
 interface ScryCoin {
   symbol: string;
@@ -174,8 +175,11 @@ export default function ScryingPage() {
   const load = useCallback(async () => {
     setError(false);
     try {
-      const res = await fetch("/api/scrying");
-      const body = (await res.json()) as ScryResponse;
+      /* Carries the member's token when there is one, so a signed-in reader is
+         metered on their account rather than sharing an address bucket with
+         everyone behind the same network. */
+      const res = await realmFetch<ScryResponse>("/api/scrying");
+      const body = res.data ?? { heating: [], trending: [], top: [] };
       if (body.error) {
         setError(true);
         setData({ heating: [], trending: [], top: [] });

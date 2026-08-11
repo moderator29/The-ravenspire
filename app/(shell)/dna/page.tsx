@@ -7,6 +7,7 @@ import { BackButton } from "@/components/shell/back-button";
 import { Sequencing } from "@/components/dna/sequencing";
 import { DnaCard } from "@/components/dna/dna-card";
 import type { DnaResult } from "@/components/dna/types";
+import { realmFetch } from "@/lib/auth/api";
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const HANDLE_RE = /^@?[a-zA-Z0-9_]{1,30}$/;
@@ -49,14 +50,13 @@ function Analyzer() {
     setError(null);
     setResult(null);
     try {
-      const res = await fetch("/api/dna", {
+      /* Carries the member's token when there is one, so a signed-in reader is
+         metered on their account rather than on a shared address. */
+      const res = await realmFetch<DnaResult & { error?: string }>("/api/dna", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
+        json: { query: q },
       });
-      const data = (await res.json().catch(() => null)) as
-        | (DnaResult & { error?: string })
-        | null;
+      const data = res.data;
       if (!res.ok || !data || data.error || !data.archetype) {
         setError(
           data?.error ?? "The sequencer stalled. Try again in a moment."

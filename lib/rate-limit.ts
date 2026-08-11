@@ -33,6 +33,30 @@ export function profileKey(action: string, profileId: string): string {
   return `${action}:${profileId}`;
 }
 
+/* Best-effort caller address. x-forwarded-for is client-settable in principle,
+   so this is only ever a fallback for routes that genuinely serve people who
+   are not signed in. Anything behind a profile keys on profileKey instead. */
+export function clientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim();
+  return req.headers.get("x-real-ip")?.trim() || "anon";
+}
+
+/* Key a genuinely public route on the caller's address. */
+export function ipKey(action: string, req: Request): string {
+  return `${action}:ip:${clientIp(req)}`;
+}
+
+/* The right key for a route that serves both members and visitors: the
+   account when we know it, the address only when we do not. */
+export function callerKey(
+  action: string,
+  req: Request,
+  profileId: string | null | undefined
+): string {
+  return profileId ? profileKey(action, profileId) : ipKey(action, req);
+}
+
 /* Record one hit against `key` and report whether it is within `limit` per
    `windowSeconds`. Fails open (allows the request) when Supabase is not
    configured or the store is unreachable, so a limiter outage never takes the
