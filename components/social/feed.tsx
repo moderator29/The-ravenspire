@@ -10,7 +10,7 @@ import { fetchTrendingCashtags, type Cashtag } from "@/lib/social/explore-querie
 import {
   fetchFeed,
   subscribeToFeed,
-  fetchFollowingIds,
+  FEED_PAGE_SIZE,
   type FeedTab,
 } from "@/lib/social/queries";
 import type { Post } from "@/lib/social/types";
@@ -53,12 +53,15 @@ export function Feed() {
   useEffect(() => {
     void fetchTrendingCashtags().then((tags) => setTrending(tags.slice(0, 8)));
   }, []);
-  const me = useRef<{
-    id: string;
-    handle: string | null;
-    house_slug: string | null;
-  } | null>(null);
-  const followingIds = useRef<string[] | null>(null);
+  /* B1: `load` is a useCallback keyed on the tab, so anything it reads out of
+     state is frozen at the moment that callback was built. Reading `posts`
+     directly meant "Older ravens" always paged from `undefined`, refetching
+     page one forever and appending duplicate keys. The ref always holds the
+     current page, so the cursor is always the true last raven. */
+  const latest = useRef<Post[]>([]);
+  useEffect(() => {
+    latest.current = posts;
+  }, [posts]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -73,41 +76,28 @@ export function Feed() {
   const load = useCallback(
     async (append = false) => {
       setLoading(!append);
-      /* Audience gating needs to know who is reading, on every tab, so a
-         follower-only or House raven can reach an eligible member here too. */
-      if (authenticated && !me.current) {
-        const res = await realmFetch<{
-          profile?: { id: string; handle: string | null; house_slug: string | null };
-        }>("/api/me", { method: "POST" });
-        if (res.data?.profile) me.current = res.data.profile;
-      }
-      if (authenticated && me.current && followingIds.current === null) {
-        followingIds.current = await fetchFollowingIds(me.current.id);
-      }
-      const last = posts[posts.length - 1];
+      /* Who is reading, which House they are sworn to and who they follow are
+         all resolved from the bearer token inside /api/feed. The browser no
+         longer states its own audience, because it could always lie. */
+      const current = latest.current;
+      const last = current[current.length - 1];
       const before = append
         ? (last?.effectiveTime ?? last?.created_at)
         : undefined;
-      const batch = await fetchFeed({
-        tab,
-        before,
-        followingIds: followingIds.current ?? [],
-        houseSlug: me.current?.house_slug ?? null,
-        viewerId: me.current?.id ?? null,
-        viewerHandle: me.current?.handle ?? null,
-      });
-      setDone(batch.length < 30);
+      const batch = await fetchFeed({ tab, before });
+      setDone(batch.length < FEED_PAGE_SIZE);
       setPosts((prev) => (append ? [...prev, ...batch] : batch));
       setLoading(false);
       setHasNew(false);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tab, authenticated]
+    [tab]
   );
 
+  /* Signing in or out changes which ravens the reader is admitted to, so the
+     page is pulled again when auth settles, not only when the tab changes. */
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, authenticated]);
 
   useEffect(() => {
     return subscribeToFeed(() => setHasNew(true));

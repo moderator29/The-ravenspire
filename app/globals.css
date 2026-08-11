@@ -65,6 +65,12 @@
   --state-success: var(--gold-rich);
   --state-info: var(--ally);
   --state-focus-ring: var(--gold-bright); /* 13.11:1, clears the 3:1 bar easily */
+
+  /* Chart direction. components/social/call-chart.tsx referenced --chart-up and
+     --chart-down, but neither was ever defined, so its hardcoded hex fallbacks
+     always won and sat off brand. Gold for up, ember for down, never green. */
+  --chart-up: var(--gold-rich);
+  --chart-down: var(--ember-deep);
 }
 
 @theme inline {
@@ -98,6 +104,104 @@
 
   --font-display: var(--font-cinzel), serif;
   --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* ── RADIUS ──────────────────────────────────────────────────────────────
+     Six rungs, down from fourteen ad hoc values. Controls are clean rounded
+     rectangles: there is deliberately no pill rung here. `--radius-full` stays
+     for avatars and genuinely circular icon buttons only, never for buttons,
+     tabs, nav items or chips. */
+  --radius-none: 0px;
+  --radius-sm: 8px; /* chips, small toggles, dense rows */
+  --radius-md: 12px; /* buttons, inputs, tabs, nav items */
+  --radius-lg: 16px; /* inner cards, list rows */
+  --radius-xl: 20px; /* the signature card */
+  --radius-2xl: 26px; /* modals, sheets, the nav bar shell */
+  --radius-full: 9999px; /* avatars only */
+
+  /* ── ELEVATION ───────────────────────────────────────────────────────────
+     Named, not ad hoc. Every raised surface is lit from the upper left with a
+     top highlight and a bottom occlusion, so the whole product shares one
+     light direction. Inconsistent light direction is the clearest tell of an
+     amateur dark interface. */
+  --shadow-flat: none;
+  --shadow-raised: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-card: inset 0 1px 0 rgba(240, 214, 140, 0.1),
+    0 18px 50px rgba(0, 0, 0, 0.45);
+  --shadow-lifted: inset 0 1px 0 rgba(240, 214, 140, 0.14),
+    0 22px 60px rgba(0, 0, 0, 0.55), 0 0 32px rgba(200, 162, 76, 0.07);
+  --shadow-overlay: 0 32px 80px rgba(0, 0, 0, 0.7);
+  --shadow-forge: inset 0 1px 0 rgba(255, 244, 214, 0.65),
+    inset 0 -2px 4px rgba(90, 66, 20, 0.45), 0 8px 26px rgba(200, 162, 76, 0.22);
+
+  /* ── MOTION ──────────────────────────────────────────────────────────────
+     Current motion runs 0.28s to 0.9s, which is two to three times too slow
+     and is where "cheap" comes from. Entrances ease out, movement eases in and
+     out, exits run about 20% faster than entrances. Ambient atmosphere loops
+     (aurora, ember) are the sole exception and keep their long durations. */
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out-quart: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+
+  /* ── SPACING ─────────────────────────────────────────────────────────────
+     Tailwind v4 ships a spacing multiplier rather than a scale, so every
+     integer and half step is free and there is nothing to violate. That is why
+     py-2.5, px-3.5, p-7 and p-9 are scattered through the codebase. These
+     named steps are the scale for all new work.
+
+     NOT YET ENFORCED. Setting `--spacing: initial` makes bare numeric spacing
+     utilities stop compiling entirely, which is the only thing that will
+     actually hold the line, but it breaks every existing p-4 and gap-3 at once.
+     That flip is a dedicated mechanical pass, tracked in docs/RAVENSPIRE-V2.md
+     section 13.3, and must not land while feature work is in flight. */
+  --spacing-1: 0.25rem; /* 4, icon and text gaps */
+  --spacing-2: 0.5rem; /* 8, chip padding, tight rows */
+  --spacing-3: 0.75rem; /* 12, default inline gap */
+  --spacing-4: 1rem; /* 16, card padding on mobile */
+  --spacing-5: 1.5rem; /* 24, card padding on desktop, section gap */
+  --spacing-6: 2rem; /* 32 */
+  --spacing-7: 3rem; /* 48 */
+  --spacing-8: 4rem; /* 64, page rhythm */
+}
+
+/* ── Z INDEX ───────────────────────────────────────────────────────────────
+   Was thirteen values including z-[90], z-[91], z-[95], z-[96]. Seven named
+   rungs at gaps of 100 leave room to insert. Tailwind v4 has no --z-*
+   namespace, so these are plain custom properties exposed as utilities. */
+:root {
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-nav: 200;
+  --z-dropdown: 300;
+  --z-overlay: 400;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+}
+
+@utility z-sticky {
+  z-index: var(--z-sticky);
+}
+@utility z-nav {
+  z-index: var(--z-nav);
+}
+@utility z-dropdown {
+  z-index: var(--z-dropdown);
+}
+@utility z-overlay {
+  z-index: var(--z-overlay);
+}
+@utility z-modal {
+  z-index: var(--z-modal);
+}
+@utility z-toast {
+  z-index: var(--z-toast);
+}
+@utility z-tooltip {
+  z-index: var(--z-tooltip);
 }
 
 /* One focus ring for the whole realm. There were 268 hand written buttons and

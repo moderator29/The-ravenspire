@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
+    "@base-ui/react": "^1.7.0",
     "@paulmillr/qr": "^0.2.1",
     "@privy-io/react-auth": "^3.35.1",
     "@privy-io/server-auth": "^1.32.5",

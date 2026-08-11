@@ -19,7 +19,9 @@ export default function ShellLayout({
             <SideNav />
           </div>
           <TopBar />
-          <main className="min-w-0 flex-1 pb-24 lg:pb-8">{children}</main>
+          {/* The mobile dock floats and can carry a sub navigation strip above
+              it, so it needs more clearance than the old fixed 64px bar. */}
+          <main className="min-w-0 flex-1 pb-28 lg:pb-8">{children}</main>
           <RightRail />
           <BottomNav />
 

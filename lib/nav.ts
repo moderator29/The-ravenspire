@@ -99,14 +99,92 @@ export const comingSoonNav: NavItem[] = [
   },
 ];
 
-/* Mobile bottom nav: social-first. */
+/* Mobile bottom nav.
+
+   Rebuilt for V2 around what the realm is actually for. Three changes worth
+   recording:
+
+   Calls are the flagship of the product and previously had no navigation
+   presence at all, existing only as a post kind inside the feed. They now hold
+   a slot.
+
+   /throne held a slot while being a coming soon marketing page. Its mechanics
+   (quests, duels, streaks, House Glory) are dissolving into the Ravenry and the
+   House halls rather than returning as a destination, so the slot is freed.
+
+   /keep, a member's own profile, was unreachable from mobile entirely. It was
+   only linked from the desktop sidebar avatar. It now holds a slot.
+
+   The Vault moves to the top bar as an account affordance. Crypto is
+   infrastructure here, not the product, and it does not earn one of five. */
 export const bottomNav = [
-  { href: "/home", label: "Home", icon: "home" },
+  { href: "/home", label: "Ravenry", icon: "home" },
+  { href: "/calls", label: "Calls", icon: "orb" },
   { href: "/explore", label: "Explore", icon: "compass" },
-  { href: "/rookery", label: "Live", icon: "signal" },
-  { href: "/throne", label: "Throne", icon: "crown" },
-  { href: "/vault", label: "Vault", icon: "wallet" },
+  { href: "/houses", label: "Houses", icon: "banner" },
+  { href: "/keep", label: "Keep", icon: "user" },
 ];
+
+/* Contextual sub navigation.
+
+   Each top level destination can declare a compact strip of sub destinations
+   that appears directly above the dock. This is what stops the bottom nav from
+   being five flat links: a section carries its own depth with it, so the feed's
+   tabs, the Calls views and a House's sections all live in one predictable
+   place instead of being re-invented at the top of every page.
+
+   Keys are matched against the start of the pathname, longest first. */
+export type SubNavItem = { href: string; label: string };
+
+export const subNav: Record<string, SubNavItem[]> = {
+  "/home": [
+    { href: "/home?tab=foryou", label: "For You" },
+    { href: "/home?tab=following", label: "Following" },
+    { href: "/home?tab=houses", label: "My House" },
+    { href: "/home?tab=signal", label: "Signal" },
+    { href: "/home?tab=latest", label: "Latest" },
+  ],
+  "/calls": [
+    { href: "/calls", label: "Live" },
+    { href: "/calls?view=closing", label: "Closing soon" },
+    { href: "/calls?view=trending", label: "Trending" },
+    { href: "/calls?view=leaderboard", label: "Callers" },
+    { href: "/calls?view=mine", label: "Mine" },
+  ],
+  "/explore": [
+    { href: "/explore", label: "People" },
+    { href: "/explore?view=cashtags", label: "Cashtags" },
+    { href: "/rookery", label: "Live rooms" },
+    { href: "/search", label: "Search" },
+  ],
+  "/houses": [
+    { href: "/houses", label: "Standings" },
+    { href: "/houses?view=mine", label: "My House" },
+    { href: "/houses?view=clashes", label: "Clashes" },
+  ],
+  "/keep": [
+    { href: "/keep", label: "Ravens" },
+    { href: "/keep?tab=calls", label: "Calls" },
+    { href: "/keep?tab=media", label: "Media" },
+    { href: "/renown", label: "Renown" },
+    { href: "/bookmarks", label: "Saved" },
+  ],
+  "/war": [
+    { href: "/war", label: "Muster" },
+    { href: "/war/champions", label: "Champions" },
+    { href: "/war/arsenal", label: "Arsenal" },
+    { href: "/war/rewards", label: "Rewards" },
+  ],
+};
+
+/* The sub nav for a pathname, or null when the section has no depth. Matches
+   the longest declared prefix so /war/champions resolves to the War strip. */
+export function subNavFor(pathname: string): SubNavItem[] | null {
+  const key = Object.keys(subNav)
+    .filter((k) => pathname === k || pathname.startsWith(`${k}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  return key ? subNav[key] : null;
+}
 
 export function findComingSoon(slug: string) {
   return comingSoonNav.find((i) => i.slug === slug);
