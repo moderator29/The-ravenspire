@@ -647,11 +647,212 @@ Every one of these lives *in* the Ravenry rather than behind another nav link.
 
 ## 13. Frontend and design direction
 
-1. **Build the missing primitives** in `components/ui/`: Button, Card, Modal/Sheet, Input, Tabs, Badge, Skeleton, EmptyState, Toggle (promote the quarantined set from `components/settings/ui.tsx`). This is the highest-value refactor in the product, because it is the root cause of the inconsistency.
-2. **Add the missing scales** to `globals.css`: spacing, radius, elevation, z-index, and semantic state tokens (success/warning/danger/info do not exist today). Define `--chart-up` / `--chart-down`, which are referenced but missing.
-3. **Unify the three icon systems** and make `Icon` warn on unknown names in dev instead of silently rendering a blank circle.
-4. **Reduce the IA.** ~30 side-nav links is a discovery failure. Group Tools behind one entry, show plain names alongside themed names (themed-only is invisible on touch), free the `/throne` mobile slot, and give `/keep` a mobile entry point.
-5. **Selective RSC.** Convert the highest-value pages to server components for real metadata and share unfurls: `/post/[id]`, `/u/[handle]`, `/houses/[slug]`, `/calls/[id]`. Leave the interactive tool pages client-side.
+Grounded in a measured audit of the codebase plus a survey of how the current
+best-in-class systems are built. Verified against the *installed* packages
+(`tailwindcss@4.3.3`, `next@16.2.10`) rather than remembered documentation.
+
+### 13.1 What the measurements actually showed
+
+The problem was never "we lack a Button". It is that the ad-hoc layer quietly
+accumulated defects a primitive layer would have prevented once.
+
+| Measurement | Value |
+| --- | --- |
+| Hand-written `<button>` elements | 268 |
+| Uses of `focus-visible` | 0 |
+| `focus:outline-none` with no replacement ring | 9 |
+| `aria-live` regions | 0 |
+| `role="dialog"` vs files with `fixed inset-0` overlays | 6 vs 19 |
+| Skeletons, all generic blocks rather than content-shaped | 80 |
+| Arbitrary Tailwind values (`-[...]`) | 890 |
+| Distinct `rounded-*` values | 14 |
+| Distinct `z-*` values | 13, including `z-[90] z-[91] z-[95] z-[96]` |
+| `loading.tsx` / `error.tsx` / `not-found.tsx` across 55 routes | 0 / 0 / 0 |
+| `useOptimistic` / `useTransition` / `useActionState` | 0 |
+| `@tanstack/react-query` imports (installed) | 0 |
+
+**Status: the accessibility items above are fixed.** Contrast lifted, one
+focus-visible ring applied to every interactive element, the 9 overrides
+removed, the dead dependency deleted. See the commit history.
+
+### 13.2 Primitive layer: build bespoke on Base UI
+
+**Recommendation: build twelve bespoke primitives on `@base-ui/react` (1.7.0).
+Do not adopt shadcn/ui. Do not adopt Radix.**
+
+- **Not shadcn**, because shadcn's value is its Tailwind styling defaults, and a
+  product whose entire differentiator is a hand-forged obsidian-and-gold
+  aesthetic would delete 100% of them on day one, leaving exactly Base UI
+  underneath. Take the dependency shadcn takes; skip shadcn. (shadcn itself
+  made Base UI its default in July 2026, which is a strong signal about where
+  the primitive layer is heading.)
+- **Not Radix**, because it has no Drawer and no Toast, so we would need Vaul
+  and Sonner, and **Vaul is now explicitly unmaintained by its author**. Base UI
+  ships both natively. For a mobile-heavy social product, gesture drawers are
+  core rather than optional.
+- **Not Ark UI**, whose differentiator is Vue/Solid/Svelte support we will never
+  use.
+
+The decisive argument is our own `overflow-menu.tsx`, the more sophisticated of
+the two existing primitives and a genuine good-faith effort. It still has four
+real defects: no focus management (opening never moves focus in, closing never
+restores it), no roving tabindex or arrow-key handling despite setting
+`role="menu"` (so the ARIA role actively lies to screen readers, which is worse
+than no role), no collision detection (hard-anchored, so it renders off-screen
+on the last post in the feed), and it closes on *any* scroll, so on touch it
+dismisses on the slightest thumb drift. Multiply that by Dialog, Tabs, Select,
+Tooltip, Combobox, Toast and Drawer and you have the true cost of hand-rolling.
+
+**Base UI is unstyled.** We keep 100% of the aesthetic and buy back only the
+behaviour contract.
+
+Twelve files: `button`, `card`, `modal`, `sheet`, `field`, `tabs`, `badge`,
+`skeleton`, `empty-state`, `toast`, `menu`, `tooltip`. Keep `icon.tsx`, it is
+good. Retire `overflow-menu.tsx`.
+
+Also migrate `framer-motion` to `motion` (the old name is a deprecated
+republishing alias) while only 21 files import it.
+
+### 13.3 Enforce the scales at compile time, not by convention
+
+Tailwind v4 does not ship a spacing *scale*, it ships a multiplier:
+
+```css
+--spacing: 0.25rem;   /* this is the entire spacing definition in theme.css */
+```
+
+`p-4` compiles to `calc(var(--spacing) * 4)`, generated on demand. **That is
+precisely why `py-2.5`, `px-3.5`, `p-7`, `p-9` are scattered through the
+codebase: every integer and half-step is free, so there is no scale to
+violate.** Conventions cannot fix this.
+
+The enforcement mechanism is real and verifiable in the v4 compiler: if
+`--spacing` does not resolve, `handleBareValue` returns `null` and bare numeric
+spacing utilities stop being generated at all. So:
+
+```css
+@theme {
+  --spacing: initial;    /* p-4, gap-3, py-2.5 now fail to compile */
+  --spacing-1: 0.25rem;  /* through --spacing-8, a 9 step scale */
+}
+```
+
+**The build then breaks on violation**, which is worth far more than a lint
+rule and converts 890 arbitrary values from invisible drift into a bounded,
+mechanical migration. Do it on its own branch: the diff is large but entirely
+mechanical.
+
+Same treatment for radius (14 values down to 6), elevation (named, not ad hoc
+box-shadows), and z-index (13 values down to 7 named rungs at gaps of 100).
+Tailwind v4 has no `--z-*` namespace, so express those as custom properties
+consumed through a small `@utility`.
+
+### 13.4 Interaction craft
+
+Current motion uses durations of 0.28s to 0.9s with exactly one spring across
+21 files. The established guidance is 100 to 150ms for micro-interactions, 150
+to 250ms for standard UI, and under 300ms for everything. **Most of our motion
+is two to three times too slow, and 0.6s on a hover is exactly where "cheap"
+comes from.** Ambient loops (`aurora-float` at 16s, `ember-rise`) are correct as
+they are and should stay.
+
+Priorities:
+
+1. **Ship a duration and easing scale** (100/150/220/320ms) and rewrite the 21
+   motion files against it. Cheapest perceived-quality win after contrast.
+2. **Adopt React 19 `useOptimistic`** for like, bookmark, follow and repost.
+   There are currently zero uses, and `whispers/page.tsx` hand-rolls optimistic
+   sending with manual rollback. Perceived speed is the dominant driver of
+   "premium".
+3. **Content-shaped skeletons behind a 300ms gate.** A skeleton that flashes for
+   under 300ms reads as a layout bug rather than a loading state.
+4. **Add `loading.tsx` and `error.tsx`** to the route groups. Zero exist across
+   55 routes, and they are free streaming SSR that Next 16 already wants to give
+   us.
+5. **Turn on View Transitions** (`experimental.viewTransition: true` in a
+   currently empty `next.config.ts`). Shared-element morphs (post avatar to
+   profile hero, coin logo to coin page), Suspense reveals, and directional
+   navigation. This is the most "native app" thing available to a web product
+   today, at near-zero runtime cost, degrading to instant swaps where
+   unsupported. Next 16 ships a complete guide inside `node_modules`.
+
+Two traps worth recording. **Haptics do not work on iOS**: `post-card.tsx`
+calls `navigator.vibrate`, iOS Safari has never supported the Vibration API,
+and the checkbox-switch workaround was patched in iOS 26.5. Keep it for Android,
+feature-detect, and never depend on it. **Scroll-driven CSS animations are not
+Baseline** (Firefox still gates them), so use them progressively and never
+load-bearing.
+
+Before reaching for a virtualizer on the unbounded feed, try one line:
+`content-visibility: auto` with `contain-intrinsic-size` on the post card. It
+defers off-screen rendering and preserves Ctrl+F.
+
+### 13.5 Feed card design
+
+Seven principles for mixing human posts with system events without it reading
+as advertising:
+
+1. **One chassis, many bodies.** Every card shares an identical outer shell:
+   same radius, padding, border, shadow. Only the interior varies. This is
+   Discord's embed model, and heterogeneity must never live in the frame.
+2. **Encode type in a 2px left accent rail**, not in the card's shape. Gold for
+   a human raven, ember for a call, steel for a system event.
+3. **System cards must be visibly quieter than human posts.** No avatar, use
+   secondary text, a lower surface, no glow, smaller footprint. The failure mode
+   the directive names, feeling like ads, comes from system cards competing on
+   visual weight. The existing `hideHerald` filter is evidence that Herald posts
+   already feel intrusive; fixing visual weight is the real fix.
+4. **Cap system-card density server-side.** No more than 1 in 5, never two
+   adjacent.
+5. **Every system card carries a primary action or a dismiss.** A card you can
+   act on earns its slot; a card that only announces is an advertisement.
+6. **Motion signals arrival, not existence.** An entry animation says "this is
+   new". A permanent pulse becomes noise within one session.
+7. **Fixed rhythm, variable height.** Constant gap with varying heights reads as
+   rich; varying gaps read as broken.
+
+On the two north stars the directive names: from **Discord**, take identity
+through *colour applied to a fixed shape*, never through varying the shape,
+which maps onto Houses exactly (avatar ring, card rail, badge tint, identical
+geometry). From **Steam**, take the *showcase*: a profile as a curated set of
+slots the member chooses to fill (pinned raven, best Call, House crest, war
+record), each rendering in the same card chassis. That single idea does more for
+"living realm" than any amount of ornament, because it is self-expression inside
+a system.
+
+### 13.6 Atmosphere without losing legibility
+
+The governing rule: **atmosphere belongs to background layers, legibility to
+foreground layers, and they must never mix.** The existing `.realm-bg` plus
+`.glass` split already implements this correctly and should be protected. The
+failure mode is putting texture *on* the card rather than *behind* it.
+
+- Noise is a banding fix first and an aesthetic second. Near-black gradients
+  band on 8-bit panels, which is exactly what `.realm-bg` and `.glass` are. An
+  SVG `feTurbulence` layer at 2 to 4% opacity kills the banding and reads as
+  forged metal. Apply once on the body, never per-card, given 432 `.glass`
+  instances already carrying a 14px backdrop blur.
+- **Depth comes from the light source, not shadow spread.** `.btn-gold` already
+  gets this right with a top highlight and bottom occlusion. Formalize it as
+  `--shadow-forge` and light the entire product from one direction. Inconsistent
+  light direction is the clearest tell of an amateur dark UI.
+- **Budget: at most two atmospheric effects visible at once.** Full atmosphere
+  on landing, war and profile, where atmosphere is the product. Grid and radial
+  only in the feed, where reading is the product.
+
+### 13.7 Information architecture
+
+Roughly 30 side-nav links is a discovery failure. Group Tools behind one entry,
+show plain names alongside themed ones (themed-only is invisible on touch),
+free the `/throne` mobile slot, and give `/keep` a mobile entry point.
+
+Unify the three icon systems (`ui/icon`, `landing/icons`, `brand/crests`) and
+make `Icon` warn on unknown names in development rather than silently rendering
+a blank circle.
+
+Convert the highest-value pages to server components for real metadata and share
+unfurls: `/post/[id]`, `/u/[handle]`, `/houses/[slug]`, `/calls/[id]`. Leave the
+interactive tool pages on the client.
 
 ## 14. Backend and infrastructure direction
 
@@ -788,7 +989,13 @@ addition.
 
 | Date | Milestone |
 | --- | --- |
-| 2026-08-11 | Two-agent audit complete. Typecheck verified clean (0 errors). Critical findings C1, C2, C3 verified first-hand. Plan drafted. **Awaiting product-owner decisions.** |
+| 2026-08-11 | Two-agent audit complete. Typecheck verified clean (0 errors). Critical findings C1, C2, C3 verified first-hand. |
+| 2026-08-11 | **Critical economy exploit found and closed.** `increment_profile_totals`, `increment_house_glory` and `rate_limit_hit` were executable by PUBLIC/anon/authenticated over PostgREST, allowing anyone with the browser-bundled anon key to mint unlimited points and glory. Revoked; advisors clear. |
+| 2026-08-11 | Baseline schema committed. 38 tables, 26 indexes, 3 functions, 22 policies, column grants. The database is reproducible from source for the first time. |
+| 2026-08-11 | Calls and Houses scoring designed against a survey of Metaculus, Manifold, Lichess, Chess.com, Duolingo, Strava, Stack Overflow. Q8 resolved by splitting Renown from Season Rating. |
+| 2026-08-11 | **`main` did not build.** `/search` used `useSearchParams()` with no Suspense boundary; prerender failed and no CI existed to catch it. Fixed; 119 pages generate. CI added. |
+| 2026-08-11 | WCAG AA contrast fixed (`--bone-faint` 4.10 to 4.52, 635 uses) and one keyboard focus ring applied across 268 previously focus-invisible buttons. |
+| 2026-08-11 | Frontend architecture decided: bespoke primitives on Base UI, compile-time-enforced token scales. **Awaiting product-owner decisions on section 22.** |
 
 ---
 
