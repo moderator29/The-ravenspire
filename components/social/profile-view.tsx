@@ -7,8 +7,14 @@ import { EarningsSection } from "@/components/profile/earnings-section";
 import { Avatar } from "@/components/social/avatar";
 import { OathHistory } from "@/components/social/oath-history";
 import { CrestRoundel, findCrest } from "@/components/brand/crests";
+import { Badge } from "@/components/ui/badge";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
-import { OverflowMenu } from "@/components/ui/overflow-menu";
+import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
+import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
+import { StreamList } from "@/components/stream/stream-shell";
 import {
   fetchFollowCounts,
   fetchProfilePosts,
@@ -25,6 +31,23 @@ import { houses } from "@/lib/data/houses";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { shareOrCopy } from "@/lib/share";
+
+/* A Keep, on the Dossier archetype.
+
+   Hero band, then tabs, then panels, always in that order. The hero is the one
+   place in a Dossier that may carry any weight at all: here that is the banner
+   and the member's crests. Everything below it is Ledger, flat and quiet.
+
+   The tab strip is the underline pattern rather than a chip rail, because these
+   are sections of one subject with counts, which is the rule in section 3. */
+
+/* A file picker is a label wrapping a hidden input, which is invisible to the
+   keyboard unless the input stays focusable and the label shows the ring on its
+   behalf. This belongs in a FilePicker primitive the next time components/ui is
+   opened; until then it is one string rather than four hand rolled variants. */
+const PICKER_FOCUS =
+  "cursor-pointer has-[input:focus-visible]:outline has-[input:focus-visible]:outline-2 " +
+  "has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-[color:var(--state-focus-ring)]";
 
 export function ProfileView({
   profile,
@@ -94,7 +117,6 @@ export function ProfileView({
     void realmFetch<{ blocked?: string[] }>("/api/blocks").then((res) => {
       if (res.data?.blocked?.includes(profile.id)) setIsBlocked(true);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, own, profile.id]);
 
   /* Resolve the viewer and their real follow relationship to this Keep so
@@ -159,7 +181,6 @@ export function ProfileView({
      least a few calls have resolved so a lone lucky call can't read as 100%. */
   const hitRate =
     settledCalls >= 3 ? Math.round((callsWon / settledCalls) * 100) : null;
-  const shown = tab === "calls" ? callPosts : posts;
   const mediaTiles = posts.flatMap((p) =>
     (p.media ?? [])
       .filter((m) => m.type === "image" && m.url)
@@ -180,11 +201,18 @@ export function ProfileView({
     });
   };
 
+  const shareProfile = () => {
+    const url = `${window.location.origin}/u/${profile.handle}`;
+    const who = profile.display_name ?? `@${profile.handle}`;
+    void shareOrCopy(url, `${who} on The Ravenspire`);
+  };
+
   return (
     <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      {/* Banner */}
-      <div
-        className="glass relative h-32 overflow-hidden sm:h-40"
+      {/* ── Hero band ─────────────────────────────────────────────────── */}
+      <Card
+        pad="none"
+        className="relative h-32 overflow-hidden sm:h-40"
         style={
           displayProfile.banner_url
             ? {
@@ -198,13 +226,18 @@ export function ProfileView({
         }
       >
         {isOwn && (
-          <label className="btn-glass absolute right-3 top-3 flex cursor-pointer items-center gap-1.5 px-3 py-1.5 text-[11px] text-bone-mut">
+          <Button
+            variant="glass"
+            size="md"
+            render={<label className={PICKER_FOCUS} />}
+            className="absolute right-3 top-3 text-xs text-bone-mut"
+          >
             <Icon name="image" className="h-3.5 w-3.5" />
-            {uploading === "banner" ? "Uploading..." : "Change banner"}
+            {uploading === "banner" ? "Uploading" : "Change banner"}
             <input
               type="file"
               accept={portraitAccept}
-              className="hidden"
+              className="sr-only"
               disabled={uploading !== null}
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -212,26 +245,35 @@ export function ProfileView({
                 e.target.value = "";
               }}
             />
-          </label>
+          </Button>
         )}
-      </div>
-      <div className="relative z-20 -mt-8 px-4">
-        <div className="flex items-end justify-between">
+      </Card>
+
+      {/* Positioned and later in the DOM than the banner, so it paints above it
+          without needing a rung off the z-index scale. */}
+      <div className="relative -mt-8 px-4">
+        <div className="flex items-end justify-between gap-3">
           {isOwn ? (
-            <label className="group relative inline-flex cursor-pointer">
+            <label
+              className={`group relative inline-flex ${PICKER_FOCUS} rounded-[var(--radius-full)]`}
+            >
               <Avatar author={displayProfile} size={76} />
-              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition group-hover:opacity-100">
+              <span
+                aria-hidden
+                className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-full)] bg-obsidian/60 opacity-0 transition-opacity duration-fast ease-out-quint group-hover:opacity-100"
+              >
                 <Icon name="image" className="h-5 w-5 text-bone" />
               </span>
               {uploading === "avatar" && (
-                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 text-[9px] font-semibold uppercase tracking-wider text-bone">
-                  ...
+                <span className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-full)] bg-obsidian/70 text-[9px] font-semibold uppercase tracking-wider text-bone">
+                  Sealing
                 </span>
               )}
+              <span className="sr-only">Change your portrait</span>
               <input
                 type="file"
                 accept={portraitAccept}
-                className="hidden"
+                className="sr-only"
                 disabled={uploading !== null}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -243,103 +285,82 @@ export function ProfileView({
           ) : (
             <Avatar author={displayProfile} size={76} />
           )}
+
           {isOwn ? (
             onEdit ? (
-              <button
-                onClick={onEdit}
-                className="btn-gold flex items-center gap-1.5 px-4 py-1.5 text-xs"
-              >
+              <Button variant="gold" size="lg" onClick={onEdit}>
                 <Icon name="sliders" className="h-3.5 w-3.5" />
                 Edit profile
-              </button>
+              </Button>
             ) : (
-              <span className="btn-glass px-4 py-1.5 text-xs text-bone-mut">
-                This is your Keep
-              </span>
+              <Badge variant="gold">This is your Keep</Badge>
             )
           ) : (
-            /* Follow always renders so blocking never shifts it. The overflow
-               menu is anchored to the dots button alone (its own relative box),
-               so opening it never moves the Follow button or the surrounding
-               header. Block lives only inside this menu, never loose. */
+            /* Follow always renders so blocking never shifts it. The menu is
+               anchored to its own trigger and portals, so opening it never
+               moves the Follow button or the surrounding header. Block lives
+               only inside this menu, never loose. */
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant={following ? "glass" : "gold"}
+                size="lg"
                 onClick={toggleFollow}
-                className={`px-5 py-1.5 text-xs ${following ? "btn-glass text-bone-mut" : "btn-gold"}`}
+                aria-pressed={following}
+                className={following ? "text-bone-mut" : ""}
               >
                 {following ? "Following" : "Follow"}
-              </button>
-              <OverflowMenu
-                ariaLabel="More"
-                buttonClassName="btn-glass flex h-8 w-8 items-center justify-center text-bone-mut"
+              </Button>
+              <Menu
+                trigger={
+                  <IconButton
+                    icon="dots"
+                    label="More"
+                    variant="glass"
+                    size="lg"
+                  />
+                }
               >
-                {(close) => (
-                  <>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        const url = `${window.location.origin}/u/${profile.handle}`;
-                        const who = profile.display_name ?? `@${profile.handle}`;
-                        void shareOrCopy(url, `${who} on The Ravenspire`);
-                        close();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                    >
-                      <Icon name="share" className="h-3.5 w-3.5 shrink-0" />
-                      Share profile
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        close();
-                        void realmFetch("/api/mutes", {
-                          method: "POST",
-                          json: { muted_id: profile.id },
-                        });
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                    >
-                      <Icon name="bell" className="h-3.5 w-3.5 shrink-0" />
-                      Mute
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        close();
-                        void toggleBlock();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                    >
-                      <Icon name="shield" className="h-3.5 w-3.5 shrink-0" />
-                      {isBlocked ? "Unblock" : "Block"}
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        close();
-                        void realmFetch("/api/reports", {
-                          method: "POST",
-                          json: {
-                            subject_type: "profile",
-                            subject_id: profile.id,
-                            reason: "member_flag",
-                          },
-                        });
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
-                    >
-                      <Icon name="flag" className="h-3.5 w-3.5 shrink-0" />
-                      Report
-                    </button>
-                  </>
-                )}
-              </OverflowMenu>
+                <MenuItem icon="share" onClick={shareProfile}>
+                  Share profile
+                </MenuItem>
+                <MenuItem
+                  icon="bell"
+                  onClick={() => {
+                    void realmFetch("/api/mutes", {
+                      method: "POST",
+                      json: { muted_id: profile.id },
+                    });
+                  }}
+                >
+                  Mute
+                </MenuItem>
+                <MenuItem icon="shield" onClick={() => void toggleBlock()}>
+                  {isBlocked ? "Unblock" : "Block"}
+                </MenuItem>
+                <MenuSeparator />
+                <MenuItem
+                  icon="flag"
+                  tone="danger"
+                  onClick={() => {
+                    void realmFetch("/api/reports", {
+                      method: "POST",
+                      json: {
+                        subject_type: "profile",
+                        subject_id: profile.id,
+                        reason: "member_flag",
+                      },
+                    });
+                  }}
+                >
+                  Report
+                </MenuItem>
+              </Menu>
             </div>
           )}
         </div>
 
         {isOwn && portraitError && (
-          <p className="mt-2 text-xs text-ember-deep">{portraitError}</p>
+          <p className="mt-2 text-xs text-state-danger">{portraitError}</p>
         )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -352,7 +373,7 @@ export function ProfileView({
               target="_blank"
               rel="noopener noreferrer"
               title={`@${profile.x_handle} on X`}
-              className="flex h-6 w-6 items-center justify-center rounded-md border border-steel-line bg-void text-bone-mut transition hover:border-gold/40 hover:text-bone"
+              className="flex h-6 w-6 items-center justify-center rounded-md border border-steel-line bg-void text-bone-mut transition-colors duration-fast ease-out-quint hover:border-gold/40 hover:text-bone"
             >
               <Icon name="xlogo" className="h-4 w-4" />
             </a>
@@ -365,11 +386,7 @@ export function ProfileView({
               </span>
             ) : null;
           })}
-          {profile.is_agent && (
-            <span className="rounded-[--radius-sm] border border-gold/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gold">
-              Herald of the realm
-            </span>
-          )}
+          {profile.is_agent && <Badge variant="gold">Herald of the realm</Badge>}
         </div>
         <p className="text-sm text-bone-faint">@{profile.handle}</p>
 
@@ -385,16 +402,18 @@ export function ProfileView({
               .filter((l) => l.url?.startsWith("https://"))
               .slice(0, 3)
               .map((l) => (
-                <a
+                <Button
                   key={l.url}
-                  href={l.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="glass-sm flex max-w-full items-center gap-1.5 rounded-[--radius-sm] px-3 py-1 text-xs text-bone-mut hover:text-bone"
+                  variant="glass"
+                  size="sm"
+                  render={
+                    <a href={l.url} target="_blank" rel="noopener noreferrer" />
+                  }
+                  className="max-w-full max-md:h-11 font-medium text-bone-mut"
                 >
                   <Icon name="compass" className="h-3 w-3 shrink-0 text-gold" />
                   <span className="truncate">{l.label || l.url}</span>
-                </a>
+                </Button>
               ))}
           </div>
         )}
@@ -431,7 +450,7 @@ export function ProfileView({
             oath to show, since a single oath is what the banner above says. */}
         <OathHistory profileId={profile.id} />
 
-        <div className="tnum mt-3 flex gap-5 text-sm">
+        <div className="tnum mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
           <span>
             <b className="text-bone">{counts.followers}</b>{" "}
             <span className="text-bone-faint">Followers</span>
@@ -445,12 +464,10 @@ export function ProfileView({
             <span className="text-bone-faint">Calls won</span>
           </span>
           {hitRate !== null && (
-            <span
-              title={`${callsWon} of ${settledCalls} settled calls hit`}
-              className="inline-flex items-center gap-1 rounded-[--radius-sm] border border-gold/30 bg-gold/5 px-2 py-0.5 text-xs font-semibold text-gold"
-            >
-              <Icon name="target" className="h-3 w-3" />
-              {hitRate}% hit rate
+            <span title={`${callsWon} of ${settledCalls} settled calls hit`}>
+              <Badge variant="gold" icon="target">
+                {hitRate}% hit rate
+              </Badge>
             </span>
           )}
         </div>
@@ -486,70 +503,147 @@ export function ProfileView({
             </p>
           </div>
         )}
+
+        {/* Earnings and balance close the hero band: this is the member's
+            standing, the same readout as Renown and Calls won above it, and its
+            privacy gate lives server side in /api/profile/earnings, which
+            respects the PnL and public-positions toggles. */}
+        <EarningsSection
+          profileId={profile.id}
+          handle={profile.handle}
+          own={isOwn}
+        />
       </div>
 
-      {/* Earnings + balance: sits between the identity header and the content
-          tabs. Its own privacy gate lives server-side in /api/profile/earnings,
-          which respects the member's PnL and public-positions toggles. */}
-      <EarningsSection
-        profileId={profile.id}
-        handle={profile.handle}
-        own={isOwn}
-      />
+      {/* ── Tabs, then panels ─────────────────────────────────────────── */}
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as "posts" | "calls" | "media")}
+        className="mt-5"
+      >
+        <TabsList>
+          <Tab value="posts">
+            Ravens{" "}
+            <span className="tnum text-bone-faint">{posts.length}</span>
+          </Tab>
+          <Tab value="calls">
+            Calls{" "}
+            <span className="tnum text-bone-faint">{callPosts.length}</span>
+          </Tab>
+          <Tab value="media">
+            Media{" "}
+            <span className="tnum text-bone-faint">{mediaTiles.length}</span>
+          </Tab>
+        </TabsList>
 
-      <div className="mt-5 flex gap-1.5">
-        {(["posts", "calls", "media"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-[--radius-sm] px-4 py-1.5 text-xs font-semibold capitalize ${
-              tab === t ? "btn-gold" : "btn-glass text-bone-mut"
-            }`}
-          >
-            {t === "posts" ? "Ravens" : t === "calls" ? "Calls" : "Media"}
-          </button>
-        ))}
-      </div>
+        <TabsPanel value="posts" className="mt-3">
+          <PostPanel
+            posts={posts}
+            empty={
+              <EmptyState
+                icon="raven"
+                title={isOwn ? "Your Keep awaits its first raven" : "No ravens yet"}
+                body={
+                  isOwn
+                    ? "Send one and it lands here for good."
+                    : "This Keep has sent no word to the realm."
+                }
+                action={
+                  isOwn ? (
+                    <Button variant="gold" size="lg" render={<Link href="/compose" />}>
+                      Send a raven
+                    </Button>
+                  ) : undefined
+                }
+              />
+            }
+          />
+        </TabsPanel>
 
-      {tab === "media" ? (
-        mediaTiles.length === 0 ? (
-          <div className="glass mt-3 p-8 text-center text-sm text-bone-mut">
-            No images from this Keep yet.
-          </div>
-        ) : (
-          <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {mediaTiles.map((m) => (
-              <Link
-                key={m.key}
-                href={`/post/${m.postId}`}
-                className="glass-sm block aspect-square overflow-hidden"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={m.url}
-                  alt=""
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
-              </Link>
-            ))}
-          </div>
-        )
-      ) : (
-        <div className="mt-3 flex flex-col gap-3">
-          {shown.length === 0 ? (
-            <div className="glass p-8 text-center text-sm text-bone-mut">
-              {tab === "calls"
-                ? "No Calls sealed yet."
-                : isOwn
-                  ? "Your Keep awaits its first raven."
-                  : "No ravens from this Keep yet."}
-            </div>
+        <TabsPanel value="calls" className="mt-3">
+          <PostPanel
+            posts={callPosts}
+            empty={
+              <EmptyState
+                icon="target"
+                title="No Calls sealed yet"
+                body={
+                  isOwn
+                    ? "A Call seals a live price and lets the market judge it."
+                    : "This Keep has staked nothing on a price yet."
+                }
+                action={
+                  isOwn ? (
+                    <Button variant="gold" size="lg" render={<Link href="/compose" />}>
+                      Seal a Call
+                    </Button>
+                  ) : undefined
+                }
+              />
+            }
+          />
+        </TabsPanel>
+
+        <TabsPanel value="media" className="mt-3">
+          {mediaTiles.length === 0 ? (
+            <Card pad="none">
+              <EmptyState
+                icon="image"
+                title="No images from this Keep yet"
+                body={
+                  isOwn
+                    ? "Ravens carrying an image or a video collect here."
+                    : "Nothing this member has sent carried a picture."
+                }
+                action={
+                  isOwn ? (
+                    <Button variant="gold" size="lg" render={<Link href="/compose" />}>
+                      Send a raven
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </Card>
           ) : (
-            shown.map((p) => <PostCard key={p.id} post={p} />)
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {mediaTiles.map((m) => (
+                <Link
+                  key={m.key}
+                  href={`/post/${m.postId}`}
+                  className="block aspect-square overflow-hidden rounded-lg border border-steel-line"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={m.url}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                </Link>
+              ))}
+            </div>
           )}
-        </div>
-      )}
+        </TabsPanel>
+      </Tabs>
     </div>
+  );
+}
+
+/* A panel holding a stream of ravens. Same fixed gap as the Ravenry, so a Keep
+   and the feed read as the same product. */
+function PostPanel({
+  posts,
+  empty,
+}: {
+  posts: Post[];
+  empty: React.ReactNode;
+}) {
+  if (posts.length === 0) return <Card pad="none">{empty}</Card>;
+  return (
+    <StreamList>
+      {posts.map((p) => (
+        <PostCard key={p.id} post={p} />
+      ))}
+    </StreamList>
   );
 }

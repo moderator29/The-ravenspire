@@ -9,20 +9,32 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { createPortal } from "react-dom";
 import { Avatar } from "@/components/social/avatar";
 import { FollowButton } from "@/components/social/follow-button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { Sheet, useIsMobile } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_NAMES } from "@/lib/social/types";
 
 /* THE DOSSIER
    A quick, non-navigating read on a member, opened by tapping their avatar in
    the feed, so a reader can size someone up and follow them without leaving
-   the timeline. Renders as a portal slide-over (right on desktop, bottom sheet
-   on mobile) so it never reflows the page, mirroring the OverflowMenu pattern:
-   backdrop + fixed panel, closes on outside click or Escape. All figures are
-   real, read public-only from the profiles + posts tables. */
+   the timeline.
+
+   It is the Dossier archetype in miniature: a hero band carrying the identity,
+   then one panel of standing, then the actions. No tabs, because there is only
+   one section. All figures are real, read public-only from the profiles and
+   posts tables.
+
+   It presents on the Sheet primitive, which portals to document.body, traps and
+   restores focus, closes on Escape and on an outside press, and offers drag to
+   dismiss on a phone. The hand rolled portal it replaces did the first and the
+   last of those and none of the rest. */
 
 interface DossierTarget {
   profileId: string;
@@ -65,7 +77,7 @@ function joinLabel(iso: string | null): string | null {
   return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
-/* Read the member's public standing and settle-record. Public fields only , 
+/* Read the member's public standing and settle-record. Public fields only,
    never privy_id, wallet_address, settings or is_admin. */
 async function fetchDossier(profileId: string): Promise<DossierData | null> {
   const db = createClient();
@@ -131,15 +143,15 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<DossierTarget | null>(null);
   const [data, setData] = useState<DossierData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const isMobile = useIsMobile();
 
   const open = useCallback((profileId: string, handle: string | null) => {
     setTarget({ profileId, handle });
   }, []);
   const close = useCallback(() => setTarget(null), []);
 
-  /* Load the dossier whenever a new target is opened. */
+  /* Load the dossier whenever a new target is opened. Nothing is read until
+     a member actually asks for a dossier, exactly as before. */
   useEffect(() => {
     if (!target) {
       setData(null);
@@ -159,143 +171,127 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     };
   }, [target]);
 
-  /* Close on Escape while open. */
-  useEffect(() => {
-    if (!target) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [target, close]);
-
   const handle = data?.handle ?? target?.handle ?? null;
   const tierLabel = data?.tier ? (TIER_NAMES[data.tier] ?? data.tier) : null;
+  const settled = data ? data.callsWon + data.callsLost : 0;
 
   return (
     <DossierContext.Provider value={{ open }}>
       {children}
-      {mounted &&
-        target &&
-        createPortal(
-          <>
-            <button
-              aria-label="Close"
-              onClick={close}
-              className="fixed inset-0 z-[95] cursor-default bg-black/60 backdrop-blur-sm"
-            />
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Member dossier"
-              className="fixed inset-x-0 bottom-0 z-[96] max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-steel-line bg-obsidian p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-[360px] sm:rounded-none sm:border-l sm:border-t-0 sm:p-6"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <Avatar
-                    author={{
-                      handle: data?.handle ?? handle,
-                      display_name: data?.displayName ?? null,
-                      avatar_url: data?.avatarUrl ?? null,
-                      house_slug: data?.houseSlug ?? null,
-                    }}
-                    size={52}
-                  />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="truncate font-display text-base font-semibold text-bone">
-                        {data?.displayName ?? (handle ? `@${handle}` : "A member")}
-                      </p>
-                      {data?.isVerified && (
-                        <Icon name="shield" className="h-4 w-4 shrink-0 text-gold" />
-                      )}
-                    </div>
-                    {handle && (
-                      <p className="truncate text-sm text-bone-faint">@{handle}</p>
-                    )}
-                    {tierLabel && (
-                      <p className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-gold/80">
-                        {tierLabel}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  aria-label="Close dossier"
-                  onClick={close}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-bone-faint transition hover:bg-panel hover:text-bone-mut"
-                >
-                  <Icon name="plus" className="h-4 w-4 rotate-45" />
-                </button>
-              </div>
-
-              {/* Standing */}
-              <div className="tnum mt-5 grid grid-cols-2 gap-2">
-                <Stat label="Renown" value={loading ? "…" : fmt.format(data?.renown ?? 0)} icon="medal" />
-                <Stat label="Glory" value={loading ? "…" : fmt.format(data?.glory ?? 0)} icon="crown" />
-                <Stat label="Calls won" value={loading ? "…" : fmt.format(data?.callsWon ?? 0)} icon="target" />
-                <Stat label="Calls lost" value={loading ? "…" : fmt.format(data?.callsLost ?? 0)} icon="flag" />
-              </div>
-
-              {data && data.callsWon + data.callsLost >= 3 && (
-                <p className="mt-2 flex items-center justify-center">
-                  <span className="inline-flex items-center gap-1 rounded-[--radius-sm] border border-gold/30 bg-gold/5 px-2.5 py-0.5 text-xs font-semibold text-gold">
-                    <Icon name="target" className="h-3 w-3" />
-                    {Math.round(
-                      (data.callsWon / (data.callsWon + data.callsLost)) * 100
-                    )}
-                    % hit rate
-                    <span className="font-normal text-bone-faint">
-                      · {data.callsWon}/{data.callsWon + data.callsLost}
-                    </span>
-                  </span>
-                </p>
-              )}
-              {data && (data.callsOpen > 0 || joinLabel(data.joined)) && (
-                <p className="mt-2 flex flex-wrap items-center justify-center gap-x-2 text-center text-[11px] text-bone-faint">
-                  {data.callsOpen > 0 && (
-                    <span>
-                      {fmt.format(data.callsOpen)} live{" "}
-                      {data.callsOpen === 1 ? "call" : "calls"} still open
-                    </span>
+      <Sheet
+        open={target !== null}
+        onOpenChange={(next) => {
+          if (!next) close();
+        }}
+        side={isMobile ? "bottom" : "right"}
+        title="Member dossier"
+      >
+        {target ? (
+          <div className="flex flex-col gap-5">
+            {/* Hero band */}
+            <div className="flex min-w-0 items-center gap-3">
+              <Avatar
+                author={{
+                  handle: data?.handle ?? handle,
+                  display_name: data?.displayName ?? null,
+                  avatar_url: data?.avatarUrl ?? null,
+                  house_slug: data?.houseSlug ?? null,
+                }}
+                size={52}
+              />
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="truncate font-display text-base font-semibold text-bone">
+                    {data?.displayName ?? (handle ? `@${handle}` : "A member")}
+                  </p>
+                  {data?.isVerified && (
+                    <Icon name="shield" className="h-4 w-4 shrink-0 text-gold" />
                   )}
-                  {data.callsOpen > 0 && joinLabel(data.joined) && (
-                    <span aria-hidden>·</span>
-                  )}
-                  {joinLabel(data.joined) && (
-                    <span className="inline-flex items-center gap-1">
-                      <Icon name="scroll" className="h-3 w-3 text-gold" />
-                      Joined {joinLabel(data.joined)}
-                    </span>
-                  )}
-                </p>
-              )}
-
-              {/* Actions */}
-              <div className="mt-5 flex items-center gap-2">
-                <div className="flex-1">
-                  <FollowButton targetId={target.profileId} size="md" />
                 </div>
                 {handle && (
-                  <Link
-                    href={`/u/${handle}`}
-                    onClick={close}
-                    className="btn-glass flex-1 px-4 py-1.5 text-center text-xs text-bone-mut"
-                  >
-                    View Keep
-                  </Link>
+                  <p className="truncate text-sm text-bone-faint">@{handle}</p>
+                )}
+                {tierLabel && (
+                  <p className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-gold/80">
+                    {tierLabel}
+                  </p>
                 )}
               </div>
+            </div>
 
-              {!loading && !data && (
-                <p className="mt-4 text-center text-sm text-bone-faint">
-                  This Keep could not be read right now.
-                </p>
+            {/* Standing panel */}
+            <div className="tnum grid grid-cols-2 gap-2">
+              <Stat label="Renown" value={data?.renown ?? null} icon="medal" loading={loading} />
+              <Stat label="Glory" value={data?.glory ?? null} icon="crown" loading={loading} />
+              <Stat label="Calls won" value={data?.callsWon ?? null} icon="target" loading={loading} />
+              <Stat label="Calls lost" value={data?.callsLost ?? null} icon="flag" loading={loading} />
+            </div>
+
+            {data && settled >= 3 && (
+              <p className="flex justify-center">
+                <Badge variant="gold" icon="target">
+                  {Math.round((data.callsWon / settled) * 100)}% hit rate
+                  <span className="font-normal normal-case tracking-normal text-bone-faint">
+                    · {data.callsWon}/{settled}
+                  </span>
+                </Badge>
+              </p>
+            )}
+
+            {data && (data.callsOpen > 0 || joinLabel(data.joined)) && (
+              <p className="flex flex-wrap items-center justify-center gap-x-2 text-center text-[11px] text-bone-faint">
+                {data.callsOpen > 0 && (
+                  <span>
+                    {fmt.format(data.callsOpen)} live{" "}
+                    {data.callsOpen === 1 ? "call" : "calls"} still open
+                  </span>
+                )}
+                {data.callsOpen > 0 && joinLabel(data.joined) && (
+                  <span aria-hidden>·</span>
+                )}
+                {joinLabel(data.joined) && (
+                  <span className="inline-flex items-center gap-1">
+                    <Icon name="scroll" className="h-3 w-3 text-gold" />
+                    Joined {joinLabel(data.joined)}
+                  </span>
+                )}
+              </p>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <FollowButton targetId={target.profileId} size="md" />
+              </div>
+              {handle && (
+                <Button
+                  variant="glass"
+                  size="lg"
+                  block
+                  render={<Link href={`/u/${handle}`} onClick={close} />}
+                  className="flex-1 text-bone-mut"
+                >
+                  View Keep
+                </Button>
               )}
             </div>
-          </>,
-          document.body
-        )}
+
+            {!loading && !data && (
+              <EmptyState
+                size="sm"
+                icon="alert"
+                title="This Keep could not be read"
+                body="The realm could not reach it just now. Close this and try again."
+                action={
+                  <Button variant="glass" size="lg" onClick={close}>
+                    Close
+                  </Button>
+                }
+              />
+            )}
+          </div>
+        ) : null}
+      </Sheet>
     </DossierContext.Provider>
   );
 }
@@ -304,18 +300,26 @@ function Stat({
   label,
   value,
   icon,
+  loading,
 }: {
   label: string;
-  value: string;
+  value: number | null;
   icon: string;
+  loading: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-steel-line/70 bg-void/40 px-3 py-2.5">
+    <Card variant="inset" pad="none" className="px-3 py-2.5">
       <div className="flex items-center gap-1.5 text-bone-faint">
         <Icon name={icon} className="h-3.5 w-3.5 text-gold" />
         <span className="text-[10px] uppercase tracking-[0.16em]">{label}</span>
       </div>
-      <p className="mt-1 text-lg font-semibold text-bone">{value}</p>
-    </div>
+      {loading || value === null ? (
+        <Skeleton radius="sm" className="mt-2 h-5 w-14" />
+      ) : (
+        <p className="mt-1 text-lg font-semibold text-bone">
+          {fmt.format(value)}
+        </p>
+      )}
+    </Card>
   );
 }
