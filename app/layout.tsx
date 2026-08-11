@@ -21,11 +21,11 @@ export const metadata: Metadata = {
     template: "%s · The Ravenspire",
   },
   description:
-    "A medieval social realm where wit wins glory. Post, duel, swear to a House, play The War, and rule your realm. Fun first, standing earned, keys yours.",
+    "A competitive realm where communities earn reputation through participation. Post, make Calls the realm can verify, swear to a House, and climb from Smallfolk to Monarch. Standing is earned, never bought.",
   openGraph: {
     title: "The Ravenspire",
     description:
-      "See every chain. Fear no rug. Rule your realm. Enter the social realm of Houses, Calls, crests and The War.",
+      "Make the call. Earn your name. A competitive realm of Houses, Calls, Crests and Renown, where standing is earned through participation.",
     siteName: "The Ravenspire",
     images: [{ url: "/game/lineup.png", width: 1306, height: 295 }],
     type: "website",

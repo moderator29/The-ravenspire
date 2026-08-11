@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "How The Ravenspire collects, uses, and protects your information across a non-custodial SocialFi realm. Your keys and funds are always your own.",
+    "How The Ravenspire collects, uses, and protects your information across a non-custodial competitive realm. Your keys and funds are always your own.",
 };
 
 const EFFECTIVE_DATE = "July 19, 2026";

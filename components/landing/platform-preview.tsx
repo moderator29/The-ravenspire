@@ -287,9 +287,12 @@ export function PlatformPreview() {
           <LandingIcon name="vision" className="h-4 w-4" />
           See the realm
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-void/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
-          <span className="h-1.5 w-1.5 rounded-full bg-ember" />
-          Live product preview
+        {/* This section is a styled mockup built from divs, not a live render,
+            and the figures inside it are illustrative. It previously carried a
+            "Live product preview" badge, which claimed liveness over invented
+            numbers and broke the realm's own real-data-only rule. */}
+        <span className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-gold/25 bg-void/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
+          Interface preview
         </span>
       </motion.div>
       <motion.h2
@@ -298,6 +301,13 @@ export function PlatformPreview() {
       >
         Four rooms of one living realm
       </motion.h2>
+      <motion.p
+        variants={rise}
+        className="relative mt-2 text-[11px] text-bone-faint"
+      >
+        An illustration of the interface. Names and figures shown are examples,
+        not a member's real record.
+      </motion.p>
       <motion.p
         variants={rise}
         className="relative mt-3 max-w-prose text-[15px] leading-relaxed text-bone-mut"

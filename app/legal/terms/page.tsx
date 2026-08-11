@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Terms of Service",
   description:
-    "The terms that govern your use of The Ravenspire, a non-custodial SocialFi realm. No financial advice, no securities offering, and standing earned rather than bought.",
+    "The terms that govern your use of The Ravenspire, a non-custodial competitive realm. No financial advice, no securities offering, and standing earned rather than bought.",
 };
 
 const EFFECTIVE_DATE = "July 19, 2026";
@@ -21,7 +21,7 @@ const sections: Section[] = [
     id: "acceptance",
     heading: "1. Acceptance of these terms",
     body: [
-      "These Terms of Service govern your access to and use of The Ravenspire, a medieval-fantasy social realm and SocialFi platform. By entering the realm, creating an account, or using any part of the service, you agree to these terms. If you do not agree, do not use The Ravenspire.",
+      "These Terms of Service govern your access to and use of The Ravenspire, a medieval-fantasy competitive social realm. By entering the realm, creating an account, or using any part of the service, you agree to these terms. If you do not agree, do not use The Ravenspire.",
     ],
   },
   {

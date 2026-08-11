@@ -171,7 +171,7 @@ export default function Landing() {
             transition={{ duration: 0.8, delay: 0.5 }}
             className="mt-5 max-w-xl text-base text-bone-mut sm:text-lg"
           >
-            See every chain. Fear no rug.{" "}
+            Make the call. Earn your name.{" "}
             <span className="font-semibold text-gold">Rule your realm.</span>
           </motion.p>
           <motion.div

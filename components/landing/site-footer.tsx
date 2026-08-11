@@ -54,7 +54,7 @@ export function SiteFooter() {
             </span>
           </div>
           <p className="mt-3 max-w-xs text-xs leading-relaxed text-bone-mut">
-            See every chain. Fear no rug. Rule your realm. Non-custodial by
+            Make the call. Earn your name. Rule your realm. Non-custodial by
             design, your keys always exportable.
           </p>
           <div className="mt-4 flex items-center gap-2">

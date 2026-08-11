@@ -2,10 +2,10 @@
 
 See every chain. Fear no rug. Rule your realm.
 
-The Ravenspire is a fun-first, non-custodial, medieval-fantasy SocialFi realm: a
-crypto-native social network where creators and their Houses build reputation,
-post, banter, duel, tip, play, and earn, with on-chain intelligence as the
-superpower under the hood, never the headline.
+The Ravenspire is a competitive online realm where communities earn reputation
+through participation, predictions, creation and play. Crypto is infrastructure,
+community is the product, reputation is the progression system, and standing is
+earned rather than bought.
 
 ## What lives here
 

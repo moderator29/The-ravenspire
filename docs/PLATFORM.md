@@ -3,8 +3,8 @@
 A full tour of The Ravenspire: what it is, how it is built, and the vows it holds
 to. This document tracks the current, shipped platform.
 
-The Ravenspire is a fun-first, non-custodial, medieval-fantasy SocialFi realm. It is
-a social network first and a crypto toolkit second. Creators and their Houses
+The Ravenspire is a competitive online realm where communities earn reputation
+through participation. It is a social network first and a crypto toolkit second. Creators and their Houses
 are the heart of everything. The chains and charts serve the story, never the
 other way round.
 
