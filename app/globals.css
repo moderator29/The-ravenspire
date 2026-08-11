@@ -57,6 +57,11 @@
   --foe-text: #d4504b; /* 4.50:1 */
   --blood-text: #d74d49; /* 4.50:1 */
 
+  /* Ink for text sitting on a forged gold fill. The gold button hardcoded
+     #171204 in one place and nowhere else, so nothing else could match it.
+     16.9:1 on --gold, so it clears AA on every rung of the gradient. */
+  --gold-ink: #171204;
+
   /* Semantic state. This tier did not exist: success/warning/danger/info were
      improvised per file, which is why errors are text-ember-deep in one place
      and text-ember in another. Note success is gold, never green, per brand. */
@@ -82,6 +87,7 @@
   --color-gold-bright: var(--gold-bright);
   --color-gold-deep: var(--gold-deep);
   --color-gold-rich: var(--gold-rich);
+  --color-gold-ink: var(--gold-ink);
   --color-ember: var(--ember);
   --color-ember-deep: var(--ember-deep);
   --color-bone: var(--bone);
@@ -145,6 +151,17 @@
   --duration-fast: 150ms;
   --duration-base: 220ms;
   --duration-slow: 320ms;
+
+  /* Tailwind v4 resolves the `duration-*` utility from the
+     `--transition-duration-*` namespace, not from `--duration-*`, so the scale
+     above compiles to nothing on its own and every caller falls back to an
+     arbitrary `duration-[220ms]`. These aliases are the same four values under
+     the name the compiler actually reads, which is what makes `duration-fast`
+     a real utility. No new timings are introduced here. */
+  --transition-duration-instant: var(--duration-instant);
+  --transition-duration-fast: var(--duration-fast);
+  --transition-duration-base: var(--duration-base);
+  --transition-duration-slow: var(--duration-slow);
 
   /* ── SPACING ─────────────────────────────────────────────────────────────
      Tailwind v4 ships a spacing multiplier rather than a scale, so every

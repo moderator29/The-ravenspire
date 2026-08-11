@@ -168,6 +168,62 @@ const paths: Record<string, React.ReactNode> = {
       <circle cx="12" cy="12" r="0.8" fill="currentColor" stroke="none" />
     </>
   ),
+
+  /* Interface glyphs the primitive layer needs. `xlogo` above is the X brand
+     mark and was the only cross in the set, so every dismiss control in the
+     product was either borrowing a logo or drawing its own inline SVG. */
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+  check: <path d="M4.5 12.5l5 5 10-11" />,
+  "chevron-down": <path d="M6 9.5l6 6 6-6" />,
+  "chevron-up": <path d="M6 14.5l6-6 6 6" />,
+  "chevron-left": <path d="M14.5 6l-6 6 6 6" />,
+  "chevron-right": <path d="M9.5 6l6 6-6 6" />,
+  "chevron-updown": <path d="M8 10l4-4 4 4M8 14l4 4 4-4" />,
+  alert: (
+    <>
+      <path d="M12 3.5l9 16H3l9-16z" />
+      <path d="M12 10v4" />
+      <circle cx="12" cy="16.6" r="0.7" fill="currentColor" stroke="none" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <circle cx="12" cy="8.2" r="0.7" fill="currentColor" stroke="none" />
+    </>
+  ),
+
+  /* These five were referenced by name across the product but never existed
+     here, so every one of them silently rendered the fallback circle. */
+  layers: (
+    <>
+      <path d="M12 3l9 5-9 5-9-5 9-5z" />
+      <path d="M3 13l9 5 9-5" />
+    </>
+  ),
+  docs: (
+    <>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6M9 17h4" />
+    </>
+  ),
+  vision: (
+    <>
+      <path d="M3 12s3.5-7 9-7 9 7 9 7-3.5 7-9 7-9-7-9-7z" />
+      <circle cx="12" cy="12" r="3" />
+      <circle cx="12" cy="12" r="0.8" fill="currentColor" stroke="none" />
+    </>
+  ),
+  spark: <path d="M12 3l2.2 6.1L20 12l-5.8 2.9L12 21l-2.2-6.1L4 12l5.8-2.9L12 3z" />,
+  ledger: (
+    <>
+      <path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4z" />
+      <path d="M5 4v14a2 2 0 0 0 2 2" />
+      <path d="M10 9h6M10 13h6" />
+    </>
+  ),
 };
 
 export function Icon({ name, className = "h-5 w-5" }: IconProps) {
