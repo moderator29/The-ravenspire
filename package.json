@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "icons": "node scripts/slice-icons.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
@@ -34,6 +36,7 @@
     "eslint-config-next": "16.2.10",
     "playwright-core": "^1.61.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }
