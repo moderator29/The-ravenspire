@@ -5,7 +5,15 @@ import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { Icon } from "@/components/ui/icon";
-import { BackButton } from "@/components/shell/back-button";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  ConsoleHeader,
+  ConsolePage,
+  ConsoleStack,
+} from "@/components/console/console-shell";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
 import { buildPortfolio } from "@/components/ledger/portfolio-data";
 import { ValueHeader } from "@/components/ledger/value-header";
@@ -20,19 +28,14 @@ interface BalancesResponse {
   error?: string;
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+/* The Ledger's panels are all skeleton-shaped the same way: a value band and
+   a positions table. One shape, so a slow read never rearranges the page. */
+function LedgerSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      {children}
-    </div>
-  );
-}
-
-function EmptyCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="glass p-8 text-center text-sm leading-relaxed text-bone-mut">
-      {children}
-    </div>
+    <>
+      <Skeleton radius="xl" className="h-32 md:h-28" />
+      <Skeleton radius="xl" className="h-48 md:h-40" />
+    </>
   );
 }
 
@@ -73,112 +76,116 @@ export default function LedgerPage() {
     [data]
   );
 
-  const header = (
-    <>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <BackButton />
-        <Link
-          href="/vault"
-          className="btn-glass px-3.5 py-1.5 text-xs font-semibold text-bone-mut hover:text-bone"
-        >
-          <Icon name="wallet" className="h-3.5 w-3.5" />
-          Open the Vault
-        </Link>
-      </div>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-xl font-semibold text-bone">
-            The Ledger
-          </h1>
-          <p className="mt-1 text-[11px] uppercase tracking-[0.26em] text-bone-faint">
-            The Ravenspire portfolio / $RSP and beyond
-          </p>
-        </div>
-        {authenticated && address && (
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={refreshing}
-            className="btn-glass shrink-0"
-          >
-            {refreshing ? "Reading" : "Refresh"}
-          </button>
-        )}
-      </div>
-    </>
-  );
+  const loading = !ready || (authenticated && !!address && data === null && !failed);
+  const showSkeleton = useDelayedLoading(loading, 300);
 
   return (
-    <Shell>
-      {header}
-      <div className="mt-5 flex flex-col gap-3">
+    <ConsolePage width="data">
+      <ConsoleHeader
+        title="The Ledger"
+        kicker="The Ravenspire portfolio / $RSP and beyond"
+        actions={
+          <>
+            {authenticated && address && (
+              <Button
+                size="sm"
+                disabled={refreshing}
+                loading={refreshing}
+                onClick={() => void load()}
+              >
+                {refreshing ? "Reading" : "Refresh"}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              render={
+                <Link href="/vault">
+                  <Icon name="wallet" className="h-3.5 w-3.5" />
+                  Open the Vault
+                </Link>
+              }
+            />
+          </>
+        }
+      />
+      <ConsoleStack className="mt-4 md:mt-3">
         {!ready ? (
-          <>
-            <div className="glass h-40 animate-pulse" />
-            <div className="glass h-56 animate-pulse" />
-          </>
+          showSkeleton ? <LedgerSkeleton /> : null
         ) : !authenticated ? (
-          <EmptyCard>
-            <p className="mb-3">
-              Your Ledger reads only your own wallet. Enter the realm to bind
-              yours.
-            </p>
-            <Link href="/signin" className="text-gold underline">
-              Enter the realm
-            </Link>
-          </EmptyCard>
+          <Card pad="none">
+            <EmptyState
+              icon="ledger"
+              title="Your Ledger is sealed"
+              body="The Ledger reads only your own wallet. Enter the realm to bind yours."
+              action={
+                <Button
+                  variant="gold"
+                  size="sm"
+                  render={<Link href="/signin">Enter the realm</Link>}
+                />
+              }
+            />
+          </Card>
         ) : !address ? (
-          <EmptyCard>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-gold/25 bg-panel-warm">
-              <Icon name="wallet" className="h-5 w-5 text-gold" />
-            </div>
-            <p className="mb-3">
-              No wallet is connected to your banner yet. Open the Vault to
-              create or connect one, and your Ledger will fill in from your real
-              balances.
-            </p>
-            <Link href="/vault" className="text-gold underline">
-              Connect your wallet in the Vault
-            </Link>
-          </EmptyCard>
+          <Card pad="none">
+            <EmptyState
+              icon="wallet"
+              title="No wallet bound"
+              body="No wallet is connected to your banner yet. Open the Vault to create or connect one, and your Ledger will fill in from your real balances."
+              action={
+                <Button
+                  variant="gold"
+                  size="sm"
+                  render={<Link href="/vault">Connect in the Vault</Link>}
+                />
+              }
+            />
+          </Card>
         ) : failed ? (
-          <EmptyCard>
-            The Ledger could not be read just now.
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="mt-3 block w-full text-gold underline"
-            >
-              Try again
-            </button>
-          </EmptyCard>
+          <Card pad="none">
+            <EmptyState
+              icon="alert"
+              title="The Ledger could not be read"
+              body="Nothing was returned just now."
+              action={
+                <Button size="sm" onClick={() => void load()}>
+                  Try again
+                </Button>
+              }
+            />
+          </Card>
         ) : data === null ? (
-          <>
-            <div className="glass h-40 animate-pulse" />
-            <div className="glass h-56 animate-pulse" />
-          </>
+          showSkeleton ? <LedgerSkeleton /> : null
         ) : !data.configured ? (
-          <EmptyCard>
-            The Ledger&apos;s far-seeing lens is not mounted in this environment
-            yet, so no balances can be read.
-          </EmptyCard>
+          <Card pad="none">
+            <EmptyState
+              icon="eye"
+              title="Lens not mounted"
+              body="The Ledger's far-seeing lens is not mounted in this environment yet, so no balances can be read."
+            />
+          </Card>
         ) : data.error ? (
-          <EmptyCard>
-            The Ledger&apos;s lens clouded over.
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="mt-3 block w-full text-gold underline"
-            >
-              Try again
-            </button>
-          </EmptyCard>
+          <Card pad="none">
+            <EmptyState
+              icon="alert"
+              title="The lens clouded over"
+              body="The Ledger could not be read just now."
+              action={
+                <Button size="sm" onClick={() => void load()}>
+                  Try again
+                </Button>
+              }
+            />
+          </Card>
         ) : !portfolio ||
           (portfolio.positions.length === 0 && portfolio.dust.length === 0) ? (
-          <EmptyCard>
-            This wallet holds no coin worth an entry yet across the chains we
-            read. The Ledger awaits your first treasure.
-          </EmptyCard>
+          <Card pad="none">
+            <EmptyState
+              icon="coin"
+              title="Nothing held yet"
+              body="This wallet holds no coin worth an entry across the chains we read. The Ledger awaits your first treasure."
+            />
+          </Card>
         ) : (
           <>
             <ValueHeader portfolio={portfolio} />
@@ -196,16 +203,18 @@ export default function LedgerPage() {
             {updatedAt && (
               <p className="text-center text-[11px] text-bone-faint">
                 Read{" "}
-                {new Date(updatedAt).toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                <span className="tnum">
+                  {new Date(updatedAt).toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </span>
                 . Values from live on-chain balances across seven EVM chains.
               </p>
             )}
           </>
         )}
-      </div>
-    </Shell>
+      </ConsoleStack>
+    </ConsolePage>
   );
 }
