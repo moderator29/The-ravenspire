@@ -9,8 +9,11 @@ import type { ChainMeta } from "@/components/wallet/chains";
 export function WalletSwap({ chainMeta }: { chainMeta: ChainMeta }) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-gold/20 bg-panel-warm/50 p-6 text-center">
-        <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/30 bg-panel">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-gold/20 bg-panel-warm/50 p-4 text-center">
+        <span
+          aria-hidden
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-gold/30 bg-panel"
+        >
           <Icon name="repost" className="h-5 w-5 text-gold" />
         </span>
         <div>
@@ -25,7 +28,7 @@ export function WalletSwap({ chainMeta }: { chainMeta: ChainMeta }) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-steel-line bg-panel/40 p-3.5">
+      <div className="rounded-lg border border-steel-line bg-panel/40 p-3">
         <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
           Until then
         </p>

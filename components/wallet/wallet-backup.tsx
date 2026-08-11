@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 
 /* Backup / Export. Uses Privy's exportWallet, which reveals the private key or
    recovery phrase inside a secure, on-device window. The key never touches
@@ -30,22 +31,18 @@ export function WalletBackup() {
         tried.
       </p>
 
-      <div className="flex items-start gap-3 rounded-2xl border border-ember/30 bg-panel/50 p-3.5">
-        <Icon name="shield" className="mt-0.5 h-5 w-5 shrink-0 text-ember" />
+      <div className="flex items-start gap-2.5 rounded-lg border border-ember/30 bg-panel/50 p-3">
+        <Icon name="shield" aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-ember" />
         <p className="text-sm text-bone-mut">
           Guard it like the crown jewels. Anyone who holds your key controls the
           funds. No steward of The Ravenspire will ever ask you for it.
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={() => void onExport()}
-        className="btn-gold w-full px-5 py-3 text-sm"
-      >
+      <Button variant="gold" size="lg" block onClick={() => void onExport()}>
         <Icon name="eye" className="h-4 w-4" />
         Reveal my private key
-      </button>
+      </Button>
 
       {failed ? (
         <p className="text-xs text-bone-faint">

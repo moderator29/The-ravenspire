@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/wallet/copy-button";
 import { AddressQR } from "@/components/wallet/address-qr";
 import {
@@ -37,17 +38,14 @@ export function WalletReceive({
         tokens. It is yours alone, non-custodial, and safe to share.
       </p>
 
-      <div className="flex flex-col items-center gap-4 rounded-2xl border border-steel-line bg-panel/40 p-5">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-steel-line bg-panel/40 p-4">
         <AddressQR value={address} />
-        <div className="flex items-center gap-2 rounded-[--radius-sm] border border-gold/25 bg-panel-warm/60 px-3 py-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-bone-mut">
-            EVM / Ethereum only
-          </span>
-        </div>
+        <span className="rounded-sm border border-gold/25 bg-panel-warm/60 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-bone-mut">
+          EVM / Ethereum only
+        </span>
       </div>
 
-      <div className="rounded-2xl border border-steel-line bg-panel/50 p-3.5">
+      <div className="rounded-lg border border-steel-line bg-panel/50 p-3">
         <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
           Wallet address
         </p>
@@ -60,18 +58,19 @@ export function WalletReceive({
         <CopyButton
           value={address}
           label="Copy address"
-          className="btn-gold inline-flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 text-sm"
+          variant="gold"
+          className="flex-1"
         />
         {explorer ? (
-          <a
-            href={explorer}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-glass inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm"
-          >
-            <Icon name="arrow" className="h-4 w-4" />
-            Explorer
-          </a>
+          <Button
+            size="sm"
+            render={
+              <a href={explorer} target="_blank" rel="noreferrer">
+                <Icon name="arrow" className="h-4 w-4" />
+                Explorer
+              </a>
+            }
+          />
         ) : null}
       </div>
 
