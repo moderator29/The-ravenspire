@@ -3,6 +3,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { useWallets } from "@privy-io/react-auth";
 import { Icon } from "@/components/ui/icon";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { CopyButton } from "@/components/wallet/copy-button";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import { WalletModal } from "@/components/wallet/wallet-modal";
@@ -114,18 +117,13 @@ export function WalletLive({ address }: { address?: string }) {
 
   if (ready && !wallet) {
     return (
-      <section className="glass p-6 text-center sm:p-8">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-steel-line bg-panel">
-          <Icon name="wallet" className="h-5 w-5 text-gold" />
-        </div>
-        <h2 className="font-display mt-4 text-lg font-semibold text-bone">
-          Forging your wallet
-        </h2>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-bone-mut">
-          No embedded wallet is ready yet. One is created automatically once you
-          are fully signed in.
-        </p>
-      </section>
+      <Card pad="none" render={<section />}>
+        <EmptyState
+          icon="wallet"
+          title="Forging your wallet"
+          body="No embedded wallet is ready yet. One is created automatically once you are fully signed in."
+        />
+      </Card>
     );
   }
 
@@ -135,59 +133,61 @@ export function WalletLive({ address }: { address?: string }) {
   });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 md:gap-3">
       {/* Balance hero */}
-      <section className="glass glass-warm relative overflow-hidden p-5 sm:p-6">
+      <Card
+        variant="warm"
+        pad="none"
+        render={<section />}
+        className="relative overflow-hidden p-4 md:p-3"
+      >
         <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-panel">
-              <Icon name="wallet" className="h-5 w-5 text-gold" />
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              aria-hidden
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gold/30 bg-panel"
+            >
+              <Icon name="wallet" className="h-4 w-4 text-gold" />
             </span>
             <div className="min-w-0">
               <p className="font-display text-sm font-semibold text-bone">
                 The Vault
               </p>
-              <span className="mt-1 inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-steel-line bg-panel/60 px-2.5 py-0.5 text-[11px] font-medium text-bone-mut">
-                <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+              <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-sm border border-steel-line bg-panel/60 px-2 py-0.5 text-[11px] font-medium text-bone-mut">
                 Multi-chain EVM
               </span>
             </div>
           </div>
 
-          <button
-            type="button"
+          <IconButton
+            icon="sliders"
+            label="Wallet settings"
+            size="sm"
+            variant="glass"
             onClick={() => setPanel("settings")}
-            aria-label="Wallet settings"
-            title="Wallet settings"
-            className="btn-glass inline-flex h-9 w-9 shrink-0 items-center justify-center p-0"
-          >
-            <Icon name="sliders" className="h-4 w-4" />
-          </button>
+          />
         </div>
 
-        <div className="mt-6">
+        <div className="mt-4 md:mt-3">
           <p className="text-[11px] uppercase tracking-[0.22em] text-bone-faint">
             Total value
           </p>
           <div className="mt-1.5 flex items-end justify-between gap-3">
-            <p className="gold-text font-display tnum text-4xl font-semibold leading-none sm:text-5xl">
-              <span className="text-2xl sm:text-3xl">$</span>
+            <p className="gold-text font-display tnum text-4xl font-semibold leading-none md:text-3xl">
+              <span className="text-2xl md:text-xl">$</span>
               {totalText}
             </p>
-            <button
-              type="button"
+            <IconButton
+              icon="repost"
+              label="Refresh balances"
+              size="sm"
+              variant="glass"
               onClick={refresh}
               disabled={loading}
-              aria-label="Refresh balances"
-              className="btn-glass inline-flex h-9 w-9 shrink-0 items-center justify-center p-0 disabled:opacity-50"
-            >
-              <Icon
-                name="repost"
-                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-              />
-            </button>
+              className={loading ? "[&_svg]:animate-spin" : undefined}
+            />
           </div>
-          <p className="mt-2 text-xs text-bone-faint">
+          <p className="mt-1.5 text-[11px] text-bone-faint">
             {loading
               ? "Reading balances across chains..."
               : !configured
@@ -199,7 +199,7 @@ export function WalletLive({ address }: { address?: string }) {
         </div>
 
         {walletAddress ? (
-          <div className="mt-5 flex items-center justify-between gap-3 border-t border-steel-line/60 pt-4">
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-steel-line/60 pt-3 md:mt-3 md:pt-2.5">
             <div className="flex min-w-0 items-center gap-2">
               <span className="text-[11px] uppercase tracking-[0.18em] text-bone-faint">
                 Address
@@ -212,16 +212,16 @@ export function WalletLive({ address }: { address?: string }) {
           </div>
         ) : null}
 
-        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-gold/15 bg-panel/40 px-3.5 py-2.5">
-          <Icon name="lock" className="h-4 w-4 shrink-0 text-gold" />
-          <p className="text-xs text-bone-mut">
+        <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-gold/15 bg-panel/40 px-3 py-2">
+          <Icon name="lock" aria-hidden className="h-4 w-4 shrink-0 text-gold" />
+          <p className="text-xs text-bone-mut md:text-[11px]">
             Non-custodial. You hold the keys, and only you can move these funds.
           </p>
         </div>
-      </section>
+      </Card>
 
       {/* Action row */}
-      <section className="glass p-4 sm:p-5">
+      <Card pad="none" render={<section />} className="p-3 md:p-2">
         <div className="flex items-start justify-between gap-2 sm:justify-around">
           <ActionButton
             icon="send"
@@ -246,7 +246,7 @@ export function WalletLive({ address }: { address?: string }) {
             onClick={() => setPanel("earn")}
           />
         </div>
-      </section>
+      </Card>
 
       {/* Multi-chain coin list */}
       <CoinList
@@ -271,13 +271,9 @@ export function WalletLive({ address }: { address?: string }) {
         compact
       />
       {prefs.txs.length > 4 ? (
-        <button
-          type="button"
-          onClick={() => setPanel("history")}
-          className="btn-glass -mt-2 inline-flex w-full items-center justify-center gap-1.5 px-4 py-2 text-xs"
-        >
+        <Button block size="sm" className="-mt-2" onClick={() => setPanel("history")}>
           View all {prefs.txs.length} transactions
-        </button>
+        </Button>
       ) : null}
 
       {/* Coin detail */}
@@ -409,35 +405,35 @@ function AssetPicker({
 }) {
   if (tokens.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-steel-line bg-panel/25 p-6 text-center text-sm text-bone-mut">
-        {emptyLabel}
-      </p>
+      <EmptyState size="sm" bordered icon="coin" title="Nothing to send" body={emptyLabel} />
     );
   }
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 md:gap-1">
       {tokens.map((t) => (
         <button
           key={t.key}
           type="button"
           onClick={() => onSelect(t)}
-          className="flex items-center justify-between gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3 text-left transition-colors hover:border-gold/40"
+          className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-steel-line bg-panel/40 p-2.5 text-left transition-colors duration-fast hover:border-gold/40 md:min-h-9 md:p-2"
         >
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
             <div className="relative shrink-0">
-              <TokenLogo logo={t.logo} symbol={t.symbol} size={38} />
-              <span className="absolute -bottom-1 -right-1 rounded-full border border-obsidian bg-panel-warm px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-gold">
+              <TokenLogo logo={t.logo} symbol={t.symbol} size={32} />
+              <span className="absolute -bottom-1 -right-1 rounded-sm border border-obsidian bg-panel-warm px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-gold">
                 {t.chainShort}
               </span>
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-bone">
+              <p className="truncate text-sm font-medium text-bone md:text-[13px]">
                 {t.symbol}
               </p>
-              <p className="truncate text-xs text-bone-faint">{t.chainName}</p>
+              <p className="truncate text-xs text-bone-faint md:text-[11px]">
+                {t.chainName}
+              </p>
             </div>
           </div>
-          <p className="tnum shrink-0 text-sm font-semibold text-bone">
+          <p className="tnum shrink-0 text-sm font-semibold text-bone md:text-[13px]">
             {t.balanceDisplay}
           </p>
         </button>
@@ -459,22 +455,25 @@ function ActionButton({
   primary?: boolean;
   iconClassName?: string;
 }) {
+  /* A rounded rectangle tile, not a circle. Circles belong to avatars, and a
+     56px gold disc on a Console reads as a toy. */
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-1 flex-col items-center gap-2.5"
+      className="group flex flex-1 flex-col items-center gap-1.5"
     >
       <span
-        className={`flex h-14 w-14 items-center justify-center rounded-full border transition-all duration-200 ${
+        aria-hidden
+        className={`flex h-11 w-11 items-center justify-center rounded-lg border transition-[border-color,background-color,filter] duration-fast ease-out-quint md:h-9 md:w-9 ${
           primary
-            ? "gold-metal border-gold/50 text-[#171204] shadow-[0_8px_24px_rgba(200,162,76,0.22)] group-hover:brightness-105"
+            ? "gold-metal border-gold/50 text-gold-ink group-hover:brightness-105"
             : "border-steel-line bg-panel/60 text-gold group-hover:border-gold/45 group-hover:bg-panel"
         }`}
       >
-        <Icon name={icon} className={`h-5 w-5 ${iconClassName}`} />
+        <Icon name={icon} className={`h-5 w-5 md:h-[17px] md:w-[17px] ${iconClassName}`} />
       </span>
-      <span className="text-xs font-medium text-bone-mut transition-colors group-hover:text-bone">
+      <span className="text-xs font-medium text-bone-mut transition-colors duration-fast group-hover:text-bone md:text-[11px]">
         {label}
       </span>
     </button>
