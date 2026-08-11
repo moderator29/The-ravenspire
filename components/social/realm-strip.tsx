@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -51,7 +52,7 @@ function Cell({
   return (
     <Link
       href={href}
-      className="group flex min-w-0 flex-1 flex-col gap-0.5 rounded-[--radius-md] px-2.5 py-2 transition-colors duration-150 hover:bg-panel/60"
+      className="group flex min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-md px-2.5 py-2 transition-colors duration-fast ease-out-quint hover:bg-panel/60 max-md:min-h-11"
     >
       <span className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
         {label}
@@ -140,8 +141,8 @@ export function RealmStrip() {
   if (cells.length === 0) return null;
 
   return (
-    <div className="glass scrollbar-none mb-3 flex items-stretch gap-1 overflow-x-auto rounded-[--radius-lg] p-1">
+    <Card pad="none" className="scrollbar-none mb-3 flex items-stretch gap-1 overflow-x-auto p-1">
       {cells}
-    </div>
+    </Card>
   );
 }

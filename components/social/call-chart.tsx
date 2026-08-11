@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { TokenCard } from "@/lib/data/tokens";
 
 /* Compact, dependency-free price mini-chart for a coin Call. It uses the same
@@ -45,12 +47,25 @@ export function CallChart({
   }, [symbol]);
 
   if (card === "loading")
-    return <div className="glass-sm mt-2 h-20 animate-pulse rounded-xl" />;
+    return (
+      /* Shaped like the chart it stands in for: a header line, then the plot. */
+      <Card variant="inset" pad="none" className="mt-2 px-3 py-2.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <Skeleton radius="sm" className="h-3 w-16" />
+          <Skeleton radius="sm" className="h-3 w-24" />
+        </div>
+        <Skeleton radius="md" className="mt-2 h-16 w-full" />
+      </Card>
+    );
   if (!card || card.priceUsd === null)
     return (
-      <div className="glass-sm mt-2 rounded-xl px-3 py-2 text-[11px] text-bone-faint">
+      <Card
+        variant="inset"
+        pad="none"
+        className="mt-2 px-3 py-2 text-[11px] text-bone-faint"
+      >
         No live chart for ${symbol.toUpperCase()} right now.
-      </div>
+      </Card>
     );
 
   const now = card.priceUsd;
@@ -58,7 +73,9 @@ export function CallChart({
   /* Real 24h-ago price implied by the live price and its real 24h change. */
   const open = now / (1 + change / 100);
   const up = now >= open;
-  const stroke = up ? "var(--chart-up, #d9b45b)" : "var(--chart-down, #b4573a)";
+  /* The tokens are defined in globals.css, so no hardcoded hex fallback and no
+     named gold or ember: direction is one decision, made in one place. */
+  const stroke = up ? "var(--chart-up)" : "var(--chart-down)";
 
   /* Geometry. A tall, narrow viewBox keeps the SVG crisp at any width. */
   const W = 300;
@@ -91,7 +108,11 @@ export function CallChart({
   const delta = open !== 0 ? ((now - open) / open) * 100 : 0;
 
   return (
-    <div className="glass-sm mt-2 overflow-hidden rounded-xl border border-steel-line px-3 py-2.5">
+    <Card
+      variant="inset"
+      pad="none"
+      className="mt-2 overflow-hidden px-3 py-2.5"
+    >
       <div className="mb-1 flex items-baseline justify-between gap-2">
         <span className="text-xs font-semibold text-bone">
           ${card.symbol}
@@ -103,7 +124,9 @@ export function CallChart({
           {fmtPrice(now)}
           <span
             className={`ml-2 text-[11px] font-medium ${
-              up ? "text-gold-bright" : "text-ember-deep"
+              up
+                ? "text-[color:var(--chart-up)]"
+                : "text-[color:var(--chart-down)]"
             }`}
           >
             {delta >= 0 ? "+" : ""}
@@ -165,6 +188,6 @@ export function CallChart({
           Call: {stance === "up" ? "rises" : "falls"}
         </span>
       </div>
-    </div>
+    </Card>
   );
 }

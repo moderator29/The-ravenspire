@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import type { OathEntryView } from "@/lib/houses/view";
 import { roleMeta } from "@/lib/houses/roles";
@@ -36,7 +37,7 @@ export function OathHistory({ profileId }: { profileId: string }) {
   if (!oaths || oaths.length < 2) return null;
 
   return (
-    <div className="mt-3 rounded-md border border-steel-line bg-obsidian/50 px-3 py-2.5">
+    <Card variant="inset" pad="none" className="mt-3 px-3 py-2.5">
       <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-bone-faint">
         <Icon name="scroll" className="h-3 w-3" />
         Oaths sworn
@@ -68,6 +69,6 @@ export function OathHistory({ profileId }: { profileId: string }) {
           );
         })}
       </ul>
-    </div>
+    </Card>
   );
 }

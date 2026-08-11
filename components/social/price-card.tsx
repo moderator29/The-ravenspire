@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { TokenCard } from "@/lib/data/tokens";
 
 function fmt(n: number | null, prefix = "$"): string {
@@ -13,7 +15,11 @@ function fmt(n: number | null, prefix = "$"): string {
 }
 
 /* Live price card for a $cashtag. Real data only; renders nothing while
-   loading and an honest miss if there is no market. */
+   loading and an honest miss if there is no market.
+
+   Direction reads --chart-up and --chart-down, never a hardcoded hex and never
+   a named gold or ember, so every price in the product moves together if the
+   chart palette is ever retuned. */
 export function PriceCard({ symbol }: { symbol: string }) {
   const [card, setCard] = useState<TokenCard | null | "loading">("loading");
 
@@ -34,18 +40,35 @@ export function PriceCard({ symbol }: { symbol: string }) {
 
   if (card === "loading")
     return (
-      <div className="glass glass-sm mt-2 h-14 animate-pulse px-4 py-3" />
+      <Card variant="inset" pad="none" className="mt-2 flex items-center gap-3 px-4 py-2.5">
+        <div className="min-w-0 flex-1">
+          <Skeleton radius="sm" className="h-3.5 w-24" />
+          <Skeleton radius="sm" className="mt-1.5 h-2.5 w-16" />
+        </div>
+        <div className="shrink-0 text-right">
+          <Skeleton radius="sm" className="h-3.5 w-16" />
+          <Skeleton radius="sm" className="mt-1.5 h-2.5 w-12" />
+        </div>
+      </Card>
     );
   if (!card)
     return (
-      <div className="glass glass-sm mt-2 px-4 py-2.5 text-xs text-bone-faint">
+      <Card
+        variant="inset"
+        pad="none"
+        className="mt-2 px-4 py-2.5 text-xs text-bone-faint"
+      >
         No live market found for ${symbol.toUpperCase()}.
-      </div>
+      </Card>
     );
 
   const up = (card.change24h ?? 0) >= 0;
   return (
-    <div className="glass glass-sm mt-2 flex items-center gap-3 px-4 py-2.5">
+    <Card
+      variant="inset"
+      pad="none"
+      className="mt-2 flex items-center gap-3 px-4 py-2.5"
+    >
       <div className="min-w-0">
         <p className="text-sm font-semibold text-bone">
           ${card.symbol}
@@ -62,7 +85,11 @@ export function PriceCard({ symbol }: { symbol: string }) {
           {fmt(card.priceUsd)}
         </p>
         <p
-          className={`tnum text-xs font-medium ${up ? "text-gold-bright" : "text-ember-deep"}`}
+          className={`tnum text-xs font-medium ${
+            up
+              ? "text-[color:var(--chart-up)]"
+              : "text-[color:var(--chart-down)]"
+          }`}
         >
           {up ? "+" : ""}
           {card.change24h?.toFixed(2) ?? "?"}% 24h
@@ -74,6 +101,6 @@ export function PriceCard({ symbol }: { symbol: string }) {
         </p>
         <p className="tnum text-xs text-bone-mut">{fmt(card.marketCap)}</p>
       </div>
-    </div>
+    </Card>
   );
 }

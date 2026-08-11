@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { realmFetch } from "@/lib/auth/api";
 import { fetchViewer } from "@/lib/social/profile-queries";
 import { fetchIsFollowing } from "@/lib/social/profile-queries";
@@ -90,28 +92,28 @@ export function FollowButton({
 
   // Never offer to follow yourself, and stay hidden until the state is known.
   if (!ready) {
+    /* Shaped like the control it stands in for, so the row does not jump when
+       the real relationship resolves. */
     return (
-      <span
-        aria-hidden
-        className={`inline-block shrink-0 animate-pulse rounded-full bg-panel ${
-          size === "md" ? "h-8 w-20" : "h-7 w-16"
-        }`}
+      <Skeleton
+        radius="md"
+        className={`shrink-0 max-md:h-11 ${size === "md" ? "h-11 w-24" : "h-9 w-20"}`}
       />
     );
   }
   if (resolvedViewer && resolvedViewer === targetId) return null;
 
-  const pad = size === "md" ? "px-5 py-1.5 text-xs" : "px-3.5 py-1 text-[11px]";
   return (
-    <button
-      type="button"
+    <Button
+      variant={following ? "glass" : "gold"}
+      size={size === "md" ? "lg" : "md"}
       onClick={toggle}
       aria-pressed={following}
-      className={`shrink-0 rounded-full font-semibold transition ${pad} ${
-        following ? "btn-glass text-bone-mut" : "btn-gold"
-      }`}
+      /* 44px on touch whatever the caller asked for, per the accessibility
+         rule that touch targets never follow the declared density. */
+      className={`shrink-0 max-md:h-11 ${following ? "text-bone-mut" : ""}`}
     >
       {following ? "Following" : "Follow"}
-    </button>
+    </Button>
   );
 }
