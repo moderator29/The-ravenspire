@@ -110,6 +110,11 @@ export interface CallData {
   confidence?: Confidence;
   /* Why they think so. Prose, capped, shown on the card. */
   rationale?: string;
+  /* Evidence the member cited when they sealed the Call: absolute https links,
+     at most three, whitelisted by normalizeSources in lib/calls/analytics.ts.
+     Additive and optional like every other V2 field, so a V1 row still parses
+     and no reader has to know about it. */
+  sources?: string[];
   /* The move the Call requires, as a positive fraction. 0.4 is a 40% move.
      Zero is "any move in the stated direction", which is what every V1 Call
      implicitly asked for and is scored as the coin flip it is. */

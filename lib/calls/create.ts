@@ -7,6 +7,7 @@ import {
   horizonYears,
   impliedBaseline,
 } from "@/lib/calls/scoring";
+import { normalizeSources } from "@/lib/calls/analytics";
 import { realizedVolatility } from "@/lib/calls/volatility";
 import { pinSubject } from "@/lib/calls/resolvers/price";
 import {
@@ -55,6 +56,7 @@ export interface CallInput {
   rationale?: string;
   threshold?: number;
   claim?: unknown;
+  sources?: unknown;
 }
 
 export type CallDraft =
@@ -157,6 +159,11 @@ export async function prepareCall(
   }
   const threshold = rawThreshold ?? 0;
 
+  /* Evidence. Only absolute https links survive, at most three, because the
+     realm renders these and a link is the one part of a Call a reader can check
+     for themselves. An empty list is stored as nothing at all. */
+  const sources = normalizeSources(input.sources);
+
   const base = {
     category,
     resolver,
@@ -164,6 +171,7 @@ export async function prepareCall(
     confidence,
     rationale,
     threshold,
+    ...(sources.length > 0 ? { sources } : {}),
     verdict: "open" as const,
   };
 
