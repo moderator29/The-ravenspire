@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SegmentedControl } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
 import { realmFetch } from "@/lib/auth/api";
@@ -86,45 +90,42 @@ export default function LeaderboardsPage() {
       </p>
 
       {/* Metric tabs */}
-      <div className="mt-5 grid grid-cols-3 gap-1 rounded-xl border border-steel-line bg-void p-1">
-        {METRICS.map((m) => (
-          <button
-            key={m.key}
-            type="button"
-            onClick={() => setMetric(m.key)}
-            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition ${
-              metric === m.key
-                ? "bg-panel-warm text-gold-bright"
-                : "text-bone-faint hover:text-bone-mut"
-            }`}
-          >
-            <Icon name={m.icon} className="h-4 w-4" />
-            {m.label}
-          </button>
-        ))}
-      </div>
+      {/* Three mutually exclusive rankings, which is a SegmentedControl. The
+          hand rolled version carried none of the arrow key handling or roving
+          tabindex a member expects from a row of tabs. */}
+      <SegmentedControl
+        label="Ranking"
+        block
+        className="mt-5"
+        value={metric}
+        onValueChange={(next) => setMetric(next as (typeof METRICS)[number]["key"])}
+        items={METRICS.map((m) => ({ value: m.key, label: m.label }))}
+      />
 
       <div className="mt-4 flex flex-col gap-2">
         {entries === null ? (
           [0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="glass glass-sm h-16 animate-pulse" />
+            <Skeleton key={i} className="h-16 w-full" />
           ))
         ) : error ? (
-          <div className="glass p-8 text-center text-sm text-bone-mut">
-            The roll could not be read right now.
-            <button
-              type="button"
-              onClick={() => void load(metric)}
-              className="mt-3 block w-full text-gold underline"
-            >
-              Try again
-            </button>
-          </div>
+          <EmptyState
+            icon="alert"
+            bordered
+            title="The roll could not be read"
+            body="Something went wrong reaching the standings."
+            action={
+              <Button variant="glass" size="md" onClick={() => void load(metric)}>
+                Try again
+              </Button>
+            }
+          />
         ) : entries.length === 0 ? (
-          <div className="glass p-8 text-center text-sm text-bone-mut">
-            No standings yet. Earn {active.label} and claim your place on the
-            roll.
-          </div>
+          <EmptyState
+            icon="medal"
+            bordered
+            title="No standings yet"
+            body={`Earn ${active.label} and claim your place on the roll.`}
+          />
         ) : (
           entries.map((e) => {
             const name =
@@ -134,7 +135,7 @@ export default function LeaderboardsPage() {
               <Link
                 key={e.id}
                 href={e.handle ? `/u/${e.handle}` : "#"}
-                className={`glass glass-sm flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30 ${
+                className={`glass glass-sm flex min-h-11 items-center gap-3 px-3.5 py-3 transition-colors duration-fast hover:border-gold/30 ${
                   e.isViewer ? "border-gold/40 bg-panel-warm/40" : ""
                 }`}
               >
