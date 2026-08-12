@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
 type BackButtonProps = {
@@ -33,17 +34,18 @@ export function BackButton({ href = "/home", label = "Back" }: BackButtonProps) 
   };
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="glass"
+      size="sm"
       onClick={handleClick}
       aria-label={label}
-      className="btn-glass group px-3.5 py-1.5 text-xs font-semibold tracking-wide text-bone-mut hover:text-bone"
+      className="group tracking-wide text-bone-mut hover:text-bone"
     >
       <Icon
         name="arrow"
-        className="h-3.5 w-3.5 rotate-180 transition-transform duration-200 group-hover:-translate-x-0.5"
+        className="h-3.5 w-3.5 rotate-180 transition-transform duration-fast group-hover:-translate-x-0.5"
       />
       {label}
-    </button>
+    </Button>
   );
 }

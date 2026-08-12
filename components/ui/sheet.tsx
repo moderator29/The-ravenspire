@@ -18,7 +18,7 @@ import { Modal, type ModalSize } from "@/components/ui/modal";
    sits on Base UI rather than Radix: Radix has no drawer, and Vaul, the
    package everyone reaches for instead, is now unmaintained by its author. */
 
-export type SheetSide = "bottom" | "right";
+export type SheetSide = "bottom" | "right" | "left";
 
 const BACKDROP =
   "fixed inset-0 z-overlay min-h-dvh bg-obsidian/75 " +
@@ -46,11 +46,29 @@ const POPUP: Record<SheetSide, string> = {
     "[transform:translateX(var(--drawer-swipe-movement-x))] " +
     "data-starting-style:[transform:translateX(100%)] " +
     "data-ending-style:[transform:translateX(100%)]",
+  /* Left exists for one reason: the mobile navigation drawer. A drawer that
+     slides from the left is the one place the realm opens against the reading
+     direction, and it was previously hand rolled with no focus trap, no focus
+     restore and no dialog role. The bleed mirrors the right variant. */
+  left:
+    "-ml-12 h-full w-[min(26rem,calc(100vw-3rem))] rounded-r-2xl border-r py-4 pr-4 pl-16 " +
+    "[transform:translateX(var(--drawer-swipe-movement-x))] " +
+    "data-starting-style:[transform:translateX(-100%)] " +
+    "data-ending-style:[transform:translateX(-100%)]",
 };
 
 const VIEWPORT: Record<SheetSide, string> = {
   bottom: "fixed inset-0 z-modal flex items-end justify-center",
   right: "fixed inset-0 z-modal flex items-stretch justify-end",
+  left: "fixed inset-0 z-modal flex items-stretch justify-start",
+};
+
+/* Which way a drag dismisses. It follows the edge the sheet is anchored to,
+   so a left drawer dismisses leftward rather than off toward the right. */
+const SWIPE: Record<SheetSide, "down" | "right" | "left"> = {
+  bottom: "down",
+  right: "right",
+  left: "left",
 };
 
 export interface SheetProps {
@@ -83,7 +101,7 @@ export function Sheet({
       open={open}
       defaultOpen={defaultOpen}
       onOpenChange={(next) => onOpenChange?.(next)}
-      swipeDirection={side === "bottom" ? "down" : "right"}
+      swipeDirection={SWIPE[side]}
     >
       {trigger ? <Drawer.Trigger render={trigger} /> : null}
       <Drawer.Portal>

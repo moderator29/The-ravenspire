@@ -2,28 +2,41 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Icon } from "@/components/ui/icon";
+import { IconButton } from "@/components/ui/button";
+import { Sheet } from "@/components/ui/sheet";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { SideNav } from "@/components/shell/side-nav";
 import { NotifDot } from "@/components/notifications/notif-badge";
 import { StreakFlame } from "@/components/shell/streak-flame";
 
-/* Mobile-only top bar: drawer trigger, centered brand, and whispers. Ravens
-   (notifications) and the vault now live in the side nav and bottom nav, so
-   the bar stays clean and the mark sits centered. */
+/* Mobile only top bar: drawer trigger, centred brand, ravens and whispers.
+   The vault lives in the side nav and bottom nav, so the bar stays clean and
+   the mark sits centred.
+ *
+ * Two things were wrong here and both mattered most on the one device this bar
+ * exists for.
+ *
+ * Every control was 36px square. This bar renders below lg and nowhere else,
+ * so every one of its targets was under the 44px minimum on the only screens
+ * that ever see it. They are size lg now, which lands exactly on 44px.
+ *
+ * The drawer was a fixed overlay with a bare backdrop button: no dialog role,
+ * no aria-modal, no focus trap, no focus restore and no Escape handling. Tab
+ * from inside it walked straight into the page behind. It is now the Sheet
+ * primitive anchored left, which carries all of that. */
 export function TopBar() {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-steel-line/70 bg-obsidian/92 px-3 backdrop-blur-xl lg:hidden">
-        <button
+        <IconButton
+          icon="user"
+          label="Open menu"
+          size="lg"
+          aria-expanded={open}
           onClick={() => setOpen(true)}
-          aria-label="Open menu"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-bone-mut"
-        >
-          <Icon name="user" className="h-5 w-5" />
-        </button>
+        />
         <Link
           href="/home"
           aria-label="The Ravenry"
@@ -31,38 +44,38 @@ export function TopBar() {
         >
           <RavenMark className="h-8 w-8" />
         </Link>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <StreakFlame />
-          <Link
-            href="/ravens"
-            aria-label="Ravens"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-bone-mut"
-          >
-            <Icon name="bell" className="h-5 w-5" />
-            <NotifDot className="absolute right-1.5 top-1.5" />
-          </Link>
-          <Link
-            href="/whispers"
-            aria-label="Whispers"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-bone-mut"
-          >
-            <Icon name="mail" className="h-5 w-5" />
-          </Link>
+          {/* IconButton takes no children by design, so the unread dot is a
+              sibling positioned over it rather than nested inside. The wrapper
+              is pointer-events-none on the dot so it never eats the tap. */}
+          <span className="relative inline-flex">
+            <IconButton
+              icon="bell"
+              label="Ravens"
+              size="lg"
+              render={<Link href="/ravens" />}
+            />
+            <NotifDot className="pointer-events-none absolute right-2 top-2" />
+          </span>
+          <IconButton
+            icon="mail"
+            label="Whispers"
+            size="lg"
+            render={<Link href="/whispers" />}
+          />
         </div>
       </header>
 
-      {open && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            aria-label="Close menu"
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
-          />
-          <div className="absolute inset-y-0 left-0 w-[290px] max-w-[85vw] border-r border-steel-line bg-obsidian shadow-2xl">
-            <SideNav onNavigate={() => setOpen(false)} />
-          </div>
-        </div>
-      )}
+      <Sheet
+        open={open}
+        onOpenChange={setOpen}
+        side="left"
+        title="Menu"
+        className="lg:hidden"
+      >
+        <SideNav onNavigate={() => setOpen(false)} />
+      </Sheet>
     </>
   );
 }

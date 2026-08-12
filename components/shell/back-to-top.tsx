@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
 /* A quiet "back to the top" pill that fades in once the reader has scrolled a
@@ -19,14 +20,15 @@ export function BackToTop({ threshold = 900 }: { threshold?: number }) {
   if (!show) return null;
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="glass"
+      size="sm"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="Back to top"
-      className="btn-glass fixed left-1/2 top-3 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-[--radius-sm] px-3.5 py-1.5 text-xs font-semibold text-gold shadow-xl backdrop-blur-xl transition active:scale-95"
+      className="fixed left-1/2 top-3 z-40 -translate-x-1/2 text-gold shadow-xl"
     >
       <Icon name="arrow" className="h-3.5 w-3.5 -rotate-90" />
       Back to top
-    </button>
+    </Button>
   );
 }
