@@ -124,7 +124,12 @@ export function Tab({
            globals.css. */
         "touch:min-h-11 touch:min-w-11",
         "transition-colors duration-fast ease-out-quint",
-        "text-bone-faint hover:text-bone-mut data-active:text-bone",
+        /* The active tab reads gold, not bone. The underline alone was a quiet
+           signal, and on a phone at a glance the current view (For You,
+           Following) barely separated from the rest. Gold text plus the gold
+           underline makes where-you-are unmistakable and matches the realm's
+           one accent, the same gold the primary actions wear. */
+        "text-bone-faint hover:text-bone-mut data-active:text-gold-bright",
         className
       )}
     >
