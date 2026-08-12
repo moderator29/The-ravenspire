@@ -1026,17 +1026,71 @@ addition.
 
 ---
 
-## 21. Progress
+## 21. Progress, and an honest scorecard
+
+The distinction that matters in this table is **engine** versus **product**. A
+system can be fully designed, implemented, tested and unreachable by a member.
+Several of them were, and that is the gap this section exists to make visible
+rather than to hide behind a green tick.
+
+### Where each V2 pillar actually stands
+
+| Pillar | Engine | Product surface | Honest read |
+| --- | --- | --- | --- |
+| Realm event spine | Built. Nine kinds, `emit()` wired into posts, verdicts, duels, quests, crests. | **Not built.** Only `/api/events` reads `realm_events`; the feed reads `posts` alone. | The spine was laid and never connected. The Ravenry is not yet the operating system. |
+| Calls V2 | Built and tested. Volatility implied difficulty frozen at creation, confidence, thresholds, peer consensus, contract pinned settlement. | **Barely built.** The composer collects one V2 field, `timeframe`. No Call detail page exists. | The engine computes difficulty and consensus that no member can see. |
+| Raven AI | Two routes: chat and compose suggest. | Chat only. | Still a tagged chatbot, not the intelligence layer. |
+| Houses V2 | Built. Size neutral top 20 scoring, computed leadership, oath history, Clashes. | Partial. | Closest to complete of the four. |
+| Games V2 | The War exists. | Converted, and three pieces of invented data removed. | Social first games are not started. |
+| Design system | Built. Six archetypes, two registers, thirteen primitives. | Applied across the platform. | The sweep is real: zero `btn-gold` or `btn-glass` remain in live code. |
+
+### What that means
+
+The V2 work so far has been strongest at the two ends and weakest in the middle.
+Security, schema, scoring models and the design system are genuinely done. The
+product layer that turns those into an experience a member can feel is the part
+that was still missing, and it is the part the founder correctly called out.
+
+Both remaining agents are now assigned to exactly that: the unified Ravenry with
+a card registry, and the Calls V2 composer, detail page and prediction profile.
+
+### Log
 
 | Date | Milestone |
 | --- | --- |
-| 2026-08-11 | Two-agent audit complete. Typecheck verified clean (0 errors). Critical findings C1, C2, C3 verified first-hand. |
-| 2026-08-11 | **Critical economy exploit found and closed.** `increment_profile_totals`, `increment_house_glory` and `rate_limit_hit` were executable by PUBLIC/anon/authenticated over PostgREST, allowing anyone with the browser-bundled anon key to mint unlimited points and glory. Revoked; advisors clear. |
-| 2026-08-11 | Baseline schema committed. 38 tables, 26 indexes, 3 functions, 22 policies, column grants. The database is reproducible from source for the first time. |
-| 2026-08-11 | Calls and Houses scoring designed against a survey of Metaculus, Manifold, Lichess, Chess.com, Duolingo, Strava, Stack Overflow. Q8 resolved by splitting Renown from Season Rating. |
-| 2026-08-11 | **`main` did not build.** `/search` used `useSearchParams()` with no Suspense boundary; prerender failed and no CI existed to catch it. Fixed; 119 pages generate. CI added. |
-| 2026-08-11 | WCAG AA contrast fixed (`--bone-faint` 4.10 to 4.52, 635 uses) and one keyboard focus ring applied across 268 previously focus-invisible buttons. |
-| 2026-08-11 | Frontend architecture decided: bespoke primitives on Base UI, compile-time-enforced token scales. **Awaiting product-owner decisions on section 22.** |
+| 2026-08-11 | Two agent audit complete. Critical findings C1, C2, C3 verified first hand. |
+| 2026-08-11 | **Critical economy exploit found and closed.** Three `SECURITY DEFINER` functions were executable by PUBLIC over PostgREST, so anyone holding the browser bundled anon key could mint unlimited points and glory. Revoked; advisors clear. |
+| 2026-08-11 | **Post audience was not enforced.** The RLS policy was `USING (NOT deleted)`, making the composer's audience selector cosmetic. Tightened, feed moved behind a server route, verified live against the database. |
+| 2026-08-11 | Baseline schema committed. 38 tables, 26 indexes, 3 functions, 22 policies. The database is reproducible from source for the first time. |
+| 2026-08-11 | **`main` did not build.** `/search` used `useSearchParams()` with no Suspense boundary and no CI existed to catch it. Fixed, and CI added from nothing. |
+| 2026-08-11 | WCAG AA contrast fixed (`--bone-faint` 4.10 to 4.52 across 635 uses) and one keyboard focus ring applied to 268 previously focus invisible buttons. |
+| 2026-08-11 | Design system written: two registers, six archetypes, thirteen primitives on Base UI. |
+| 2026-08-12 | Console density pass complete across the Vault, Swap, Watch, Scrying, Ledger, Forge and coin surfaces. |
+| 2026-08-12 | **Zero `btn-gold` and `btn-glass` left in live code**, down from 268 hand written buttons. A checker rule now fails any new use. |
+| 2026-08-12 | Three blind spots found in the house rule checker itself and closed: pills written with `pl-`/`pr-`, capsule rows written with `p-` plus `gap-`, and the retired button utilities. Each one failed on a real violation the first time it ran. |
+| 2026-08-12 | `--chart-up` and `--chart-down` were defined but never aliased into Tailwind, so `text-chart-up` compiled to nothing and every caller reached the token through an inline style. Exposed. |
+| 2026-08-12 | **Invented data removed from The War**: a six tier reward ladder with no server behind it, a fabricated Glory to $RSP rate, and client computed Glory displayed as banked. |
+| 2026-08-12 | Mobile shell fixed: every top bar control was 36px on the only screens that render it, and the navigation drawer had no dialog role, focus trap or focus restore. |
+| 2026-08-12 | **Audit finding: the Ravenry is not yet the operating system, and Calls V2 has an engine with no product on top.** Both agents reassigned to close exactly that. |
+
+### Known defect, not yet fixed
+
+**Caller `className` overrides on primitives are silently dead in some cases.**
+`cx` documents that "any caller override arrives last in the string and wins on
+source order", which is false: class attribute order does not decide CSS
+precedence, source order in the emitted stylesheet does. Compiling this
+project's Tailwind and measuring byte offsets confirms the emission order is
+`rounded-2xl`, `rounded-lg`, `rounded-md`, `rounded-xl`. So `Card`'s
+`rounded-xl` is emitted last and **cannot be overridden by any caller**, and
+`Button`'s `rounded-md` beats a caller passing `rounded-lg`. The same applies to
+padding: `px-0` is emitted before `px-5`, so a caller cannot zero a `Button`'s
+padding.
+
+This is a real defect in the primitive layer's central promise. The fix is
+either conflict aware class merging in `cx` or explicit props on the
+primitives; the first is correct but has a wide blast radius, because every
+override that is currently dead would suddenly apply. It should be done
+deliberately with a visual pass, not slipped in beside feature work.
 
 ---
 
