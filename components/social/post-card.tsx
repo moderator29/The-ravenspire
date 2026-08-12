@@ -357,7 +357,9 @@ export function PostCard({ post }: { post: Post }) {
             dossier.open(post.author_id, a.handle);
           }}
           aria-label={`Open ${a.handle ? `@${a.handle}` : "member"} dossier`}
-          className="shrink-0 self-start rounded-[var(--radius-full)] transition-opacity duration-fast ease-out-quint hover:opacity-90"
+          /* A 40px avatar with 2px of bleed on every side is a 44px target,
+             without the circle itself growing into the name row beside it. */
+          className="-m-0.5 shrink-0 self-start rounded-[var(--radius-full)] p-0.5 transition-opacity duration-fast ease-out-quint hover:opacity-90"
         >
           <Avatar author={a} size={40} />
         </button>
@@ -440,16 +442,16 @@ export function PostCard({ post }: { post: Post }) {
               pad="none"
               className={`mt-2 flex items-center gap-3 px-3 py-2 ${
                 post.call.stance === "up"
-                  ? "border-[color:var(--chart-up)]/40"
-                  : "border-[color:var(--chart-down)]/40"
+                  ? "border-chart-up/40"
+                  : "border-chart-down/40"
               }`}
             >
               <Icon
                 name="target"
                 className={`h-4 w-4 shrink-0 ${
                   post.call.stance === "up"
-                    ? "text-[color:var(--chart-up)]"
-                    : "text-[color:var(--chart-down)]"
+                    ? "text-chart-up"
+                    : "text-chart-down"
                 }`}
               />
               <p className="min-w-0 text-xs text-bone-mut">

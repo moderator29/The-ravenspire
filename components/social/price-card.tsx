@@ -87,8 +87,8 @@ export function PriceCard({ symbol }: { symbol: string }) {
         <p
           className={`tnum text-xs font-medium ${
             up
-              ? "text-[color:var(--chart-up)]"
-              : "text-[color:var(--chart-down)]"
+              ? "text-chart-up"
+              : "text-chart-down"
           }`}
         >
           {up ? "+" : ""}

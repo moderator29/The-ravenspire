@@ -125,8 +125,8 @@ export function CallChart({
           <span
             className={`ml-2 text-[11px] font-medium ${
               up
-                ? "text-[color:var(--chart-up)]"
-                : "text-[color:var(--chart-down)]"
+                ? "text-chart-up"
+                : "text-chart-down"
             }`}
           >
             {delta >= 0 ? "+" : ""}
