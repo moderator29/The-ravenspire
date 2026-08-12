@@ -58,7 +58,7 @@ export function SiteFooter() {
                 key={s.label}
                 href={s.href}
                 aria-label={s.label}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-steel-line bg-panel text-bone-mut transition hover:border-gold/40 hover:text-gold"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-steel-line bg-panel text-bone-mut transition hover:border-gold/40 hover:text-gold"
               >
                 <Icon name={s.icon} className="h-4 w-4" />
               </Link>
@@ -95,12 +95,15 @@ function FooterCol({
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
         {title}
       </p>
-      <ul className="mt-3 flex flex-col gap-2">
+            {/* No gap between rows. Each link is its own 44px target, so the rows
+          already sit apart by their own height, and a gap on top of that
+          stretches a four link column past a phone screen for no gain. */}
+      <ul className="mt-1 flex flex-col">
         {links.map((l) => (
           <li key={l.href}>
             <Link
               href={l.href}
-              className="text-xs text-bone-mut transition hover:text-bone"
+              className="flex min-h-11 items-center text-xs text-bone-mut transition hover:text-bone"
             >
               {l.label}
             </Link>

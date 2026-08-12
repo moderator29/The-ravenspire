@@ -103,7 +103,7 @@ export function TheGames() {
             </ul>
             <Link
               href="/calls"
-              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
+              className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
             >
               See the Calls running now
               <Icon name="arrow" className="h-4 w-4" />
@@ -147,7 +147,7 @@ export function TheGames() {
             </ul>
             <Link
               href="/war"
-              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
+              className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
             >
               March to The War
               <Icon name="arrow" className="h-4 w-4" />

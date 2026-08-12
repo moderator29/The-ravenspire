@@ -58,7 +58,7 @@ export function RealmIntro() {
     >
       {/* Introduction */}
       <motion.div variants={rise} className="mx-auto max-w-3xl text-center">
-        <span className="inline-flex items-center gap-2 rounded-[--radius-sm] border border-gold/20 bg-void/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
+        <span className="inline-flex min-h-11 items-center gap-2 rounded-[--radius-sm] border border-gold/20 bg-void/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
           <LandingIcon name="layers" className="h-4 w-4" />
           What is The Ravenspire
         </span>

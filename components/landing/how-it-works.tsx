@@ -105,7 +105,7 @@ export function HowItWorks() {
       <motion.div variants={rise}>
         <Link
           href="/signin"
-          className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
+          className="mt-7 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
         >
           Start at the gate
           <Icon name="arrow" className="h-4 w-4" />

@@ -153,7 +153,7 @@ export default function TermsOfServicePage() {
       <div className="relative mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm font-medium text-bone-mut transition hover:text-gold"
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-bone-mut transition hover:text-gold"
         >
           Back to the realm
         </Link>

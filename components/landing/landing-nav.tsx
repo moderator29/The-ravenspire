@@ -113,20 +113,26 @@ export function LandingNav({
 
         {/* Right group: CTA + mobile toggle */}
         <div className="flex flex-1 items-center justify-end gap-2">
-          <Button variant="gold" size="md" render={<Link href={ctaHref} />}>
+          {/* The realm's primary call to action, and it measured 94x36 on a
+              phone, which is under the 44px this product holds itself to. It
+              is the single most tapped control on the site. */}
+          <Button variant="gold" size="lg" render={<Link href={ctaHref} />}>
             <span className="hidden sm:inline">{ctaLabel}</span>
             <span className="sm:hidden">Enter</span>
             <LandingIcon name="arrowRight" className="h-4 w-4" />
           </Button>
 
           {/* Mobile menu toggle */}
+          {/* Square, and sized by the same 44px minimum. It carried an
+              explicit h-9 w-9, which is 36px, so it was the smallest target
+              on a screen where it is one of only two. */}
           <Button
             variant="glass"
-            size="md"
+            size="lg"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="h-9 w-9 shrink-0 p-0 md:hidden"
+            className="h-11 w-11 shrink-0 p-0 md:hidden"
           >
             <LandingIcon name={open ? "close" : "menu"} className="h-5 w-5" />
           </Button>

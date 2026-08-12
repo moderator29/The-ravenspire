@@ -57,7 +57,7 @@ export function NonCustodial() {
       className="scroll-mt-28"
     >
       <motion.div variants={rise} className="max-w-2xl">
-        <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
+        <span className="inline-flex min-h-11 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
           <LandingIcon name="shield" className="h-4 w-4" />
           Non-custodial by design
         </span>
@@ -89,7 +89,7 @@ export function NonCustodial() {
       <motion.div variants={rise}>
         <Link
           href="/vault"
-          className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
+          className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
         >
           Open your Vault
           <LandingIcon name="arrowRight" className="h-4 w-4" />

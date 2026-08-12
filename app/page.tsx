@@ -204,7 +204,7 @@ export default function Landing() {
             </Button>
             <Link
               href="/chronicle"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-bone-mut transition hover:text-bone"
+              className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-bone-mut transition hover:text-bone"
             >
               Discover the realm
               <LandingIcon name="arrowUpRight" className="h-4 w-4" />
@@ -402,7 +402,7 @@ export default function Landing() {
                   key={f.q}
                   className="group border border-steel-line bg-panel px-4 py-3.5 [&_summary]:list-none"
                 >
-                  <summary className="flex cursor-pointer items-center justify-between gap-3">
+                  <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3">
                     <span className="font-display text-sm font-semibold text-bone">
                       {f.q}
                     </span>
@@ -472,7 +472,8 @@ export default function Landing() {
             }
             radius="lg"
             pad="none"
-            className="border border-steel-line bg-panel/60 p-5 sm:p-6"
+            variant="raised"
+            className="p-5 sm:p-6"
           >
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-bone-faint">
               <LandingIcon name="shield" className="h-4 w-4 text-gold" />

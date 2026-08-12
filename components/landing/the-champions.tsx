@@ -144,7 +144,7 @@ export function TheChampions() {
       <motion.div variants={rise}>
         <Link
           href="/war/champions"
-          className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
+          className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
         >
           Muster the full roster
           <LandingIcon name="arrowRight" className="h-4 w-4" />

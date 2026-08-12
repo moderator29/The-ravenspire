@@ -92,7 +92,7 @@ export function MeetRaven() {
         {/* Powers */}
         <div className="flex flex-col gap-3">
           {powers.map((p) => (
-            <Card key={p.title} render={<motion.div variants={rise} />} radius="lg" pad="none" className="flex items-start gap-3 border border-steel-line bg-panel p-4">
+            <Card key={p.title} render={<motion.div variants={rise} />} radius="lg" pad="none" variant="raised" className="flex items-start gap-3 p-4">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/25 bg-void text-gold">
                 <Icon name={p.icon} className="h-5 w-5" />
               </span>
@@ -105,7 +105,7 @@ export function MeetRaven() {
         </div>
 
         {/* Chat + demo card */}
-        <Card render={<motion.div variants={rise} />} radius="lg" pad="none" className="border border-steel-line bg-void/50 p-4">
+        <Card render={<motion.div variants={rise} />} radius="lg" pad="none" variant="raised" className="p-4">
           <div className="flex flex-col gap-3">
             {chat.map((m, i) =>
               m.from === "user" ? (
@@ -157,7 +157,7 @@ export function MeetRaven() {
       <motion.div variants={rise}>
         <Link
           href="/raven"
-          className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
+          className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
         >
           Summon the Raven
           <Icon name="arrow" className="h-4 w-4" />

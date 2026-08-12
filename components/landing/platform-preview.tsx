@@ -276,11 +276,11 @@ export function PlatformPreview() {
       />
 
       <motion.div variants={rise} className="relative flex flex-wrap items-center gap-3">
-        <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
+        <span className="inline-flex min-h-11 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
           <LandingIcon name="vision" className="h-4 w-4" />
           See the realm
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-gold/25 bg-void/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
+        <span className="inline-flex min-h-11 items-center gap-1.5 rounded-[--radius-sm] border border-gold/25 bg-void/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
           <span className="h-1.5 w-1.5 rounded-full bg-ember" />
           Product preview
         </span>
