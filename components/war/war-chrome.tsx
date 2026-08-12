@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { cx } from "@/components/ui/cx";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { Meter } from "@/components/ui/meter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BackButton } from "@/components/shell/back-button";
 import { champions, type Champion } from "@/lib/game/champions";
@@ -208,9 +209,24 @@ export function BoardSkeleton({ rows = 6 }: { rows?: number }) {
   );
 }
 
-/* A label, a tabular figure and a bar. `bar-track` and `bar-gold` are the
-   product's sanctioned progress primitives in globals.css, so the bar is never
-   hand rolled here. */
+/* A label, a tabular figure and a bar.
+
+   The bar is the `Meter` primitive, not a hand rolled `bar-track` plus
+   `bar-gold`. This was one of five copies of those two classes, and each copy
+   had made the same three decisions slightly differently. This one had no
+   visible sliver floor, so a champion whose speed is genuinely low drew a bar
+   of zero width and read as having none at all.
+
+   It also carried `role="img"` with an aria-label repeating the figure, which
+   is written immediately to its left. A screen reader announced "Attack, 3,400"
+   and then "image, 3,400 of 3,700". Meter is aria-hidden unless you give it a
+   label, which is correct here: the number is already there in text.
+
+   The floor is deliberately dropped at exactly zero. Meter applies its floor to
+   any value including 0, which is right for "one point out of forty thousand"
+   and wrong for "no mastery at all": a champion at mastery 0 would draw a gold
+   sliver implying progress that has not happened. Zero is the one value that
+   must render as nothing. */
 export function StatBar({
   label,
   value,
@@ -222,20 +238,19 @@ export function StatBar({
   max: number;
   className?: string;
 }) {
-  const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)));
   return (
     <div className={className}>
       <div className={cx("flex items-center justify-between gap-3", WAR_META)}>
         <span className="text-bone-mut">{label}</span>
         <span className="tnum text-bone">{value.toLocaleString()}</span>
       </div>
-      <div
-        className="bar-track mt-1 h-1.5"
-        role="img"
-        aria-label={`${value.toLocaleString()} of ${max.toLocaleString()}`}
-      >
-        <div className="bar-gold h-full" style={{ width: `${pct}%` }} />
-      </div>
+      <Meter
+        className="mt-1"
+        value={value}
+        max={max}
+        size="sm"
+        floor={value > 0 ? 2 : 0}
+      />
     </div>
   );
 }
