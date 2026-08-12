@@ -6,6 +6,7 @@ import { RavenMark } from "@/components/brand/raven-mark";
 import { CrestRoundel, crests } from "@/components/brand/crests";
 import { Icon3D } from "@/components/ui/icon-3d";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { LandingIcon } from "@/components/landing/icons";
 import { comingSoonNav } from "@/lib/nav";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -138,14 +139,20 @@ export default function Landing() {
                 "radial-gradient(circle, rgba(217, 176, 64,0.12), rgba(229,112,42,0.05) 45%, transparent 70%)",
             }}
           />
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="glass glass-sm px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-gold"
+          <Card
+            render={
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7 }}
+              />
+            }
+            radius="lg"
+            pad="none"
+            className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-gold"
           >
             The realm awakens · Season I
-          </motion.div>
+          </Card>
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -282,12 +289,18 @@ export default function Landing() {
           <HowItWorks />
 
           {/* The Chapters ahead */}
-          <motion.section
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6 }}
-            className="glass p-7 sm:p-9"
+          <Card
+            render={
+              <motion.section
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6 }}
+              />
+            }
+            radius="xl"
+            pad="none"
+            className="p-7 sm:p-9"
           >
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
               <LandingIcon name="docs" className="h-4 w-4" />
@@ -305,7 +318,7 @@ export default function Landing() {
               {comingSoonNav.map((c) => (
                 <div
                   key={c.slug}
-                  className="glass-sm flex items-start gap-3 rounded-2xl border border-steel-line bg-panel p-4"
+                  className="flex items-start gap-3 border border-steel-line bg-panel p-4"
                 >
                   <Icon3D name={c.icon3d} size="sm" className="shrink-0" />
                   <div className="min-w-0">
@@ -322,15 +335,21 @@ export default function Landing() {
                 </div>
               ))}
             </div>
-          </motion.section>
+          </Card>
 
           {/* The crests you can earn */}
-          <motion.section
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6 }}
-            className="glass p-7 text-center sm:p-9"
+          <Card
+            render={
+              <motion.section
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6 }}
+              />
+            }
+            radius="xl"
+            pad="none"
+            className="p-7 text-center sm:p-9"
           >
             <div className="flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
               <LandingIcon name="badge" className="h-4 w-4" />
@@ -354,15 +373,21 @@ export default function Landing() {
               Three live at launch, seven on the roadmap. No collectibles, no
               purchase, no shortcut. You earn them by showing up and being good.
             </p>
-          </motion.section>
+          </Card>
 
           {/* The realm answers - FAQ */}
-          <motion.section
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6 }}
-            className="glass p-7 sm:p-9"
+          <Card
+            render={
+              <motion.section
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6 }}
+              />
+            }
+            radius="xl"
+            pad="none"
+            className="p-7 sm:p-9"
           >
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
               <LandingIcon name="docs" className="h-4 w-4" />
@@ -375,7 +400,7 @@ export default function Landing() {
               {faqs.map((f) => (
                 <details
                   key={f.q}
-                  className="group glass-sm rounded-2xl border border-steel-line bg-panel px-4 py-3.5 [&_summary]:list-none"
+                  className="group border border-steel-line bg-panel px-4 py-3.5 [&_summary]:list-none"
                 >
                   <summary className="flex cursor-pointer items-center justify-between gap-3">
                     <span className="font-display text-sm font-semibold text-bone">
@@ -392,15 +417,21 @@ export default function Landing() {
                 </details>
               ))}
             </div>
-          </motion.section>
+          </Card>
 
           {/* Final CTA */}
-          <motion.section
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6 }}
-            className="glass relative overflow-hidden p-9 text-center"
+          <Card
+            render={
+              <motion.section
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6 }}
+              />
+            }
+            radius="xl"
+            pad="none"
+            className="relative overflow-hidden p-9 text-center"
           >
             <div
               aria-hidden="true"
@@ -427,15 +458,21 @@ export default function Landing() {
               {ctaLabel}
               <LandingIcon name="arrowRight" className="h-4 w-4" />
             </Button>
-          </motion.section>
+          </Card>
 
           {/* Risk and legal disclaimer band */}
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.6 }}
-            className="glass-sm rounded-2xl border border-steel-line bg-panel/60 p-5 sm:p-6"
+          <Card
+            render={
+              <motion.section
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.6 }}
+              />
+            }
+            radius="lg"
+            pad="none"
+            className="border border-steel-line bg-panel/60 p-5 sm:p-6"
           >
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-bone-faint">
               <LandingIcon name="shield" className="h-4 w-4 text-gold" />
@@ -460,7 +497,7 @@ export default function Landing() {
               </Link>{" "}
               before you enter.
             </p>
-          </motion.section>
+          </Card>
 
           <SiteFooter />
         </div>

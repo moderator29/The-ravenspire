@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon3D } from "@/components/ui/icon-3d";
+import { Card } from "@/components/ui/card";
 import { AtAGlance, type GlancePoint } from "@/components/legal/at-a-glance";
 
 export const metadata: Metadata = {
@@ -173,7 +174,12 @@ export default function TermsOfServicePage() {
 
         <AtAGlance points={glance} />
 
-        <article className="glass mt-8 p-7 sm:p-10">
+        <Card
+          render={<article />}
+          radius="xl"
+          pad="none"
+          className="mt-8 p-7 sm:p-10"
+        >
           <div className="flex flex-col gap-8">
             {sections.map((s) => (
               <section key={s.id} id={s.id} className="scroll-mt-8">
@@ -209,7 +215,7 @@ export default function TermsOfServicePage() {
               </section>
             ))}
           </div>
-        </article>
+        </Card>
 
         <footer className="mt-8 flex flex-col items-center gap-2 pb-6 text-center">
           <p className="text-xs uppercase tracking-[0.26em] text-bone-faint">
