@@ -906,6 +906,38 @@ a guess. Updated as work lands.
 
 **Defects the sweep found, and fixed**
 
+- **The primitive override defect is fixed, and it was four times larger than
+  the audit suggested.** The count of 143 was call sites passing a class in a
+  colliding family, not collisions: 119 of them are on `<Card pad="none">`,
+  where the primitive emits no padding at all and nothing was ever dead. The
+  real figure, measured against the emitted stylesheet rather than guessed, is
+  29 dead classes across ten CSS properties.
+
+  The emission order is deterministic, not random. Tailwind v4 sorts each
+  family, numerically ascending for spacing and opacity and alphabetically
+  otherwise, so the rule a caller would have to know is "your class applies
+  only if it sorts after the primitive's". For padding that reads as "you may
+  override upward but never downward"; for radius, `rounded-xl` beats every
+  other plain rung because xl sorts last.
+
+  The three worst were invisible in code review and obvious on a screenshot:
+  every `IconButton shape="circle"` rendered as a rounded rectangle, the back
+  to top control was not fixed to the viewport, and the landing page's mobile
+  nav dropdown pushed the page down instead of overlaying it. The carousel
+  arrows meant to be desktop only were visible on a phone. Someone had already
+  hit this and worked around it blindly: `floating-compose.tsx` carried
+  `style={{ position: "fixed" }}` because the class would not take.
+
+  The fix is in two halves. `components/ui/merge.ts` drops a base class when
+  the caller has spoken about the same CSS property, so precedence stops
+  depending on emission order at all; it is scoped to the primitives, keys
+  responsive and state variants separately, and appends anything it does not
+  recognise rather than dropping it. `Card` and `Button` took props for the
+  groups a class cannot express: `tone`, `elevation`, `pad`, `opaque` and the
+  `raised` variant. Background is the one group neither ordering nor merging
+  can rescue, because the lit variants paint a gradient image over the colour,
+  so a checker rule keeps backgrounds on `variant`.
+
 - The accuracy leaderboard, which is the **default** board, answered in the
   database's snake case while its three siblings answered camel cased. Every key
   the page read by name came back undefined, so nobody had a display name or an
@@ -926,19 +958,15 @@ a guess. Updated as work lands.
 2. **The archetype shells still missing.** Call detail, Coin and Champion are
    Dossier routes and the shell now exists for them. Everything else that
    resolves to an archetype and does not use its shell follows.
-3. **Fix the primitive override defect** recorded in section 21. Caller class
-   overrides on `Card` and `Button` are silently dead in some cases because
-   `cx` assumes class attribute order decides CSS precedence, which is false.
-   Needs a deliberate visual pass, because the fix activates every currently
-   dead override at once.
-4. **Retire the `.glass` utilities.** Done. Every raw usage is the `Card`
+3. **Retire the `.glass` utilities.** Done. Every raw usage is the `Card`
    primitive and all four classes are deleted from `app/globals.css`. The
    measured damage was about a hundred and thirty `rounded-*` classes sitting
    beside an unlayered class that beat all of them, so every one of them
-   described nothing. `Card` also gained a `radius` prop, which is the narrow
-   fix for item 3 on the one property where the dead override was doing visible
-   harm. A checker rule fails any new use of the names.
-5. **Spacing scale enforcement** (`--spacing: initial`), which is approved but
+   described nothing. `Card` also gained a `radius` prop, which was the narrow
+   first fix for the primitive override defect, on the one property where the
+   dead override was doing visible harm. A checker rule fails any new use of
+   the names.
+4. **Spacing scale enforcement** (`--spacing: initial`), which is approved but
    breaks every existing `p-4` at once and needs its own mechanical pass.
 
 **Standing rules for this sweep**
