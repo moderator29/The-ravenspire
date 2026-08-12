@@ -9,7 +9,13 @@ import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
 import { Menu, MenuItem } from "@/components/ui/menu";
-import { SegmentedControl } from "@/components/ui/tabs";
+import {
+  CallForm,
+  EMPTY_CALL_DRAFT,
+  callDraftReady,
+  callPayload,
+  type CallDraft,
+} from "@/components/calls/call-form";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import type { Post } from "@/lib/social/types";
@@ -32,17 +38,6 @@ const AUDIENCES = [
 
 type Audience = (typeof AUDIENCES)[number]["value"];
 
-const STANCES = [
-  { value: "up", label: "Rises" },
-  { value: "down", label: "Falls" },
-];
-
-const TIMEFRAMES = [
-  { value: "24h", label: "24h" },
-  { value: "7d", label: "7d" },
-  { value: "30d", label: "30d" },
-];
-
 export function Composer({
   onPosted,
   page = false,
@@ -62,9 +57,7 @@ export function Composer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callOpen, setCallOpen] = useState(false);
-  const [callToken, setCallToken] = useState("");
-  const [callStance, setCallStance] = useState<"up" | "down">("up");
-  const [callTimeframe, setCallTimeframe] = useState("24h");
+  const [callDraft, setCallDraft] = useState<CallDraft>(EMPTY_CALL_DRAFT);
   /* Each attachment carries a local blob `preview` for instant, reliable
      on-screen display and the persisted public `url` used when the raven is
      sent. Previewing the blob (not the fresh remote URL) means the thumbnail
@@ -154,12 +147,9 @@ export function Composer({
     setBusy(true);
     setError(null);
     const payload: Record<string, unknown> = { body };
-    if (callOpen && callToken.trim()) {
-      payload.call = {
-        token: callToken.trim(),
-        stance: callStance,
-        timeframe: callTimeframe,
-      };
+    if (callOpen) {
+      const call = callPayload(callDraft);
+      if (call) payload.call = call;
     }
     if (images.length)
       payload.media = images.map((img) => ({ url: img.url, type: "image" }));
@@ -180,7 +170,7 @@ export function Composer({
     }
     setBody("");
     setCallOpen(false);
-    setCallToken("");
+    setCallDraft(EMPTY_CALL_DRAFT);
     for (const img of images) {
       previewUrls.current.delete(img.preview);
       URL.revokeObjectURL(img.preview);
@@ -197,10 +187,15 @@ export function Composer({
     onPosted?.(res.data?.post);
   };
 
+  /* A Call being drafted but not yet complete is the one case where an
+     otherwise sendable raven has to wait: sealing it half stated would post a
+     raven and silently drop the Call. */
+  const callIncomplete = callOpen && !callDraftReady(callDraft);
   const sendDisabled =
     busy ||
     uploading ||
-    (!body.trim() && !callToken.trim() && images.length === 0);
+    callIncomplete ||
+    (!body.trim() && !callOpen && images.length === 0);
 
   const audience = AUDIENCES.find((a) => a.value === visibility);
 
@@ -257,41 +252,7 @@ export function Composer({
           />
 
           {callOpen && (
-            <Card
-              variant="warm"
-              pad="sm"
-              className="mt-2 flex flex-wrap items-end gap-2"
-            >
-              <Icon name="target" className="mb-2.5 h-4 w-4 shrink-0 text-gold" />
-              <Field label="Coin" className="w-28 shrink-0">
-                <Input
-                  value={callToken}
-                  onChange={(e) => setCallToken(e.target.value.slice(0, 12))}
-                  placeholder="TOKEN"
-                  className="uppercase"
-                />
-              </Field>
-              <Field label="Direction" className="shrink-0">
-                <SegmentedControl
-                  label="Call direction"
-                  items={STANCES}
-                  value={callStance}
-                  onValueChange={(v) => setCallStance(v === "down" ? "down" : "up")}
-                />
-              </Field>
-              <Field label="Window" className="shrink-0">
-                <SegmentedControl
-                  label="Call window"
-                  items={TIMEFRAMES}
-                  value={callTimeframe}
-                  onValueChange={setCallTimeframe}
-                />
-              </Field>
-              <p className="w-full text-[11px] text-bone-faint">
-                A Call seals the live price now and the realm judges the verdict
-                later. Real data only.
-              </p>
-            </Card>
+            <CallForm draft={callDraft} onChange={setCallDraft} />
           )}
 
           {images.length > 0 && (
