@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { createClient } from "@/lib/supabase/client";
 import { houses } from "@/lib/data/houses";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/social/avatar";
 import { FollowButton } from "@/components/social/follow-button";
 import { fetchViewer, fetchFollowingSet } from "@/lib/social/profile-queries";
@@ -83,7 +86,7 @@ export function RightRail() {
 
   return (
     <aside className="hidden w-80 shrink-0 flex-col gap-4 px-4 py-6 xl:flex">
-      <div className="glass p-4">
+      <Card pad="md">
         <div className="flex items-center gap-2">
           <Icon name="raven" className="h-5 w-5 text-gold" />
           <h2 className="font-display text-base font-semibold tracking-wide text-bone">
@@ -97,17 +100,20 @@ export function RightRail() {
           Ask anything. Settle a debate, read a token, roast a friend kindly.
           Real data only, realm voice always.
         </p>
-        <Link
-          href="/raven"
-          className="btn-glass mt-3 block w-full px-3 py-2 text-center text-sm text-bone-mut"
+        <Button
+          variant="glass"
+          size="md"
+          block
+          className="mt-3"
+          render={<Link href="/raven" />}
         >
           Summon the Raven
-        </Link>
-      </div>
+        </Button>
+      </Card>
 
       {/* Who to follow */}
       {(people === null || people.length > 0) && (
-        <div className="glass p-4">
+        <Card pad="md">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-base font-semibold tracking-wide text-bone">
               Who to follow
@@ -122,7 +128,7 @@ export function RightRail() {
           <div className="mt-3 flex flex-col gap-2">
             {people === null
               ? [0, 1, 2].map((i) => (
-                  <div key={i} className="h-10 animate-pulse rounded-lg bg-panel" />
+                  <Skeleton key={i} className="h-10 w-full" />
                 ))
               : people.map((p) => (
                   <div key={p.id} className="flex items-center gap-2.5">
@@ -148,11 +154,11 @@ export function RightRail() {
                   </div>
                 ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* The Season */}
-      <div className="glass p-4">
+      <Card pad="md">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-base font-semibold tracking-wide text-bone">
             The Season
@@ -196,17 +202,17 @@ export function RightRail() {
         >
           Enter Claim the Throne
         </Link>
-      </div>
+      </Card>
 
       {/* Trending cashtags */}
-      <div className="glass p-4">
+      <Card pad="md">
         <h2 className="font-display text-base font-semibold tracking-wide text-bone">
           What the realm watches
         </h2>
         {!ready ? (
           <div className="mt-3 space-y-2">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-6 animate-pulse rounded bg-panel" />
+              <Skeleton key={i} className="h-6 w-full" />
             ))}
           </div>
         ) : tags.length ? (
@@ -229,7 +235,7 @@ export function RightRail() {
             No cashtags in the wind yet. Seal a Call and start the talk.
           </p>
         )}
-      </div>
+      </Card>
     </aside>
   );
 }

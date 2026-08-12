@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { StreakFlame } from "@/components/shell/streak-flame";
@@ -131,12 +132,12 @@ function Section({
         type="button"
         onClick={toggle}
         aria-expanded={shown}
-        className="flex w-full items-center gap-1.5 rounded-[--radius-sm] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint transition-colors duration-150 hover:text-bone-mut"
+        className="flex w-full items-center gap-1.5 rounded-[--radius-sm] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint transition-colors duration-fast hover:text-bone-mut"
       >
         <span className="flex-1 text-left">{label}</span>
         <Icon
           name="arrow"
-          className={`h-3 w-3 transition-transform duration-150 ${
+          className={`h-3 w-3 transition-transform duration-fast ${
             shown ? "rotate-90" : ""
           }`}
         />
@@ -245,12 +246,15 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
               </p>
             </div>
           </div>
-          <Link
-            href="/signin"
-            className="btn-gold mt-2.5 block rounded-[--radius-md] px-3 py-1.5 text-center text-[13px]"
+          <Button
+            variant="gold"
+            size="sm"
+            block
+            className="mt-2.5"
+            render={<Link href="/signin" />}
           >
             Sign in
-          </Link>
+          </Button>
         </div>
       )}
 
