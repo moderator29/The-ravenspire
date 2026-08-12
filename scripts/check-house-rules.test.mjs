@@ -209,8 +209,39 @@ describe("rule 10, the token scales", () => {
     ).toEqual([]);
   });
 
-  it("says nothing about a named rung", () => {
+  it("says nothing about a named rung that is on the scale", () => {
     expect(check("off-scale-token", "a.tsx", '<div className="z-toast rounded-xl" />')).toEqual([]);
+    for (const r of ["rounded-none", "rounded-sm", "rounded-md", "rounded-lg", "rounded-2xl", "rounded-full"]) {
+      expect(check("off-scale-token", "a.tsx", `<div className="${r}" />`), r).toEqual([]);
+    }
+    /* Corner variants resolve to the same rungs. */
+    expect(check("off-scale-token", "a.tsx", '<div className="rounded-t-2xl rounded-br-sm" />')).toEqual([]);
+  });
+
+  it("catches a named rung that is off the scale", () => {
+    /* The half this rule was missing. `@theme` adds our scale, it does not
+       replace Tailwind's, so `rounded-3xl` still resolves and still emits
+       24px, which is on no rung of 8/12/16/20/26. Two shipped on the landing
+       page while this rule watched, because it only looked inside brackets. */
+    for (const r of ["rounded-3xl", "rounded-4xl", "rounded-xs"]) {
+      const found = check("off-scale-token", "a.tsx", `<div className="${r}" />`);
+      expect(found, r).toHaveLength(1);
+      expect(found[0].message, r).toMatch(/off the radius scale/);
+    }
+  });
+
+  it("catches a bare rounded, which is Tailwind's own 4px", () => {
+    const found = check("off-scale-token", "a.tsx", '<div className="rounded border" />');
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/4px/);
+  });
+
+  it("does not read the word rounded in prose as a class", () => {
+    /* Every primitive in this codebase has a comment about clean rounded
+       rectangles. Comments are stripped before this rule runs, which is the
+       only reason flagging a bare `rounded` is safe at all. */
+    const src = "/* This is a rounded rectangle track. */\n<div className=\"rounded-md\" />";
+    expect(check("off-scale-token", "a.tsx", src)).toEqual([]);
   });
 
   it("reads past a comment that spans several lines", () => {
