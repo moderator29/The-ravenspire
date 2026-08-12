@@ -89,7 +89,7 @@ export function HistoryPanel({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Chat history"
+      aria-label="Conversations"
       className="fixed inset-0 z-50 flex flex-col bg-obsidian/97 backdrop-blur-xl"
     >
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-steel-line/70 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-4 sm:px-6">
@@ -102,7 +102,7 @@ export function HistoryPanel({
           </span>
           <div>
             <p className="font-display text-base font-semibold text-bone">
-              Chat history
+              Conversations
             </p>
             <p className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
               {conversations.length} saved
@@ -111,7 +111,7 @@ export function HistoryPanel({
         </div>
         <IconButton
           icon="close"
-          label="Close history"
+          label="Close conversations"
           variant="glass"
           onClick={onClose}
         />
