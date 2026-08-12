@@ -140,7 +140,7 @@ export default function WelcomePage() {
           {xHandle ? (
             /* Signed in with X: the handle is the X username, no need to pick
                one. It can still be changed later in settings. */
-            <div className="rounded-[--radius-md] border border-steel-line bg-void px-3 py-2.5">
+            <div className="rounded-md border border-steel-line bg-void px-3 py-2.5">
               <p className="text-xs uppercase tracking-wider text-bone-faint">
                 Your handle
               </p>

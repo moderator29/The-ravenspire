@@ -125,7 +125,7 @@ export default async function SafetyReportPage({
               The Ravenspire
             </span>
           </Link>
-          <span className="rounded-[--radius-sm] border border-gold/30 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/80">
+          <span className="rounded-sm border border-gold/30 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/80">
             The Watch
           </span>
         </div>

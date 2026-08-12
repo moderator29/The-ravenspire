@@ -188,7 +188,7 @@ function PhaseNode({ p }: { p: Phase }) {
             {p.tag}
           </span>
           <span
-            className={`inline-flex items-center rounded-[--radius-sm] border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${st.className}`}
+            className={`inline-flex items-center rounded-sm border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${st.className}`}
           >
             {st.label}
           </span>

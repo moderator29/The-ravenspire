@@ -121,7 +121,7 @@ export function HistoryPanel({
         <div className="flex items-center gap-2.5">
           <span
             aria-hidden
-            className="flex h-9 w-9 items-center justify-center rounded-[--radius-md] border border-gold/30 bg-panel-warm"
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-gold/30 bg-panel-warm"
           >
             <Icon name="scroll" className="h-4 w-4 text-gold" />
           </span>
@@ -193,7 +193,7 @@ export function HistoryPanel({
                 return (
                   <li key={c.id}>
                     <div
-                      className={`group flex items-center gap-2 rounded-[--radius-lg] border px-3.5 py-3 transition-colors duration-fast ${
+                      className={`group flex items-center gap-2 rounded-lg border px-3.5 py-3 transition-colors duration-fast ${
                         active
                           ? "border-gold/40 bg-panel-warm"
                           : "border-steel-line/50 bg-panel/40 hover:border-steel-line/80 hover:bg-panel/70"

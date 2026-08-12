@@ -76,14 +76,16 @@ function files(patterns) {
 /* Rule 9: buttons, tabs, chips and toggles are clean rounded rectangles.
    A full radius carrying horizontal padding is a chip, not a circle.
 
-   Three spellings mean the same thing and the rule has to know all of them.
-   `rounded-full` is Tailwind's own; `rounded-[var(--radius-full)]` and
-   `rounded-[--radius-full]` reach for the realm's token. The first version of
-   this rule understood only the Tailwind spelling, which left the token form
-   completely unchecked across roughly twenty call sites. Nothing was hiding
-   there when this was extended, so it is a guard rather than a sweep, but it
-   is the spelling the primitives themselves use and therefore the one a new
-   capsule is most likely to be written in.
+   Three spellings have to be recognised, though they do not all mean the same
+   thing. `rounded-full` is Tailwind's own and `rounded-[var(--radius-full)]`
+   reaches for the realm's token; the bare bracket form is matched because it
+   is written with the same intent, not because it works. It does not: see the
+   `bare-custom-property-arbitrary-value` rule below, which is why it is caught
+   twice. The first version of this rule understood only the Tailwind spelling,
+   which left the token form completely unchecked across roughly twenty call
+   sites. Nothing was hiding there when this was extended, so it is a guard
+   rather than a sweep, but it is the spelling the primitives themselves use
+   and therefore the one a new capsule is most likely to be written in.
 
    Horizontal padding is not only `px-`. The floating compose bar shipped two
    pill shaped links written as `py-2 pl-3.5 pr-2`, and this check walked past
@@ -525,6 +527,42 @@ export const RULES = [
         return null;
       });
     },
+  },
+
+  {
+    id: "bare-custom-property-arbitrary-value",
+    title: "Rule 10: a bare custom property in brackets is dropped, not applied",
+    globs: ["*.tsx", "*.ts"],
+    /* The worst class of styling bug: present, plausible, and doing nothing.
+     *
+     * Tailwind v3 accepted `rounded-[--radius-md]` and quietly rewrote it to
+     * `var(--radius-md)`. v4 removed that rewrite, so the utility now emits
+     * `border-radius: --radius-md`, which is not a length, so the browser
+     * drops the whole declaration. The class stays in the attribute looking
+     * correct and `getComputedStyle` reports 0px.
+     *
+     * Measured, not argued: five chips on the Calls page carried
+     * `rounded-[--radius-md]` and every one of them computed to a 0px radius,
+     * square corners on a surface whose class list said otherwise. There were
+     * 59 of these across 34 files.
+     *
+     * The v4 spellings are `rounded-(--radius-md)` for a bare custom property
+     * and `rounded-[var(--radius-md)]` for the long form, but neither is what
+     * this codebase should be writing: `--radius-*` lives in `@theme`, so it
+     * has a named rung. `rounded-md` is the answer. The escape hatch is kept
+     * for the cases with no rung, which is why this checks the syntax rather
+     * than banning the property. */
+    check: (file, text) =>
+      byLine(stripComments(text), (line) => {
+        const m = line.match(/\b([a-z][a-z-]*)-\[(--[a-z0-9-]+)\]/i);
+        if (!m) return null;
+        const rung = m[2].replace(/^--[a-z]+-/, "");
+        return (
+          `${m[0]} emits an invalid declaration and is dropped by the browser. ` +
+          `Use the named rung (${m[1]}-${rung}) if the token is in @theme, ` +
+          `otherwise ${m[1]}-(${m[2]}).`
+        );
+      }),
   },
 
   {

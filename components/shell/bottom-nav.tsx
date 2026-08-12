@@ -168,7 +168,7 @@ export function BottomNav() {
                      sits directly above the dock, which carries the overlay
                      shadow, so without any light of its own it read as painted
                      onto the page while the bar below it floated. */
-                  className={`flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-[--radius-sm] border px-3.5 text-[12px] font-medium shadow-edge backdrop-blur-xl transition-colors duration-150 ${
+                  className={`flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-sm border px-3.5 text-[12px] font-medium shadow-edge backdrop-blur-xl transition-colors duration-150 ${
                     current
                       ? "border-gold/40 bg-gold/15 text-gold-bright"
                       : "border-steel-line/70 bg-void/80 text-bone-mut active:text-bone"
@@ -183,7 +183,7 @@ export function BottomNav() {
 
         <nav
           aria-label="Primary"
-          className="pointer-events-auto flex items-stretch gap-1 rounded-[--radius-2xl] border border-steel-line/70 bg-obsidian/90 p-1.5 backdrop-blur-2xl"
+          className="pointer-events-auto flex items-stretch gap-1 rounded-2xl border border-steel-line/70 bg-obsidian/90 p-1.5 backdrop-blur-2xl"
           style={{ boxShadow: "var(--shadow-overlay)" }}
         >
           {bottomNav.map((item) => {
@@ -206,7 +206,7 @@ export function BottomNav() {
                    spends the width where the words are. Four inactive squares
                    and the gaps leave about 160px, and the longest label in the
                    set needs about 120. */
-                className={`relative flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-[--radius-md] text-[12px] font-semibold transition-colors duration-150 ${
+                className={`relative flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-md text-[12px] font-semibold transition-colors duration-150 ${
                   active
                     ? "flex-1 px-3 text-gold-bright"
                     : "w-11 shrink-0 text-bone-faint active:text-bone-mut"
@@ -216,7 +216,7 @@ export function BottomNav() {
                   <motion.span
                     layoutId="dock-plate"
                     transition={SPRING}
-                    className="absolute inset-0 rounded-[--radius-md] border border-gold/35 bg-gold/12"
+                    className="absolute inset-0 rounded-md border border-gold/35 bg-gold/12"
                   />
                 )}
                 <Icon

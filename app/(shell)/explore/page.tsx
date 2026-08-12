@@ -260,7 +260,7 @@ function ExploreBody() {
                       @{p.handle}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-[--radius-sm] border border-steel-line px-2.5 py-1 text-[11px] text-bone-mut">
+                  <span className="shrink-0 rounded-sm border border-steel-line px-2.5 py-1 text-[11px] text-bone-mut">
                     {TIER_NAMES[p.tier] ?? p.tier}
                   </span>
                 </Link>

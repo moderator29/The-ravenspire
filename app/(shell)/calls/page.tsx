@@ -428,7 +428,7 @@ function CallsBody() {
           Rebuilt on the primitives, and three separate defects came out of
           measuring it rather than reading it.
 
-          One: `rounded-[--radius-md]` compiled to nothing. Tailwind v4 takes a
+          One: `rounded-md` compiled to nothing. Tailwind v4 takes a
           square bracket value verbatim, so this emitted `border-radius:
           --radius-md`, which is not a length, and the declaration was dropped.
           `getComputedStyle` reported 0px on all five chips while the class sat

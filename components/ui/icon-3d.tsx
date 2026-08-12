@@ -150,7 +150,7 @@ export function Icon3D({
         aria-hidden={alt === "" ? true : undefined}
         role={alt === "" ? undefined : "img"}
         aria-label={alt === "" ? undefined : alt}
-        className={`inline-flex shrink-0 items-center justify-center rounded-[--radius-lg] border border-gold/20 bg-panel-warm text-gold ${className}`}
+        className={`inline-flex shrink-0 items-center justify-center rounded-lg border border-gold/20 bg-panel-warm text-gold ${className}`}
         style={{ width: px, height: px }}
       >
         <Icon

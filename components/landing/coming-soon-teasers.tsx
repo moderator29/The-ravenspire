@@ -102,7 +102,7 @@ export function ComingSoonTeasers() {
             />
             <div className="flex items-center justify-between gap-3">
               <Icon3D name={icon3dFor(t.href) ?? "portal"} size="lg" />
-              <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gold/80">
+              <span className="inline-flex items-center rounded-sm border border-gold/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gold/80">
                 Coming soon
               </span>
             </div>

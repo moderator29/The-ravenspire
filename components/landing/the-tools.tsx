@@ -138,7 +138,7 @@ export function TheTools() {
               <p className="mt-1 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wider text-bone-faint">
                 {t.plain}
                 {t.soon ? (
-                  <span className="rounded-[--radius-sm] border border-ember/45 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-state-warning">
+                  <span className="rounded-sm border border-ember/45 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-state-warning">
                     Soon
                   </span>
                 ) : null}
