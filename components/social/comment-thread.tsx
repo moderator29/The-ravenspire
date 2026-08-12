@@ -112,7 +112,18 @@ function CommentNode({
       <div className="flex gap-2.5 py-2.5">
         <Link
           href={c.author.handle ? `/u/${c.author.handle}` : "#"}
-          className="shrink-0 self-start rounded-[var(--radius-full)]"
+          /* A 30px portrait is right for a reply and wrong for a thumb. The
+             hit area grows through a transparent pseudo element centred on
+             the portrait, the same trick the Toggle uses for its track, so a
+             finger gets its 44px and the thread's rhythm does not move a
+             pixel. Growing the portrait itself would have re-spaced every
+             comment in the product. */
+          className={
+            "relative shrink-0 self-start rounded-[var(--radius-full)] " +
+            "touch:before:absolute touch:before:left-1/2 touch:before:top-1/2 " +
+            "touch:before:h-11 touch:before:w-11 touch:before:-translate-x-1/2 " +
+            "touch:before:-translate-y-1/2 touch:before:content-['']"
+          }
         >
           <Avatar author={c.author} size={30} />
         </Link>

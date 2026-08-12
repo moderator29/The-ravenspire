@@ -401,16 +401,23 @@ export function ProfileView({
           <h1 className="font-display text-xl font-semibold text-bone">
             {profile.display_name ?? profile.handle}
           </h1>
+          {/* Hand written this was a 24x24 anchor with a `title` doing the work
+              of an accessible name. IconButton carries both: the name, and the
+              44px floor on a finger that no call site has to remember. */}
           {profile.x_handle && (
-            <a
-              href={`https://x.com/${profile.x_handle}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`@${profile.x_handle} on X`}
-              className="flex h-6 w-6 items-center justify-center rounded-md border border-steel-line bg-void text-bone-mut transition-colors duration-fast ease-out-quint hover:border-gold/40 hover:text-bone"
-            >
-              <Icon name="xlogo" className="h-4 w-4" />
-            </a>
+            <IconButton
+              icon="xlogo"
+              label={`@${profile.x_handle} on X`}
+              variant="glass"
+              size="sm"
+              render={
+                <a
+                  href={`https://x.com/${profile.x_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              }
+            />
           )}
           {crestSlugs.slice(0, 4).map((slug) => {
             const def = findCrest(slug);
@@ -452,15 +459,23 @@ export function ProfileView({
           </div>
         )}
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-bone-faint">
+        {/* The House is the one navigable fact in this row and it was dressed
+            exactly like the two beside it: a 108x16 flex link that neither
+            looked like a control nor could be hit like one. As a chip off the
+            Button scale it reads as the affordance it is and clears 44px on a
+            finger; the facts around it stay text, which is what they are. */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-bone-faint">
           {house && (
-            <Link
-              href={`/houses/${house.slug}`}
-              className="flex items-center gap-1.5 hover:text-gold"
+            <Button
+              variant="glass"
+              size="sm"
+              pad="sm"
+              render={<Link href={`/houses/${house.slug}`} />}
+              className="font-medium text-bone-mut"
             >
-              <Icon name="banner" className="h-3.5 w-3.5" />
+              <Icon name="banner" className="h-3.5 w-3.5 text-gold" />
               {house.name}
-            </Link>
+            </Button>
           )}
           <span className="flex items-center gap-1.5">
             <Icon name="medal" className="h-3.5 w-3.5" />

@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/meter";
@@ -217,34 +218,54 @@ function HouseBanner({
           </dl>
 
           {/* House progression, cumulative and never reset. A House that
-              carried Season 1 keeps that standing through a quiet Season 4. */}
+              carried Season 1 keeps that standing through a quiet Season 4.
+
+              The bar and the figure beside it used to describe two different
+              things. `progress` is measured inside the current level, from its
+              floor to the next rung, while the caption read "12,000 / 14,000
+              all-time", which any reader takes as a fraction: the bar drew 43%
+              under a number that said 86%. Both now report the same span, the
+              one the level is actually about, and the bar is the Meter
+              primitive rather than a tenth hand rolled copy of it. */}
           {level ? (
             <div className="mt-4">
-              <div className="flex items-baseline justify-between text-xs">
+              <div className="flex items-baseline justify-between gap-2 text-xs">
                 <span className="text-bone-mut">
                   House level {level.level}
                 </span>
                 <span className="tnum text-bone-faint">
-                  {(level.cumulative ?? 0).toLocaleString()} /{" "}
-                  {level.next.toLocaleString()} all-time
+                  {Math.max(
+                    0,
+                    (level.cumulative ?? 0) - level.floor
+                  ).toLocaleString()}{" "}
+                  / {Math.max(1, level.next - level.floor).toLocaleString()} to
+                  level {level.level + 1}
                 </span>
               </div>
-              <div className="bar-track mt-1.5 h-1.5 w-full">
-                <div
-                  className="bar-gold h-full"
-                  style={{ width: `${Math.max(2, level.progress * 100)}%` }}
-                />
-              </div>
+              <Meter
+                value={(level.cumulative ?? 0) - level.floor}
+                max={level.next - level.floor}
+                className="mt-1.5"
+              />
             </div>
           ) : null}
 
+          {/* The rival is a control, so it takes the control primitive. Hand
+              written it was a 38px row, three pixels of padding short of the
+              44px floor a finger needs, and it carried none of the chassis
+              elevation: rule 18 and the touch floor answered by the same
+              change rather than by a bespoke height. */}
           {hall?.rival ? (
-            <Link
-              href={`/houses/${hall.rival.slug}`}
-              className="mt-4 flex items-center gap-2 rounded-md border border-steel-line bg-obsidian/60 px-3 py-2.5 text-xs text-bone-mut transition-colors duration-fast hover:border-gold/40 hover:text-bone"
+            <Button
+              variant="glass"
+              size="lg"
+              pad="sm"
+              block
+              render={<Link href={`/houses/${hall.rival.slug}`} />}
+              className="mt-4 justify-start text-xs font-normal text-bone-mut"
             >
               <Icon name="swords" className="h-4 w-4 shrink-0 text-gold" />
-              <span className="min-w-0 flex-1">
+              <span className="min-w-0 flex-1 truncate text-left">
                 {hall.rival.ahead ? "Holding off " : "Chasing "}
                 <b className="font-semibold text-bone">{hall.rival.name}</b>
                 {", "}
@@ -252,7 +273,7 @@ function HouseBanner({
                 {hall.rival.ahead ? "ahead" : "behind"}
               </span>
               <Icon name="arrow" className="h-3.5 w-3.5 shrink-0" />
-            </Link>
+            </Button>
           ) : null}
 
           {hall?.season ? (

@@ -261,14 +261,20 @@ function Standings() {
   );
 }
 
-/* The House sigil in its own colour. Two sizes, matching the two densities. */
+/* The House sigil in its own colour. Two sizes, matching the two densities.
+ *
+ * The radius is picked per size rather than shared. A rung reads as a capsule
+ * the moment it reaches half the box, whatever rung it came from: `rounded-lg`
+ * is 16px, so on the 32px dense tile it drew a perfect circle, and a circle at
+ * the head of a row is an avatar in this product. The rungs below are both
+ * comfortably under half. */
 function Sigil({ slug, size }: { slug: string; size: "sm" | "md" }) {
   const color = houseBySlug(slug)?.color ?? "#D9B040";
-  const box = size === "sm" ? "h-8 w-8" : "h-10 w-10";
+  const box = size === "sm" ? "h-8 w-8 rounded-sm" : "h-10 w-10 rounded-md";
   const glyph = size === "sm" ? "h-4 w-4" : "h-5 w-5";
   return (
     <span
-      className={`flex shrink-0 items-center justify-center rounded-lg ${box}`}
+      className={`flex shrink-0 items-center justify-center ${box}`}
       style={{
         background: `linear-gradient(160deg, ${color}22, #101017)`,
         border: `1px solid ${color}44`,
