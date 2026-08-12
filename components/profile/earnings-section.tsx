@@ -538,8 +538,19 @@ export function EarningsSection({
           </div>
         ) : (
           <button
+            type="button"
+            /* `touch:min-h-11`, because this row is a control and its height
+               was an accident of its padding: `pt-3` over one line of
+               `text-sm` measured 300x33 on a phone, populated and empty
+               alike. Eleven pixels under the floor, produced by nobody
+               choosing a height at all, which is how most of the misses in
+               this product were made.
+
+               `type="button"` for the same reason it belongs on every hand
+               rolled button: the default is `submit`, and this one sits
+               inside a card that will eventually hold a form. */
             onClick={() => setThesisEditing(true)}
-            className="mt-4 flex w-full items-center gap-2 border-t border-steel-line pt-3 text-left text-sm text-bone-mut transition hover:text-bone"
+            className="mt-4 flex w-full touch:min-h-11 items-center gap-2 border-t border-steel-line pt-3 text-left text-sm text-bone-mut transition hover:text-bone"
           >
             <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
             {pub.thesis ? (
