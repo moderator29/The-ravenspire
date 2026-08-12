@@ -67,11 +67,24 @@ for (const f of files(["*.ts", "*.tsx", "*.md", "*.sql", "*.yml", "*.mjs"])) {
    rounded-full a capsule rather than a circle. */
 const HORIZONTAL_PAD = /\b(?:px|pl|pr)-[\d.]+/;
 
+/* The second way a capsule hides. A tab rail written as `flex gap-0.5
+   rounded-full p-0.5` has horizontal padding only through the all-sides `p-`
+   shorthand, so the check above walks past it. Matching bare `p-` would be
+   wrong, since `rounded-full p-2` around a single glyph is a legitimate
+   circular icon button.
+
+   `gap-` is the signal that separates them: gap only means something between
+   siblings, and a circular icon button holds exactly one glyph. So a
+   rounded-full that also sets a gap is a row of things, which is a capsule.
+   Checked across the codebase when added: one match, zero false positives. */
+const CAPSULE_ROW = /\bgap-[\d.]+/;
+
 for (const f of files(["*.tsx"])) {
   const text = readFileSync(f, "utf8");
   text.split("\n").forEach((line, i) => {
     if (!line.includes("rounded-full")) return;
-    if (!HORIZONTAL_PAD.test(line)) return; // no horizontal padding, so a circle
+    // No horizontal padding and not a row, so it is a circle.
+    if (!HORIZONTAL_PAD.test(line) && !CAPSULE_ROW.test(line)) return;
     if (PILL_ALLOWED.some((re) => re.test(line))) return;
     problems.push(
       `${f}:${i + 1}  pill shaped control. Controls use --radius-sm through --radius-2xl, never rounded-full.`
