@@ -3,6 +3,7 @@
 import type { ComponentType } from "react";
 import { PostCard } from "@/components/social/post-card";
 import { CallResolvedCard } from "@/components/stream/cards/call-resolved";
+import { ChronicleCard } from "@/components/stream/cards/chronicle";
 import { CrestEarnedCard } from "@/components/stream/cards/crest-earned";
 import { DuelOpenedCard } from "@/components/stream/cards/duel-opened";
 import { HouseOvertakeCard } from "@/components/stream/cards/house-overtake";
@@ -30,7 +31,10 @@ import type { FeedEvent, FeedItem } from "@/lib/feed/types";
  *                      carrying the same ember rail and a chart, so a card here
  *                      would double every Call in the timeline.
  *   season.milestone   emitted by nothing today. Cards are built for producers
- *   raven.chronicle    that exist, never ahead of them.
+ *                      that exist, never ahead of them.
+ *
+ * raven.chronicle arrived the way this comment says a kind should: with its
+ * producer, the daily job at /api/cron/chronicle, rather than ahead of it.
  *
  * Seven more things the directive asks for (House announcements, leaderboards,
  * trending discussions, community events, game invitations, reward
@@ -47,6 +51,7 @@ export const CARD_REGISTRY: Record<
   "duel.opened": DuelOpenedCard,
   "quest.completed": QuestCompletedCard,
   "oath.sworn": OathSwornCard,
+  "raven.chronicle": ChronicleCard,
 };
 
 /* One feed item, whatever it turns out to be. The Ravenry maps over this and

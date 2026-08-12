@@ -39,8 +39,10 @@ type Db = NonNullable<ReturnType<typeof adminClient>>;
    the timeline. Dropping the event rather than the post is also the safe
    direction for audience, since a post can be narrower than its event.
 
-   season.milestone and raven.chronicle are absent because nothing emits them
-   yet. When a producer lands, it arrives with its card and one line here. */
+   season.milestone is absent because nothing emits it yet. When a producer
+   lands, it arrives with its card and one line here, which is exactly how
+   raven.chronicle arrived: the daily job at /api/cron/chronicle writes it, and
+   it is the one card in the stream the realm itself speaks in. */
 export const FEED_EVENT_KINDS = [
   "call.resolved",
   "crest.earned",
@@ -48,6 +50,7 @@ export const FEED_EVENT_KINDS = [
   "duel.opened",
   "quest.completed",
   "oath.sworn",
+  "raven.chronicle",
 ] as const;
 
 /* Whether this reader is in the audience for one event. The authoritative
