@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -129,11 +131,19 @@ export default function RavensPage() {
 
       <div className="mt-5 flex flex-col gap-2">
         {!authenticated ? (
-          <Card pad="none" className="p-8 text-center text-sm text-bone-mut">
-            <Link href="/signin" className="text-gold underline">
-              Enter the realm
-            </Link>{" "}
-            and the ravens will find you.
+          /* The same shape the Bookmarks screen had: the only control a
+             signed out member gets was an underlined word in a sentence. */
+          <Card pad="none">
+            <EmptyState
+              icon3d="notifications"
+              title="No ravens yet"
+              body="Enter the realm and the ravens will find you."
+              action={
+                <Button variant="gold" size="lg" render={<Link href="/signin" />}>
+                  Enter the realm
+                </Button>
+              }
+            />
           </Card>
         ) : items === null ? (
           [0, 1, 2].map((i) => (
