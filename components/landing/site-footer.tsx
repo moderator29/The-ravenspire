@@ -40,7 +40,16 @@ const socials = [
 export function SiteFooter() {
   return (
     <Card render={<motion.footer initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.6 }} />} pad="none" className="mt-6 p-8 sm:p-10">
-      <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+      {/* The brand column is wider than a link column, because it holds the
+          wordmark and the link columns hold single words.
+
+          On an even four track grid it did not fit. Measured at 1440: a 200px
+          track holding 228px of content, so "THE RAVENSPIRE" ran 28px into the
+          next column and butted straight against "THE REALM" with no gap at
+          all. The previous fix here swapped a wrap for an overlap by adding
+          `whitespace-nowrap` without giving the name anywhere to go. A
+          wordmark is a single object; the track has to be sized for it. */}
+      <div className="grid grid-cols-2 gap-8 sm:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="col-span-2 sm:col-span-1">
           {/* The brand name broke across two lines here, in a 158px column of a
               four column grid. The header and the hero both hold it on one
