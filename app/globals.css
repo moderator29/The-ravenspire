@@ -532,6 +532,15 @@ body {
 }
 .rarity-mythic {
   --rarity: var(--blood);
+  /* `--blood` is annotated in the token layer as fill only, 1.87:1 as text,
+     and `.rarity-chip` below reads `--rarity` straight into `color`. So the
+     MYTHIC label rendered at 1.87:1 wherever a mythic card appeared, which
+     includes the champion rail on the landing page: measured beside a
+     LEGENDARY chip at 15:1, it was the one word on the shelf nobody could
+     read. `--blood-text` is the twin that exists for exactly this, same hue
+     at 4.50:1, and it changes only the label. The frame and the glow keep
+     the deep fill, because that is where the rarity's colour belongs. */
+  --rarity-text: var(--blood-text);
 }
 .rarity-frame {
   border: 1px solid
@@ -541,7 +550,9 @@ body {
     0 0 24px color-mix(in srgb, var(--rarity, var(--steel)) 12%, transparent);
 }
 .rarity-chip {
-  color: var(--rarity, var(--steel));
+  /* The text-safe twin first, falling back to the fill hue for every rung
+     that already clears the bar as text. Only mythic sets a twin. */
+  color: var(--rarity-text, var(--rarity, var(--steel)));
   border: 1px solid
     color-mix(in srgb, var(--rarity, var(--steel)) 55%, transparent);
   /* Was 999px, which is a capsule, which chips are not. This one hid in plain
