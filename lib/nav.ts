@@ -165,19 +165,22 @@ export const bottomNav = [
 export type SubNavItem = { href: string; label: string };
 
 export const subNav: Record<string, SubNavItem[]> = {
-  "/home": [
-    /* Bare `/home`, not `/home?tab=foryou`, and that is not cosmetic. The feed
-       deletes the `tab` param when it switches to For You, so the canonical URL
-       for that view has no param at all. The dock wrote the other spelling, so
-       arriving at the Ravenry lit no chip: five tabs and nothing current, on
-       the most visited screen in the realm. `/calls` already declares its
-       default view this way. */
-    { href: "/home", label: "For You" },
-    { href: "/home?tab=following", label: "Following" },
-    { href: "/home?tab=houses", label: "My House" },
-    { href: "/home?tab=signal", label: "Signal" },
-    { href: "/home?tab=latest", label: "Latest" },
-  ],
+  /* The Ravenry is deliberately absent, and it is the only section that is.
+   *
+   * Its five views now sit at the top of the feed, on the composer's own row,
+   * rather than in the dock. A filter control was already stranded alone on
+   * that line with the whole width to itself, and the five chips it belongs
+   * beside were pinned to the far end of the screen, a thumb's width above the
+   * dock and detached from the column they filter. Two half rows became one
+   * full one.
+   *
+   * It also settles a thing the strip could not do well. Five views need
+   * 401px in a 366px dock, so one chip was always half off; moving them into
+   * the column gives them the content width instead. The feed owns its own
+   * views now, which is what every other stream surface in the product does.
+   *
+   * The other sections keep the dock strip: they are navigation between
+   * routes, not a filter over one column, and they fit. */
   "/calls": [
     { href: "/calls", label: "Live" },
     { href: "/calls?view=closing", label: "Closing soon" },

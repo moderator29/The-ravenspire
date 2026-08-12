@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui/cx";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -117,6 +118,43 @@ export function StreamCard({
 /* Section 3: many options, filtering rather than exclusive, and the set can
    grow, so the Ravenry's tabs are a chip rail rather than a Segmented control
    or an underline strip. Rounded rectangles, never capsules. */
+/* The fade, as fixed classes rather than a computed gradient, so Tailwind can
+   see every one of them at build time. Same four the dock uses. */
+const RAIL_MASK = {
+  none: "",
+  end: "[mask-image:linear-gradient(to_right,black_calc(100%-20px),transparent)]",
+  start: "[mask-image:linear-gradient(to_left,black_calc(100%-20px),transparent)]",
+  both: "[mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]",
+} as const;
+
+/* A rail that admits when it has more to show, and never hides the current
+   chip behind its own edge.
+ *
+ * The Ravenry's five views moved into this rail from the dock, and moving them
+ * did not make them fit: they need 450px and the row gives 316, because the
+ * filter button shares it. Five labels at 390 is simply more than the width,
+ * and shortening them is not available, since Following, My House and Signal
+ * are the realm's own words for those views.
+ *
+ * So the rail scrolls, and the job is to make scrolling read as designed
+ * rather than as a layout that broke. Two things do that, and the dock already
+ * proved both: a 20px fade on whichever edge still has content behind it, and
+ * scrolling the current chip fully into view on arrival so the one chip that
+ * says where you are is never the one cut in half.
+ *
+ * The vertical padding is the third thing and it is a bug fix, not polish.
+ * `overflow-x: auto` forces the computed `overflow-y` to `auto`: the two axes
+ * cannot be independently visible and scrollable. With no vertical padding the
+ * focus ring drawn outside a chip falls outside the scroll box and is clipped,
+ * which is rule 12 defeated on every surface that uses a rail. The padding
+ * gives the ring room inside the box, and the negative margin keeps the rail
+ * on the line it always sat on.
+ *
+ * Deliberately not "stop scrolling above md" as the fix for that: the Console
+ * rail tried it and the widest chip set, the Swap's one chip per chain, then
+ * spilled 577px into a 534px box and pushed three ancestors out with it into
+ * the page gutter, where nothing catches it because the document never grows.
+ * Padding works at every width; not scrolling only works when things fit. */
 export function StreamChipRail({
   label,
   className,
@@ -126,12 +164,58 @@ export function StreamChipRail({
   className?: string;
   children: ReactNode;
 }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [more, setMore] = useState({ start: false, end: false });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const slack = el.scrollWidth - el.clientWidth;
+      /* A pixel of tolerance: sub pixel layout leaves fractional slack on
+         rails that visibly fit, and a fade over nothing is a lie too. */
+      if (slack <= 1) return setMore({ start: false, end: false });
+      setMore({ start: el.scrollLeft > 1, end: el.scrollLeft < slack - 1 });
+    };
+    /* Bring the current chip fully inside before the first paint settles, so
+       the view you are on is never the one cut at the edge. `scrollLeft`
+       directly rather than `scrollIntoView`, which walks up the ancestor chain
+       and scrolls the page along with the rail. */
+    const current = el.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (current) {
+      const pad = 12;
+      const right = current.offsetLeft + current.offsetWidth + pad;
+      const left = current.offsetLeft - pad;
+      if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
+      else if (left < el.scrollLeft) el.scrollLeft = left;
+    }
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      observer.disconnect();
+    };
+  }, [children]);
+
+  const mask =
+    more.start && more.end
+      ? RAIL_MASK.both
+      : more.start
+        ? RAIL_MASK.start
+        : more.end
+          ? RAIL_MASK.end
+          : RAIL_MASK.none;
+
   return (
     <div
+      ref={ref}
       role="group"
       aria-label={label}
       className={cx(
-        "scrollbar-none -mx-1 flex min-w-0 items-center gap-1.5 overflow-x-auto px-1",
+        "scrollbar-none -mx-1 -my-1 flex min-w-0 items-center gap-1.5 overflow-x-auto p-1",
+        mask,
         className
       )}
     >
