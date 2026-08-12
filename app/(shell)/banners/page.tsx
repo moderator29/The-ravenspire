@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { Icon } from "@/components/ui/icon";
+import { Icon3D } from "@/components/ui/icon-3d";
 import { BackButton } from "@/components/shell/back-button";
 import { Button } from "@/components/ui/button";
 
@@ -79,7 +80,7 @@ export default function BannersPage() {
         <div className="glass mt-5 h-48 animate-pulse" />
       ) : !authenticated || !me?.handle ? (
         <div className="glass mt-5 p-8 text-center">
-          <Icon name="flag" className="mx-auto h-7 w-7 text-gold" />
+          <Icon3D name="alliance" size="lg" className="mx-auto" />
           <p className="mx-auto mt-3 max-w-sm text-sm text-bone-mut">
             {!authenticated
               ? "Every citizen carries a banner with their name on it. Enter the realm to claim yours."

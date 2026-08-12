@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
 import { markOnboardedLocal } from "@/lib/auth/session";
+import { Icon3D } from "@/components/ui/icon-3d";
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -201,6 +202,12 @@ export default function WelcomePage() {
           animate={{ opacity: 1, y: 0 }}
           className="mt-8 w-full max-w-2xl"
         >
+          {/* Swearing to a House is a Ceremony, which is one of the few places
+              the design law allows the Forge register. It is the single most
+              consequential choice in onboarding, it is permanent for the
+              season, and it should not look like the handle field. */}
+          <Icon3D name="oath-scroll" size="lg" className="mx-auto" priority />
+
           {/* Choosing a House is an exclusive choice among a small named set,
               so it carries radio semantics rather than a row of pressed
               buttons. A screen reader now announces "2 of 4" instead of

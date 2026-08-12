@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Icon } from "@/components/ui/icon";
+import { Icon3D } from "@/components/ui/icon-3d";
 import { BackButton } from "@/components/shell/back-button";
 import { comingSoonNav, findComingSoon } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
@@ -27,9 +27,7 @@ export default async function ComingSoonPage({
         <span className="hairline mb-5 rounded-[--radius-sm] bg-panel-warm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-gold">
           Chapter II
         </span>
-        <div className="glass glass-sm flex h-16 w-16 items-center justify-center text-gold">
-          <Icon name={item.icon} className="h-8 w-8" />
-        </div>
+        <Icon3D name={item.icon3d} size="hero" priority />
         <p className="mt-5 text-xs uppercase tracking-[0.3em] text-bone-faint">
           {item.plain} · Coming soon
         </p>
