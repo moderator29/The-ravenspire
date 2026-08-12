@@ -13,6 +13,33 @@ import { FollowButton } from "@/components/social/follow-button";
 import { fetchViewer, fetchFollowingSet } from "@/lib/social/profile-queries";
 import { fetchTopPeople, type PersonHit } from "@/lib/social/explore-queries";
 
+/* A promise that never settles is not caught by a `catch`.
+ *
+ * Both cards below already fall to an honest empty state when a fetch rejects.
+ * Neither had anything to say about a fetch that simply never answers, and that
+ * is not a hypothetical: a request that hangs on a dead connection or a stalled
+ * socket resolves nothing, rejects nothing, and leaves a skeleton pulsing for
+ * as long as the member stays on the page. Measured on a build with no realm
+ * reachable, four seconds after the network had gone quiet: three grey bars in
+ * "Who to follow" and three more in "What the realm watches", on every screen
+ * in the product, forever.
+ *
+ * A skeleton is a claim that something is arriving. This puts a deadline on the
+ * claim. Six seconds is well past any honest load and well short of the point
+ * where a member has decided the product is broken. */
+const SETTLE_MS = 6000;
+
+/* Rejects rather than resolving a stand in, so a hang lands in the same
+   `catch` a failure already lands in. One path to the empty state, not two. */
+function withDeadline<T>(work: Promise<T>): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("deadline")), SETTLE_MS)
+    ),
+  ]);
+}
+
 interface HouseRow {
   slug: string;
   name: string;
@@ -40,9 +67,9 @@ export function RightRail() {
   useEffect(() => {
     void (async () => {
       try {
-        const viewer = await fetchViewer();
+        const viewer = await withDeadline(fetchViewer());
         setViewerId(viewer?.id ?? null);
-        const top = (await fetchTopPeople(viewer?.id)).slice(0, 4);
+        const top = (await withDeadline(fetchTopPeople(viewer?.id))).slice(0, 4);
         setPeople(top);
         if (viewer?.id && top.length > 0) {
           setFollowingSet(
@@ -64,18 +91,20 @@ export function RightRail() {
     void (async () => {
       try {
         const [{ data: posts }, { data: houseRows }, { data: season }] =
-          await Promise.all([
-            db
-              .from("posts")
-              .select("cashtags")
-              .eq("deleted", false)
-              .order("created_at", { ascending: false })
-              .limit(200),
-            db.from("houses").select("slug, name, glory").order("glory", {
-              ascending: false,
-            }),
-            db.from("seasons").select("ends_at").eq("id", 1).maybeSingle(),
-          ]);
+          await withDeadline(
+            Promise.all([
+              db
+                .from("posts")
+                .select("cashtags")
+                .eq("deleted", false)
+                .order("created_at", { ascending: false })
+                .limit(200),
+              db.from("houses").select("slug, name, glory").order("glory", {
+                ascending: false,
+              }),
+              db.from("seasons").select("ends_at").eq("id", 1).maybeSingle(),
+            ])
+          );
 
         const counts = new Map<string, number>();
         for (const p of posts ?? [])
