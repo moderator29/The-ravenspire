@@ -41,10 +41,21 @@ export const primaryNav: NavItem[] = [
    occupying a navigation slot, and its mechanics (quests, duels, streaks, House
    Glory) are dissolving into the Ravenry and the House halls rather than
    returning as a destination. */
+/* The identity group (V2 Part Two, section 29). The game, the cards, the
+   boxes, the merch and the earned ladder, together, because together they are
+   what the realm is: play the War, collect the champions, own the relics.
+   The sealed entries carry the same "Soon" badge the chapters wear; the
+   routes underneath are real, live previews with working interest capture. */
+export const collectionNav: NavItem[] = [
+  { slug: "war", href: "/war", themed: "The War", plain: "Battle for the Realm", icon: "swords", icon3d: "crossed-axes" },
+  { slug: "reliquary", href: "/reliquary", themed: "The Reliquary", plain: "Cards & relics", icon: "layers", icon3d: "archive", badge: "Soon" },
+  { slug: "warchests", href: "/warchests", themed: "Warchests", plain: "Mystery boxes", icon: "coin", icon3d: "chest", badge: "Soon" },
+  { slug: "mercer", href: "/mercer", themed: "The Mercer", plain: "Official merch", icon: "flag", icon3d: "banner", badge: "Soon" },
+  { slug: "renown", href: "/renown", themed: "Crests & Renown", plain: "Reputation", icon: "medal", icon3d: "trophy" },
+];
+
 export const socialNav: NavItem[] = [
   { slug: "rookery", href: "/rookery", themed: "The Rookery", plain: "Live rooms", icon: "signal", icon3d: "gathering" },
-  { slug: "war", href: "/war", themed: "The War", plain: "Battle for the Realm", icon: "swords", icon3d: "crossed-axes" },
-  { slug: "renown", href: "/renown", themed: "Crests & Renown", plain: "Reputation", icon: "medal", icon3d: "trophy" },
   { slug: "leaderboards", href: "/leaderboards", themed: "The Roll of Honour", plain: "Leaderboards", icon: "crown", icon3d: "podium" },
   { slug: "whispers", href: "/whispers", themed: "Whispers", plain: "Messages", icon: "mail", icon3d: "whispers" },
   { slug: "bookmarks", href: "/bookmarks", themed: "Bookmarks", plain: "Saved", icon: "bookmark", icon3d: "archive" },
