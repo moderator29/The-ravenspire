@@ -137,12 +137,26 @@ export interface WarStat {
   icon: string;
 }
 
-/* Your standing, four numbers wide. Right aligned and tabular so the column of
-   figures lines up whatever the values are. */
+/* Static class strings, because Tailwind cannot see a template literal. */
+const STRIP_COLS: Record<number, string> = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-4",
+};
+
+/* Your standing, up to four numbers wide. Right aligned and tabular so the
+   column of figures lines up whatever the values are. The strip takes exactly
+   as many columns as it has real numbers to put in them: an empty cell in a
+   divided grid reads as data that failed to load. */
 export function StatStrip({ stats }: { stats: WarStat[] }) {
   return (
     <Card pad="none" className="overflow-hidden">
-      <dl className="grid grid-cols-2 divide-x divide-y divide-steel-line sm:grid-cols-4 sm:divide-y-0">
+      <dl
+        className={cx(
+          "grid grid-cols-2 divide-x divide-y divide-steel-line sm:divide-y-0",
+          STRIP_COLS[stats.length] ?? "sm:grid-cols-4"
+        )}
+      >
         {stats.map((stat) => (
           <div
             key={stat.label}
