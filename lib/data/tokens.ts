@@ -1,5 +1,9 @@
 import "server-only";
-import { EVM_DEX_CHAINS } from "@/lib/trade/config";
+import {
+  EVM_DEX_CHAINS,
+  isEvmGeckoNetwork,
+  tradeChainByGecko,
+} from "@/lib/trade/config";
 
 /* Keyless, real market data with a small bounded cache. Two sources, chosen so
    the Raven never quotes a fake price:
@@ -157,6 +161,123 @@ interface DexPair {
   liquidity?: { usd?: number };
 }
 
+interface GeckoTerminalToken {
+  id?: string;
+  attributes?: {
+    name?: string;
+    symbol?: string;
+    address?: string;
+    price_usd?: string | null;
+    volume_usd?: { h24?: string | null } | null;
+    market_cap_usd?: string | null;
+    fdv_usd?: string | null;
+    total_reserve_in_usd?: string | null;
+  };
+}
+
+function num(v: string | null | undefined): number | null {
+  if (typeof v !== "string" || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/* GeckoTerminal, the CoinGecko network's own on-chain index.
+ *
+ * Searched across the EVM networks the realm trades, never Solana or another
+ * non-EVM chain, which is the same rule the DexScreener path enforces and for
+ * the same reason: a Solana impostor sharing a symbol with an EVM token must
+ * never mint an authoritative card.
+ *
+ * The 24h change is deliberately left null. This endpoint returns price,
+ * volume, market cap and FDV per token but not a 24h price change, and a card
+ * that showed no change would be read as "flat" rather than as "unknown".
+ * Null is the honest value, and the caller renders it as unknown. */
+async function lookupGeckoTerminal(
+  q: string,
+  isAddress: boolean
+): Promise<TokenCard | null> {
+  try {
+    const res = await fetch(
+      `https://api.geckoterminal.com/api/v2/search/pools?query=${encodeURIComponent(q)}&page=1`,
+      {
+        headers: { accept: "application/json;version=20230302" },
+        next: { revalidate: 60 },
+      }
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      data?: Array<{
+        attributes?: {
+          name?: string;
+          base_token_price_usd?: string | null;
+          price_change_percentage?: { h24?: string | null } | null;
+          volume_usd?: { h24?: string | null } | null;
+          reserve_in_usd?: string | null;
+          market_cap_usd?: string | null;
+          fdv_usd?: string | null;
+        };
+        relationships?: {
+          base_token?: { data?: { id?: string } };
+          network?: { data?: { id?: string } };
+        };
+      }>;
+      included?: GeckoTerminalToken[];
+    };
+
+    const pools = body.data ?? [];
+    const included = body.included ?? [];
+
+    for (const pool of pools) {
+      const networkSlug = pool.relationships?.network?.data?.id;
+      if (!networkSlug || !isEvmGeckoNetwork(networkSlug)) continue;
+
+      const chain = tradeChainByGecko(networkSlug);
+      if (!chain) continue;
+
+      /* The base token id is "<network>_<address>", which is how the address
+         is recovered without a second request. */
+      const baseId = pool.relationships?.base_token?.data?.id ?? "";
+      const address = baseId.includes("_")
+        ? baseId.slice(baseId.indexOf("_") + 1).toLowerCase()
+        : "";
+      const token = included.find((t) => t.id === baseId);
+      const symbol = token?.attributes?.symbol ?? "";
+
+      /* Exact match only, same rule as the DexScreener path. */
+      const matches = isAddress
+        ? address === q
+        : symbol.toLowerCase() === q;
+      if (!matches || !symbol) continue;
+
+      const liquidity = num(pool.attributes?.reserve_in_usd ?? null);
+      if ((liquidity ?? 0) < MIN_LIQUIDITY_USD) continue;
+
+      const mcap = num(pool.attributes?.market_cap_usd ?? null);
+      const fdv = num(pool.attributes?.fdv_usd ?? null);
+      const price = num(pool.attributes?.base_token_price_usd ?? null);
+      if (price === null) continue;
+
+      return {
+        symbol: symbol.toUpperCase(),
+        name: token?.attributes?.name ?? symbol,
+        priceUsd: price,
+        change24h: num(pool.attributes?.price_change_percentage?.h24 ?? null),
+        volume24h: num(pool.attributes?.volume_usd?.h24 ?? null),
+        marketCap: mcap ?? fdv,
+        marketCapIsFdv: mcap === null && fdv !== null,
+        liquidityUsd: liquidity,
+        chain: chain.dex,
+        address: address || null,
+        url: `https://www.geckoterminal.com/${networkSlug}/pools/${pool.relationships?.base_token?.data?.id ?? ""}`,
+        fetchedAt: Date.now(),
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function lookupToken(query: string): Promise<TokenCard | null> {
   const q = query.trim().replace(/^\$/, "").toLowerCase();
   if (!q) return null;
@@ -175,6 +296,26 @@ export async function lookupToken(query: string): Promise<TokenCard | null> {
       return major;
     }
     // fall through to DexScreener only if CoinGecko was unreachable
+  }
+
+  /* GeckoTerminal before DexScreener for on-chain tokens.
+   *
+   * Both index DEX pools, and DexScreener stays as the fallback because it
+   * has the broader long tail. GeckoTerminal goes first because it is the
+   * CoinGecko network's own on-chain index: the same house that provides our
+   * canonical major-coin prices above, so a token that appears in both reads
+   * consistently rather than showing one price as a major and a different one
+   * as a pool. It also returns market cap and FDV as separate fields, which
+   * is what lets the card state honestly which of the two it is showing.
+   *
+   * The same guards apply as everywhere else in this file: exact symbol or
+   * address match only, EVM chains only, and the liquidity floor. A second
+   * source is a second way to be confidently wrong if it is trusted more
+   * loosely than the first. */
+  const gecko = await lookupGeckoTerminal(q, isAddress);
+  if (gecko) {
+    cacheSet(q, gecko);
+    return gecko;
   }
 
   try {

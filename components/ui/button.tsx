@@ -183,6 +183,22 @@ export interface ButtonProps extends useRender.ComponentProps<"button"> {
   /* Disables the button and shows a spinner in place of any leading icon.
      Keeps the label so the control never changes width mid-action. */
   loading?: boolean;
+  /* Releases the 44px touch floor down to the control's own size scale, for
+     SECONDARY controls only.
+   *
+   * The floor exists so a thumb never misses a primary target, and it stays
+   * the default for exactly that reason. But it made every button on a phone
+   * at least 44px tall whatever its size prop said, so a Follow or Edit
+   * profile button beside a member's name grew as heavy as the name itself,
+   * which the product owner reads, correctly, as too big. `dense` lets these
+   * sit at their `md` or `sm` height on a finger too. The result still clears
+   * WCAG AA target size (24px) with room to spare; it forgoes the stricter
+   * 44px AAA target, which is a deliberate, per-control product choice.
+   *
+   * NEVER use this on the dock, the primary nav, the feed tabs, or a lone
+   * primary action. It is for the second and third control in a header row,
+   * next to something larger that anchors the thumb. */
+  dense?: boolean;
 }
 
 export function Button({
@@ -194,6 +210,7 @@ export function Button({
   opaque,
   block,
   loading,
+  dense,
   className,
   disabled,
   children,
@@ -220,6 +237,8 @@ export function Button({
       PAD[pad ?? size],
       opaque && OPAQUE,
       block && "w-full",
+      /* After SIZE so it wins the touch floor set in BASE. See the prop. */
+      dense && "touch:min-h-9 touch:min-w-0",
       className
     ),
     children: (
@@ -254,6 +273,10 @@ export interface IconButtonProps
   /* Square rounded rectangle by default. `circle` exists only for genuinely
      circular affordances such as an avatar overlay, never for toolbar chrome. */
   shape?: "rect" | "circle";
+  /* Releases the 44px touch floor to the icon size, for a secondary icon
+     control sitting beside a larger anchor. See the note on Button's `dense`;
+     the same rule applies, never on the dock or primary nav. */
+  dense?: boolean;
 }
 
 export function IconButton({
@@ -264,6 +287,7 @@ export function IconButton({
   size = "md",
   tone,
   shape = "rect",
+  dense,
   className,
   disabled,
   ...props
@@ -280,6 +304,8 @@ export function IconButton({
       ICON_SIZE[size],
       /* Square, so an icon control needs the floor on both axes. */
       "shrink-0 p-0 touch:min-w-11",
+      /* After the floor line above, so it wins on a coarse pointer. */
+      dense && "touch:min-h-9 touch:min-w-9",
       className
     ),
     "aria-label": label,

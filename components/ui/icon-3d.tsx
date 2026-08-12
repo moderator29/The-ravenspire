@@ -171,9 +171,12 @@ export function Icon3D({
       priority={priority}
       onError={() => setMissing(true)}
       className={`select-none object-contain ${className}`}
-      /* The plinth already carries a contact shadow, so the only lift needed is
-         a soft warm glow that seats it against obsidian. */
-      style={{ filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.45))" }}
+      /* The plinth already carries its own baked contact shadow and the asset
+         now has generous transparent margin on every side, so the object and
+         its board always sit fully inside the box. The CSS shadow is kept
+         small and tight, just enough to seat the icon against obsidian: a
+         large downward shadow read as the board bleeding off its base. */
+      style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.4))" }}
     />
   );
 }
