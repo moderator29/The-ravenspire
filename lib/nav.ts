@@ -244,3 +244,22 @@ export function icon3dFor(href: string): Icon3DName | undefined {
     .sort((a, b) => b.href.length - a.href.length)[0];
   return hit?.icon3d;
 }
+
+/* Routes that take the whole viewport.
+ *
+ * Almost every surface in the realm is a page inside the shell: side nav on
+ * the left, right rail from xl, dock at the bottom on a phone. A conversation
+ * is not a page. It is a single column that must own the full height, keep its
+ * composer against the bottom edge, and scroll only in the middle, and every
+ * piece of shell chrome around it either steals that height or competes with
+ * the composer for the bottom of the screen.
+ *
+ * Declared here rather than checked inside each chrome component, so adding a
+ * full bleed surface is one line and cannot be half applied. */
+export const fullBleedRoutes = ["/raven"];
+
+export function isFullBleed(pathname: string): boolean {
+  return fullBleedRoutes.some(
+    (r) => pathname === r || pathname.startsWith(`${r}/`)
+  );
+}

@@ -2,8 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { Icon3D } from "@/components/ui/icon-3d";
 import {
   PriceMiniCard,
   WalletMiniCard,
@@ -50,27 +50,37 @@ export function MessageList({
   onSend: (text: string) => void;
 }) {
   if (messages.length === 0) {
+    /* The opening screen of a conversation, not an empty state in a page.
+       The distinction matters: an empty state reports an absence, and this
+       reports readiness. So the Herald itself is the largest thing on the
+       screen, the question is addressed to the member, and the openers are
+       full width rows rather than a wrapped cluster of chips, because a
+       thumb aims at a row and squints at a cluster. */
     return (
-      <div className="flex h-full flex-col items-center justify-center px-4">
-        <EmptyState
-          icon="raven"
-          title="The rookery is quiet"
-          body="Nothing has been asked yet. The Raven waits on its perch."
-          action={
-            <div className="flex flex-wrap justify-center gap-2">
-              {OPENERS.map((o) => (
-                <Button
-                  key={o}
-                  size="sm"
-                  variant="glass"
-                  onClick={() => onSend(o)}
-                >
-                  {o}
-                </Button>
-              ))}
-            </div>
-          }
-        />
+      <div className="flex h-full flex-col items-center justify-center px-4 py-8">
+        <Icon3D name="herald-ai" size="hero" priority />
+        <h2 className="mt-6 text-center font-display text-xl font-semibold text-bone sm:text-2xl">
+          How can I help today?
+        </h2>
+        <p className="mt-2 max-w-xs text-center text-sm leading-relaxed text-bone-mut">
+          Ask about any token, any wallet, or anything happening in the realm.
+          Every figure is read from real data.
+        </p>
+        <div className="mt-7 flex w-full max-w-sm flex-col gap-2.5">
+          {OPENERS.map((o) => (
+            <Button
+              key={o}
+              variant="glass"
+              size="lg"
+              block
+              className="justify-start text-left"
+              onClick={() => onSend(o)}
+            >
+              <Icon name="spark" className="h-4 w-4 shrink-0 text-gold" />
+              <span className="min-w-0 truncate">{o}</span>
+            </Button>
+          ))}
+        </div>
       </div>
     );
   }

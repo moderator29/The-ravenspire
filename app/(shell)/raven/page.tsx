@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "@/components/ui/icon";
+import { IconButton } from "@/components/ui/button";
+import { BackButton } from "@/components/shell/back-button";
 import { ChatInput } from "@/components/raven/chat-input";
 import { MessageList } from "@/components/raven/message-list";
 import { SettingsSheet } from "@/components/raven/settings-sheet";
 import { HistoryPanel } from "@/components/raven/history-panel";
 import { realmFetch } from "@/lib/auth/api";
 import {
-  VOICES,
   VOICE_KEY,
   BROWSE_KEY,
   LENGTH_KEY,
@@ -220,6 +220,19 @@ export default function RavenPage() {
     setHistoryOpen(false);
   };
 
+  const clearAllConversations = () => {
+    setConversations([]);
+    setMessages([]);
+    setActiveId(null);
+    activeIdRef.current = null;
+    persist(CONVOS_KEY, "[]");
+    try {
+      localStorage.removeItem(ACTIVE_KEY);
+    } catch {
+      /* storage unavailable, the in memory reset above is what matters */
+    }
+  };
+
   const deleteConversation = (id: string) => {
     setConversations((prev) => prev.filter((c) => c.id !== id));
     if (id === activeIdRef.current) {
@@ -242,32 +255,28 @@ export default function RavenPage() {
     persist(LENGTH_KEY, l);
   };
 
-  const activeVoice = VOICES.find((v) => v.id === voice) ?? VOICES[0];
-
   return (
-    <div className="mx-auto flex h-[calc(100dvh-6rem)] w-full max-w-3xl flex-col lg:h-[calc(100dvh-2rem)]">
-      {/* Header bar: thin, full width, border below like a real chat app. */}
-      <header className="flex shrink-0 items-center gap-2.5 border-b border-steel-line/70 bg-obsidian/60 px-3 py-2.5 backdrop-blur-sm sm:px-4">
-        <button
-          type="button"
-          onClick={() => setHistoryOpen(true)}
-          aria-label="Chat history"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line/70 bg-panel text-bone-mut transition-colors hover:border-gold/35 hover:text-bone"
-        >
-          <Icon name="scroll" className="h-4 w-4" />
-        </button>
+    /* A conversation owns the whole viewport. The shell drops its dock, its
+       right rail and its mobile top bar for this route (lib/nav fullBleed), so
+       the three regions below are the only things on screen: a header that
+       does not scroll, a transcript that is the only thing that does, and a
+       composer against the bottom edge. 100dvh rather than 100vh, because on
+       iOS Safari the difference is the address bar and using vh puts the
+       composer underneath it. */
+    <div className="flex h-[100dvh] w-full flex-col">
+      {/* Back on the left, identity in the middle, history on the right. Three
+          slots, and nothing else: every control that is not one of those three
+          lives in the drawer, which is what keeps the header readable at
+          390px. */}
+      <header className="flex shrink-0 items-center gap-3 border-b border-steel-line/70 bg-obsidian/70 px-3 py-3 backdrop-blur-sm sm:px-5">
+        <BackButton circle />
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h1 className="gold-text font-display text-base font-semibold leading-tight">
-              The Raven
-            </h1>
-            <span className="rounded-[--radius-sm] border border-gold/40 bg-panel-warm/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
-              Beta
-            </span>
-          </div>
-          <p className="flex items-center gap-1.5 text-[11px] text-bone-mut">
-            <span className="truncate">Voice: {activeVoice.label}</span>
+          <h1 className="gold-text truncate font-display text-lg font-semibold leading-tight">
+            The Raven
+          </h1>
+          <p className="flex items-center gap-1.5 text-[12px] text-bone-mut">
+            <span className="truncate">Beta</span>
             {browse && (
               <span className="inline-flex items-center gap-1 text-gold">
                 <span className="h-1 w-1 rounded-full bg-gold" />
@@ -277,22 +286,14 @@ export default function RavenPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={startNewChat}
-          aria-label="New chat"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line/70 bg-panel text-bone-mut transition-colors hover:border-gold/35 hover:text-bone"
-        >
-          <Icon name="plus" className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setSettingsOpen(true)}
-          aria-label="AI settings"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line/70 bg-panel text-bone-mut transition-colors hover:border-gold/35 hover:text-bone"
-        >
-          <Icon name="sliders" className="h-4 w-4" />
-        </button>
+        <IconButton
+          icon="scroll"
+          label="Conversations"
+          variant="glass"
+          shape="circle"
+          size="lg"
+          onClick={() => setHistoryOpen(true)}
+        />
       </header>
 
       {/* Transcript: the only scrolling region, fills the middle. */}
@@ -337,6 +338,11 @@ export default function RavenPage() {
         onSelect={selectConversation}
         onNewChat={startNewChat}
         onDelete={deleteConversation}
+        onOpenSettings={() => {
+          setHistoryOpen(false);
+          setSettingsOpen(true);
+        }}
+        onClearAll={clearAllConversations}
       />
     </div>
   );

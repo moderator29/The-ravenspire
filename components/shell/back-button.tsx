@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
 type BackButtonProps = {
@@ -10,6 +10,13 @@ type BackButtonProps = {
   href?: string;
   /** The word beside the arrow. Kept short and quiet by design. */
   label?: string;
+  /** Drop the word and render a circular icon button.
+
+      For a full bleed surface, where the back control sits in a fixed header
+      beside a title rather than above page content. Rule 9 allows a circle for
+      a genuinely circular icon button, and this is one: no label, not part of
+      a row. The label is still passed to the accessible name. */
+  circle?: boolean;
 };
 
 /*
@@ -19,7 +26,11 @@ type BackButtonProps = {
   instead of trapping them. Styled as a small glass control to sit calmly above
   page content.
 */
-export function BackButton({ href = "/home", label = "Back" }: BackButtonProps) {
+export function BackButton({
+  href = "/home",
+  label = "Back",
+  circle = false,
+}: BackButtonProps) {
   const router = useRouter();
   const [canGoBack, setCanGoBack] = useState(false);
 
@@ -32,6 +43,20 @@ export function BackButton({ href = "/home", label = "Back" }: BackButtonProps) 
     if (canGoBack) router.back();
     else router.push(href);
   };
+
+  if (circle) {
+    return (
+      <IconButton
+        icon="arrow"
+        label={label}
+        variant="glass"
+        shape="circle"
+        size="lg"
+        onClick={handleClick}
+        className="[&_svg]:rotate-180"
+      />
+    );
+  }
 
   return (
     <Button

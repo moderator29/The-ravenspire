@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, IconButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { Input } from "@/components/ui/field";
 import type { Conversation } from "@/components/raven/types";
 
 function relTime(ts: number): string {
@@ -42,6 +43,8 @@ export function HistoryPanel({
   onSelect,
   onNewChat,
   onDelete,
+  onOpenSettings,
+  onClearAll,
 }: {
   open: boolean;
   onClose: () => void;
@@ -50,7 +53,27 @@ export function HistoryPanel({
   onSelect: (id: string) => void;
   onNewChat: () => void;
   onDelete: (id: string) => void;
+  onOpenSettings: () => void;
+  onClearAll: () => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  /* Reset the search and the destructive confirmation every time the drawer
+     opens. A half typed filter or an armed "clear everything" button surviving
+     from the last visit is a nasty surprise. */
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setConfirmClear(false);
+    }
+  }, [open]);
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((c) => c.title.toLowerCase().includes(q));
+  }, [conversations, query]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -108,6 +131,25 @@ export function HistoryPanel({
             New chat
           </Button>
 
+          {/* Search sits above the list rather than in the header, so it
+              scrolls away once the member is deep in a long history. */}
+          {conversations.length > 3 && (
+            <div className="relative mb-3">
+              <Icon
+                name="search"
+                aria-hidden
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-faint"
+              />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search conversations"
+                aria-label="Search conversations"
+                className="pl-9"
+              />
+            </div>
+          )}
+
           {conversations.length === 0 ? (
             <EmptyState
               icon="scroll"
@@ -121,7 +163,7 @@ export function HistoryPanel({
             />
           ) : (
             <ul className="flex flex-col gap-1.5">
-              {conversations.map((c) => {
+              {shown.map((c) => {
                 const active = c.id === activeId;
                 return (
                   <li key={c.id}>
@@ -163,6 +205,46 @@ export function HistoryPanel({
               })}
             </ul>
           )}
+
+          {shown.length === 0 && conversations.length > 0 && (
+            <p className="py-8 text-center text-sm text-bone-mut">
+              Nothing matches &ldquo;{query}&rdquo;.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* The settings foot. Pinned rather than at the end of the list, because
+          a member with forty conversations should not have to scroll past all
+          of them to change how the Herald answers. Destructive action last and
+          two step, since there is no undo for a cleared history. */}
+      <div className="shrink-0 border-t border-steel-line/70 bg-obsidian/80 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-4 sm:px-6">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
+            Settings
+          </p>
+          <Button variant="glass" size="lg" block onClick={onOpenSettings}>
+            <Icon name="sliders" className="h-4 w-4" />
+            Herald settings
+          </Button>
+          <Button
+            variant={confirmClear ? "danger" : "ghost"}
+            size="md"
+            block
+            disabled={conversations.length === 0}
+            onClick={() => {
+              if (!confirmClear) {
+                setConfirmClear(true);
+                return;
+              }
+              onClearAll();
+              setConfirmClear(false);
+            }}
+          >
+            {confirmClear
+              ? "Tap again to clear every conversation"
+              : "Clear all history"}
+          </Button>
         </div>
       </div>
     </div>
