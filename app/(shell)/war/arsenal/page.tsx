@@ -110,7 +110,22 @@ export default function ArsenalPage() {
       </Board>
 
       <SectionHeader title="Gear of the realm" hint="Crown to boot" />
-      <ChipRail label="Gear slot filter">
+      {/* Thirteen slots need 899px of rail. Measured on a mouse, the box is
+          728px at 1024 and 824px at 1440, so 171px and 75px of the rail, out
+          to "material" at x=1178.7 against a right edge of 1012, sat past a
+          track that hides its own scrollbar. A drag rail is the right answer
+          for a thumb and the wrong one for a pointer, so above `md` the chips
+          wrap instead.
+
+          `overflow-visible` goes with the wrap, and it is not tidying. A box
+          with `overflow-x: auto` computes `overflow-y: auto` too, and the rail
+          has no vertical padding, so it clipped the 2px focus ring at its own
+          top and bottom edge. Sampled at 1440 on the focused first chip: the
+          two rows above the chip read rgb(6,6,9), the page, where the ring
+          should be, and rgb(249,227,159) once the box stops scrolling. Rule 12
+          asks for a visible ring, and two wrapped rows have an inner edge for
+          it to be cut on as well as an outer one. */}
+      <ChipRail label="Gear slot filter" className="md:flex-wrap md:overflow-visible">
         {slots.map((s) => (
           <Chip key={s} active={slot === s} onClick={() => setSlot(s)}>
             <span className="capitalize">{s}</span>
