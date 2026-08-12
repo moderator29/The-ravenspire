@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { houses, sigilIcon } from "@/lib/data/houses";
@@ -114,7 +115,7 @@ export default function ExplorePage() {
       </p>
 
       {/* Search */}
-      <div className="glass glass-sm mt-5 flex items-center gap-3 px-4 py-3">
+      <Card radius="lg" pad="none" className="mt-5 flex items-center gap-3 px-4 py-3">
         <Icon name="search" className="h-4 w-4 shrink-0 text-bone-faint" />
         <input
           value={query}
@@ -122,24 +123,21 @@ export default function ExplorePage() {
           placeholder="Search the realm by name or handle"
           className="w-full bg-transparent text-sm text-bone placeholder:text-bone-faint"
         />
-      </div>
+      </Card>
 
       {query.trim().length >= 2 && (
         <div className="mt-3 flex flex-col gap-2">
           {searching && hits === null ? (
             [0, 1, 2].map((i) => (
-              <div key={i} className="glass glass-sm h-14 animate-pulse" />
+              <Card key={i} radius="lg" pad="none" className="h-14 animate-pulse" />
             ))
           ) : hits && hits.length === 0 ? (
-            <div className="glass glass-sm p-6 text-center text-sm text-bone-mut">
+            <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
               No citizen answers to that name. Try another spelling.
-            </div>
+            </Card>
           ) : (
             (hits ?? []).map((p, i) => (
-              <div
-                key={p.id ?? p.handle ?? i}
-                className="glass glass-sm flex items-center gap-3 p-3"
-              >
+              <Card key={p.id ?? p.handle ?? i} radius="lg" pad="none" className="flex items-center gap-3 p-3">
                 <Link
                   href={`/u/${p.handle}`}
                   className="flex min-w-0 flex-1 items-center gap-3"
@@ -160,7 +158,7 @@ export default function ExplorePage() {
                 {p.id && (
                   <FollowButton targetId={p.id} viewerId={viewerId} />
                 )}
-              </div>
+              </Card>
             ))
           )}
         </div>
@@ -180,18 +178,15 @@ export default function ExplorePage() {
           <div className="mt-3 flex flex-col gap-2">
             {people === null ? (
               [0, 1, 2].map((i) => (
-                <div key={i} className="glass glass-sm h-14 animate-pulse" />
+                <Card key={i} radius="lg" pad="none" className="h-14 animate-pulse" />
               ))
             ) : people.length === 0 ? (
-              <div className="glass glass-sm p-6 text-center text-sm text-bone-mut">
+              <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
                 The realm is yet young. Its first names have not risen.
-              </div>
+              </Card>
             ) : (
               people.map((p) => (
-                <div
-                  key={p.id}
-                  className="glass glass-sm flex items-center gap-3 p-3"
-                >
+                <Card key={p.id} radius="lg" pad="none" className="flex items-center gap-3 p-3">
                   <Link
                     href={`/u/${p.handle}`}
                     className="flex min-w-0 flex-1 items-center gap-3"
@@ -217,7 +212,7 @@ export default function ExplorePage() {
                     viewerId={viewerId}
                     initialFollowing={followingSet.has(p.id)}
                   />
-                </div>
+                </Card>
               ))
             )}
           </div>
@@ -233,24 +228,18 @@ export default function ExplorePage() {
             {cashtags === null ? (
               <div className="flex flex-wrap gap-2">
                 {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="glass glass-sm h-9 w-24 animate-pulse rounded-full"
-                  />
+                  <Card key={i} radius="lg" pad="none" className="h-9 w-24 animate-pulse" />
                 ))}
               </div>
             ) : cashtags.length === 0 ? (
-              <div className="glass glass-sm p-6 text-center text-sm text-bone-mut">
+              <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
                 No cashtags have taken flight yet. Seal a Call and start the
                 talk.
-              </div>
+              </Card>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {cashtags.map((c) => (
-                  <span
-                    key={c.tag}
-                    className="glass glass-sm flex items-center gap-2 rounded-[--radius-sm] px-3.5 py-1.5"
-                  >
+                  <Card key={c.tag} render={<span />} radius="lg" pad="none" className="flex items-center gap-2 px-3.5 py-1.5">
                     <Icon name="coin" className="h-3.5 w-3.5 text-gold" />
                     <span className="text-sm font-semibold text-gold-bright">
                       ${c.tag}
@@ -258,7 +247,7 @@ export default function ExplorePage() {
                     <span className="tnum text-[11px] text-bone-faint">
                       {c.count}
                     </span>
-                  </span>
+                  </Card>
                 ))}
               </div>
             )}
@@ -275,11 +264,7 @@ export default function ExplorePage() {
         {houses.map((h) => {
           const stat = houseStats[h.slug];
           return (
-            <Link
-              key={h.slug}
-              href={`/houses/${h.slug}`}
-              className="glass glass-sm glass-hover flex items-center gap-3 p-3"
-            >
+            <Card key={h.slug} render={<Link href={`/houses/${h.slug}`} />} radius="lg" pad="none" interactive className="flex items-center gap-3 p-3">
               <span
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                 style={{
@@ -303,7 +288,7 @@ export default function ExplorePage() {
                     : h.motto}
                 </p>
               </div>
-            </Link>
+            </Card>
           );
         })}
       </div>
@@ -318,20 +303,16 @@ export default function ExplorePage() {
       <div className="mt-3 flex flex-col gap-2">
         {calls === null ? (
           [0, 1].map((i) => (
-            <div key={i} className="glass glass-sm h-14 animate-pulse" />
+            <Card key={i} radius="lg" pad="none" className="h-14 animate-pulse" />
           ))
         ) : calls.length === 0 ? (
-          <div className="glass glass-sm p-6 text-center text-sm text-bone-mut">
+          <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
             No Calls have been sealed yet. The first bold claim awaits its
             maker.
-          </div>
+          </Card>
         ) : (
           calls.map((c) => (
-            <Link
-              key={c.id}
-              href={`/post/${c.id}`}
-              className="glass glass-sm glass-hover flex items-center gap-3 p-3"
-            >
+            <Card key={c.id} render={<Link href={`/post/${c.id}`} />} radius="lg" pad="none" interactive className="flex items-center gap-3 p-3">
               <Icon
                 name="target"
                 className={`h-4.5 w-4.5 shrink-0 ${
@@ -352,7 +333,7 @@ export default function ExplorePage() {
               <span className="shrink-0 text-[11px] text-bone-faint">
                 {timeAgo(c.created_at)}
               </span>
-            </Link>
+            </Card>
           ))
         )}
       </div>

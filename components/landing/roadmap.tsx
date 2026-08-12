@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Card } from "@/components/ui/card";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
@@ -223,13 +224,7 @@ export function Roadmap() {
   const rest = phases.slice(PREVIEW);
 
   return (
-    <motion.section
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass relative overflow-hidden p-7 sm:p-9"
-    >
+    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full opacity-20 blur-3xl"
@@ -253,7 +248,7 @@ export function Roadmap() {
         <h2 className="font-display text-2xl font-semibold text-bone sm:text-3xl">
           The march ahead
         </h2>
-        <span className="glass-sm inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-gold/25 bg-panel px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-gold">
+        <span className="rounded-lg inline-flex items-center gap-1.5 border border-gold/25 bg-panel px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-gold">
           <LandingIcon name="layers" className="h-3.5 w-3.5" />
           Built on Ethereum
         </span>
@@ -315,6 +310,6 @@ export function Roadmap() {
           />
         </Button>
       )}
-    </motion.section>
+    </Card>
   );
 }

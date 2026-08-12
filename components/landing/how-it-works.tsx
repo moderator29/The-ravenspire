@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { motion, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 
@@ -44,13 +45,7 @@ const rise: Variants = {
 
 export function HowItWorks() {
   return (
-    <motion.section
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass p-7 sm:p-9"
-    >
+    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="p-7 sm:p-9">
       <motion.div
         variants={rise}
         className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold"
@@ -116,6 +111,6 @@ export function HowItWorks() {
           <Icon name="arrow" className="h-4 w-4" />
         </Link>
       </motion.div>
-    </motion.section>
+    </Card>
   );
 }

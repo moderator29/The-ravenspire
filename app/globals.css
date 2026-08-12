@@ -293,7 +293,27 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ----- Glass containers: the core surface of the platform ----- */
+/* ----- Glass containers: retired, and down to two files -----
+
+   This was the core surface of the platform and it is now the Card primitive
+   in components/ui/card.tsx, which expresses the same treatment against
+   --radius-xl and --shadow-card instead of the 24px frozen below.
+
+   The defect worth recording, because it is the reason the class had to go
+   rather than merely be discouraged: these rules are unlayered, so they beat
+   every layered `rounded-*` a caller wrote beside them. A surface that said
+   `glass rounded-2xl` was 24px, not 26px, and nothing in the class list showed
+   it. Roughly a hundred and thirty of those overrides existed and every one of
+   them described nothing.
+
+   .glass-warm and .glass-hover are gone entirely: warm is Card's `warm`
+   variant and hover is its `interactive` prop.
+
+   .glass and .glass-sm survive for exactly two files, app/page.tsx and the two
+   pages under app/legal, which were being worked on elsewhere when this sweep
+   ran and could not be touched. Converting those ten usages deletes this whole
+   block, and nothing else holds it. Nothing new may reach for it: the house
+   rule checker fails any use outside those files. */
 .glass {
   position: relative;
   background:
@@ -314,28 +334,6 @@ body {
 }
 .glass-sm {
   border-radius: 16px;
-}
-.glass-warm {
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 233, 163, 0.06) 0%,
-      rgba(20, 18, 12, 0.7) 100%
-    ),
-    rgba(20, 18, 12, 0.72);
-}
-.glass-hover {
-  transition:
-    border-color 0.25s ease,
-    transform 0.25s ease,
-    box-shadow 0.25s ease;
-}
-.glass-hover:hover {
-  border-color: rgba(217, 176, 64, 0.38);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 233, 163, 0.14),
-    0 22px 60px rgba(0, 0, 0, 0.55),
-    0 0 32px rgba(217, 176, 64, 0.07);
 }
 
 /* ----- Forged gold: gradient, never flat ----- */

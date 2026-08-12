@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { realmFetch } from "@/lib/auth/api";
@@ -199,12 +200,7 @@ export function NotificationsProvider({
         createPortal(
           <div className="pointer-events-none fixed inset-x-0 top-3 z-[70] flex flex-col items-center gap-2 px-3 sm:inset-x-auto sm:right-4 sm:items-end">
             {toasts.map((t) => (
-              <Link
-                key={t.key}
-                href={t.href}
-                onClick={() => dismissToast(t.key)}
-                className="notif-toast glass glass-warm pointer-events-auto flex w-full max-w-sm items-start gap-3 p-3.5 shadow-2xl transition hover:border-gold/40"
-              >
+              <Card key={t.key} render={<Link href={t.href} onClick={() => dismissToast(t.key)} />} variant="warm" pad="none" className="notif-toast   pointer-events-auto flex w-full max-w-sm items-start gap-3 p-3.5 shadow-2xl transition hover:border-gold/40">
                 <span className="relative shrink-0">
                   <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-steel-line bg-panel font-display text-sm text-gold">
                     {t.actor?.avatar_url ? (
@@ -252,7 +248,7 @@ export function NotificationsProvider({
                 >
                   <Icon name="close" className="h-4 w-4" />
                 </button>
-              </Link>
+              </Card>
             ))}
           </div>,
           document.body

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { Card } from "@/components/ui/card";
 import { LandingIcon } from "@/components/landing/icons";
 
 /*
@@ -98,13 +99,7 @@ function Donut() {
 
 export function Tokenomics() {
   return (
-    <motion.section
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      className="glass relative overflow-hidden p-7 sm:p-9"
-    >
+    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-25 blur-3xl"
@@ -135,7 +130,7 @@ export function Tokenomics() {
 
       {/* Ticker + supply header chips */}
       <motion.div variants={rise} className="mt-6 flex flex-wrap gap-3">
-        <div className="glass-sm flex items-center gap-3 rounded-2xl border border-gold/20 bg-panel px-4 py-3">
+        <div className="rounded-lg flex items-center gap-3 border border-gold/20 bg-panel px-4 py-3">
           <LandingIcon name="coin" className="h-5 w-5 text-gold" />
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
@@ -144,7 +139,7 @@ export function Tokenomics() {
             <p className="gold-text font-display text-lg font-semibold">{TICKER}</p>
           </div>
         </div>
-        <div className="glass-sm flex items-center gap-3 rounded-2xl border border-gold/20 bg-panel px-4 py-3">
+        <div className="rounded-lg flex items-center gap-3 border border-gold/20 bg-panel px-4 py-3">
           <LandingIcon name="ledger" className="h-5 w-5 text-gold" />
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
@@ -195,6 +190,6 @@ export function Tokenomics() {
           ))}
         </motion.ul>
       </div>
-    </motion.section>
+    </Card>
   );
 }

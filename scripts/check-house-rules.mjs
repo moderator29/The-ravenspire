@@ -131,6 +131,34 @@ for (const f of files(["*.tsx"])) {
   });
 }
 
+/* Rule 2c: the glass container utilities are retired.
+
+   `.glass` and `.glass-sm` are unlayered, so they beat every layered
+   `rounded-*` a caller writes beside them. That is not a style preference, it
+   is a class that silently overrides the radius scale, and roughly a hundred
+   and thirty callers were carrying a `rounded-*` that did nothing. All of them
+   are now the Card primitive, which takes its rung from a prop and can
+   therefore be told which one to use.
+
+   Two files are still on the old class because they were being worked on
+   elsewhere when the sweep ran. They are named here rather than left to a
+   comment, so converting them is what deletes both this rule and the class. */
+const GLASS_HOLDOUTS = ["app/page.tsx", "app/legal/"];
+for (const f of files(["*.tsx"])) {
+  if (GLASS_HOLDOUTS.some((h) => f.includes(h))) continue;
+  const text = readFileSync(f, "utf8");
+  text.split("\n").forEach((line, i) => {
+    if (!/className=/.test(line)) return;
+    const m = line.match(/\b(glass|glass-sm|glass-warm|glass-hover)\b(?![-\w])/);
+    /* `variant="glass"` is the Button's own variant name and is not this. */
+    if (m && !/variant\s*[=:]/.test(line)) {
+      problems.push(
+        `${f}:${i + 1}  .${m[1]} is retired. Use the Card primitive from components/ui/card, which takes a radius prop.`
+      );
+    }
+  });
+}
+
 /* Rule 3: never put text on a fill only hue. --foe, --blood and --ash do not
    clear WCAG AA as text and have -text twins for exactly this case. */
 for (const f of files(["*.tsx"])) {

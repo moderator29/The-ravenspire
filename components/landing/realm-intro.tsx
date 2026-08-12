@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
+import { Card } from "@/components/ui/card";
 import { LandingIcon } from "@/components/landing/icons";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { ScrollRail } from "@/components/landing/scroll-rail";
@@ -80,10 +81,7 @@ export function RealmIntro() {
       <motion.div variants={rise} className="mt-10">
         <ScrollRail ariaLabel="Mission, vision and history">
           {pillars.map((p) => (
-            <article
-              key={p.kicker}
-              className="glass glass-hover snap-start shrink-0 w-[82vw] max-w-[360px] p-6 sm:w-[360px]"
-            >
+            <Card key={p.kicker} render={<article />} pad="none" interactive className="snap-start shrink-0 w-[82vw] max-w-[360px] p-6 sm:w-[360px]">
               <div className="flex items-center gap-3">
                 <Icon3D name={p.icon} size="md" />
                 <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
@@ -96,7 +94,7 @@ export function RealmIntro() {
               <p className="mt-2.5 text-[13px] leading-relaxed text-bone-mut">
                 {p.body}
               </p>
-            </article>
+            </Card>
           ))}
         </ScrollRail>
       </motion.div>

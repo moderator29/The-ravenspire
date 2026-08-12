@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { RavenMark } from "@/components/brand/raven-mark";
@@ -133,12 +134,7 @@ export function LandingNav({
 
         {/* Mobile dropdown */}
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className="glass absolute inset-x-3 top-full mt-2 flex flex-col gap-1 p-3 md:hidden"
-          >
+          <Card render={<motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} />} pad="none" className="absolute inset-x-3 top-full mt-2 flex flex-col gap-1 p-3 md:hidden">
             {links.map((l) =>
               l.route ? (
                 <Link
@@ -166,7 +162,7 @@ export function LandingNav({
                 </a>
               )
             )}
-          </motion.div>
+          </Card>
         )}
       </nav>
     </motion.header>

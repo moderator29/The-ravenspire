@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Card } from "@/components/ui/card";
 import { BackButton } from "@/components/shell/back-button";
 import { Icon } from "@/components/ui/icon";
 
@@ -43,12 +44,7 @@ export default function ThroneComingSoon() {
     <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
       <BackButton href="/home" />
 
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="glass relative mt-4 overflow-hidden p-7 text-center sm:p-10"
-      >
+      <Card render={<motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} />} pad="none" className="relative mt-4 overflow-hidden p-7 text-center sm:p-10">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 h-40"
@@ -77,18 +73,11 @@ export default function ThroneComingSoon() {
           raise your House and race for the Iron Throne. It opens to the realm
           at launch. Hold the line.
         </p>
-      </motion.section>
+      </Card>
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {previewCards.map((c, i) => (
-          <motion.div
-            key={c.label}
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.08, duration: 0.5 }}
-            className="glass glass-sm p-4"
-          >
+          <Card key={c.label} render={<motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08, duration: 0.5 }} />} radius="lg" pad="none" className="p-4">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
               {c.label}
             </p>
@@ -96,7 +85,7 @@ export default function ThroneComingSoon() {
               {c.value}
             </p>
             <p className="mt-0.5 text-xs text-bone-faint">{c.sub}</p>
-          </motion.div>
+          </Card>
         ))}
       </div>
 
@@ -106,14 +95,7 @@ export default function ThroneComingSoon() {
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {PILLARS.map((p, i) => (
-            <motion.div
-              key={p.title}
-              initial={{ opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-40px" }}
-              transition={{ delay: i * 0.07, duration: 0.5 }}
-              className="glass glass-sm glass-hover p-5"
-            >
+            <Card key={p.title} render={<motion.div initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ delay: i * 0.07, duration: 0.5 }} />} radius="lg" pad="none" interactive className="p-5">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-gold/25 bg-void">
                 <Icon name={p.icon} className="h-5 w-5 text-gold" />
               </div>
@@ -123,18 +105,18 @@ export default function ThroneComingSoon() {
               <p className="mt-1.5 text-sm leading-relaxed text-bone-mut">
                 {p.body}
               </p>
-            </motion.div>
+            </Card>
           ))}
         </div>
       </div>
 
-      <div className="glass mt-6 flex flex-col items-center gap-2 p-6 text-center">
+      <Card pad="none" className="mt-6 flex flex-col items-center gap-2 p-6 text-center">
         <Icon name="flame" className="h-5 w-5 text-ember" />
         <p className="text-sm text-bone-mut">
           The throne is claimed at launch. Follow the realm and be ready when the
           season opens.
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

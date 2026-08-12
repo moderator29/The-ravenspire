@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Card } from "@/components/ui/card";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { Button } from "@/components/ui/button";
 
@@ -95,18 +96,11 @@ export function Ceremony({
             className="absolute inset-0 bg-obsidian/85 backdrop-blur-sm"
           />
 
-          <motion.div
-            className={`glass relative w-full max-w-sm overflow-hidden rounded-[--radius-2xl] border ${t.ring} p-7 text-center`}
-            style={{ boxShadow: "var(--shadow-overlay)" }}
-            initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 12 }}
-            animate={reduced ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-            exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 6 }}
-            transition={
+          <Card render={<motion.div style={{ boxShadow: "var(--shadow-overlay)" }} initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 12 }} animate={reduced ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }} exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 6 }} transition={
               reduced
                 ? { duration: 0.15 }
                 : { type: "spring", visualDuration: 0.42, bounce: 0.22 }
-            }
-          >
+            } />} pad="none" className={`relative w-full max-w-sm overflow-hidden rounded-[--radius-2xl] border ${t.ring} p-7 text-center`}>
             {/* Atmosphere sits behind the plate, never on it. */}
             <div
               aria-hidden
@@ -179,7 +173,7 @@ export function Ceremony({
                 </Button>
               </div>
             </div>
-          </motion.div>
+          </Card>
         </motion.div>
       )}
     </AnimatePresence>

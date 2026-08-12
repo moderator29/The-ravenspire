@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
@@ -36,10 +37,7 @@ type Court = {
 function CourtCard({ c }: { c: Court }) {
   const hostName = c.host?.display_name ?? c.host?.handle ?? "Unknown herald";
   return (
-    <Link
-      href={`/rookery/${c.id}`}
-      className="glass glass-hover group block p-4"
-    >
+    <Card render={<Link href={`/rookery/${c.id}`} />} pad="none" interactive className="group block p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           {c.status === "live" ? (
@@ -98,7 +96,7 @@ function CourtCard({ c }: { c: Court }) {
           </span>
         </div>
       </div>
-    </Link>
+    </Card>
   );
 }
 
@@ -183,7 +181,7 @@ export default function RookeryPage() {
       </div>
 
       {ready && authenticated && (
-        <div className="glass gold-metal mt-5 p-4">
+        <Card pad="none" className="gold-metal mt-5 p-4">
           <p className="font-display text-sm font-semibold text-bone">
             Hold a court
           </p>
@@ -258,13 +256,13 @@ export default function RookeryPage() {
               {opening === "schedule" ? "Announcing..." : "Announce upcoming"}
             </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {error && (
-        <div className="glass glass-sm mt-3 border-ember/40 p-3 text-sm text-ember">
+        <Card radius="lg" pad="none" className="mt-3 border-ember/40 p-3 text-sm text-ember">
           {error}
-        </div>
+        </Card>
       )}
 
       {/* Live */}
@@ -278,10 +276,10 @@ export default function RookeryPage() {
         <div className="mt-3 flex flex-col gap-2">
           {courts === null ? (
             [0, 1].map((i) => (
-              <div key={i} className="glass h-24 animate-pulse" />
+              <Card key={i} pad="none" className="h-24 animate-pulse" />
             ))
           ) : live.length === 0 ? (
-            <div className="glass p-8 text-center">
+            <Card pad="none" className="p-8 text-center">
               <Icon name="signal" className="mx-auto h-8 w-8 text-gold" />
               <p className="mt-3 font-display text-lg font-semibold text-bone">
                 No courts in session
@@ -290,7 +288,7 @@ export default function RookeryPage() {
                 The hall stands ready and the benches are empty. Open a court and
                 the realm will see your banner raised here.
               </p>
-            </div>
+            </Card>
           ) : (
             live.map((c) => <CourtCard key={c.id} c={c} />)
           )}
@@ -311,14 +309,14 @@ export default function RookeryPage() {
         </div>
       )}
 
-      <div className="glass glass-sm mt-6 flex items-start gap-3 p-4">
+      <Card radius="lg" pad="none" className="mt-6 flex items-start gap-3 p-4">
         <Icon name="orb" className="mt-0.5 h-4 w-4 shrink-0 text-bone-faint" />
         <p className="text-xs leading-relaxed text-bone-mut">
           A court gathers the realm in real time: a living roster, reactions, and
           an open floor. Live voice arrives when the court&apos;s speaking stones
           (the audio provider) are set in place.
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

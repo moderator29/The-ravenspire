@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
+import { Card } from "@/components/ui/card";
 import { LandingIcon } from "@/components/landing/icons";
 import { Icon3D } from "@/components/ui/icon-3d";
 import { icon3dFor } from "@/lib/nav";
@@ -93,11 +94,7 @@ export function ComingSoonTeasers() {
 
       <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2">
         {teasers.map((t) => (
-          <motion.article
-            key={t.eyebrow}
-            variants={rise}
-            className="glass glass-hover relative overflow-hidden p-6 sm:p-7"
-          >
+          <Card key={t.eyebrow} render={<motion.article variants={rise} />} pad="none" interactive className="relative overflow-hidden p-6 sm:p-7">
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full opacity-25 blur-3xl"
@@ -128,7 +125,7 @@ export function ComingSoonTeasers() {
                 </li>
               ))}
             </ul>
-          </motion.article>
+          </Card>
         ))}
       </div>
     </motion.section>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { Card } from "@/components/ui/card";
 import { motion, useScroll, useTransform, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 import { LandingIcon } from "@/components/landing/icons";
@@ -46,7 +47,7 @@ function Frame({
   children: React.ReactNode;
 }) {
   return (
-    <div className="glass overflow-hidden rounded-3xl">
+    <Card pad="none" className="overflow-hidden">
       <div className="flex items-center gap-2 border-b border-steel-line/70 bg-void/60 px-4 py-2.5">
         <Icon name={icon} className="h-3.5 w-3.5 text-gold" />
         <span className="font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-mut">
@@ -59,7 +60,7 @@ function Frame({
         </span>
       </div>
       <div className="p-4">{children}</div>
-    </div>
+    </Card>
   );
 }
 
@@ -76,7 +77,7 @@ function RavenryMock() {
   return (
     <Frame title="The Ravenry" icon="home">
       <div className="flex flex-col gap-3">
-        <div className="glass-sm rounded-2xl border border-steel-line bg-panel p-3">
+        <div className="rounded-lg border border-steel-line bg-panel p-3">
           <div className="flex items-center gap-2.5">
             <Avatar icon="raven" />
             <div className="min-w-0">
@@ -109,7 +110,7 @@ function RavenryMock() {
             </span>
           </div>
         </div>
-        <div className="glass-sm rounded-2xl border border-steel-line bg-panel p-3">
+        <div className="rounded-lg border border-steel-line bg-panel p-3">
           <div className="flex items-center gap-2.5">
             <Avatar icon="user" />
             <div className="min-w-0">
@@ -142,7 +143,7 @@ function WhispersMock() {
       </div>
       <div className="mt-3 flex flex-col gap-2.5">
         <div className="flex justify-start">
-          <div className="glass-sm max-w-[80%] rounded-2xl rounded-tl-md px-3 py-2 text-[12px] text-bone-mut">
+          <div className="rounded-lg max-w-[80%] px-3 py-2 text-[12px] text-bone-mut">
             The Throne shifts this week. Will Goldmane hold the lead?
           </div>
         </div>
@@ -152,7 +153,7 @@ function WhispersMock() {
           </div>
         </div>
         <div className="flex justify-start">
-          <div className="glass-sm max-w-[80%] rounded-2xl rounded-tl-md px-3 py-2 text-[12px] text-bone-mut">
+          <div className="rounded-lg max-w-[80%] px-3 py-2 text-[12px] text-bone-mut">
             Bold words. Court at dusk, then. Bring witnesses.
           </div>
         </div>
@@ -183,7 +184,7 @@ function HousesMock() {
         {houseRows.map((h, i) => (
           <div
             key={h.name}
-            className="glass-sm rounded-xl border border-steel-line bg-panel px-3 py-2.5"
+            className="rounded-lg border border-steel-line bg-panel px-3 py-2.5"
           >
             <div className="flex items-center gap-2">
               <span className="font-display text-[11px] font-bold text-bone-faint">
@@ -241,7 +242,7 @@ function KeepMock() {
           { k: "Calls won", v: "27" },
           { k: "Duels", v: "19-4" },
         ].map((s) => (
-          <div key={s.k} className="glass-sm rounded-xl border border-steel-line bg-panel py-2">
+          <div key={s.k} className="rounded-lg border border-steel-line bg-panel py-2">
             <p className="tnum font-display text-sm font-semibold text-gold-bright">{s.v}</p>
             <p className="text-[9px] uppercase tracking-[0.14em] text-bone-faint">{s.k}</p>
           </div>
@@ -261,15 +262,7 @@ export function PlatformPreview() {
   const yB = useTransform(scrollYProgress, [0, 1], [-24, 24]);
 
   return (
-    <motion.section
-      id="realm"
-      ref={ref}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass relative scroll-mt-28 overflow-hidden p-7 sm:p-9"
-    >
+    <Card render={<motion.section id="realm" ref={ref} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative scroll-mt-28 overflow-hidden p-7 sm:p-9">
       {/* Ambient premium glow: warm gold meeting a cool steel edge */}
       <div
         aria-hidden="true"
@@ -317,6 +310,6 @@ export function PlatformPreview() {
           <KeepMock />
         </motion.div>
       </div>
-    </motion.section>
+    </Card>
   );
 }

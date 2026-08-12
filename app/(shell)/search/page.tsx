@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
@@ -58,7 +59,7 @@ function SearchFallback() {
   return (
     <StreamColumn className="px-4 py-6">
       <BackButton />
-      <div className="glass mt-4 h-12 animate-pulse rounded-2xl" />
+      <Card pad="none" className="mt-4 h-12 animate-pulse" />
     </StreamColumn>
   );
 }
@@ -145,20 +146,16 @@ function SearchBody() {
             Searching the realm...
           </div>
         ) : empty ? (
-          <div className="glass p-8 text-center text-sm text-bone-mut">
+          <Card pad="none" className="p-8 text-center text-sm text-bone-mut">
             Nothing found for &ldquo;{query.trim()}&rdquo;.
-          </div>
+          </Card>
         ) : (
           results && (
             <div className="flex flex-col gap-6">
               {results.cashtags.length > 0 && (
                 <Section label="Cashtags">
                   {results.cashtags.map((c) => (
-                    <Link
-                      key={c.tag}
-                      href={`/coin/${encodeURIComponent(c.tag)}?sym=${encodeURIComponent(c.tag)}`}
-                      className="glass glass-sm flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30"
-                    >
+                    <Card key={c.tag} render={<Link href={`/coin/${encodeURIComponent(c.tag)}?sym=${encodeURIComponent(c.tag)}`} />} radius="lg" pad="none" className="flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-panel-warm text-sm font-semibold text-gold">
                         $
                       </span>
@@ -172,7 +169,7 @@ function SearchBody() {
                         </p>
                       </div>
                       <Icon name="arrow" className="h-4 w-4 shrink-0 text-bone-faint" />
-                    </Link>
+                    </Card>
                   ))}
                 </Section>
               )}
@@ -183,11 +180,7 @@ function SearchBody() {
                     const name =
                       u.displayName ?? (u.handle ? `@${u.handle}` : "A member");
                     return (
-                      <Link
-                        key={u.id}
-                        href={u.handle ? `/u/${u.handle}` : "#"}
-                        className="glass glass-sm flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30"
-                      >
+                      <Card key={u.id} render={<Link href={u.handle ? `/u/${u.handle}` : "#"} />} radius="lg" pad="none" className="flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30">
                         {u.avatarUrl ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
@@ -216,7 +209,7 @@ function SearchBody() {
                             </p>
                           )}
                         </div>
-                      </Link>
+                      </Card>
                     );
                   })}
                 </Section>
@@ -229,11 +222,7 @@ function SearchBody() {
                       p.author.displayName ??
                       (p.author.handle ? `@${p.author.handle}` : "A member");
                     return (
-                      <Link
-                        key={p.id}
-                        href={`/post/${p.id}`}
-                        className="glass glass-sm flex flex-col gap-1.5 px-3.5 py-3 transition hover:border-gold/30"
-                      >
+                      <Card key={p.id} render={<Link href={`/post/${p.id}`} />} radius="lg" pad="none" className="flex flex-col gap-1.5 px-3.5 py-3 transition hover:border-gold/30">
                         <div className="flex items-center gap-2">
                           {p.author.avatarUrl ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
@@ -252,7 +241,7 @@ function SearchBody() {
                           </span>
                         </div>
                         <p className="line-clamp-2 text-sm text-bone">{p.body}</p>
-                      </Link>
+                      </Card>
                     );
                   })}
                 </Section>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { motion, type Variants } from "framer-motion";
 import { LandingIcon } from "@/components/landing/icons";
 import { ScrollRail } from "@/components/landing/scroll-rail";
@@ -117,11 +118,7 @@ export function TheTools() {
       <motion.div variants={rise} className="mt-7">
         <ScrollRail ariaLabel="The tools">
           {tools.map((t) => (
-            <Link
-              key={t.name}
-              href={t.href}
-              className="group glass glass-hover snap-start shrink-0 flex w-[76vw] max-w-[300px] flex-col p-5 sm:w-[280px]"
-            >
+            <Card key={t.name} render={<Link href={t.href} />} pad="none" interactive className="group   snap-start shrink-0 flex w-[76vw] max-w-[300px] flex-col p-5 sm:w-[280px]">
               <Icon3D name={icon3dFor(t.href) ?? "workshop"} size="md" />
               <p className="mt-4 font-display text-base font-semibold text-bone">
                 {t.name}
@@ -139,7 +136,7 @@ export function TheTools() {
                 Open
                 <LandingIcon name="arrowRight" className="h-3.5 w-3.5" />
               </span>
-            </Link>
+            </Card>
           ))}
         </ScrollRail>
       </motion.div>

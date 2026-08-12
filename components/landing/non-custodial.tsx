@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { motion, type Variants } from "framer-motion";
 import { LandingIcon } from "@/components/landing/icons";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
@@ -72,10 +73,7 @@ export function NonCustodial() {
       <motion.div variants={rise} className="mt-7">
         <ScrollRail ariaLabel="Non-custodial promises">
           {vows.map((v) => (
-            <article
-              key={v.title}
-              className="glass snap-start shrink-0 w-[72vw] max-w-[300px] p-5 sm:w-[280px]"
-            >
+            <Card key={v.title} render={<article />} pad="none" className="snap-start shrink-0 w-[72vw] max-w-[300px] p-5 sm:w-[280px]">
               <Icon3D name={v.icon} size="md" />
               <h3 className="mt-4 font-display text-base font-semibold text-bone">
                 {v.title}
@@ -83,7 +81,7 @@ export function NonCustodial() {
               <p className="mt-2 text-[13px] leading-relaxed text-bone-mut">
                 {v.body}
               </p>
-            </article>
+            </Card>
           ))}
         </ScrollRail>
       </motion.div>

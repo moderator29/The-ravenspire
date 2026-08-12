@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Card } from "@/components/ui/card";
 import {
   motion,
   useInView,
@@ -74,13 +75,7 @@ function Counter({ value, suffix }: { value: number; suffix?: string }) {
 
 export function StatsStrip() {
   return (
-    <motion.section
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass relative overflow-hidden p-7 sm:p-9"
-    >
+    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
       {/* Soft gold aura, gently pulsing behind the numbers */}
       <motion.div
         aria-hidden="true"
@@ -110,6 +105,6 @@ export function StatsStrip() {
           </motion.div>
         ))}
       </div>
-    </motion.section>
+    </Card>
   );
 }

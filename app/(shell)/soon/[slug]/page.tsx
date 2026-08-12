@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { notFound } from "next/navigation";
 import { Icon3D } from "@/components/ui/icon-3d";
 import { BackButton } from "@/components/shell/back-button";
@@ -23,7 +24,7 @@ export default async function ComingSoonPage({
       <div className="w-full max-w-md self-center">
         <BackButton />
       </div>
-      <div className="glass mt-6 flex w-full max-w-md flex-col items-center p-8">
+      <Card pad="none" className="mt-6 flex w-full max-w-md flex-col items-center p-8">
         <span className="hairline mb-5 rounded-[--radius-sm] bg-panel-warm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-gold">
           Chapter II
         </span>
@@ -43,7 +44,7 @@ export default async function ComingSoonPage({
         <p className="mt-3 text-[11px] text-bone-faint">
           A raven will find you the day this chapter opens.
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

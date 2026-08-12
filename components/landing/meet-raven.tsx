@@ -92,7 +92,7 @@ export function MeetRaven() {
         {/* Powers */}
         <div className="flex flex-col gap-3">
           {powers.map((p) => (
-            <Card key={p.title} render={<motion.div variants={rise} />} radius="lg" pad="none" className="flex items-start gap-3 rounded-2xl border border-steel-line bg-panel p-4">
+            <Card key={p.title} render={<motion.div variants={rise} />} radius="lg" pad="none" className="flex items-start gap-3 border border-steel-line bg-panel p-4">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/25 bg-void text-gold">
                 <Icon name={p.icon} className="h-5 w-5" />
               </span>
@@ -105,7 +105,7 @@ export function MeetRaven() {
         </div>
 
         {/* Chat + demo card */}
-        <Card render={<motion.div variants={rise} />} radius="lg" pad="none" className="rounded-2xl border border-steel-line bg-void/50 p-4">
+        <Card render={<motion.div variants={rise} />} radius="lg" pad="none" className="border border-steel-line bg-void/50 p-4">
           <div className="flex flex-col gap-3">
             {chat.map((m, i) =>
               m.from === "user" ? (
@@ -119,7 +119,7 @@ export function MeetRaven() {
                   <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-void text-gold">
                     <Icon name="raven" className="h-3.5 w-3.5" />
                   </span>
-                  <Card radius="lg" pad="none" className="max-w-[85%] rounded-2xl rounded-tl-md px-3.5 py-2 text-[13px] text-bone-mut">
+                  <Card radius="lg" pad="none" className="max-w-[85%] px-3.5 py-2 text-[13px] text-bone-mut">
                     {m.text}
                   </Card>
                 </div>

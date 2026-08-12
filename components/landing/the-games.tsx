@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { motion, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 import { Icon3D } from "@/components/ui/icon-3d";
@@ -52,14 +53,7 @@ function Feature({ icon, text }: { icon: string; text: string }) {
 
 export function TheGames() {
   return (
-    <motion.section
-      id="games"
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass scroll-mt-28 p-7 sm:p-9"
-    >
+    <Card render={<motion.section id="games" initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="scroll-mt-28 p-7 sm:p-9">
       <motion.div
         variants={rise}
         className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold"
@@ -161,6 +155,6 @@ export function TheGames() {
           </div>
         </motion.div>
       </div>
-    </motion.section>
+    </Card>
   );
 }

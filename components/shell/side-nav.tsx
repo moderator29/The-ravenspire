@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -207,10 +208,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
       </Link>
 
       {authenticated ? (
-        <Link
-          href="/keep"
-          className="glass glass-sm mb-1 flex items-center gap-2.5 rounded-[--radius-lg] p-2.5 transition-colors duration-150 hover:border-gold/30"
-        >
+        <Card render={<Link href="/keep" />} radius="lg" pad="none" className="mb-1 flex items-center gap-2.5 p-2.5 transition-colors duration-150 hover:border-gold/30">
           {avatarUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -230,9 +228,9 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
             <p className="truncate text-[11px] text-bone-faint">View your Keep</p>
           </div>
           <StreakFlame className="shrink-0" />
-        </Link>
+        </Card>
       ) : (
-        <div className="glass glass-sm mb-1 rounded-[--radius-lg] p-2.5">
+        <Card radius="lg" pad="none" className="mb-1 p-2.5">
           <div className="flex items-center gap-2.5">
             <div className="hairline flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-void text-bone-mut">
               <Icon name="user" className="h-[18px] w-[18px]" />
@@ -255,7 +253,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
           >
             Sign in
           </Button>
-        </div>
+        </Card>
       )}
 
       {/* The anchors. Always visible, never collapsed. */}

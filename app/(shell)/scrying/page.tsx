@@ -346,10 +346,10 @@ export default function ScryingPage() {
               const up = (t.change24h ?? 0) >= 0;
               const cap = t.marketCap ?? t.fdv;
               return (
-                <Card
+                <Card radius="lg"
                   key={`${t.chainId}-${t.address}-${i}`}
                   pad="none"
-                  className="flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2.5 md:min-h-9 md:py-1.5"
+                  className="flex min-h-11 items-center gap-2.5 px-3 py-2.5 md:min-h-9 md:py-1.5"
                 >
                   <span className="tnum w-5 shrink-0 text-center text-[11px] text-bone-faint">
                     {i + 1}

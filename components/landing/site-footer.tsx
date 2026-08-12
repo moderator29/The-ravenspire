@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
@@ -38,13 +39,7 @@ const socials = [
 
 export function SiteFooter() {
   return (
-    <motion.footer
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6 }}
-      className="glass mt-6 p-8 sm:p-10"
-    >
+    <Card render={<motion.footer initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.6 }} />} pad="none" className="mt-6 p-8 sm:p-10">
       <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
         <div className="col-span-2 sm:col-span-1">
           <div className="flex items-center gap-2.5">
@@ -84,7 +79,7 @@ export function SiteFooter() {
           &copy; {new Date().getFullYear()} The Ravenspire
         </p>
       </div>
-    </motion.footer>
+    </Card>
   );
 }
 

@@ -140,7 +140,7 @@ export default async function SafetyReportPage({
         </p>
 
         {!report ? (
-          <div className="glass mt-6 p-8 text-center text-sm text-bone-mut">
+          <Card pad="none" className="mt-6 p-8 text-center text-sm text-bone-mut">
             <Icon name="search" className="mx-auto mb-3 h-6 w-6 text-bone-faint" />
             The Watch could not read a verdict for this contract yet, it may be
             too new to have been analysed, or the wall was unreachable.
@@ -150,10 +150,10 @@ export default async function SafetyReportPage({
             >
               Try a live scan in The Watch
             </Link>
-          </div>
+          </Card>
         ) : (
           <>
-            <div className="glass mt-6 p-6 text-center">
+            <Card pad="none" className="mt-6 p-6 text-center">
               <p
                 className={`tnum font-display text-5xl font-semibold ${scoreColor}`}
               >
@@ -167,13 +167,13 @@ export default async function SafetyReportPage({
               >
                 {report.headline}
               </p>
-            </div>
+            </Card>
 
             {GROUPS.map((g) => {
               const rows = report.checks.filter((c) => c.group === g.id);
               if (rows.length === 0) return null;
               return (
-                <div key={g.id} className="glass mt-3 p-2">
+                <Card key={g.id} pad="none" className="mt-3 p-2">
                   <p className="px-3 pb-1 pt-2 text-[11px] uppercase tracking-[0.2em] text-bone-faint">
                     {g.label}
                   </p>
@@ -197,11 +197,11 @@ export default async function SafetyReportPage({
                       </div>
                     ))}
                   </div>
-                </div>
+                </Card>
               );
             })}
 
-            <div className="glass glass-sm mt-3 flex items-center justify-between px-4 py-3 text-sm">
+            <Card radius="lg" pad="none" className="mt-3 flex items-center justify-between px-4 py-3 text-sm">
               <span className="text-bone-mut">
                 Trade taxes
                 {report.raw.taxSource === "simulation" && (
@@ -212,7 +212,7 @@ export default async function SafetyReportPage({
                 Buy {report.raw.buyTax.toFixed(1)}% / Sell{" "}
                 {report.raw.sellTax.toFixed(1)}%
               </span>
-            </div>
+            </Card>
 
             {report.explorer && (
               <Button
