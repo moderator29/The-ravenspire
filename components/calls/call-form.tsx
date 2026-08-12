@@ -460,8 +460,17 @@ export function CallForm({
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <Field label="Window" className="shrink-0">
+        <Field label="Window" className="w-full sm:w-auto sm:shrink-0">
+          {/* `block`, because "7d" measured 40.1x44 at 390px: four pixels
+              short on the horizontal axis, produced by nothing but a short
+              label, and invisible to anyone reading the source. A window is
+              exactly the two or three way switcher that owns its row on a
+              phone, which is what this prop is for, and an equal share of a
+              332px row is 108px per segment. The three labels are the domain's
+              own timeframes and widening them to reach the target would be
+              working around the measurement rather than fixing it. */}
           <SegmentedControl
+            block
             label="Call window"
             items={TIMEFRAMES}
             value={draft.timeframe}
@@ -530,8 +539,16 @@ export function CallForm({
       {/* The panel that makes this a skill game. Nothing in it is estimated on
           the client: pi_0 and sigma come back from the same server path that
           seals the Call, and the outlook is the real scoring function run over
-          that pi_0. */}
-      <div className="rounded-lg border border-steel-line bg-obsidian/60 p-3">
+          that pi_0.
+
+          The Card primitive's `inset` variant rather than the same three
+          classes written out by hand, which is what this was. They were the
+          right three classes and they were missing the fourth: `inset` carries
+          `--shadow-well`, so the block reads as recessed into the card holding
+          it instead of being told apart from its parent by a background colour
+          and nothing else. This is the deepest nested surface in the composer
+          and it was the flattest. */}
+      <Card variant="inset" radius="lg" pad="sm">
         {showSkeleton && (
           <div className="flex flex-col gap-2">
             <Skeleton radius="sm" className="h-3 w-32" />
@@ -741,7 +758,7 @@ export function CallForm({
             )}
           </div>
         )}
-      </div>
+      </Card>
     </Card>
   );
 }

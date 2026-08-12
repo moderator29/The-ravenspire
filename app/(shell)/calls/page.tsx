@@ -14,6 +14,7 @@ import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import {
   StreamCard,
   StreamCardSkeleton,
+  StreamChipRail,
   StreamColumn,
   StreamEmpty,
   StreamList,
@@ -46,6 +47,19 @@ const VIEWS = [
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]["key"];
+
+/* A query string is anything the world types, so it is read rather than cast.
+
+   `params.get("view") as ViewKey` was a lie the type system could not catch,
+   and it took the whole route down: `Empty` looks its copy up in a record
+   keyed by ViewKey, so /calls?view=anything found `undefined`, read `.title`
+   off it and threw into the error boundary. Measured, not read: driving
+   /calls?view=empty at 390px rendered the boundary's Reload and Back controls
+   instead of the page. A stale link, a typo or a shared URL was enough. */
+function readView(raw: string | null): ViewKey {
+  const hit = VIEWS.find((v) => v.key === raw);
+  return hit ? hit.key : "live";
+}
 
 interface Author {
   handle: string | null;
@@ -357,7 +371,7 @@ function Empty({ view }: { view: ViewKey }) {
 
 function CallsBody() {
   const params = useSearchParams();
-  const view = (params.get("view") ?? "live") as ViewKey;
+  const view = readView(params.get("view"));
   const [calls, setCalls] = useState<CallItem[] | null>(null);
   const [callers, setCallers] = useState<Caller[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -408,30 +422,77 @@ function CallsBody() {
       </header>
 
       {/* Desktop view switcher. On mobile the dock carries this as its sub
-          navigation, so it is hidden below the large breakpoint. */}
-      <div
-        role="tablist"
-        aria-label="Calls views"
-        className="scrollbar-none mt-4 hidden gap-1.5 overflow-x-auto lg:flex"
-      >
-        {VIEWS.map((v) => {
-          const active = v.key === view;
-          return (
-            <Link
-              key={v.key}
-              role="tab"
-              aria-selected={active}
-              href={v.key === "live" ? "/calls" : `/calls?view=${v.key}`}
-              className={`shrink-0 rounded-[--radius-md] border px-3 py-1.5 text-[13px] font-medium transition-colors duration-150 ${
-                active
-                  ? "border-gold/40 bg-gold/15 text-gold-bright"
-                  : "border-steel-line/70 bg-void/60 text-bone-mut hover:text-bone"
-              }`}
-            >
-              {v.label}
-            </Link>
-          );
-        })}
+          navigation (lib/nav.ts, subNav["/calls"]), so it is hidden below the
+          large breakpoint.
+
+          Rebuilt on the primitives, and three separate defects came out of
+          measuring it rather than reading it.
+
+          One: `rounded-[--radius-md]` compiled to nothing. Tailwind v4 takes a
+          square bracket value verbatim, so this emitted `border-radius:
+          --radius-md`, which is not a length, and the declaration was dropped.
+          `getComputedStyle` reported 0px on all five chips while the class sat
+          in the attribute looking correct. Every other control in the realm is
+          a rounded rectangle and these five were squares. The v4 spelling for
+          a token is `rounded-(--radius-md)`, but the rung belongs to Button
+          anyway, so the class is gone rather than corrected.
+
+          Two: 33.5px tall, measured at 1024x768 with `hasTouch`. `lg` is not
+          the same question as "has a mouse": a tablet clears the breakpoint
+          and still points with a finger, so this row was a real touch target
+          failure rather than a desktop-only affordance. Button carries
+          `touch:min-h-11` and `touch:min-w-11` in its base, which puts the
+          floor on both axes exactly where the pointer is coarse and leaves the
+          compact height alone for a mouse.
+
+          Three: it claimed to be a tablist. These are links that navigate to
+          five different URLs and there is no tab panel anywhere on the page,
+          so `role="tab"` and `aria-selected` promised a screen reader a widget
+          that does not exist. Section 3 of the design system names this exact
+          row as a chip rail, and a chip rail says which one you are on with
+          `aria-current`. */}
+      <div className="mt-4 hidden lg:block">
+        <StreamChipRail label="Calls views">
+          {VIEWS.map((v) => {
+            const active = v.key === view;
+            return (
+              <Button
+                key={v.key}
+                /* Ghost, not glass, and the checker is why: glass paints a
+                   gradient image, and a background colour under an image is
+                   invisible whatever order the classes sit in. That is the
+                   same defect the Card `raised` variant exists to fix, and
+                   `bg-none` alongside it would be relying on how mergeClasses
+                   happens to bucket two `bg-` names rather than on something a
+                   reader can see. Ghost has no image to fight, which is what
+                   makes "filled gold at low opacity" expressible at all.
+
+                   Flat at rest is also right here rather than a concession: a
+                   rail of five is exactly the row Button's ghost variant is
+                   documented for, and five edge shadows side by side would
+                   flatten the one distinction the rail is drawing. The press
+                   physics still arrive from Button's base, so a chip sinks
+                   under a thumb like every other control in the realm. */
+                variant="ghost"
+                size="md"
+                tone={active ? "gold" : "steel"}
+                aria-current={active ? "page" : undefined}
+                render={
+                  <Link
+                    href={v.key === "live" ? "/calls" : `/calls?view=${v.key}`}
+                  />
+                }
+                className={
+                  active
+                    ? "shrink-0 bg-gold/15 text-gold-bright hover:bg-gold/20"
+                    : "shrink-0 bg-void/60 hover:bg-panel"
+                }
+              >
+                {v.label}
+              </Button>
+            );
+          })}
+        </StreamChipRail>
       </div>
     </>
   );

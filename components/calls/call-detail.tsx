@@ -167,7 +167,11 @@ function ProgressLine({ call, live }: { call: CallData; live: { price: number } 
             : "Needs any move"}
         </span>
       </div>
-      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-sm bg-steel-deep">
+      {/* The track is a recess and now says so. `--shadow-well` is lit from
+          the same upper left as everything else, so its occlusion falls along
+          the top edge and the fill reads as sitting inside the channel rather
+          than as two flat colours meeting. */}
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-sm bg-steel-deep shadow-well">
         <div
           className="h-full origin-left rounded-sm bg-[image:linear-gradient(90deg,var(--gold-deep),var(--gold-bright))] transition-transform duration-base ease-out-quint"
           style={{ transform: `scaleX(${Math.max(p.fraction, 0.002)})` }}
@@ -446,7 +450,29 @@ export function CallDetailView({ id }: { id: string }) {
         </TabsList>
 
         <TabsPanel value="case" className="mt-3">
-          <div className="grid gap-3 lg:grid-cols-2">
+          {/* `grid-cols-1` is not decoration and it is not implied by having
+              one child. Without a base column definition the implicit track is
+              `auto`, whose floor is the min-content contribution of its widest
+              item, and a track is never shrunk below its floor. So a single
+              long name inside a `truncate` (which is `white-space: nowrap`,
+              and therefore has a min-content width equal to the whole string)
+              pushed the column out and every ancestor with it.
+
+              Measured on the Consensus tab at 390px: the column resolved to
+              455.078px inside a 358px container and
+              `document.documentElement.scrollWidth` read 472 against a
+              clientWidth of 390. The page scrolled sideways by 82px and
+              nothing in the class list said so. `min-w-0` on the flex child
+              does not help, because that governs flex shrinking inside a
+              definite width, not the min-content contribution an auto track
+              sizes itself from.
+
+              Tailwind's `grid-cols-N` is `repeat(N, minmax(0, 1fr))`, and the
+              zero minimum is the whole point: it lets the track be narrower
+              than its content, which is what makes `truncate` able to
+              truncate. Every Dossier grid in this file and in the caller
+              profile carries it for the same reason. */}
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Panel title="The read" icon="scroll">
               {data.rationale ? (
                 <p className="text-sm leading-relaxed text-bone-mut">
@@ -467,14 +493,22 @@ export function CallDetailView({ id }: { id: string }) {
 
             <Panel title="Evidence" icon="docs">
               {sources.length > 0 ? (
-                <ul className="flex flex-col gap-1.5">
+                <ul className="flex flex-col">
                   {sources.map((source) => (
-                    <li key={source}>
+                    <li key={source} className="min-w-0">
+                      {/* A row of its own, so it is a row sized target. This
+                          measured 324x32 at 390px: wide enough to hit by
+                          accident and short enough to miss on purpose, which
+                          is the worst of both. It is not the inline link in a
+                          sentence that the 44px floor forgives, it is the only
+                          way out of this card to the evidence, so it takes the
+                          floor. The negative margin lets the hover plate reach
+                          the card's padding edge without the text moving. */}
                       <a
                         href={source}
                         target="_blank"
                         rel="noopener noreferrer nofollow"
-                        className="flex items-center gap-2 rounded-sm px-1 py-1.5 text-sm text-gold transition-colors duration-fast hover:text-gold-bright"
+                        className="-mx-2 flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-gold transition-colors duration-fast hover:bg-panel hover:text-gold-bright"
                       >
                         <Icon name="share" className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">{sourceLabel(source)}</span>
@@ -522,7 +556,7 @@ export function CallDetailView({ id }: { id: string }) {
         </TabsPanel>
 
         <TabsPanel value="difficulty" className="mt-3">
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Panel title="How hard this is" icon="ledger">
               {band && pi0 !== null ? (
                 <>
@@ -617,7 +651,7 @@ export function CallDetailView({ id }: { id: string }) {
         </TabsPanel>
 
         <TabsPanel value="consensus" className="mt-3">
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Panel title="The crowd" icon="user">
               <p className="tnum text-sm text-bone-mut">
                 {call.consensus.independent} independent{" "}
@@ -647,21 +681,34 @@ export function CallDetailView({ id }: { id: string }) {
                   {call.consensus.callers.slice(0, 12).map((c) => (
                     <li
                       key={c.id}
-                      className="flex items-center gap-2.5 border-t border-steel-line py-2 first:border-t-0 first:pt-0"
+                      className="min-w-0 border-t border-steel-line first:border-t-0"
                     >
-                      <Avatar author={c.author ?? EMPTY_AUTHOR} size={26} />
+                      {/* The whole row is the link, not the name inside it.
+                          The name alone measured 286x20 at 390px, and it was
+                          the one target on the row: the avatar beside it and
+                          the verdict badge after it both looked like part of
+                          the same control and neither did anything. A row that
+                          reads as one thing should be one target, and at
+                          `min-h-11` it is one that can be hit. */}
                       <Link
                         href={`/calls/${c.id}`}
-                        className="min-w-0 flex-1 truncate text-sm text-bone-mut transition-colors duration-fast hover:text-bone"
+                        className="-mx-2 flex min-h-11 min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors duration-fast hover:bg-panel"
                       >
-                        {c.author?.display_name ?? c.author?.handle ?? "Unknown"}
-                      </Link>
-                      {c.confidence !== null && (
-                        <span className="tnum text-xs text-bone-faint">
-                          {Math.round(c.confidence * 100)}%
+                        <Avatar author={c.author ?? EMPTY_AUTHOR} size={26} />
+                        <span className="min-w-0 flex-1 truncate text-sm text-bone-mut">
+                          {c.author?.display_name ??
+                            c.author?.handle ??
+                            "Unknown"}
                         </span>
-                      )}
-                      <VerdictBadge verdict={c.verdict} />
+                        {c.confidence !== null && (
+                          <span className="tnum shrink-0 text-xs text-bone-faint">
+                            {Math.round(c.confidence * 100)}%
+                          </span>
+                        )}
+                        <span className="shrink-0">
+                          <VerdictBadge verdict={c.verdict} />
+                        </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>
