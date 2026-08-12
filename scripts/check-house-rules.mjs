@@ -73,14 +73,26 @@ function files(patterns) {
   return out.split("\n").filter(Boolean);
 }
 
-/* Rule 2: buttons, tabs, chips and toggles are clean rounded rectangles.
-   A rounded-full carrying horizontal padding is a chip, not a circle.
+/* Rule 9: buttons, tabs, chips and toggles are clean rounded rectangles.
+   A full radius carrying horizontal padding is a chip, not a circle.
+
+   Three spellings mean the same thing and the rule has to know all of them.
+   `rounded-full` is Tailwind's own; `rounded-[var(--radius-full)]` and
+   `rounded-[--radius-full]` reach for the realm's token. The first version of
+   this rule understood only the Tailwind spelling, which left the token form
+   completely unchecked across roughly twenty call sites. Nothing was hiding
+   there when this was extended, so it is a guard rather than a sweep, but it
+   is the spelling the primitives themselves use and therefore the one a new
+   capsule is most likely to be written in.
 
    Horizontal padding is not only `px-`. The floating compose bar shipped two
    pill shaped links written as `py-2 pl-3.5 pr-2`, and this check walked past
    both of them because it only understood the shorthand. Any of px, pl or pr
    means the control has width beyond its content, which is what makes a
    rounded-full a capsule rather than a circle. */
+const FULL_RADIUS =
+  /\brounded-(?:full|\[var\(--radius-full\)\]|\[--radius-full\])/;
+
 const HORIZONTAL_PAD = /\b(?:px|pl|pr)-[\d.]+/;
 
 /* The second way a capsule hides. A tab rail written as `flex gap-0.5
@@ -274,11 +286,11 @@ export const RULES = [
     globs: ["*.tsx"],
     check: (file, text) =>
       byLine(text, (line) => {
-        if (!line.includes("rounded-full")) return null;
+        if (!FULL_RADIUS.test(line)) return null;
         // No horizontal padding and not a row, so it is a circle.
         if (!HORIZONTAL_PAD.test(line) && !CAPSULE_ROW.test(line)) return null;
         if (PILL_ALLOWED.some((re) => re.test(line))) return null;
-        return "pill shaped control. Controls use --radius-sm through --radius-2xl, never rounded-full.";
+        return "pill shaped control. Controls use --radius-sm through --radius-2xl, never a full radius.";
       }),
   },
 

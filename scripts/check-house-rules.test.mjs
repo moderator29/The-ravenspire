@@ -125,6 +125,41 @@ describe("rule 9, capsules", () => {
     ).toHaveLength(1);
   });
 
+  it("catches a capsule written with the realm's own radius token", () => {
+    /* Three spellings mean the same thing. The first version of this rule knew
+       only Tailwind's, which left the token form unchecked at every call site
+       that used it, including the one the primitives themselves write. */
+    for (const radius of [
+      "rounded-full",
+      "rounded-[var(--radius-full)]",
+      "rounded-[--radius-full]",
+    ]) {
+      expect(
+        check("capsule", "a.tsx", `<button className="${radius} px-3">go</button>`),
+        radius
+      ).toHaveLength(1);
+    }
+  });
+
+  it("leaves the Sheet grab handle alone, which is a bar and not a control", () => {
+    /* A deliberate, commented exception in components/ui/sheet.tsx. It has a
+       full radius and no horizontal padding, so the existing shape test already
+       tells it apart from a capsule without needing to know the file. */
+    expect(
+      check(
+        "capsule",
+        "a.tsx",
+        '<div className="mx-auto mb-3 h-1 w-10 rounded-[var(--radius-full)] bg-steel-line" />'
+      )
+    ).toEqual([]);
+  });
+
+  it("leaves an avatar written with the token alone", () => {
+    expect(
+      check("capsule", "a.tsx", '<Avatar className="shrink-0 rounded-[var(--radius-full)]" />')
+    ).toEqual([]);
+  });
+
   it("leaves a genuinely circular icon button alone", () => {
     expect(
       check("capsule", "a.tsx", '<IconButton shape="circle" className="rounded-full p-2" />')
