@@ -833,6 +833,58 @@ than left implicit in the archetypes.
   resolve to one of the six archetypes. A screen that resolves to none is a
   screen without a purpose, and that is the signal to cut it.
 
+### 13.000 The frontend sweep ledger
+
+Live state of the sweep, so the next session starts from fact rather than from
+a guess. Updated as work lands.
+
+**Done and verified**
+
+- Zero `btn-gold` or `btn-glass` in live code, from 268 hand written buttons. A
+  checker rule fails any new use.
+- Thirteen primitives on Base UI. Console, Stream and Board each have exactly
+  one shell: `components/console/console-shell.tsx`,
+  `components/stream/stream-shell.tsx`, `components/board/board-shell.tsx`.
+- The six Stream routes are on the 640px law through `StreamColumn`. All six had
+  been hand rolling `max-w-2xl`, which is 672px, so the law existed and every
+  subject of it drifted by 32px.
+- Console density across the Vault, Swap, Watch, Scrying, Ledger, Forge and coin.
+- Mobile shell: 44px targets in the top bar, and the navigation drawer is a real
+  Sheet with a focus trap rather than a bare overlay.
+- Contrast, focus rings, live regions and dialog semantics across the product.
+- Three blind spots closed in the house rule checker itself, each of which
+  failed on a real violation the first time it ran.
+
+**Queued, in priority order**
+
+1. **Adopt Board on the member facing boards.** Leaderboards, House standings,
+   the House roster and the caller board are Boards by the design law and none
+   of them use the shell yet. Every one of them is a table today, so every one
+   of them is a horizontal scroll on a phone until it moves.
+2. **Archetype shells on the routes that still have none.** Roughly twenty
+   routes resolve to an archetype in the design law but do not use its shell.
+   The Dossier routes are the largest gap: the Keep, public profiles, House
+   halls and post detail.
+3. **The Ravenry card layer**, which is section 8 and the biggest single item.
+4. **Fix the primitive override defect** recorded in section 21. Caller class
+   overrides on `Card` and `Button` are silently dead in some cases because
+   `cx` assumes class attribute order decides CSS precedence, which is false.
+   Needs a deliberate visual pass, because the fix activates every currently
+   dead override at once.
+5. **Retire the `.glass` utilities** once the remaining raw usages are gone. The
+   class is frozen at a 24px radius that predates the radius scale and sits
+   outside Tailwind's layers, so it beats any `rounded-*` a caller applies.
+6. **Spacing scale enforcement** (`--spacing: initial`), which is approved but
+   breaks every existing `p-4` at once and needs its own mechanical pass.
+
+**Standing rules for this sweep**
+
+- Responsive is not a resize. Desktop and mobile get different layouts, and a
+  table becomes a card list below `md` rather than scrolling sideways.
+- Every conversion keeps behaviour identical unless the behaviour was the bug.
+- A primitive is added to `components/ui/` rather than re-derived in a feature
+  folder, and a shell is added under its own archetype folder.
+
 ### 13.1 What the measurements actually showed
 
 The problem was never "we lack a Button". It is that the ad-hoc layer quietly
