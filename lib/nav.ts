@@ -166,7 +166,13 @@ export type SubNavItem = { href: string; label: string };
 
 export const subNav: Record<string, SubNavItem[]> = {
   "/home": [
-    { href: "/home?tab=foryou", label: "For You" },
+    /* Bare `/home`, not `/home?tab=foryou`, and that is not cosmetic. The feed
+       deletes the `tab` param when it switches to For You, so the canonical URL
+       for that view has no param at all. The dock wrote the other spelling, so
+       arriving at the Ravenry lit no chip: five tabs and nothing current, on
+       the most visited screen in the realm. `/calls` already declares its
+       default view this way. */
+    { href: "/home", label: "For You" },
     { href: "/home?tab=following", label: "Following" },
     { href: "/home?tab=houses", label: "My House" },
     { href: "/home?tab=signal", label: "Signal" },
@@ -209,13 +215,30 @@ export const subNav: Record<string, SubNavItem[]> = {
   ],
 };
 
-/* The sub nav for a pathname, or null when the section has no depth. Matches
-   the longest declared prefix so /war/champions resolves to the War strip. */
+/* The sub nav for a pathname, or null when the section has no depth.
+
+   A strip is section navigation, so it belongs on a section's own
+   destinations and not on a page about one item. Prefix matching alone could
+   not tell those apart: /war/champions is a sub destination of the War and
+   /war/champions/[slug] is one champion, but both start with "/war".
+
+   The test that separates them is whether the strip can name where you are.
+   On /war/arsenal one chip is current; on a single champion, a single Call or
+   a single House hall, none is, so the strip renders five chips with nothing
+   lit and reads as a broken tab row. Worse on a House hall, which carries its
+   own three tabs: two navigations on one screen, disagreeing, which is the
+   exact defect the Houses index had.
+
+   So a pathname inherits a strip only when the strip contains it. The section
+   root always qualifies, because it is the strip's own first entry. */
 export function subNavFor(pathname: string): SubNavItem[] | null {
   const key = Object.keys(subNav)
     .filter((k) => pathname === k || pathname.startsWith(`${k}/`))
     .sort((a, b) => b.length - a.length)[0];
-  return key ? subNav[key] : null;
+  if (!key) return null;
+  const items = subNav[key];
+  const named = items.some((i) => i.href.split("?")[0] === pathname);
+  return named ? items : null;
 }
 
 export function findComingSoon(slug: string) {
