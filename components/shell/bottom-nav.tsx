@@ -164,7 +164,11 @@ export function BottomNav() {
                   key={item.href}
                   href={item.href}
                   aria-current={current ? "page" : undefined}
-                  className={`flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-[--radius-sm] border px-3.5 text-[12px] font-medium backdrop-blur-xl transition-colors duration-150 ${
+                  /* `shadow-edge`, like every other resting control. The strip
+                     sits directly above the dock, which carries the overlay
+                     shadow, so without any light of its own it read as painted
+                     onto the page while the bar below it floated. */
+                  className={`flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-[--radius-sm] border px-3.5 text-[12px] font-medium shadow-edge backdrop-blur-xl transition-colors duration-150 ${
                     current
                       ? "border-gold/40 bg-gold/15 text-gold-bright"
                       : "border-steel-line/70 bg-void/80 text-bone-mut active:text-bone"

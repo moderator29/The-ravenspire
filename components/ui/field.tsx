@@ -26,6 +26,17 @@ const CONTROL =
   /* The 44px floor on a finger, the same one the Button scale carries. A 36px
      text field is comfortable with a mouse and awkward with a thumb. */
   "touch:min-h-11 " +
+  /* A field is a recess, a button is a plate. That is the whole of the
+     physical language and the product only had half of it: buttons had a top
+     highlight and fields had nothing, so a disabled button and a text input
+     were the same object with different words on them. `well` puts the shadow
+     along the top edge, which reads as a surface you type into rather than one
+     you press.
+
+     It is also what makes the pair legible together. A form row of a field and
+     a button beside it now says which one accepts and which one acts, before
+     the member has read either label. */
+  "shadow-well " +
   "placeholder:text-bone-faint " +
   "transition-[border-color,box-shadow,background-color] duration-fast ease-out-quint " +
   "hover:border-steel " +
