@@ -94,6 +94,9 @@ export {
 } from "@/components/ui/skeleton";
 export type { SkeletonRadius } from "@/components/ui/skeleton";
 
+export { Meter } from "@/components/ui/meter";
+export type { MeterProps, MeterSize } from "@/components/ui/meter";
+
 export { EmptyState } from "@/components/ui/empty-state";
 export type {
   EmptyStateProps,

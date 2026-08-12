@@ -1,9 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { cx } from "@/components/ui/cx";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BackButton } from "@/components/shell/back-button";
 
 /* The Board archetype, expressed once.
 
@@ -29,6 +31,115 @@ import { Skeleton } from "@/components/ui/skeleton";
    instrument, not a trophy case. */
 
 /* -------------------------------------------------------------------------
+   The page frame
+
+   Console already holds its density pairs in one file rather than letting
+   every route re-derive them. Board had only the table, so each of the four
+   member facing boards was inventing its own column width, header band and
+   row height. These are the same three pieces, expressed once.
+
+     row height   min-h-11 md:min-h-9    44 -> 36
+     body text    text-sm md:text-[13px]
+     meta text    text-xs md:text-[11px]
+     section gap  gap-4 md:gap-3
+
+   Mobile is never compact: the card list keeps 44px targets whatever density
+   the table above `md` declares.
+   ------------------------------------------------------------------------- */
+
+export const BOARD_ROW = "min-h-11 md:min-h-9";
+export const BOARD_BODY = "text-sm md:text-[13px]";
+export const BOARD_META = "text-xs md:text-[11px]";
+export const BOARD_GAP = "gap-4 md:gap-3";
+
+type BoardWidth = "narrow" | "wide";
+
+/* A Board expands to fill, but only as far as its widest column set can use.
+   Four columns do not get more readable by being given a 1200px line. */
+const WIDTH: Record<BoardWidth, string> = {
+  narrow: "max-w-2xl lg:max-w-3xl",
+  wide: "max-w-2xl lg:max-w-4xl",
+};
+
+export function BoardPage({
+  width = "narrow",
+  className,
+  children,
+}: {
+  width?: BoardWidth;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cx(
+        "mx-auto w-full px-3 py-4 sm:px-4 sm:py-6 md:py-4",
+        WIDTH[width],
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* Back control, title, kicker, lede and page level actions, in one band.
+   House rule 16: every page that can be navigated into needs a back control,
+   so it is part of the header rather than an optional sibling. */
+export function BoardHeader({
+  title,
+  kicker,
+  lede,
+  actions,
+  backHref,
+  className,
+}: {
+  title: ReactNode;
+  kicker?: ReactNode;
+  lede?: ReactNode;
+  actions?: ReactNode;
+  backHref?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cx("flex flex-col gap-3 md:gap-2", className)}>
+      <BackButton {...(backHref ? { href: backHref } : {})} />
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate font-display text-xl font-semibold text-bone sm:text-2xl md:text-lg">
+            {title}
+          </h1>
+          {kicker ? (
+            <p className="mt-1 text-[11px] uppercase tracking-[0.26em] text-bone-faint md:mt-0.5">
+              {kicker}
+            </p>
+          ) : null}
+        </div>
+        {actions ? (
+          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        ) : null}
+      </div>
+      {lede ? (
+        <p className={cx("text-bone-mut", BOARD_BODY)}>{lede}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/* The vertical rhythm between Board sections. Compact above `md`. */
+export function BoardStack({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cx("flex flex-col", BOARD_GAP, className)}>{children}</div>
+  );
+}
+
+/* -------------------------------------------------------------------------
    Board
    ------------------------------------------------------------------------- */
 
@@ -46,6 +157,9 @@ export function Board<T>({
   columns,
   rows,
   rowKey,
+  rowHref,
+  rowLabel,
+  highlight,
   card,
 }: {
   /* Names the board for screen readers. */
@@ -53,6 +167,17 @@ export function Board<T>({
   columns: BoardColumn<T>[];
   rows: T[];
   rowKey: (row: T) => string;
+  /* Where the whole row navigates, if it navigates at all. A table row cannot
+     be an anchor, so this lays one link over the row and leaves it as the
+     row's single tab stop, rather than scattering a link into every cell.
+     Return null for a row with nowhere to go. */
+  rowHref?: (row: T) => string | null;
+  /* The accessible name for that row link. Required alongside `rowHref`,
+     because a link covering a row of cells has no text of its own. */
+  rowLabel?: (row: T) => string;
+  /* Marks the viewer's own row. One treatment, applied here, so "this is you"
+     never gets re-derived per board. */
+  highlight?: (row: T) => boolean;
   /* The card list rendered below `md`, where a wide table would have to
      scroll sideways. Section 10 forbids that. */
   card: (row: T) => ReactNode;
@@ -79,25 +204,40 @@ export function Board<T>({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr
-                key={rowKey(row)}
-                className="border-b border-steel-line transition-colors duration-fast ease-out-quint last:border-b-0 hover:bg-panel/60"
-              >
-                {columns.map((c) => (
-                  <td
-                    key={c.key}
-                    className={cx(
-                      "h-9 px-3 py-2 align-middle text-bone-mut",
-                      c.numeric && "tnum text-right",
-                      c.className
-                    )}
-                  >
-                    {c.cell(row)}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const href = rowHref?.(row) ?? null;
+              const mine = highlight?.(row) ?? false;
+              return (
+                <tr
+                  key={rowKey(row)}
+                  className={cx(
+                    "border-b border-steel-line transition-colors duration-fast ease-out-quint last:border-b-0 hover:bg-panel/60",
+                    href && "relative",
+                    mine && "bg-panel-warm/40"
+                  )}
+                >
+                  {columns.map((c, i) => (
+                    <td
+                      key={c.key}
+                      className={cx(
+                        "h-9 px-3 py-2 align-middle text-bone-mut",
+                        c.numeric && "tnum text-right",
+                        c.className
+                      )}
+                    >
+                      {i === 0 && href ? (
+                        <Link
+                          href={href}
+                          aria-label={rowLabel?.(row)}
+                          className="absolute inset-0"
+                        />
+                      ) : null}
+                      {c.cell(row)}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </Card>
@@ -119,22 +259,39 @@ export function Board<T>({
 export function BoardCard({
   title,
   subtitle,
+  leading,
+  trailing,
   badges,
   stats,
   actions,
+  href,
+  highlight,
+  className,
   children,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
+  /* Rank, sigil or avatar. Whatever identifies the row before its name does. */
+  leading?: ReactNode;
+  /* The one figure the board ranks on, kept beside the name rather than
+     buried in the stat grid. */
+  trailing?: ReactNode;
   badges?: ReactNode;
   stats?: { label: string; value: ReactNode }[];
   actions?: ReactNode;
+  /* Makes the whole card the row's link. A row that navigates on desktop must
+     navigate on a phone too, and a 44px card is the touch target. */
+  href?: string;
+  /* The viewer's own row. */
+  highlight?: boolean;
+  className?: string;
   children?: ReactNode;
 }) {
-  return (
-    <Card pad="sm" variant="inset">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+  const body = (
+    <>
+      <div className="flex items-start gap-3">
+        {leading ? <div className="shrink-0">{leading}</div> : null}
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-bone">{title}</p>
           {subtitle ? (
             <p className="mt-0.5 truncate text-xs text-bone-faint">
@@ -142,6 +299,9 @@ export function BoardCard({
             </p>
           ) : null}
         </div>
+        {trailing ? (
+          <div className="tnum shrink-0 text-right">{trailing}</div>
+        ) : null}
         {badges ? (
           <div className="flex shrink-0 flex-wrap justify-end gap-1">
             {badges}
@@ -167,6 +327,21 @@ export function BoardCard({
       {actions ? (
         <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
       ) : null}
+    </>
+  );
+
+  return (
+    <Card
+      pad="sm"
+      variant="inset"
+      {...(href ? { interactive: true, render: <Link href={href} /> } : {})}
+      className={cx(
+        "block min-h-11",
+        highlight && "border-gold/40 bg-panel-warm/40",
+        className
+      )}
+    >
+      {body}
     </Card>
   );
 }
