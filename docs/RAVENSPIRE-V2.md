@@ -860,7 +860,32 @@ a guess. Updated as work lands.
   Sheet with a focus trap rather than a bare overlay.
 - Contrast, focus rings, live regions and dialog semantics across the product.
 - Three blind spots closed in the house rule checker itself, each of which
-  failed on a real violation the first time it ran.
+  failed on a real violation the first time it ran. A fourth change made the em
+  dash rule structural: it recognises the AI output strip filter by its shape
+  rather than by a hand kept list of allowed routes, which had to be extended
+  every time an AI surface shipped and was extended late twice.
+- **The 3D icon set, sliced and placed.** 114 icons from four generated sheets,
+  2.0MB total, produced by `scripts/slice-icons.mjs` and named by a union the
+  script generates from what actually landed on disk. Four defects were fixed to
+  get there: a solid black background on one sheet, near zero rather than zero
+  alpha on another, neighbour fragments surviving as detached islands, and every
+  icon being upscaled past its native resolution.
+- **Surface identity.** `lib/nav.ts` declares an `icon3d` per surface and
+  `icon3dFor(href)` resolves a route to it, so a feature reads the same
+  everywhere it is presented. Placed on the landing page (tools shelf, vows,
+  pillars, both game cards, teasers, chapters), the Chronicle (per section), the
+  legal pages (a plain summary band above the legal one), onboarding (the oath),
+  the chapter pages and the eleven empty states that own their surface.
+  Deliberately absent from navigation and settings, where a flat stroke glyph is
+  correct and an illustration is noise.
+- **Both faces self hosted.** `next/font/google` downloads at build time and
+  does not fall back, so a build that cannot reach fonts.gstatic.com dies on a
+  module resolution error that names no network problem. CI went red on it once,
+  on a commit that touched nothing but images. 74KB committed, nothing fetched
+  from Google at build or run time.
+- **Builds no longer block each other.** `NEXT_DIST_DIR` overrides the output
+  directory. Next locks `.next`, so a second build in a shared checkout exits
+  rather than queueing, and its message looks nothing like a compile error.
 
 **Queued, in priority order**
 
