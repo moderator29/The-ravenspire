@@ -5,6 +5,7 @@ import type { WalletToken } from "@/components/wallet/wallet-token-types";
 import type { CustomToken } from "@/components/wallet/wallet-prefs";
 import { evmChainById } from "@/components/wallet/chains";
 import { realmFetch } from "@/lib/auth/api";
+import { withDeadline } from "@/lib/deadline";
 
 interface BalancesResponse {
   configured: boolean;
@@ -51,9 +52,16 @@ export function useWalletTokens(
     setError(null);
     void (async () => {
       try {
-        const res = await realmFetch<BalancesResponse>(
-          `/api/wallet/balances?address=${address}`,
-          { cache: "no-store" }
+        /* The deadline is what makes the catch and the finally below
+           reachable. `loading` is what draws the Vault's skeleton, and it is
+           only ever cleared in that finally, so a read that never answers left
+           the member's balance as a pulsing grey bar for as long as they
+           stayed on the page. A rejection they already handle honestly. */
+        const res = await withDeadline(
+          realmFetch<BalancesResponse>(
+            `/api/wallet/balances?address=${address}`,
+            { cache: "no-store" }
+          )
         );
         const body = res.data ?? { configured: true, error: "unreachable" };
         if (cancelled) return;
