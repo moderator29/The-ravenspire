@@ -2,6 +2,7 @@ import "server-only";
 import type { adminClient } from "@/lib/supabase/admin";
 import type { SessionProfile } from "@/lib/auth/server";
 import type { Post } from "@/lib/social/types";
+import { postFeedId } from "@/lib/feed/types";
 
 /* C1: the single place where a raven's audience is decided.
  *
@@ -197,7 +198,7 @@ function feedTime(p: Post): number {
 async function loadReposts(
   db: Db,
   viewer: FeedViewer,
-  opts: { tab: FeedTab; before?: string }
+  opts: { tab: FeedTab; before?: string; inclusive?: boolean }
 ): Promise<Post[]> {
   let q = db
     .from("reposts")
@@ -206,7 +207,10 @@ async function loadReposts(
     )
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE);
-  if (opts.before) q = q.lt("created_at", opts.before);
+  if (opts.before)
+    q = opts.inclusive
+      ? q.lte("created_at", opts.before)
+      : q.lt("created_at", opts.before);
   if (opts.tab === "following") {
     if (!viewer.followingIds.length) return [];
     q = q.in("profile_id", viewer.followingIds);
@@ -238,11 +242,22 @@ async function loadReposts(
     });
 }
 
-/* One page of the Ravenry for this viewer, audience already applied. */
+/* One page of the Ravenry for this viewer, audience already applied.
+ *
+ * `before` is the keyset cursor. On its own it means strictly older; paired
+ * with `exclude` it means the instant itself is read again with those feed ids
+ * dropped, so a page boundary landing inside a group of rows stamped the same
+ * instant does not lose the rest of the group. lib/feed/compose.ts is what
+ * builds the pair. */
 export async function loadFeed(
   db: Db,
   viewer: FeedViewer,
-  opts: { tab: FeedTab; before?: string; houseSlug?: string | null }
+  opts: {
+    tab: FeedTab;
+    before?: string;
+    exclude?: readonly string[];
+    houseSlug?: string | null;
+  }
 ): Promise<Post[]> {
   const isSignal = opts.tab === "signal";
   /* The House hall passes its own slug (any House page is readable); every
@@ -253,6 +268,7 @@ export async function loadFeed(
   if (opts.tab === "houses" && !houseSlug) return [];
   if (opts.tab === "following" && !viewer.followingIds.length) return [];
 
+  const exclude = new Set(opts.exclude ?? []);
   let q = db
     .from("posts")
     .select(POST_SELECT)
@@ -260,7 +276,11 @@ export async function loadFeed(
     .or(visibilityOrClause(viewer))
     .order("created_at", { ascending: false })
     .limit(isSignal ? SIGNAL_WINDOW : PAGE_SIZE);
-  if (opts.before) q = q.lt("created_at", opts.before);
+  if (opts.before)
+    q =
+      exclude.size > 0
+        ? q.lte("created_at", opts.before)
+        : q.lt("created_at", opts.before);
   if (isSignal) q = q.eq("kind", "call");
   if (houseSlug) q = q.eq("house_slug", houseSlug);
   if (opts.tab === "following") q = q.in("author_id", viewer.followingIds);
@@ -268,7 +288,8 @@ export async function loadFeed(
   const { data } = await q;
   const posts: Post[] = ((data ?? []) as unknown as (Post & Gated)[])
     .filter((p) => canView(p, viewer))
-    .map((p) => ({ ...p, effectiveTime: p.created_at }));
+    .map((p) => ({ ...p, effectiveTime: p.created_at }))
+    .filter((p) => !exclude.has(postFeedId(p)));
 
   /* Signal = top by verified outcome. Hits lead (proven right), then still
      open calls (live claims), then misses; ties break on recency. */
@@ -293,10 +314,13 @@ export async function loadFeed(
   if (!REPOST_TABS.includes(opts.tab))
     return attachViewerFlags(db, posts, viewer.id);
 
-  const reposts = await loadReposts(db, viewer, {
-    tab: opts.tab,
-    before: opts.before,
-  });
+  const reposts = (
+    await loadReposts(db, viewer, {
+      tab: opts.tab,
+      before: opts.before,
+      inclusive: exclude.size > 0,
+    })
+  ).filter((p) => !exclude.has(postFeedId(p)));
   /* Merge and order by feed time so re-ravens surface at their re-raven
      moment; cap to a single page's worth. */
   const merged = [...posts, ...reposts]

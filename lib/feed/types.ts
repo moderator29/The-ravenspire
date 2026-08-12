@@ -37,10 +37,22 @@ export type FeedItem =
   | { type: "post"; id: string; at: string; post: Post }
   | { type: "event"; id: string; at: string; event: FeedEvent };
 
+/* A raven's identity as a feed item.
+ *
+ * Not simply its id: the same raven legitimately appears twice in one timeline,
+ * once as itself and once as somebody's re-raven, and the cursor names items by
+ * this id when it says what an instant already gave up. Two rows that share an
+ * id would make one of them undroppable and the other unreachable. */
+export function postFeedId(post: Post): string {
+  return post.repostedBy && post.effectiveTime
+    ? `${post.id}@${post.effectiveTime}`
+    : post.id;
+}
+
 export function postItem(post: Post): FeedItem {
   return {
     type: "post",
-    id: post.id,
+    id: postFeedId(post),
     at: post.effectiveTime ?? post.created_at,
     post,
   };
@@ -50,13 +62,10 @@ export function eventItem(event: FeedEvent): FeedItem {
   return { type: "event", id: event.id, at: event.created_at, event };
 }
 
-/* A stable React key. A raven can legitimately appear twice in one timeline,
-   once as itself and once as somebody's re-raven, so the time it took its
-   position from is part of its identity. */
+/* A stable React key, namespaced so a post id and an event id can never
+   collide. */
 export function feedItemKey(item: FeedItem): string {
-  return item.type === "post"
-    ? `post:${item.id}:${item.at}`
-    : `event:${item.id}`;
+  return `${item.type}:${item.id}`;
 }
 
 /* Who an item is attributed to, for the block and mute lists the reader keeps.

@@ -69,8 +69,13 @@ export function canViewEvent(row: RealmEventRow, viewer: FeedViewer): boolean {
 }
 
 export interface EventQuery {
-  /* Keyset cursor: return only events strictly older than this ISO time. */
+  /* Keyset cursor: where the previous page stopped. Without `exclude` this
+     means strictly older than the given ISO time. With it, the instant itself
+     is read again and the named ids are dropped, which is how a batch of
+     events written by one emitMany, all stamped the same now(), survives a
+     page boundary that falls inside it. */
   before?: string | null | undefined;
+  exclude?: readonly string[] | null | undefined;
   /* Narrowing, each validated against a known set by the caller. */
   kinds?: readonly string[] | undefined;
   houseSlug?: string | null | undefined;
@@ -110,16 +115,20 @@ export async function loadRealmEvents(
   if (opts.houseSlug) q = q.eq("house_slug", opts.houseSlug);
   if (opts.actorIds && opts.actorIds.length > 0)
     q = q.in("actor_id", opts.actorIds);
+  const exclude = new Set(opts.exclude ?? []);
   if (opts.before) {
     const cursor = new Date(opts.before);
-    if (!Number.isNaN(cursor.getTime()))
-      q = q.lt("created_at", cursor.toISOString());
+    if (!Number.isNaN(cursor.getTime())) {
+      const iso = cursor.toISOString();
+      q = exclude.size > 0 ? q.lte("created_at", iso) : q.lt("created_at", iso);
+    }
   }
 
   const { data, error } = await q;
   if (error) return [];
 
   return ((data ?? []) as RealmEventRow[])
+    .filter((row) => !exclude.has(row.id))
     .filter((row) => canViewEvent(row, viewer))
     .slice(0, limit);
 }
