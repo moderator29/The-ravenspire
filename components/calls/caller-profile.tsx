@@ -365,7 +365,13 @@ export function CallerProfile({ handle }: { handle: string }) {
         </TabsList>
 
         <TabsPanel value="record" className="mt-3">
-          <div className="grid gap-3 lg:grid-cols-2">
+          {/* `grid-cols-1`, for the reason recorded on the same grid in
+              components/calls/call-detail.tsx: an implicit `auto` track cannot
+              be shrunk below its widest item's min-content width, so one long
+              unbroken name inside a `truncate` widens the column and scrolls
+              the whole document sideways. This surface holds member names too,
+              so it is the same latent defect and it takes the same cap. */}
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Card pad="md" className="flex flex-col gap-3">
               <h2 className="font-display text-sm font-semibold uppercase tracking-[0.16em] text-bone-mut">
                 Judgment, not volume
@@ -450,7 +456,7 @@ export function CallerProfile({ handle }: { handle: string }) {
         </TabsPanel>
 
         <TabsPanel value="calibration" className="mt-3">
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Card pad="md" className="flex flex-col gap-3">
               <h2 className="font-display text-sm font-semibold uppercase tracking-[0.16em] text-bone-mut">
                 Calibration
