@@ -189,8 +189,23 @@ export function BottomNav() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[--radius-md] px-2 text-[12px] font-semibold transition-colors duration-150 ${
-                  active ? "text-gold-bright" : "text-bone-faint active:text-bone-mut"
+                /* The active destination takes the room, the rest keep the
+                   floor and no more.
+
+                   Five equal columns at 390px is about 72px each, and the
+                   active one has to fit a 19px icon, a gap and its label
+                   inside that, so "The Ravenry" rendered as "Ra...". A dock
+                   whose one labelled item is the item whose label is cut is
+                   worse than a dock with no labels at all.
+
+                   `flex-1` on the active item and a fixed 44px on the others
+                   spends the width where the words are. Four inactive squares
+                   and the gaps leave about 160px, and the longest label in the
+                   set needs about 120. */
+                className={`relative flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-[--radius-md] text-[12px] font-semibold transition-colors duration-150 ${
+                  active
+                    ? "flex-1 px-3 text-gold-bright"
+                    : "w-11 shrink-0 text-bone-faint active:text-bone-mut"
                 }`}
               >
                 {active && (
@@ -209,7 +224,12 @@ export function BottomNav() {
                     initial={{ opacity: 0, width: 0 }}
                     animate={{ opacity: 1, width: "auto" }}
                     transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-                    className="relative truncate"
+                    /* No `truncate` any more. It was the thing hiding the
+                       defect: a label that does not fit should make the layout
+                       wrong in a way somebody notices, not quietly become an
+                       ellipsis. `whitespace-nowrap` keeps it on one line, and
+                       the width above is what makes it fit. */
+                    className="relative whitespace-nowrap"
                   >
                     {item.label}
                   </motion.span>
