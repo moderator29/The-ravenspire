@@ -230,7 +230,14 @@ export default function BattlePreparePage() {
         </>
       )}
 
-      <SectionHeader title="The battlefield" hint={ground.desc} />
+      {/* The hint slot is a count or a short state, not prose. `ground.desc`
+          is a sentence, and SectionHeader lays heading, hint and hairline on
+          one row with nothing holding the heading's width, so at 390px the
+          sentence squeezed "The battlefield" until it broke across two lines
+          and ran into the hint. Measured from the heading's own line boxes.
+          The description already sits on each battlefield card, so the slot
+          carries the name of the ground you have actually chosen. */}
+      <SectionHeader title="The battlefield" hint={ground.name} />
 
       <div
         role="group"

@@ -248,11 +248,14 @@ export default function RewardsPage() {
         </p>
       </Card>
 
+      {/* Short, because the slot shares one row with the heading and the
+          hairline and nothing holds the heading's width. The signed in state
+          is the one case this harness cannot reach, so it is kept to a figure
+          rather than a sentence on the same reasoning that broke the heading
+          on /war/prepare. */}
       <SectionHeader
         title="Champion mastery"
-        hint={
-          state ? `${gold.toLocaleString()} gold in your purse` : undefined
-        }
+        hint={state ? `${gold.toLocaleString()} gold` : undefined}
       />
 
       {showSkeleton ? (
