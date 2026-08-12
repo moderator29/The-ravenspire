@@ -324,7 +324,24 @@ body {
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--state-focus-ring);
   outline-offset: 2px;
-  border-radius: inherit;
+  /* `border-radius: inherit` used to be here, to make the ring follow the
+     control's shape. It does not need help: `outline` has followed
+     `border-radius` natively in every current browser for years. What it did
+     instead was destroy the shape it was meant to trace.
+
+     This rule sits outside every `@layer`, which in the cascade beats any
+     layered rule whatever its specificity, so it outranked `rounded-md` from
+     Tailwind's utilities layer. `inherit` then took the radius of the parent,
+     which for a control is almost always a plain wrapper with none. So every
+     button, input, tab and link in the realm snapped to square corners the
+     moment it received keyboard focus, and went round again when focus left.
+
+     Found by measuring an autofocused search field: `rounded-md` present in
+     the class list, `.rounded-md{border-radius:12px}` present in the emitted
+     stylesheet, and `getComputedStyle` reporting 0px. That is the third time
+     on this branch that a class has been present, plausible and doing nothing,
+     and the second time the cause was where the CSS sat rather than what it
+     said. */
 }
 
 /* Faint parchment-grid atmosphere on the page itself */

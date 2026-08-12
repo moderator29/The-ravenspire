@@ -60,8 +60,9 @@ export function BackButton({
 
   return (
     <Button
-      variant="glass"
+      variant="ghost"
       size="sm"
+      pad="none"
       onClick={handleClick}
       aria-label={label}
       /* `self-start` is load bearing across roughly twenty five call sites.
@@ -70,7 +71,16 @@ export function BackButton({
          default, so a bare BackButton dropped into any `flex-col` spans the
          full width and stops reading as a back control. Pinning it here means
          no caller has to remember. */
-      className="group self-start tracking-wide text-bone-mut hover:text-bone"
+      /* A back control is a way out, not a call to action, and it was drawn as
+         a full glass plate: a bordered box roughly 78 by 44 sitting above the
+         page title and reading heavier than anything it led back to. It is a
+         word and an arrow now, with no plate and no border, so it takes only
+         the room the words need.
+
+         The 44px floor is untouched. Losing the plate loses the border and the
+         background, not the target: the control is still a full height button,
+         it simply has nothing drawn around it, which is the whole point. */
+      className="group -ml-1 self-start px-1 tracking-wide text-bone-mut hover:text-bone"
     >
       <Icon
         name="arrow"
