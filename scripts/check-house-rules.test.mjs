@@ -200,6 +200,10 @@ describe("rule 10, the token scales", () => {
     expect(
       check("off-scale-token", "a.tsx", '<div className="rounded-[var(--radius-full)]" />')
     ).toEqual([]);
+    /* The bare bracket form is off this rule's beat, but not because it is
+       fine. It is broken, and `bare-custom-property-arbitrary-value` is the
+       rule that says so. Kept silent here so the author gets one accurate
+       message rather than two, one of which would be about the wrong thing. */
     expect(
       check("off-scale-token", "a.tsx", '<div className="rounded-[--radius-2xl]" />')
     ).toEqual([]);
@@ -232,6 +236,34 @@ describe("rule 10, the token scales", () => {
   it("does not mistake the slashes in a URL for a comment", () => {
     const src = '<a href="https://example.com/x" className="z-[93]" />';
     expect(check("off-scale-token", "a.tsx", src)).toHaveLength(1);
+  });
+});
+
+describe("rule 10, a bare custom property in brackets is dropped", () => {
+  const RULE = "bare-custom-property-arbitrary-value";
+
+  it("catches the spelling that computes to nothing", () => {
+    const found = check(RULE, "a.tsx", '<div className="rounded-[--radius-md]" />');
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/rounded-md/);
+  });
+
+  it("catches it on any property, not just radius", () => {
+    /* The syntax is what is broken, so the property is incidental. Naming only
+       radius here would leave the next one to be found by eye. */
+    for (const cls of ["shadow-[--shadow-forge]", "text-[--gold]", "z-[--z-toast]"]) {
+      expect(check(RULE, "a.tsx", `<div className="${cls}" />`), cls).toHaveLength(1);
+    }
+  });
+
+  it("says nothing about the two spellings that work", () => {
+    expect(check(RULE, "a.tsx", '<div className="rounded-[var(--radius-md)]" />')).toEqual([]);
+    expect(check(RULE, "a.tsx", '<div className="rounded-(--radius-md)" />')).toEqual([]);
+  });
+
+  it("says nothing about a named rung or a literal", () => {
+    expect(check(RULE, "a.tsx", '<div className="rounded-md z-toast" />')).toEqual([]);
+    expect(check(RULE, "a.tsx", '<div className="w-[13px]" />')).toEqual([]);
   });
 });
 

@@ -1110,7 +1110,7 @@ function Rule({
 function RotateHint() {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-[calc(7rem+env(safe-area-inset-top))] flex justify-center px-4">
-      <p className="flex items-center gap-2 rounded-[--radius-sm] bg-obsidian/80 px-3 py-1.5 text-xs text-gold backdrop-blur-sm">
+      <p className="flex items-center gap-2 rounded-sm bg-obsidian/80 px-3 py-1.5 text-xs text-gold backdrop-blur-sm">
         <Icon name="compass" className="h-4 w-4 shrink-0" />
         Turn sideways for the full field
       </p>

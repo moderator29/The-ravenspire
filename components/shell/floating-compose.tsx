@@ -62,7 +62,7 @@ export function FloatingCompose() {
               Ask @raven
               <span
                 aria-hidden
-                className="flex h-7 w-7 items-center justify-center rounded-[--radius-sm] border border-gold/40 bg-panel text-gold"
+                className="flex h-7 w-7 items-center justify-center rounded-sm border border-gold/40 bg-panel text-gold"
               >
                 <Icon name="raven" className="h-4 w-4" />
               </span>
@@ -79,7 +79,7 @@ export function FloatingCompose() {
               Send a raven
               <span
                 aria-hidden
-                className="flex h-7 w-7 items-center justify-center rounded-[--radius-sm] border border-gold/40 bg-panel text-gold"
+                className="flex h-7 w-7 items-center justify-center rounded-sm border border-gold/40 bg-panel text-gold"
               >
                 <Icon name="send" className="h-4 w-4" />
               </span>

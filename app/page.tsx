@@ -330,7 +330,7 @@ export default function Landing() {
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 font-display text-sm font-semibold text-bone">
                       {c.themed}
-                      <span className="rounded-[--radius-sm] border border-gold/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gold/70">
+                      <span className="rounded-sm border border-gold/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gold/70">
                         Soon
                       </span>
                     </p>

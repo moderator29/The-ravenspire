@@ -113,7 +113,7 @@ export function ReferralPanel({ enabled }: { enabled: boolean }) {
           Your banner link
         </p>
         <div className="mt-2.5 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-          <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-[--radius-md] border border-steel-line bg-void px-3 py-2.5 text-xs text-gold-bright">
+          <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-md border border-steel-line bg-void px-3 py-2.5 text-xs text-gold-bright">
             {link}
           </code>
           <Button
@@ -164,7 +164,7 @@ export function ReferralPanel({ enabled }: { enabled: boolean }) {
                     ) : null}
                   </div>
                   <span
-                    className={`shrink-0 rounded-[--radius-sm] border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                    className={`shrink-0 rounded-sm border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
                       r.activated
                         ? "border-gold/50 bg-gold/15 text-gold-bright"
                         : "border-steel-line bg-panel text-bone-faint"

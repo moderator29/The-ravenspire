@@ -122,7 +122,7 @@ export default function RavensPage() {
           </p>
         </div>
         {unread > 0 && (
-          <span className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold">
+          <span className="inline-flex items-center gap-1.5 rounded-sm border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
             <span className="tnum">{unread}</span> new
           </span>

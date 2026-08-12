@@ -83,7 +83,7 @@ export function TheGames() {
           <div className="relative p-6">
             <div className="flex items-center gap-2">
               <Icon3D name="call-orb" size="md" />
-              <span className="rounded-[--radius-sm] border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
+              <span className="rounded-sm border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
                 The flagship
               </span>
             </div>
@@ -128,7 +128,7 @@ export function TheGames() {
           <div className="relative p-6">
             <div className="flex items-center gap-2">
               <Icon3D name="crossed-axes" size="md" />
-              <span className="rounded-[--radius-sm] border border-ember/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-ember">
+              <span className="rounded-sm border border-ember/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-ember">
                 Battle RPG
               </span>
             </div>

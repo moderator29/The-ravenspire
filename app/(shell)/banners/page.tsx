@@ -104,7 +104,7 @@ export default function BannersPage() {
               Your banner
             </p>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-[--radius-lg] border border-steel-line bg-void px-4 py-3 text-xs text-gold-bright">
+              <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-steel-line bg-void px-4 py-3 text-xs text-gold-bright">
                 {link}
               </code>
               <Button

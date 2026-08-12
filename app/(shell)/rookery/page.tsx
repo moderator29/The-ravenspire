@@ -41,12 +41,12 @@ function CourtCard({ c }: { c: Court }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           {c.status === "live" ? (
-            <span className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-ember/40 bg-ember/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-ember">
+            <span className="inline-flex items-center gap-1.5 rounded-sm border border-ember/40 bg-ember/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-ember">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ember" />
               Live
             </span>
           ) : (
-            <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+            <span className="inline-flex items-center rounded-sm border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
               Upcoming
             </span>
           )}
@@ -90,7 +90,7 @@ function CourtCard({ c }: { c: Court }) {
           {/* A span, not a Button: the whole row is already the link, and a
               nested interactive element inside a link is invalid and traps a
               second tab stop. This is the affordance, drawn to match. */}
-          <span className="inline-flex items-center gap-1.5 rounded-[--radius-md] border border-gold/25 bg-void/60 px-3 py-1.5 text-xs font-semibold text-bone transition-colors duration-fast group-hover:border-gold/45 group-hover:text-gold">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-gold/25 bg-void/60 px-3 py-1.5 text-xs font-semibold text-bone transition-colors duration-fast group-hover:border-gold/45 group-hover:text-gold">
             Enter
             <Icon name="arrow" className="h-3.5 w-3.5" />
           </span>
@@ -212,7 +212,7 @@ export default function RookeryPage() {
                       key={h.slug}
                       type="button"
                       onClick={() => setHouseSlug(on ? null : h.slug)}
-                      className={`inline-flex items-center gap-1.5 rounded-[--radius-sm] border px-2.5 py-1 text-xs transition ${
+                      className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs transition ${
                         on
                           ? "border-gold/50 bg-gold/10 text-bone"
                           : "border-steel-line bg-panel text-bone-mut hover:text-bone"

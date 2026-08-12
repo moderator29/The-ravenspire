@@ -26,6 +26,24 @@
    mouse and lifts every control to 44px for a finger, without a single call
    site having to remember. */
 
+/* Build tooling is not a template, and letting Tailwind read it as one has a
+   cost that shows up in the shipped stylesheet.
+
+   With no explicit `@source`, v4 scans everything git tracks, which includes
+   `scripts/check-house-rules.mjs`. That file's job is to name bad classes, in
+   its rule messages and in the comments explaining why each rule exists. The
+   scanner cannot tell a class being condemned from a class being used, so it
+   generated them: `.rounded-[--radius-2xl]`, `.rounded-[--radius-full]` and
+   `.rounded-[--radius-md]` were all present in the production CSS, emitted as
+   `border-radius: --radius-2xl`, which is not a length and is dropped. Three
+   broken rules in the bundle, whose only origin was the file that exists to
+   forbid them.
+
+   Harmless in that no element carries those classes, but it is the same class
+   of mistake this whole sweep has been about: output that looks right and does
+   nothing. The scripts directory holds Node, never markup. */
+@source not "../scripts";
+
 /*
   RAVENSPIRE Brand System v3: "Obsidian & Gold, Cinematic Metal"
   Deep obsidian, forged antique gold, ember firelight, bone, steel, ash.

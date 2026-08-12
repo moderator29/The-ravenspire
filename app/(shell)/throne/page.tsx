@@ -94,7 +94,7 @@ export default function ThroneComingSoon() {
               "radial-gradient(ellipse 60% 100% at 50% 0%, rgba(217, 176, 64,0.20), transparent 70%)",
           }}
         />
-        <span className="hairline relative inline-flex items-center gap-1.5 rounded-[--radius-sm] bg-panel-warm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-gold">
+        <span className="hairline relative inline-flex items-center gap-1.5 rounded-sm bg-panel-warm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-gold">
           Chapter of the Season
         </span>
         <div className="relative mt-5 flex justify-center">

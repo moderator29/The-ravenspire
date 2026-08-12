@@ -63,7 +63,7 @@ export function DnaCard({ result }: { result: DnaResult }) {
           {result.traits.map((t) => (
             <span
               key={t}
-              className="rounded-[--radius-sm] border border-gold/25 bg-panel-warm px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-bone"
+              className="rounded-sm border border-gold/25 bg-panel-warm px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-bone"
             >
               {t}
             </span>

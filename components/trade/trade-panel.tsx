@@ -468,7 +468,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             Trade {coin.symbol}
           </h2>
         </div>
-        <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+        <span className="inline-flex items-center rounded-sm border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
           Beta
         </span>
       </div>
@@ -672,7 +672,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                 />
               ) : (
                 <>
-                  <div className="flex flex-col gap-2.5 rounded-[--radius-xl] border border-steel-line bg-void/60 p-4">
+                  <div className="flex flex-col gap-2.5 rounded-xl border border-steel-line bg-void/60 p-4">
                     <Row label="You pay" value={payText} />
                     <Row label="You receive" value={receiveText} strong />
                     {quote?.minBuyAmount && (
@@ -701,7 +701,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                   </div>
 
                   {approvalHash && (
-                    <div className="mt-3 rounded-[--radius-lg] border border-gold/25 bg-panel-warm/50 p-3 text-xs text-bone-mut">
+                    <div className="mt-3 rounded-lg border border-gold/25 bg-panel-warm/50 p-3 text-xs text-bone-mut">
                       Approval sent. Once it confirms (about 15 seconds), confirm
                       the swap below.
                     </div>

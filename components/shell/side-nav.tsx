@@ -52,7 +52,7 @@ function Row({
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex items-center gap-2.5 rounded-[--radius-md] py-[7px] pl-3 pr-2 text-[13px] transition-colors duration-150 ${
+      className={`group relative flex items-center gap-2.5 rounded-md py-[7px] pl-3 pr-2 text-[13px] transition-colors duration-150 ${
         active
           ? "bg-panel text-gold-bright"
           : "text-bone-mut hover:bg-panel/50 hover:text-bone"
@@ -73,7 +73,7 @@ function Row({
 
       {item.slug === "ravens" && <NotifBadge className="shrink-0" />}
       {item.badge && (
-        <span className="shrink-0 rounded-[--radius-sm] border border-gold/30 px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-gold/80">
+        <span className="shrink-0 rounded-sm border border-gold/30 px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-gold/80">
           {item.badge}
         </span>
       )}
@@ -133,7 +133,7 @@ function Section({
         type="button"
         onClick={toggle}
         aria-expanded={shown}
-        className="flex w-full items-center gap-1.5 rounded-[--radius-sm] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+        className="flex w-full items-center gap-1.5 rounded-sm px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint transition-colors duration-fast hover:text-bone-mut"
       >
         <span className="flex-1 text-left">{label}</span>
         <Icon
@@ -296,7 +296,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
       {isAdmin && (
         <Link
           href="/admin"
-          className={`group mt-3 flex items-center gap-2.5 rounded-[--radius-md] py-[7px] pl-3 pr-2 text-[13px] transition-colors duration-150 ${
+          className={`group mt-3 flex items-center gap-2.5 rounded-md py-[7px] pl-3 pr-2 text-[13px] transition-colors duration-150 ${
             pathname.startsWith("/admin")
               ? "bg-panel text-gold-bright"
               : "text-bone-mut hover:bg-panel/50 hover:text-bone"
@@ -306,7 +306,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
           <span className="min-w-0 flex-1 truncate font-medium">
             The Small Council
           </span>
-          <span className="shrink-0 rounded-[--radius-sm] border border-gold/25 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-gold/70">
+          <span className="shrink-0 rounded-sm border border-gold/25 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-gold/70">
             Admin
           </span>
         </Link>

@@ -355,7 +355,7 @@ export function EarningsSection({
           {hasEarnings ? (
             <div className="mt-2 flex items-center gap-2">
               <span
-                className={`tnum inline-flex items-center gap-1 rounded-[--radius-sm] border px-2 py-0.5 text-xs font-semibold ${
+                className={`tnum inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-semibold ${
                   windowDelta === 0
                     ? "border-steel-line/70 text-bone-faint"
                     : up
@@ -724,7 +724,7 @@ function Coffer({
 }) {
   return (
     <div
-      className={`rounded-[--radius-xl] border p-4 ${
+      className={`rounded-xl border p-4 ${
         accent
           ? "border-gold/25 bg-gradient-to-b from-gold/[0.06] to-transparent"
           : "border-steel-line/70 bg-void/40"

@@ -106,7 +106,7 @@ export default function SignInPage() {
             <ul className="relative mt-8 flex flex-col gap-4">
               {assurances.map((a) => (
                 <li key={a.title} className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[--radius-md] border border-gold/25 bg-void text-gold">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-gold/25 bg-void text-gold">
                     <LandingIcon name={a.icon} className="h-[18px] w-[18px]" />
                   </span>
                   <div className="min-w-0">
@@ -182,7 +182,7 @@ export default function SignInPage() {
               </Button>
             </div>
 
-            <div className="mt-6 flex items-start gap-2.5 rounded-[--radius-xl] border border-gold/15 bg-void/50 px-4 py-3">
+            <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-gold/15 bg-void/50 px-4 py-3">
               <LandingIcon name="shieldKey" className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
               <p className="text-[12px] leading-relaxed text-bone-mut">
                 A non-custodial wallet is created for you. You keep your keys, we
