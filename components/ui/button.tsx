@@ -43,7 +43,13 @@ const BASE =
      survives untouched for a mouse. */
   "touch:min-h-11 " +
   "transition-[transform,box-shadow,background-color,border-color,filter,opacity] " +
-  "duration-fast ease-out-quint active:translate-y-px " +
+  /* Press physics. Moving a control down a pixel without changing its light is
+     the tell that it is a picture of a button: the highlight stays lit while
+     the object supposedly sinks. The shadow swaps on the same 150ms, so the
+     top highlight goes and an occlusion arrives, and the control reads as
+     pressing into the surface rather than sliding down it. Both properties the
+     compositor can animate without touching layout. */
+  "duration-fast ease-out-quint active:translate-y-px active:shadow-pressed " +
   "disabled:pointer-events-none disabled:opacity-50 " +
   "aria-disabled:pointer-events-none aria-disabled:opacity-50";
 
@@ -62,14 +68,20 @@ const VARIANT: Record<ButtonVariant, string> = {
   gold:
     "text-gold-ink shadow-forge " +
     "bg-[image:linear-gradient(180deg,var(--gold-bright)_0%,var(--gold)_48%,var(--gold-deep)_100%)] " +
-    "hover:brightness-[1.06]",
+    /* The one hover in the Ledger register that answers with light rather than
+       a colour step. Gold is the primary action and there is at most one on a
+       screen, so it can afford to be the thing that moves. */
+    "hover:shadow-forge-lit hover:brightness-[1.06]",
   glass:
-    "bg-void/60 text-bone backdrop-blur-[10px] " +
+    "bg-void/60 text-bone shadow-edge backdrop-blur-[10px] " +
     "bg-[image:linear-gradient(180deg,rgba(255,233,163,0.06),rgba(12,12,17,0.4))] " +
     "hover:border-gold/45 hover:bg-void/75",
+  /* Ghost stays flat at rest on purpose. It is the variant used for the third
+     and fourth control in a row, and giving it an edge would put thirty small
+     shadows on a dense screen and flatten the hierarchy it exists to keep. */
   ghost: "text-bone-mut hover:bg-panel hover:text-bone",
   danger:
-    "bg-state-danger/10 text-state-danger " +
+    "bg-state-danger/10 text-state-danger shadow-edge " +
     "hover:border-state-danger/70 hover:bg-state-danger/20",
 };
 

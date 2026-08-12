@@ -20,7 +20,7 @@ export type CardVariant = "default" | "warm" | "inset" | "raised";
 export type CardPad = "none" | "sm" | "md" | "lg";
 export type CardRadius = "sm" | "md" | "lg" | "xl" | "2xl";
 export type CardTone = "gold" | "ember" | "danger" | "steel";
-export type CardElevation = "flat" | "card" | "lifted" | "overlay";
+export type CardElevation = "flat" | "edge" | "well" | "card" | "lifted" | "overlay";
 
 const BASE = "relative";
 
@@ -85,6 +85,12 @@ const TONE: Record<CardTone, string> = {
 
 const ELEVATION: Record<CardElevation, string> = {
   flat: "shadow-flat",
+  /* Two rungs the scale was missing at the quiet end. Between "no shadow at
+     all" and the signature card's 50px bloom there was nothing, so every
+     surface in the product was either a floating pane or a coloured rectangle,
+     and the Ledger register is almost entirely made of the latter. */
+  edge: "shadow-edge",
+  well: "shadow-well",
   card: "shadow-card",
   lifted: "shadow-lifted",
   overlay: "shadow-overlay",
@@ -93,8 +99,12 @@ const ELEVATION: Record<CardElevation, string> = {
 const DEFAULT_ELEVATION: Record<CardVariant, CardElevation> = {
   default: "card",
   warm: "card",
-  inset: "flat",
-  raised: "flat",
+  /* The recessed pair, and the reason they are not both flat. `inset` sits
+     below its parent and `raised` sits above the page, and until now both said
+     so with a background colour alone. One pixel of light in the right
+     direction does what a colour step cannot. */
+  inset: "well",
+  raised: "edge",
 };
 
 const PAD: Record<CardPad, string> = {

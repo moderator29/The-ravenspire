@@ -182,6 +182,34 @@
   --shadow-forge: inset 0 1px 0 rgba(255, 244, 214, 0.65),
     inset 0 -2px 4px rgba(90, 66, 20, 0.45), 0 8px 26px rgba(217, 176, 64, 0.22);
 
+  /* The three rungs a control needs that a card does not.
+
+     `edge` is the resting state of every secondary control. A one pixel warm
+     specular line along the top and a tight occlusion beneath it, which is the
+     whole difference between a rectangle with a border and an object sitting
+     on a surface. It is deliberately far quieter than `--shadow-card`: a page
+     with thirty controls on it cannot afford thirty card shadows.
+
+     `pressed` is what a control wears while it is held. Moving a button down a
+     pixel without changing its light is the tell that it is a picture of a
+     button. The highlight goes and an occlusion arrives, so it reads as
+     pressing into the surface rather than sliding down it.
+
+     `forge-lit` is `--shadow-forge` under the member's cursor. The same light,
+     one step warmer and wider. Gold is the primary action and the only place
+     in the Ledger register that is allowed to answer a hover with light. */
+  --shadow-edge: inset 0 1px 0 rgba(255, 233, 163, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+  /* The recessed well. `inset` surfaces were flat, which meant a nested block
+     inside a card was distinguished from its parent by a background colour and
+     nothing else. A well is lit from the same upper left as everything else, so
+     its shadow falls along the top edge, which is the opposite of `--shadow-edge`
+     and reads as depth below the surface rather than above it. */
+  --shadow-well: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-pressed: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  --shadow-forge-lit: inset 0 1px 0 rgba(255, 244, 214, 0.75),
+    inset 0 -2px 4px rgba(90, 66, 20, 0.4), 0 10px 34px rgba(217, 176, 64, 0.34);
+
   /* ── MOTION ──────────────────────────────────────────────────────────────
      Current motion runs 0.28s to 0.9s, which is two to three times too slow
      and is where "cheap" comes from. Entrances ease out, movement eases in and
