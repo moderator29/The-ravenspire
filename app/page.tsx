@@ -113,9 +113,18 @@ export default function Landing() {
         {/* Sticky premium navigation */}
         <LandingNav ctaHref={ctaHref} ctaLabel={ctaLabel} />
 
-        {/* Aurora crest field */}
+        {/* Aurora crest field.
+
+            Desktop only, and the reason is that a phone has no gutters. Moving
+            the spots out to the margins keeps them clear of the reading column
+            at 1024 and above, where the column is capped at 1024px inside a
+            wider page. At 390 the column is the page: there is nowhere for a
+            drifting motif to sit that is not on top of a sentence, and the one
+            at 80% still landed across "CRYPTO BENEATH IT". The atmosphere
+            budget is two effects per viewport and a phone already spends both
+            on the parchment grid and the hero's aura. */}
         <motion.div
-          className="pointer-events-none absolute inset-0"
+          className="pointer-events-none absolute inset-0 hidden md:block"
           aria-hidden="true"
           style={{ y: fieldY }}
         >
