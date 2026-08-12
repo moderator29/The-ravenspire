@@ -38,7 +38,13 @@
     ".next-*/types/**/*.ts",
     ".next-*/dev/types/**/*.ts",
     ".next-funnel/types/**/*.ts",
-    ".next-funnel/dev/types/**/*.ts"
+    ".next-funnel/dev/types/**/*.ts",
+    ".next-war/types/**/*.ts",
+    ".next-war/dev/types/**/*.ts",
+    ".next-money/types/**/*.ts",
+    ".next-money/dev/types/**/*.ts",
+    ".next-lead/types/**/*.ts",
+    ".next-lead/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

@@ -232,13 +232,16 @@ export function Feed() {
         }}
       />
 
-      {/* The rail is the desktop half of one control, not a second control.
-          Below lg the dock carries these five views and this rail would be the
-          same five chips a thumb's width above them, so it is hidden there.
-          Responsive is not a resize: the phone gets the dock, the desktop gets
-          the rail, and both write the same `?tab=`. */}
-      <div className="flex items-center gap-2 max-lg:justify-end">
-        <StreamChipRail label="Feed views" className="flex-1 max-lg:hidden">
+      {/* One control at every width, and it lives with the column it filters.
+          The dock used to carry these five on a phone while this rail was
+          hidden, which put the feed's own views at the far end of the screen,
+          detached from the feed, and left this row holding a single filter
+          button with the whole width to itself. It also never fit: five chips
+          need 401px in a 366px dock, so one was always cut at the edge. In the
+          column they have the content width and sit where the reader is
+          already looking. */}
+      <div className="flex items-center gap-2">
+        <StreamChipRail label="Feed views" className="min-w-0 flex-1">
           {TABS.map((t) => (
             <StreamChip
               key={t.key}

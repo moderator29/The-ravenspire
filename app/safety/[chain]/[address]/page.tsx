@@ -119,7 +119,14 @@ export default async function SafetyReportPage({
       <div className="mx-auto w-full max-w-2xl px-4 py-8">
         {/* Brand header */}
         <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
+          {/* 203 x 28 measured on a phone, and on a page a stranger arrives at
+              from a shared link this is the only way into the realm above the
+              fold. `-mx-2 px-2` keeps the mark optically flush with the column
+              while the target itself clears 44. */}
+          <Link
+            href="/"
+            className="-mx-2 flex min-h-11 items-center gap-2.5 rounded-md px-2"
+          >
             <RavenMark className="h-7 w-7 text-gold" />
             <span className="font-display text-sm font-semibold uppercase tracking-[0.22em] text-bone">
               The Ravenspire
@@ -144,12 +151,20 @@ export default async function SafetyReportPage({
             <Icon name="search" className="mx-auto mb-3 h-6 w-6 text-bone-faint" />
             The Watch could not read a verdict for this contract yet, it may be
             too new to have been analysed, or the wall was unreachable.
-            <Link
-              href={`/watch?address=${address}&chain=${chain}`}
-              className="mt-4 block text-gold underline"
+            {/* The only way forward from a report that could not be read, and
+                it measured 292 x 20 on a phone: a bare underlined link where a
+                primary action belongs. A Button, so it comes off the same
+                44px floor every other control in the realm does. */}
+            <Button
+              variant="gold"
+              size="lg"
+              className="mt-4"
+              render={
+                <Link href={`/watch?address=${address}&chain=${chain}`} />
+              }
             >
               Try a live scan in The Watch
-            </Link>
+            </Button>
           </Card>
         ) : (
           <>

@@ -115,11 +115,29 @@ const DEFAULT_ELEVATION: Record<CardVariant, CardElevation> = {
   raised: "edge",
 };
 
+/* Tightened one step across the board, which is a platform wide change made in
+   one place on purpose.
+ *
+ * The Ledger register is meant to be dense, and it had drifted airy: a phone
+ * spent 32px of a 390px screen on the left and right padding of every card
+ * before a single word, and stacked cards spent 40px between one card's last
+ * line and the next card's first. The founder's read on a real device was that
+ * the containers were oversized and the product looked loose rather than
+ * sharp, and the numbers agree.
+ *
+ * Each rung drops about a quarter. The phone step matters most because it is
+ * where the width is scarce, so the `sm:` step is now what the base step used
+ * to be rather than a further increase.
+ *
+ * Deliberately padding only. Control heights are not touched here: on a coarse
+ * pointer they are a 44px accessibility floor, not a style choice, and trading
+ * that away to reclaim eight pixels is the wrong trade. Density comes out of
+ * the space around things. */
 const PAD: Record<CardPad, string> = {
   none: "",
-  sm: "p-3",
-  md: "p-4 sm:p-5",
-  lg: "p-5 sm:p-6",
+  sm: "p-2.5",
+  md: "p-3.5 sm:p-4",
+  lg: "p-4 sm:p-5",
 };
 
 export interface CardProps extends useRender.ComponentProps<"div"> {

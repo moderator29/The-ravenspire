@@ -223,7 +223,12 @@ function KeepMock() {
   return (
     <Frame title="The Keep" icon="user">
       <div className="relative -mx-4 -mt-4 h-16 bg-gradient-to-br from-panel-warm via-void to-panel" />
-      <div className="-mt-8 flex items-end gap-3 px-0">
+      {/* `-mt-5`, not `-mt-8`. At 32px the row was pulled far enough into the
+          64px banner that "Aeron Blackwood" sat across its lower edge and read
+          as text clipped by a bug rather than as a header. The avatar tile
+          still breaks the banner line, which is the whole point of a profile
+          header; the name clears it. */}
+      <div className="-mt-5 flex items-end gap-3 px-0">
         <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-gold/40 bg-void text-gold">
           <RavenMark className="h-9 w-9" />
         </span>

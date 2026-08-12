@@ -150,4 +150,42 @@ describe("mergeClasses reads the variant separator correctly", () => {
     expect(has(out, "touch:min-h-11")).toBe(true);
     expect(has(out, "min-h-0")).toBe(true);
   });
+
+  it("lets a shorthand padding drop the axis padding under it", () => {
+    /* The defect this exists for: a caller's `p-0` on a Button whose size sets
+       `px-5` left both classes standing, `px-5` won on emission order, and a
+       44px control kept 40px of horizontal padding. The icon inside asked for
+       20px and rendered at 2. */
+    const out = mergeClasses("inline-flex px-5 py-2", "p-0");
+    expect(has(out, "p-0")).toBe(true);
+    expect(has(out, "px-5")).toBe(false);
+    expect(has(out, "py-2")).toBe(false);
+    expect(has(out, "inline-flex")).toBe(true);
+  });
+
+  it("drops the sides under an axis, not the other axis", () => {
+    const out = mergeClasses("pl-3 pr-2 pt-4", "px-6");
+    expect(has(out, "px-6")).toBe(true);
+    expect(has(out, "pl-3")).toBe(false);
+    expect(has(out, "pr-2")).toBe(false);
+    /* `pt-4` is the other axis and survives, because `px-` never set it. */
+    expect(has(out, "pt-4")).toBe(true);
+  });
+
+  it("does not let an axis drop the shorthand that came before it", () => {
+    /* Deliberately asymmetric. `p-4` still owns the vertical axis after a
+       later `px-5`, so both survive and Tailwind resolves the horizontal one.
+       Dropping `p-4` here would silently remove the vertical padding. */
+    const out = mergeClasses("p-4", "px-5");
+    expect(has(out, "p-4")).toBe(true);
+    expect(has(out, "px-5")).toBe(true);
+  });
+
+  it("subsumes only within the same variant", () => {
+    const out = mergeClasses("px-5 md:px-8", "p-0");
+    expect(has(out, "p-0")).toBe(true);
+    expect(has(out, "px-5")).toBe(false);
+    /* `p-0` is unconditional and says nothing about the `md` breakpoint. */
+    expect(has(out, "md:px-8")).toBe(true);
+  });
 });
