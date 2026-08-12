@@ -2,9 +2,30 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  StatStrip,
+  StatStripSkeleton,
+  WarHeader,
+  WarPage as WarFrame,
+} from "@/components/war/war-chrome";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+
+/* The War, its front door.
+
+   Archetype: Dossier. A hero band, then panels, always that order. The hero is
+   the one place in a Dossier where the Forge register is allowed, so the
+   lineup art and the gold title live there and every panel below it is flat
+   Ledger. There are no tabs because there is only one subject, The War itself.
+
+   Real data only: the standing strip renders your actual gold, Glory, battles
+   and wins, or nothing at all. It never shows a zero it has not read. */
 
 interface WarState {
   unlocked_champions: string[];
@@ -39,7 +60,7 @@ const openModes = [
   {
     href: "/war/rewards",
     icon: "medal",
-    name: "Rewards & Progression",
+    name: "Rewards and Progression",
     plain: "Tribute and mastery",
     desc: "Daily tribute, relic chests, the War Pass and champion mastery.",
   },
@@ -69,112 +90,130 @@ const lockedModes = [
 export default function WarPage() {
   const { ready, authenticated } = useRealmAuth();
   const [state, setState] = useState<WarState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const showSkeleton = useDelayedLoading(loading);
 
   useEffect(() => {
-    if (!ready || !authenticated) return;
+    if (!ready) return;
+    if (!authenticated) {
+      setLoading(false);
+      return;
+    }
+    let live = true;
     void (async () => {
       const res = await realmFetch<{ state: WarState }>("/api/war/battle");
+      if (!live) return;
       if (res.ok && res.data?.state) setState(res.data.state);
+      setLoading(false);
     })();
+    return () => {
+      live = false;
+    };
   }, [ready, authenticated]);
 
-  const chips = state
-    ? [
-        { label: "Gold", value: state.gold },
-        { label: "War Glory", value: state.war_glory },
-        { label: "Battles", value: state.battles },
-        { label: "Wins", value: state.wins },
-      ]
-    : null;
-
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <div className="glass overflow-hidden">
-        <div className="relative h-48 w-full sm:h-64 md:h-72">
+    <WarFrame width="wide">
+      <WarHeader title="The War" kicker="Battle for the realm" backHref="/home" />
+
+      {/* The hero band. The one Forge moment on this page. */}
+      <Card pad="none" className="overflow-hidden">
+        <div className="relative h-40 w-full sm:h-56 lg:h-64">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/game/lineup.png"
             alt="Champions of the realm standing in line for battle"
             className="absolute inset-0 h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/40 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
-            <h1 className="gold-text font-display text-3xl font-semibold sm:text-4xl">
-              The War
-            </h1>
-            <p className="mt-1 text-sm text-bone-mut">Battle for the Realm</p>
+          <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+            <p className="gold-text font-display text-2xl font-semibold sm:text-3xl">
+              Break the enemy host
+            </p>
+            <p className="mt-1 text-sm text-bone-mut">
+              Every foe felled is Glory, and Glory is kept.
+            </p>
           </div>
         </div>
-      </div>
+      </Card>
 
-      {chips && (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {chips.map((c) => (
-            <div key={c.label} className="glass-sm px-4 py-3">
-              <div className="text-[11px] uppercase tracking-wide text-bone-faint">
-                {c.label}
-              </div>
-              <div className="tnum mt-0.5 font-display text-xl font-semibold text-gold-bright">
-                {c.value.toLocaleString()}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {showSkeleton ? (
+        <StatStripSkeleton />
+      ) : state ? (
+        <StatStrip
+          stats={[
+            { label: "Gold", value: state.gold, icon: "coin" },
+            { label: "War Glory", value: state.war_glory, icon: "medal" },
+            { label: "Battles", value: state.battles, icon: "swords" },
+            { label: "Wins", value: state.wins, icon: "crown" },
+          ]}
+        />
+      ) : ready && !authenticated ? (
+        <Card>
+          <EmptyState
+            size="sm"
+            icon="user"
+            title="Your record is not being kept"
+            body="Enter the realm and every battle banks gold, Glory and victories against your name."
+            action={
+              <Button
+                variant="gold"
+                size="md"
+                render={<Link href="/signin" />}
+              >
+                Enter the realm
+              </Button>
+            }
+          />
+        </Card>
+      ) : null}
 
-      {ready && !authenticated && (
-        <div className="glass-sm mt-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <p className="text-sm text-bone-mut">
-            Sign in to keep your gold, glory, and victories on the record.
-          </p>
-          <Link href="/signin" className="btn-gold px-4 py-2 text-xs">
-            Enter the Realm
-          </Link>
-        </div>
-      )}
-
-      <h2 className="mt-8 font-display text-lg font-semibold text-bone">
-        Choose your battlefield
-      </h2>
-      <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {openModes.map((m) => (
-          <Link key={m.name} href={m.href} className="glass glass-hover block p-5">
+      <SectionHeader title="Choose your battlefield" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {openModes.map((mode) => (
+          <Card
+            key={mode.name}
+            interactive
+            pad="none"
+            render={<Link href={mode.href} />}
+            className="block p-4"
+          >
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-panel-warm text-gold">
-                <Icon name={m.icon} className="h-5 w-5" />
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-panel-warm text-gold">
+                <Icon name={mode.icon} className="h-5 w-5" />
               </span>
-              <div>
-                <div className="font-display text-base font-semibold text-bone">
-                  {m.name}
-                </div>
-                <div className="text-xs text-bone-faint">{m.plain}</div>
+              <div className="min-w-0">
+                <p className="truncate font-display text-[15px] font-semibold text-bone">
+                  {mode.name}
+                </p>
+                <p className="truncate text-xs text-bone-faint">{mode.plain}</p>
               </div>
             </div>
-            <p className="mt-3 text-sm text-bone-mut">{m.desc}</p>
-          </Link>
+            <p className="mt-3 text-sm text-bone-mut">{mode.desc}</p>
+          </Card>
         ))}
-        {lockedModes.map((m) => (
-          <div key={m.name} className="glass p-5 opacity-70">
+
+        {lockedModes.map((mode) => (
+          <Card key={mode.name} pad="none" className="p-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-panel text-bone-faint">
-                <Icon name={m.icon} className="h-5 w-5" />
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-panel text-bone-faint">
+                <Icon name={mode.icon} className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-display text-base font-semibold text-bone">
-                    {m.name}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-[--radius-sm] border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-wide text-gold">
-                    <Icon name="lock" className="h-3 w-3" />
+                  <p className="truncate font-display text-[15px] font-semibold text-bone-mut">
+                    {mode.name}
+                  </p>
+                  <Badge variant="beta" icon="lock">
                     Soon
-                  </span>
+                  </Badge>
                 </div>
-                <div className="text-xs text-bone-faint">{m.plain}</div>
+                <p className="truncate text-xs text-bone-faint">{mode.plain}</p>
               </div>
             </div>
-            <p className="mt-3 text-sm text-bone-mut">{m.desc}</p>
-          </div>
+            <p className="mt-3 text-sm text-bone-mut">{mode.desc}</p>
+          </Card>
         ))}
       </div>
-    </div>
+    </WarFrame>
   );
 }
