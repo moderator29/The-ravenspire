@@ -116,10 +116,13 @@ export function Tab({
       value={value}
       className={cx(
         "relative shrink-0 rounded-t-md px-3 py-2.5 text-sm font-semibold",
-        /* 44px on a finger. The compact height is right for a mouse and a tab
-           is a primary navigation control, so it must not be the thing a thumb
-           misses. See the `touch` variant in globals.css. */
-        "touch:min-h-11",
+        /* 44px on a finger, on both axes. The compact height is right for a
+           mouse and a tab is a primary navigation control, so it must not be
+           the thing a thumb misses. Width matters as much as height here: a tab
+           is as wide as its label, and a short one like "7d" falls under the
+           bar without anyone choosing it. See the `touch` variant in
+           globals.css. */
+        "touch:min-h-11 touch:min-w-11",
         "transition-colors duration-fast ease-out-quint",
         "text-bone-faint hover:text-bone-mut data-active:text-bone",
         className
@@ -235,7 +238,14 @@ export function SegmentedControl({
               value={item.value}
               className={cx(
                 "relative shrink-0 rounded-sm font-semibold",
-                "touch:min-h-11",
+                /* Both axes. This carried only the height floor while the
+                   Button base carries both, which is the same half-a-floor the
+                   War's filter chips had: a segment is as wide as its label and
+                   a short one falls under the bar without anyone choosing it.
+                   Measured at 390 on the Keep and a public profile: "7d" at
+                   33.8 across, "24h" at 42.6, "30d" at 43, all at a correct
+                   44 tall. */
+                "touch:min-h-11 touch:min-w-11",
                 "transition-colors duration-fast ease-out-quint",
                 block && "flex-1",
                 size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm",
