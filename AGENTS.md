@@ -44,8 +44,13 @@ The full V2 plan lives in `docs/RAVENSPIRE-V2.md`.
    Radius comes from the scale (`--radius-sm` through `--radius-2xl`). Circles
    are allowed only for avatars and genuinely circular icon buttons.
 10. **Use the token scales.** Spacing, radius, elevation and z-index all come
-    from `app/globals.css`. Off-scale spacing fails to compile by design. Never
-    add a raw `z-[93]` or a one-off `rounded-[13px]`.
+    from `app/globals.css`. Never add a raw `z-[93]` or a one-off
+    `rounded-[13px]`: both are checked. Off-scale **spacing** is not enforced
+    yet, and this rule used to claim it "fails to compile by design", which was
+    never true. Setting `--spacing: initial` is what would make it true and it
+    breaks every existing `p-4` at once, so it is a dedicated mechanical pass
+    tracked in `docs/RAVENSPIRE-V2.md`. Until then the named steps are the
+    scale for new work and nothing stops you leaving it.
 11. **Every colour that carries text must clear WCAG AA (4.5:1).** The fill-only
     hues (`--foe`, `--blood`, `--ash`) have `-text` twins for when they must
     carry a label. Never put text on a fill-only hue.

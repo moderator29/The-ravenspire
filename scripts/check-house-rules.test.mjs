@@ -1,4 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { RULES, runRules } from "./check-house-rules.mjs";
 
@@ -174,6 +177,64 @@ describe("rule 9, capsules", () => {
   });
 });
 
+describe("rule 10, the token scales", () => {
+  it("catches an arbitrary z index", () => {
+    const found = check("off-scale-token", "a.tsx", '<div className="z-[93]" />');
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/z index scale/);
+  });
+
+  it("catches a one off radius", () => {
+    const found = check("off-scale-token", "a.tsx", '<div className="rounded-[13px]" />');
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/radius scale/);
+  });
+
+  it("allows an arbitrary value that reaches for a token", () => {
+    /* The toast stack computes its own rung and could not be written any other
+       way, so the test is not "is this arbitrary" but "does this name a number
+       the scale does not know". */
+    expect(
+      check("off-scale-token", "a.tsx", '<div className="z-[calc(var(--z-toast)-var(--toast-index))]" />')
+    ).toEqual([]);
+    expect(
+      check("off-scale-token", "a.tsx", '<div className="rounded-[var(--radius-full)]" />')
+    ).toEqual([]);
+    expect(
+      check("off-scale-token", "a.tsx", '<div className="rounded-[--radius-2xl]" />')
+    ).toEqual([]);
+  });
+
+  it("says nothing about a named rung", () => {
+    expect(check("off-scale-token", "a.tsx", '<div className="z-toast rounded-xl" />')).toEqual([]);
+  });
+
+  it("reads past a comment that spans several lines", () => {
+    /* globals.css records the thirteen z values this scale replaced inside a
+       five line block comment. The first version of this rule stripped comments
+       per line, understood only a comment that opened and closed on one line,
+       and reported that history as a live violation. */
+    const src = [
+      "/* Was thirteen values including",
+      "   z-[90], z-[91], z-[95], z-[96]. Seven named rungs now. */",
+      "  --z-base: 0;",
+    ].join("\n");
+    expect(check("off-scale-token", "app/globals.css", src)).toEqual([]);
+  });
+
+  it("still catches a live value in a file that also has a comment", () => {
+    const src = ["/* history: z-[90] */", '<div className="z-[70]" />'].join("\n");
+    const found = check("off-scale-token", "a.tsx", src);
+    expect(found).toHaveLength(1);
+    expect(found[0].line).toBe(2);
+  });
+
+  it("does not mistake the slashes in a URL for a comment", () => {
+    const src = '<a href="https://example.com/x" className="z-[93]" />';
+    expect(check("off-scale-token", "a.tsx", src)).toHaveLength(1);
+  });
+});
+
 describe("rule 11, fill only hues never carry text", () => {
   it("catches text on a fill only hue", () => {
     expect(check("fill-only-hue-as-text", "a.tsx", '<p className="text-foe">')).toHaveLength(1);
@@ -274,15 +335,74 @@ describe("rule 18, retired utilities and backgrounds", () => {
   });
 });
 
-describe("the gate reports when it passes", () => {
+describe("the gate always says something", () => {
+  /* Two separate claims, deliberately not one test.
+   *
+   * The first runs against a fixture tree rather than this repository. A test
+   * asserting "the clean line appears" only passes while the whole repo is
+   * clean, which couples it to everyone else's work in progress: it went red
+   * once already because a rule in the same commit was still finding a real
+   * violation. The checker enumerates files with `git ls-files`, so a throwaway
+   * repository holding one innocent file is all it takes to ask the question
+   * properly.
+   *
+   * The second runs against the real repository and asserts only that the gate
+   * is never silent, whichever way it goes. That is the invariant that actually
+   * matters and the one that failed before: a rewrite left the rule array empty
+   * and the gate exited 0 printing nothing, which is indistinguishable from
+   * passing. */
+
+  const CHECKER = resolve("scripts/check-house-rules.mjs");
+
   it("prints a clean line naming how many rules ran", () => {
-    /* A gate that prints nothing on success is indistinguishable from a gate
-       that is broken. That is not hypothetical: a rewrite left this file with
-       an empty rule list, and it exited 0 in silence for everyone who ran it. */
-    const out = execFileSync("node", ["scripts/check-house-rules.mjs"], {
-      encoding: "utf8",
-    });
-    expect(out).toMatch(/House rules: clean\. \d+ rules checked\./);
-    expect(out).toContain(`${RULES.length} rules checked`);
+    const dir = mkdtempSync(join(tmpdir(), "house-rules-"));
+    try {
+      execFileSync("git", ["init", "-q", "."], { cwd: dir });
+      writeFileSync(join(dir, "innocent.tsx"), 'export const a = <p className="text-gold" />;\n');
+      execFileSync("git", ["add", "-A"], { cwd: dir });
+
+      const out = execFileSync("node", [CHECKER], { cwd: dir, encoding: "utf8" });
+      expect(out).toMatch(/House rules: clean\. \d+ rules checked\./);
+      expect(out).toContain(`${RULES.length} rules checked`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails loudly on a fixture tree that has a violation", () => {
+    /* The other half of the same question. A gate nobody has watched fail is a
+       gate nobody knows works, and that applies to the runner and the reporting
+       as much as it does to any single rule. */
+    const dir = mkdtempSync(join(tmpdir(), "house-rules-"));
+    try {
+      execFileSync("git", ["init", "-q", "."], { cwd: dir });
+      writeFileSync(join(dir, "bad.tsx"), '<p className="text-emerald-500" />\n');
+      execFileSync("git", ["add", "-A"], { cwd: dir });
+
+      let status = 0;
+      let stderr = "";
+      try {
+        execFileSync("node", [CHECKER], { cwd: dir, encoding: "utf8" });
+      } catch (err) {
+        status = err.status;
+        stderr = String(err.stderr);
+      }
+      expect(status).toBe(1);
+      expect(stderr).toMatch(/House rule violations \(1\)/);
+      expect(stderr).toContain("bad.tsx:1");
+      expect(stderr).toContain("green is never used");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("is never silent on the real repository, whichever way it goes", () => {
+    let output = "";
+    try {
+      output = execFileSync("node", [CHECKER], { encoding: "utf8" });
+    } catch (err) {
+      output = String(err.stdout) + String(err.stderr);
+    }
+    expect(output.trim().length).toBeGreaterThan(0);
   });
 });

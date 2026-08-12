@@ -198,7 +198,7 @@ export function NotificationsProvider({
       {mounted &&
         toasts.length > 0 &&
         createPortal(
-          <div className="pointer-events-none fixed inset-x-0 top-3 z-[70] flex flex-col items-center gap-2 px-3 sm:inset-x-auto sm:right-4 sm:items-end">
+          <div className="pointer-events-none fixed inset-x-0 top-3 z-toast flex flex-col items-center gap-2 px-3 sm:inset-x-auto sm:right-4 sm:items-end">
             {toasts.map((t) => (
               <Card key={t.key} render={<Link href={t.href} onClick={() => dismissToast(t.key)} />} variant="warm" pad="none" elevation="overlay" className="notif-toast   pointer-events-auto flex w-full max-w-sm items-start gap-3 p-3.5 transition hover:border-gold/40">
                 <span className="relative shrink-0">

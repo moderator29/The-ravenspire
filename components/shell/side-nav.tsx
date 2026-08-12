@@ -62,7 +62,7 @@ function Row({
         <motion.span
           layoutId="nav-rail"
           transition={{ type: "spring", visualDuration: 0.2, bounce: 0.1 }}
-          className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-[1px] bg-gold-bright"
+          className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-sm bg-gold-bright"
         />
       )}
       <Icon

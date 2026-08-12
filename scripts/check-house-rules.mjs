@@ -253,6 +253,24 @@ function classNamesIn(tag) {
    suite call each one directly with a planted violation.
    ------------------------------------------------------------------ */
 
+/* Blank out comment bodies while keeping every newline, so line numbers still
+   line up afterwards.
+ *
+ * Whole file rather than per line, which is the bug this replaced. Two rules
+ * need to read past a comment, and both did it with a per line regex that only
+ * understood a comment opening and closing on the same line. globals.css
+ * records the thirteen z index values this scale replaced inside a five line
+ * block comment, and the off-scale rule reported the history as a violation.
+ *
+ * A line comment is only recognised after whitespace or a line start, so the
+ * `//` in an https:// URL inside a string is not mistaken for one. */
+export function stripComments(text) {
+  const blanked = text.replace(/\/\*[\s\S]*?\*\//g, (m) =>
+    m.replace(/[^\n]/g, " ")
+  );
+  return blanked.replace(/(^|\s)\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
+}
+
 /* Walk every line of a file, one-based, collecting findings. The shape almost
    every rule wants. */
 function byLine(text, fn) {
@@ -291,6 +309,40 @@ export const RULES = [
         if (!HORIZONTAL_PAD.test(line) && !CAPSULE_ROW.test(line)) return null;
         if (PILL_ALLOWED.some((re) => re.test(line))) return null;
         return "pill shaped control. Controls use --radius-sm through --radius-2xl, never a full radius.";
+      }),
+  },
+
+  {
+    id: "off-scale-token",
+    title: "Rule 10: z index and radius come from the token scales",
+    globs: ["*.tsx", "*.css"],
+    /* An arbitrary value is legitimate when it reaches for a token: the toast
+       stack computes its own rung with
+       `z-[calc(var(--z-toast)-var(--toast-index))]`, which is on the scale and
+       could not be written any other way. So the test is not "is this
+       arbitrary" but "does this name a number the scale does not know".
+
+       Deliberately narrower than rule 10 reads. Spacing is the third scale the
+       rule names and it is not checked here, because it genuinely is not
+       enforced anywhere: globals.css says so in its own comment, py-2.5, px-3.5,
+       p-7 and p-9 are scattered through the codebase, and a rule firing on
+       hundreds of existing lines would be turned off within the hour. AGENTS.md
+       claimed that scale "fails to compile by design", which was not true, and
+       that sentence is corrected in the same commit as this rule rather than
+       left standing over a check that does not exist. */
+    /* globals.css records the thirteen z values this scale replaced, in a
+       comment, as the history of what it fixed. Comments are stripped rather
+       than the file skipped: making the one file that defines the scale the
+       one place this cannot see is exactly backwards. */
+    check: (file, text) =>
+      byLine(stripComments(text), (line) => {
+        for (const m of line.matchAll(/\b(z|rounded)-\[([^\]]+)\]/g)) {
+          if (/var\(--|^--/.test(m[2])) continue;
+          return m[1] === "z"
+            ? `${m[0]} is off the z index scale. Use z-base through z-tooltip.`
+            : `${m[0]} is off the radius scale. Use rounded-sm through rounded-2xl, or the --radius-full token for an avatar.`;
+        }
+        return null;
       }),
   },
 
@@ -339,9 +391,8 @@ export const RULES = [
     globs: ["*.ts", "*.tsx", "*.css"],
     skip: (f) => f === "scripts/check-house-rules.mjs",
     check: (file, text) =>
-      byLine(text, (line) => {
-        const code = line.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/, "");
-        const m = code.match(RETIRED_GOLD);
+      byLine(stripComments(text), (line) => {
+        const m = line.match(RETIRED_GOLD);
         if (!m) return null;
         return `${m[0]} is the retired gold. Use var(--gold) family, or the current hex in Satori rendered images.`;
       }),
