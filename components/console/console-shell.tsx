@@ -189,7 +189,25 @@ export function ConsoleToolbar({
 
 /* A horizontally scrollable set of filter chips. Section 3: many options,
    additive or filtering rather than exclusive, so a chip rail rather than a
-   Segmented control. Rounded rectangles, never capsules. */
+   Segmented control. Rounded rectangles, never capsules.
+
+   The rail eats its own focus ring, and that is a CSS rule rather than an
+   oversight anyone could see. `overflow-x: auto` forces the computed
+   `overflow-y` to `auto` as well: the two axes cannot be independently visible
+   and scrollable. This box has no vertical padding, so the ring drawn just
+   outside a focused chip lands outside the scroll box and is clipped away.
+
+   Measured on the War's arsenal rail at 1440: sampling the pixels directly
+   above a focused first chip returned `rgb(6,6,9)`, the page ground, where the
+   ring belongs. With the box no longer scrolling, the same sample returns
+   `rgb(249,227,159)`. Rule 12 says the global ring must never be defeated, and
+   this defeated it on all eleven surfaces that use a rail.
+
+   Above `md` the fix is simply to stop scrolling: a Console is compact there
+   and the chips fit, so `overflow-visible` costs nothing and restores the
+   ring. Below `md` the rail genuinely needs to scroll, so the vertical padding
+   gives the ring room inside the box instead, with a matching negative margin
+   so the rail still sits on the same line it always did. */
 export function ChipRail({
   label,
   className,
@@ -204,7 +222,8 @@ export function ChipRail({
       role="group"
       aria-label={label}
       className={cx(
-        "scrollbar-none -mx-1 flex min-w-0 items-center gap-1.5 overflow-x-auto px-1",
+        "scrollbar-none -mx-1 -my-1 flex min-w-0 items-center gap-1.5 overflow-x-auto p-1",
+        "md:-my-0 md:overflow-x-visible md:py-0",
         className
       )}
     >

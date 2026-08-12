@@ -90,12 +90,56 @@ const FAMILIES: [RegExp, string][] = [
   [/^z-/, "z-index"],
 ];
 
-const cache = new Map<string, string | null>();
+/* A shorthand covers its own longhands, and forgetting that is not academic.
+ *
+ * `p-` and `px-` key separately above, which is correct in one direction and
+ * silently wrong in the other. A caller writing `p-0` on a `Button` whose size
+ * sets `px-5` produced two surviving classes, not one: nothing displaced
+ * anything, `px-5` is emitted later, and it won. Measured on the landing
+ * page's mobile menu button: a 44x44 control with 40px of horizontal padding
+ * left a 2px content box, so the hamburger icon asked for 20px and rendered at
+ * 2. The only navigation control a phone had was an empty box with a dot in
+ * it, and every class in the attribute looked right.
+ *
+ * Direction matters, which is why this is a one way map rather than a group.
+ * A later `p-4` must drop an earlier `px-5`, because `p-` sets all four sides.
+ * A later `px-5` must NOT drop an earlier `p-4`, because `p-4` still owns the
+ * vertical axis; both survive and Tailwind resolves the horizontal one, which
+ * is the correct outcome rather than a lucky one.
+ *
+ * Only padding is listed. Margin is deliberately absent from the table above,
+ * so it is never arbitrated at all and cannot be half arbitrated here. The
+ * corner radii have the same shape (`rounded-` over `rounded-t-`) and are
+ * deliberately left alone for now: no call site has hit it, and changing how
+ * radius resolves would touch every card and button in the product, which is
+ * not a change to make on a hypothetical. */
+const SUBSUMES: Record<string, string[]> = {
+  padding: [
+    "padding-x",
+    "padding-y",
+    "padding-top",
+    "padding-right",
+    "padding-bottom",
+    "padding-left",
+  ],
+  "padding-x": ["padding-left", "padding-right"],
+  "padding-y": ["padding-top", "padding-bottom"],
+};
+
+const cache = new Map<string, Parsed | null>();
+
+/* The variant prefix and the CSS property, kept apart so a shorthand can name
+   its longhands under the same prefix: `sm:p-0` covers `sm:px-5` and must not
+   touch a bare `px-5`. */
+interface Parsed {
+  prefix: string;
+  family: string;
+}
 
 /* The property this class sets, or null when we do not recognise it.
    Responsive and state variants key separately: `sm:p-5` and `p-4` do not
    fight, and neither do `hover:bg-x` and `bg-y`. */
-function keyOf(cls: string): string | null {
+function keyOf(cls: string): Parsed | null {
   const cached = cache.get(cls);
   if (cached !== undefined) return cached;
 
@@ -118,11 +162,11 @@ function keyOf(cls: string): string | null {
   /* An important marker changes precedence, not the property. */
   const name = bare.startsWith("!") ? bare.slice(1) : bare;
 
-  let key: string | null = null;
+  let key: Parsed | null = null;
   for (const [re, family] of FAMILIES) {
     if (!re.test(name)) continue;
     /* An empty family means "recognised, but sets nothing we arbitrate". */
-    key = family ? prefix + family : null;
+    key = family ? { prefix, family } : null;
     break;
   }
   cache.set(cls, key);
@@ -149,8 +193,12 @@ export function mergeClasses(...values: ClassValue[]): string {
     const cls = classes[i];
     const key = keyOf(cls);
     if (key !== null) {
-      if (seen.has(key)) continue;
-      seen.add(key);
+      const own = key.prefix + key.family;
+      if (seen.has(own)) continue;
+      seen.add(own);
+      /* Claim the longhands too, so an earlier `px-5` cannot outlive a later
+         `p-0`. Under the same variant prefix only. */
+      for (const sub of SUBSUMES[key.family] ?? []) seen.add(key.prefix + sub);
     }
     kept.push(cls);
   }
