@@ -62,7 +62,13 @@ function HousesSurface() {
           title="Houses"
           kicker="Six banners, one season"
           actions={
+            /* The desktop half of one control. Below lg the dock's contextual
+               strip carries these same views, so this one is hidden there
+               rather than sitting a thumb's width above a copy of itself.
+               Both write the same `?view=`, and they now offer exactly the
+               same two views, so they cannot disagree about what exists. */
             <SegmentedControl
+              className="max-lg:hidden"
               label="Houses view"
               size="sm"
               value={view}

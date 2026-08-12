@@ -185,9 +185,13 @@ export const subNav: Record<string, SubNavItem[]> = {
     { href: "/rookery", label: "Live rooms" },
     { href: "/search", label: "Search" },
   ],
+  /* `?view=mine` used to sit between these two and the route has never had such
+     a view: it fell through to Standings, so the chip lit up and nothing moved.
+     A member's own House is its hall at /houses/[slug], which needs a slug this
+     static list cannot know, so the entry is gone rather than faked. These two
+     are exactly what the in-page control offers, which is the point. */
   "/houses": [
     { href: "/houses", label: "Standings" },
-    { href: "/houses?view=mine", label: "My House" },
     { href: "/houses?view=clashes", label: "Clashes" },
   ],
   "/keep": [
