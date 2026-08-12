@@ -395,11 +395,14 @@ export default function WhispersPage() {
 
   const threadHeader = (
     <div className="flex items-center gap-3 border-b border-steel-line px-3 py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] md:pt-2.5">
+      {/* 44px under md, dense above it. There is no arrow-left glyph in the
+          set, so the one arrow is turned around. */}
       <IconButton
         icon="arrow"
         label="Back to whispers"
+        size="lg"
         onClick={closeThread}
-        className="shrink-0 [&_svg]:rotate-180"
+        className="shrink-0 md:h-9 md:w-9 [&_svg]:rotate-180"
       />
       {active?.other?.handle ? (
         <Link
@@ -706,6 +709,7 @@ export default function WhispersPage() {
           </div>
           {ready && authenticated && (
             <Button
+              className="min-h-11 md:min-h-9"
               onClick={() => {
                 setComposeOpen(true);
                 setComposeErr(null);

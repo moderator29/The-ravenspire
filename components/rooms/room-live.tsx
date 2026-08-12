@@ -734,7 +734,8 @@ export function RoomLive({ roomId }: { roomId: string }) {
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+          {/* 44px on touch, dense above md, per the density table. */}
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end [&_button]:min-h-11 [&_a]:min-h-11 md:[&_button]:min-h-9 md:[&_a]:min-h-9">
             {ready && authenticated && (
               <>
                 {isHost ? (
