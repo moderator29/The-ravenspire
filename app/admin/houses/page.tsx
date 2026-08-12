@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input } from "@/components/ui/field";
+import { Meter } from "@/components/ui/meter";
 import { ConfirmDialog } from "@/components/ui/modal";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import {
@@ -243,14 +244,12 @@ export default function AdminHousesPage() {
                     <p className="truncate text-xs text-bone-faint">
                       {row.motto ?? meta?.motto ?? ""}
                     </p>
-                    <div className="bar-track mt-2 h-1.5 w-full">
-                      <div
-                        className="bar-gold h-full"
-                        style={{
-                          width: `${Math.max(4, (row.glory / maxGlory) * 100)}%`,
-                        }}
-                      />
-                    </div>
+                    <Meter
+                      className="mt-2"
+                      value={row.glory}
+                      max={maxGlory}
+                      floor={4}
+                    />
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="tnum text-sm font-semibold text-gold">
