@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FeedItemCard } from "@/components/stream/cards/registry";
 import { WhoToFollow } from "@/components/social/who-to-follow";
 import { CashtagChip } from "@/components/social/cashtag-chip";
@@ -85,9 +86,42 @@ const FILTER_ROWS: {
   },
 ];
 
+/* The view is held in the URL rather than in this component.
+
+   The dock on a phone already carries the five feed views as its contextual
+   strip, which is the whole reason that strip exists: depth lives in one
+   predictable place instead of a tab row re-invented at the top of every
+   screen. Those links set `?tab=`, and this component used to keep the view in
+   React state and never read the query, so every one of them changed the
+   address bar and nothing else. Five dead controls on the most visited screen
+   in the realm, and dead in the way that is hardest to notice, because the
+   chip you tapped lit up in the dock while the feed under it did not move.
+
+   Reading the URL fixes both halves at once: the dock works, and the rail and
+   the dock can no longer disagree about which view is showing. */
+function tabFromParam(raw: string | null): FeedTab {
+  return TABS.some((t) => t.key === raw) ? (raw as FeedTab) : "foryou";
+}
+
 export function Feed() {
   const { authenticated } = useRealmAuth();
-  const [tab, setTab] = useState<FeedTab>("foryou");
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const tab = tabFromParam(params.get("tab"));
+
+  const setTab = useCallback(
+    (next: FeedTab) => {
+      const query = new URLSearchParams(params.toString());
+      if (next === "foryou") query.delete("tab");
+      else query.set("tab", next);
+      const qs = query.toString();
+      /* Replace rather than push: flipping between views is not a place a
+         member wants five entries of in their back history. */
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [params, pathname, router]
+  );
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasNew, setHasNew] = useState(false);
@@ -198,8 +232,13 @@ export function Feed() {
         }}
       />
 
-      <div className="flex items-center gap-2">
-        <StreamChipRail label="Feed views" className="flex-1">
+      {/* The rail is the desktop half of one control, not a second control.
+          Below lg the dock carries these five views and this rail would be the
+          same five chips a thumb's width above them, so it is hidden there.
+          Responsive is not a resize: the phone gets the dock, the desktop gets
+          the rail, and both write the same `?tab=`. */}
+      <div className="flex items-center gap-2 max-lg:justify-end">
+        <StreamChipRail label="Feed views" className="flex-1 max-lg:hidden">
           {TABS.map((t) => (
             <StreamChip
               key={t.key}

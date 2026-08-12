@@ -1,6 +1,17 @@
 @import "tailwindcss";
+@custom-variant touch (@media (pointer: coarse));
 
 /* `touch:` means "this pointer is a finger".
+
+   THE LINE ABOVE MUST STAY DIRECTLY UNDER THE IMPORT, with nothing between
+   them, not even this comment. Moved down by even one comment block, the
+   directive is silently dropped from the production build: the variant still
+   parses, the call sites still compile, and not one rule reaches the
+   stylesheet. It sat one comment too low and every `touch:` class in the
+   product had been dead since the day it was written, which is why an audit at
+   390px measured tabs at 24px and a segmented control at 32px while the source
+   plainly asked for 44. Verified by building all four arrangements and reading
+   the emitted CSS: below this comment, zero `touch:` rules; above it, both.
 
    The product holds itself to a 44px minimum touch target and the control
    scale did not encode it: sm is 32px and md is 36px, so only `lg` cleared the
@@ -14,7 +25,6 @@
    keys off `pointer: coarse`, which leaves the compact scale intact for a
    mouse and lifts every control to 44px for a finger, without a single call
    site having to remember. */
-@custom-variant touch (@media (pointer: coarse));
 
 /*
   RAVENSPIRE Brand System v3: "Obsidian & Gold, Cinematic Metal"

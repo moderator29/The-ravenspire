@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Feed } from "@/components/social/feed";
 import { TourMount } from "@/components/onboarding/tour-mount";
 import { RealmStrip } from "@/components/social/realm-strip";
@@ -22,7 +23,14 @@ export default function HomePage() {
       </h1>
       <TourMount />
       <RealmStrip />
-      <Feed />
+      {/* The Feed reads the view out of the query string so the dock's
+          contextual strip actually drives it, and useSearchParams() opts a
+          component out of static rendering. Without this boundary the whole
+          page fails to prerender at build time, which is precisely the break
+          that made this repository grow a CI pipeline in the first place. */}
+      <Suspense fallback={null}>
+        <Feed />
+      </Suspense>
     </StreamColumn>
   );
 }
