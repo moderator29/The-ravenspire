@@ -25,8 +25,13 @@ export default async function ComingSoonPage({
         <BackButton />
       </div>
       <Card pad="none" className="mt-6 flex w-full max-w-md flex-col items-center p-8">
+        {/* "Chapter II" was hardcoded, so all six chapters announced themselves
+            as the second one. Nothing in comingSoonNav carries a chapter
+            number, and inventing one for each would be inventing data. The
+            realm already has a true name for this set: the navigation calls it
+            Chapters ahead, and that is what every one of these pages is. */}
         <span className="hairline mb-5 rounded-sm bg-panel-warm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-gold">
-          Chapter II
+          Chapters ahead
         </span>
         <Icon3D name={item.icon3d} size="hero" priority />
         <p className="mt-5 text-xs uppercase tracking-[0.3em] text-bone-faint">
