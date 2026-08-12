@@ -21,13 +21,11 @@ import {
    The Keep itself carries no back control, because it is a dock destination
    rather than somewhere a member was navigated into. */
 
-/* The dock's contextual strip links `/keep?tab=calls` and `/keep?tab=media`,
-   and the panel used to live in ProfileView's own state with nothing reading
-   the query, so both chips changed the address bar and left the Keep on
-   Ravens. Three dead controls, counting the bare `/keep` that meant Ravens.
-
-   The panel is the URL now. ProfileView stays uncontrolled for a public
-   /u/handle, which has no dock strip of its own and no param to answer. */
+/* The panel lives in the URL, so the Keep's tab line survives a reload and
+   a shared link opens on the panel it names. The dock strip that once wrote
+   these params is retired; the tab line under the identity block is the one
+   switcher now. ProfileView stays uncontrolled for a public /u/handle, which
+   has no param to answer. */
 const TABS: ProfileTab[] = ["posts", "calls", "media"];
 
 function tabFromParam(raw: string | null): ProfileTab {

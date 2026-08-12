@@ -173,87 +173,19 @@ export const bottomNav = [
    place instead of being re-invented at the top of every page.
 
    Keys are matched against the start of the pathname, longest first. */
-export type SubNavItem = { href: string; label: string };
-
-export const subNav: Record<string, SubNavItem[]> = {
-  /* The Ravenry is deliberately absent, and it is the only section that is.
-   *
-   * Its five views now sit at the top of the feed, on the composer's own row,
-   * rather than in the dock. A filter control was already stranded alone on
-   * that line with the whole width to itself, and the five chips it belongs
-   * beside were pinned to the far end of the screen, a thumb's width above the
-   * dock and detached from the column they filter. Two half rows became one
-   * full one.
-   *
-   * It also settles a thing the strip could not do well. Five views need
-   * 401px in a 366px dock, so one chip was always half off; moving them into
-   * the column gives them the content width instead. The feed owns its own
-   * views now, which is what every other stream surface in the product does.
-   *
-   * The other sections keep the dock strip: they are navigation between
-   * routes, not a filter over one column, and they fit. */
-  "/calls": [
-    { href: "/calls", label: "Live" },
-    { href: "/calls?view=closing", label: "Closing soon" },
-    { href: "/calls?view=trending", label: "Trending" },
-    { href: "/calls?view=leaderboard", label: "Callers" },
-    { href: "/calls?view=mine", label: "Mine" },
-  ],
-  "/explore": [
-    { href: "/explore", label: "People" },
-    { href: "/explore?view=cashtags", label: "Cashtags" },
-    { href: "/rookery", label: "Live rooms" },
-    { href: "/search", label: "Search" },
-  ],
-  /* `?view=mine` used to sit between these two and the route has never had such
-     a view: it fell through to Standings, so the chip lit up and nothing moved.
-     A member's own House is its hall at /houses/[slug], which needs a slug this
-     static list cannot know, so the entry is gone rather than faked. These two
-     are exactly what the in-page control offers, which is the point. */
-  "/houses": [
-    { href: "/houses", label: "Standings" },
-    { href: "/houses?view=clashes", label: "Clashes" },
-  ],
-  "/keep": [
-    { href: "/keep", label: "Ravens" },
-    { href: "/keep?tab=calls", label: "Calls" },
-    { href: "/keep?tab=media", label: "Media" },
-    { href: "/renown", label: "Renown" },
-    { href: "/bookmarks", label: "Saved" },
-  ],
-  "/war": [
-    { href: "/war", label: "Muster" },
-    { href: "/war/champions", label: "Champions" },
-    { href: "/war/arsenal", label: "Arsenal" },
-    { href: "/war/rewards", label: "Rewards" },
-  ],
-};
-
-/* The sub nav for a pathname, or null when the section has no depth.
-
-   A strip is section navigation, so it belongs on a section's own
-   destinations and not on a page about one item. Prefix matching alone could
-   not tell those apart: /war/champions is a sub destination of the War and
-   /war/champions/[slug] is one champion, but both start with "/war".
-
-   The test that separates them is whether the strip can name where you are.
-   On /war/arsenal one chip is current; on a single champion, a single Call or
-   a single House hall, none is, so the strip renders five chips with nothing
-   lit and reads as a broken tab row. Worse on a House hall, which carries its
-   own three tabs: two navigations on one screen, disagreeing, which is the
-   exact defect the Houses index had.
-
-   So a pathname inherits a strip only when the strip contains it. The section
-   root always qualifies, because it is the strip's own first entry. */
-export function subNavFor(pathname: string): SubNavItem[] | null {
-  const key = Object.keys(subNav)
-    .filter((k) => pathname === k || pathname.startsWith(`${k}/`))
-    .sort((a, b) => b.length - a.length)[0];
-  if (!key) return null;
-  const items = subNav[key];
-  const named = items.some((i) => i.href.split("?")[0] === pathname);
-  return named ? items : null;
-}
+/* The dock's contextual sub-strip is retired, on the founder's direction.
+ *
+ * Every section it served now carries its own switcher at the top of its own
+ * column, as plain text: the feed's views on the composer row, the Calls and
+ * Crossroads chips on their pages, the Houses control in its hall, and the
+ * Keep's tab line under the identity block with Renown and Saved riding it as
+ * quiet links. A second copy of those switchers, boxed, at the far end of the
+ * screen, was two controls for one job and the far one never fit: five chips
+ * needed 401px of a 366px dock.
+ *
+ * SubNavItem, subNav and subNavFor lived here; components/shell/bottom-nav.tsx
+ * held the strip renderer. Removed whole rather than left as dead machinery,
+ * because dead code that looks live is this codebase's most expensive habit. */
 
 export function findComingSoon(slug: string) {
   return comingSoonNav.find((i) => i.slug === slug);

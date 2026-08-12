@@ -163,31 +163,52 @@ export function DossierTabs({
   tabs,
   value,
   onValueChange,
+  trailing,
   className,
   children,
 }: {
   tabs: DossierTab[];
   value: string;
   onValueChange: (value: string) => void;
+  /* Plain links that live on the tab line without being tabs: same type, same
+     height, no underline because they navigate away rather than switch a
+     panel. The Keep's Renown and Saved entries, which the dock strip used to
+     carry as boxed chips, sit here as text. Rendered beside the tablist
+     rather than inside it, so the list's tab semantics stay pure; the wrapper
+     carries its own bottom hairline so the rule runs unbroken across both. */
+  trailing?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
+  const list = (
+    <TabsList className={trailing ? "min-w-0 flex-1" : undefined}>
+      {tabs.map((t) => (
+        <Tab key={t.value} value={t.value}>
+          {t.label}
+          {typeof t.count === "number" ? (
+            <span className="tnum ml-1.5 text-bone-faint">{t.count}</span>
+          ) : null}
+        </Tab>
+      ))}
+    </TabsList>
+  );
+
   return (
     <Tabs
       value={value}
       onValueChange={onValueChange}
       className={cx("mt-4", className)}
     >
-      <TabsList>
-        {tabs.map((t) => (
-          <Tab key={t.value} value={t.value}>
-            {t.label}
-            {typeof t.count === "number" ? (
-              <span className="tnum ml-1.5 text-bone-faint">{t.count}</span>
-            ) : null}
-          </Tab>
-        ))}
-      </TabsList>
+      {trailing ? (
+        <div className="flex items-stretch">
+          {list}
+          <div className="flex shrink-0 items-center gap-1 border-b border-steel-line pl-1">
+            {trailing}
+          </div>
+        </div>
+      ) : (
+        list
+      )}
       {children}
     </Tabs>
   );
