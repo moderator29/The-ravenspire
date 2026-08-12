@@ -359,6 +359,54 @@ describe("rule 22, a 3D icon is never labelled with its own name", () => {
   });
 });
 
+describe("rule 2, no emoji as icons", () => {
+  /* Built from code points so this file does not trip its own rule, the same
+     reason the em dash fixtures are built rather than typed. */
+  const HEART = String.fromCodePoint(0x2665);
+  const FIRE = String.fromCodePoint(0x1f525);
+
+  it("catches an emoji rendered as JSX text", () => {
+    expect(
+      check("no-emoji-as-icons", "a.tsx", `<span>${FIRE}</span>`)
+    ).toHaveLength(1);
+  });
+
+  it("catches the glyph that was standing in for a like icon", () => {
+    expect(
+      check("no-emoji-as-icons", "a.tsx", `<span style={{ color: "#D9B040" }}>${HEART}</span>`)
+    ).toHaveLength(1);
+  });
+
+  it("catches an emoji in an accessible name, which is the worse case", () => {
+    /* A screen reader announces what the emoji is called rather than what the
+       control does. */
+    const found = check("no-emoji-as-icons", "a.tsx", `<button aria-label="${FIRE} streak" />`);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/screen reader/);
+  });
+
+  it("catches it in the other named props too", () => {
+    for (const prop of ["title", "alt", "placeholder"]) {
+      expect(
+        check("no-emoji-as-icons", "a.tsx", `<img ${prop}="${FIRE}" />`),
+        prop
+      ).toHaveLength(1);
+    }
+  });
+
+  it("says nothing about an emoji in a comment, which is prose", () => {
+    expect(check("no-emoji-as-icons", "a.tsx", `/* the ${FIRE} icon was here */`)).toEqual([]);
+  });
+
+  it("says nothing about the Icon component doing its job", () => {
+    expect(check("no-emoji-as-icons", "a.tsx", '<Icon name="flame" className="h-4 w-4" />')).toEqual([]);
+  });
+
+  it("says nothing about ordinary words", () => {
+    expect(check("no-emoji-as-icons", "a.tsx", "<span>Streak</span>")).toEqual([]);
+  });
+});
+
 describe("rule 13, one gold and never green", () => {
   it("catches a retired gold hex", () => {
     expect(check("retired-gold", "a.css", "--gold: #d8b45a;")).toHaveLength(1);

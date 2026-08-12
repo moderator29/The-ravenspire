@@ -494,6 +494,40 @@ export const RULES = [
   },
 
   {
+    id: "no-emoji-as-icons",
+    title: "Rule 2: no emoji as icons, the Icon component only",
+    globs: ["*.tsx", "*.ts"],
+    /* Two places an emoji becomes an icon: rendered as JSX text, or handed to a
+       prop that a member reads or hears. An accessible name made of a
+       pictograph is the worse of the two, because a screen reader announces
+       whatever the emoji is called rather than what the control does.
+       
+       Comments are stripped first. A pictograph in a comment is prose, and this
+       rule is about what reaches the interface.
+       
+       The one violation this found was in an OpenGraph image, where a heart, a
+       recycle arrow and a quotation mark stood in for the like, repost and
+       reply icons. Satori cannot render the Icon component, which is why it was
+       written that way, but it renders inline SVG perfectly well. */
+    check: (file, text) => {
+      const EMOJI = /\p{Extended_Pictographic}/u;
+      return byLine(stripComments(text), (line) => {
+        const named = line.match(
+          /\b(?:aria-label|label|title|alt|placeholder)\s*=\s*["'`]([^"'`]*)["'`]/
+        );
+        if (named && EMOJI.test(named[1]))
+          return "an emoji in an accessible name. A screen reader announces the emoji, not the action. Use the Icon component and plain words.";
+        /* JSX text: between a tag close and the next tag open. */
+        for (const m of line.matchAll(/>([^<>{}]+)</g)) {
+          if (EMOJI.test(m[1]))
+            return "an emoji used as an icon. Use the Icon component, or inline SVG where a renderer cannot take it.";
+        }
+        return null;
+      });
+    },
+  },
+
+  {
     id: "retired-button-utilities",
     title: "Rule 18: the legacy button utilities are retired",
     globs: ["*.tsx"],

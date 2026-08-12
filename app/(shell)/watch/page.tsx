@@ -318,7 +318,16 @@ export default function WatchPage() {
             }}
             placeholder="Token contract address, 0x..."
             spellCheck={false}
-            className="h-11 min-w-0 flex-1 rounded-md border border-steel-line bg-obsidian/60 px-3 font-mono text-sm text-bone placeholder:font-sans placeholder:text-bone-faint transition-colors duration-fast focus:border-gold/60 md:h-9 md:text-[13px]"
+            /* `sm:flex-1`, not `flex-1`, and the breakpoint has to match the
+               one on the container above. A flex item takes its main axis size
+               from flex-basis, and `flex-1` is `flex: 1 1 0%`, so while this
+               row is stacked the basis of zero governs the HEIGHT and beats
+               `h-11` outright. The field rendered at its 20px content height on
+               every phone, and no `height` could fix it, inline or otherwise,
+               because on the main axis flex-basis wins over height. Above sm
+               the row turns horizontal, the basis governs width where it was
+               always meant to, and `h-11` sets the height again. */
+            className="h-11 min-w-0 sm:flex-1 rounded-md border border-steel-line bg-obsidian/60 px-3 font-mono text-sm text-bone placeholder:font-sans placeholder:text-bone-faint transition-colors duration-fast focus:border-gold/60 md:h-9 md:text-[13px]"
           />
           <Button
             variant="gold"

@@ -23,6 +23,46 @@ interface PostRow {
   } | null;
 }
 
+/* The realm's own glyphs, inlined.
+ *
+ * This band used to be three text characters standing in for icons, a heart, a
+ * recycle arrow and a quotation mark, which is rule 2's "no emoji as icons"
+ * written into the one surface most likely to be seen by someone who has never
+ * opened the product. Satori cannot render the Icon component, since that
+ * resolves CSS custom properties and a font Satori is not given, but it renders
+ * inline SVG perfectly well, so the paths here are the same ones
+ * components/ui/icon.tsx draws for heart, repost and reply.
+ *
+ * Copied rather than imported on purpose: Icon's paths are JSX built for the
+ * browser runtime, and an OpenGraph image is generated in a different renderer
+ * with no shared stroke or sizing context. Two lines of duplication beats
+ * reaching across that boundary. */
+function OgIcon({
+  path,
+  color = "#B9B4A8",
+  lead = 0,
+}: {
+  path: string;
+  color?: string;
+  lead?: number;
+}) {
+  return (
+    <svg
+      width="30"
+      height="30"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ marginLeft: lead, marginRight: 10 }}
+    >
+      <path d={path} />
+    </svg>
+  );
+}
+
 export default async function Image({
   params,
 }: {
@@ -143,11 +183,17 @@ export default async function Image({
             fontSize: 30,
           }}
         >
-          <span style={{ color: "#D9B040", marginRight: 10 }}>♥</span>
+          <OgIcon path="M12 20s-7-4.5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.5-9 9-9 9z" color="#D9B040" />
           {likes}
-          <span style={{ margin: "0 10px 0 40px" }}>↺</span>
+          <OgIcon
+            path="M4 9l3-3m0 0l3 3M7 6v9a3 3 0 0 0 3 3h2m8-3l-3 3m0 0l-3-3m3 3V9a3 3 0 0 0-3-3h-2"
+            lead={40}
+          />
           {reposts}
-          <span style={{ margin: "0 10px 0 40px" }}>❝</span>
+          <OgIcon
+            path="M9 17l-5-5 5-5m-5 5h9a6 6 0 0 1 6 6v2"
+            lead={40}
+          />
           {replies}
         </div>
       </div>
