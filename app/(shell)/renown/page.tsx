@@ -10,6 +10,7 @@ import { Badge, RarityChip } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Meter } from "@/components/ui/meter";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { BackButton } from "@/components/shell/back-button";
 
@@ -103,18 +104,6 @@ export default function RenownPage() {
       )
     : -1;
   const nextTier = tierIndex >= 0 ? TIERS[tierIndex + 1] : undefined;
-  const progress =
-    me && nextTier
-      ? Math.min(
-          100,
-          Math.max(
-            0,
-            ((me.renown - TIERS[tierIndex].min) /
-              (nextTier.min - TIERS[tierIndex].min)) *
-              100
-          )
-        )
-      : 100;
 
   /* Only ever what the server actually returned. Before that read lands, and
      for anyone not signed in, nothing is earned, because nothing is known. */
@@ -198,16 +187,19 @@ export default function RenownPage() {
                   Renown
                 </p>
               </div>
-              <div
-                className="bar-track mt-2 h-2 w-full"
-                role="img"
-                aria-label={`${me.renown.toLocaleString()} of ${nextTier.min.toLocaleString()} Renown`}
-              >
-                <div
-                  className="bar-gold h-full"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
+              {/* The bar is band relative: it fills across the current tier,
+                  not from zero, which is why it is fed the offsets rather than
+                  the raw totals. No `label`, deliberately. The figure is
+                  already written directly above it, and the old `role="img"`
+                  announced "1,300 of 1,900 Renown" over a bar that was in fact
+                  drawing 300 of 900, so a screen reader heard a number the
+                  shape did not mean. One reading of the value, in the text. */}
+              <Meter
+                size="md"
+                className="mt-2"
+                value={me.renown - TIERS[tierIndex].min}
+                max={nextTier.min - TIERS[tierIndex].min}
+              />
             </>
           ) : (
             <p className="text-sm text-bone-mut">

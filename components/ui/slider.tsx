@@ -14,9 +14,19 @@ import { cx } from "@/components/ui/cx";
 
    Base UI supplies the whole contract: arrow keys, Home and End, Page Up and
    Page Down, a real focus target, `aria-valuenow` and `aria-valuetext`. This
-   file supplies only the look. Rounded rectangles throughout, track and thumb
-   both off the radius scale, and the control is 44px tall so the thumb is
-   draggable with a thumb. */
+   file supplies only the look, and the control is 44px tall so the thumb is
+   draggable with a thumb.
+
+   Thumb and track are shaped differently on purpose, and this control is where
+   the product's rule about it is easiest to see. The thumb is the part you
+   grab, so it is a control and it is a rounded rectangle. The track is the
+   scale you read, so it is data, and it matches the Meter: round ends, off
+   `--radius-full`. It previously carried `rounded-sm`, which on a 6px box
+   computes to 3px, which is half the height, which is a capsule with extra
+   steps. The rung name was doing nothing but obscuring the shape it produced,
+   so the shape is now stated outright. See the note over `.bar-track` in
+   globals.css for why 4 to 8px tall boxes have no non-capsule rung available
+   to them. */
 
 export interface SliderProps {
   value: number;
@@ -59,8 +69,14 @@ export function Slider({
       className={cx("w-full", className)}
     >
       <BaseSlider.Control className="flex h-11 w-full touch-none select-none items-center">
-        <BaseSlider.Track className="h-1.5 w-full select-none rounded-sm bg-steel-deep">
-          <BaseSlider.Indicator className="h-full select-none rounded-sm bg-[image:linear-gradient(90deg,var(--gold-deep),var(--gold)_55%,var(--gold-bright))]" />
+        {/* Not `.bar-track` and `.bar-gold`, tempting as it is to have one
+            definition of a bar. That pair carries `overflow: hidden`, which is
+            right for a Meter and fatal here: the thumb is a 20px box inside a
+            6px track, so it is a child that must be allowed to escape its
+            parent's bounds. Reusing the class would have hidden the only part
+            of this control you can touch. */}
+        <BaseSlider.Track className="h-1.5 w-full select-none rounded-full bg-steel-deep">
+          <BaseSlider.Indicator className="h-full select-none rounded-full bg-[image:linear-gradient(90deg,var(--gold-deep),var(--gold)_55%,var(--gold-bright))]" />
           <BaseSlider.Thumb
             aria-label={label}
             aria-valuetext={valueText}

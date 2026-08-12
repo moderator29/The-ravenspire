@@ -174,9 +174,11 @@
 
   /* ── RADIUS ──────────────────────────────────────────────────────────────
      Six rungs, down from fourteen ad hoc values. Controls are clean rounded
-     rectangles: there is deliberately no pill rung here. `--radius-full` stays
-     for avatars and genuinely circular icon buttons only, never for buttons,
-     tabs, nav items or chips. */
+     rectangles: there is deliberately no pill rung here. `--radius-full` is
+     for things that are not controls: avatars, genuinely circular icon
+     buttons, and the meter and slider tracks, where the box is 4 to 8px tall
+     and every rung on this scale is a capsule anyway. Never for buttons, tabs,
+     nav items or chips. */
   --radius-none: 0px;
   --radius-sm: 8px; /* chips, small toggles, dense rows */
   --radius-md: 12px; /* buttons, inputs, tabs, nav items */
@@ -470,19 +472,49 @@ body {
 .hairline {
   border: 1px solid rgba(217, 176, 64, 0.16);
 }
-.bar-track {
-  background: var(--steel-deep);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.bar-gold {
-  background: linear-gradient(
-    90deg,
-    var(--gold-deep),
-    var(--gold) 55%,
-    var(--gold-bright)
-  );
-  border-radius: 999px;
+/* The bar ends are round, and that is a decision rather than an oversight.
+
+   Rule 9 bans capsules, and a 6px bar with round ends is unarguably a capsule,
+   so this needs an answer that holds everywhere instead of being re-litigated
+   at each of the nine call sites. Two facts decide it.
+
+   Geometry first: a radius is a capsule the moment it reaches half the box
+   height, so on a bar 4 to 8px tall every rung on the scale is a capsule.
+   `--radius-sm` is 8px, which on a 6px track computes to 3px, which is half of
+   6. There is no rung between 0 and capsule here, so the only real choice is
+   round ends or square ends, and "use a smaller rung" is not on the menu. The
+   Calls sweep hit exactly this and correctly declined to patch it at the call
+   site.
+
+   Then what the rule is actually about: rule 9 names buttons, tabs, nav items
+   and chips, which is to say the things a person presses. A meter is not
+   pressed. It is a picture of a quantity, the same kind of object as a chart
+   bar, and the capsule reading that makes a button look like a toy is what
+   makes a gauge look finished. The slider is the useful test of the line: its
+   thumb is the part you grab, and it is a rounded rectangle; its track is the
+   scale you read, and it matches this. Control rectangular, data rounded.
+
+   Now layered, which is the part that was a bug. Everything in this file sits
+   outside `@layer`, so it beat every Tailwind utility a caller wrote beside
+   it: `<Meter className="rounded-none">` set the class, lost the cascade and
+   changed nothing. That is the third time today unlayered CSS silently won an
+   argument it should not have been in. In `@layer components` the default
+   still applies everywhere and a call site can now actually opt out. */
+@layer components {
+  .bar-track {
+    background: var(--steel-deep);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+  .bar-gold {
+    background: linear-gradient(
+      90deg,
+      var(--gold-deep),
+      var(--gold) 55%,
+      var(--gold-bright)
+    );
+    border-radius: var(--radius-full);
+  }
 }
 
 /* ----- Rarity ladder ----- */
