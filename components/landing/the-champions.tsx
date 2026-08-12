@@ -82,7 +82,7 @@ export function TheChampions() {
         variants={rise}
         className="mt-3 font-display text-2xl font-semibold text-bone sm:text-3xl"
       >
-        Sixty heroes. Six Houses. One banner to carry.
+        Sixty two champions. Six Houses. One banner to carry.
       </motion.h2>
       <motion.p
         variants={rise}

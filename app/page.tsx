@@ -15,6 +15,7 @@ import { RealmIntro } from "@/components/landing/realm-intro";
 import { NonCustodial } from "@/components/landing/non-custodial";
 import { PlatformPreview } from "@/components/landing/platform-preview";
 import { TheChampions } from "@/components/landing/the-champions";
+import { TheCollection } from "@/components/landing/the-collection";
 import { TheGames } from "@/components/landing/the-games";
 import { MeetRaven } from "@/components/landing/meet-raven";
 import { TheTools } from "@/components/landing/the-tools";
@@ -34,6 +35,7 @@ const chips = [
   { label: "Calls", href: "/calls" },
   { label: "Houses", href: "/houses" },
   { label: "The War", href: "/war" },
+  { label: "The Reliquary", href: "/reliquary" },
   { label: "Ask @raven", href: "/raven" },
 ];
 
@@ -222,8 +224,8 @@ export default function Landing() {
             transition={{ duration: 0.8, delay: 0.5 }}
             className="mt-5 max-w-xl text-base text-bone-mut sm:text-lg"
           >
-            Make the call. Earn your name.{" "}
-            <span className="font-semibold text-gold">Rule your realm.</span>
+            Play the War. Collect the champions. Join a House.{" "}
+            <span className="font-semibold text-gold">Own the relics.</span>
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -305,6 +307,11 @@ export default function Landing() {
             <TheGames />
             <TheChampions />
           </div>
+
+          {/* The Collection: the sealed Set One fan and the three pillars.
+              Directly after the champions on purpose: the rail introduces the
+              heroes, this section says you will own them. */}
+          <TheCollection />
 
           {/* See the realm: premium platform showcase */}
           <PlatformPreview />
