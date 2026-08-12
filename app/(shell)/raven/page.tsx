@@ -24,6 +24,20 @@ import {
 } from "@/components/raven/types";
 import type { RealmPulse } from "@/components/raven/cards";
 
+/* Append the wait to a rate limit message, in the units a person thinks in.
+   The server answers in seconds, which reads badly past a minute or two. */
+function withWait(message: string, retryAfter?: number): string {
+  if (!retryAfter || retryAfter <= 0) return message;
+  const mins = Math.ceil(retryAfter / 60);
+  const wait =
+    retryAfter < 90
+      ? `${Math.ceil(retryAfter)} seconds`
+      : mins < 60
+        ? `${mins} minutes`
+        : `${Math.ceil(mins / 60)} hours`;
+  return `${message} Try again in about ${wait}.`;
+}
+
 function newId(): string {
   try {
     return crypto.randomUUID();
@@ -140,7 +154,7 @@ export default function RavenPage() {
         .filter((m) => m.role === "user" || m.role === "assistant")
         .slice(-12)
         .map((m) => ({ role: m.role, content: m.content }));
-      const { ok: resOk, data } = await realmFetch<{
+      const { ok: resOk, status, data } = await realmFetch<{
         reply?: string;
         cards?: TokenCard[];
         walletCard?: WalletCard | null;
@@ -151,6 +165,7 @@ export default function RavenPage() {
         browseRequested?: boolean;
         browseAvailable?: boolean;
         error?: string;
+        retryAfter?: number;
       }>("/api/raven", {
         method: "POST",
         json: { messages: payload, voice, browse, length },
@@ -160,8 +175,21 @@ export default function RavenPage() {
           ...m,
           {
             role: "error",
-            content:
+            /* The server's own words, never ours over the top of them. Two
+               cases carry meaning a generic failure message would destroy.
+
+               503 with no key configured means there is no Herald here at
+               all. That must read as an absence, because a member cannot
+               tell a fake Herald from a real one and would trust either.
+
+               429 means a spend cap was reached, and the cap is the honest
+               reason. The wait is appended rather than the request being
+               retried quietly, since a silent retry against a cap is just a
+               slower way to hit it again. */
+            content: withWait(
               data?.error ?? "The Raven is preoccupied. Try again shortly.",
+              status === 429 ? data?.retryAfter : undefined
+            ),
           },
         ]);
       } else {
