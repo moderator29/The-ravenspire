@@ -6,6 +6,8 @@ import {
   describeHousesForRaven,
   suggestFollowUps,
 } from "@/lib/ai/raven-voice";
+import { loadMemberContext, describeMemberForRaven } from "@/lib/ai/member-context";
+import { platformBrief } from "@/lib/ai/platform-knowledge";
 import type { RealmPulse } from "@/components/raven/cards";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 
@@ -206,20 +208,41 @@ export async function POST(req: Request) {
   const pulse = computeRealmPulse(cards);
   if (pulse) contexts.push(describeRealmPulseForRaven(pulse));
 
+  /* Who is asking, and what this platform actually is.
+   *
+   * Both were missing entirely. The Herald knew live token prices and the six
+   * Houses, and nothing about the member in front of it or about our own
+   * product, so "how am I doing" got a general essay and "how do Warchests
+   * work" got an educated guess. The dossier is the member's own real record,
+   * read live from the same tables the Keep reads; the brief is derived from
+   * the shipping modules, so neither can drift from what the product does.
+   *
+   * The platform brief goes first: it is the stable ground everything else is
+   * read against, and it is identical for every member, which keeps it in the
+   * prompt cache rather than being rebuilt per request. */
+  const memberContext = await loadMemberContext(profile);
+  const grounding = [platformBrief(), describeMemberForRaven(memberContext)];
+
   const result = await askRaven(
     messages,
-    contexts.length ? contexts.join("\n") : undefined,
+    [...grounding, ...contexts].join("\n\n"),
     { voice, browse, length, language }
   );
   if (!result)
     return json({ error: "The Raven is preoccupied. Try again shortly." }, 502);
 
-  const suggestions = suggestFollowUps({
-    cashtags,
-    houseSlugs: matchedHouses.map((h) => h.slug),
-    hasWallet: Boolean(walletCard),
-    hadData: cards.length > 0,
-  });
+  /* The Herald's own follow-ups, grounded in the answer it just gave. The
+     keyword templates remain only as the floor for the rare turn where the
+     model emits no block at all, so the interface never shows a bare reply
+     where chips have always been. */
+  const suggestions = result.suggestions.length
+    ? result.suggestions
+    : suggestFollowUps({
+        cashtags,
+        houseSlugs: matchedHouses.map((h) => h.slug),
+        hasWallet: Boolean(walletCard),
+        hadData: cards.length > 0,
+      });
 
   return json({
     reply: result.text,

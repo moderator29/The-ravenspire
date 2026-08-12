@@ -198,7 +198,24 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav
       className="scrollbar-none flex h-full flex-col overflow-y-auto px-2.5 py-4"
-      onClick={onNavigate}
+      /* Only a real navigation closes the drawer, and that distinction is the
+         whole fix.
+       *
+       * This was a bare `onClick={onNavigate}` on the nav element, so every
+       * click inside it closed the mobile drawer, including the Tools and
+       * Chapters ahead section headers. Tapping Tools therefore did two things
+       * at once: it expanded the section and it shut the drawer, so the member
+       * was returned to whatever page was behind it (the Ravenry, usually) and
+       * had to reopen the nav to see the section they had already opened. The
+       * section was never broken; it was being dismissed in the same gesture.
+       *
+       * A section toggle is a `<button>`, a destination is an `<a>`, so the
+       * event's own target says which happened. Closing on the anchor also
+       * keeps the drawer honest when a link is followed by keyboard. */
+      onClick={(e) => {
+        if (!onNavigate) return;
+        if ((e.target as HTMLElement).closest("a")) onNavigate();
+      }}
     >
       <Link
         href="/home"
