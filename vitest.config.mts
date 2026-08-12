@@ -30,6 +30,10 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts", "components/ui/**/*.test.ts"],
+    include: [
+      "lib/**/*.test.ts",
+      "components/ui/**/*.test.ts",
+      "scripts/**/*.test.mjs",
+    ],
   },
 });

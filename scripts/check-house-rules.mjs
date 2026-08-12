@@ -1,18 +1,37 @@
 /* House rule checker.
  *
- * Two of the founder's rules are absolute and easy to break by accident, and
- * both have already been broken once each after being swept clean: an agent
- * reintroduced nineteen em dashes into a documentation file, and pill shaped
- * chips kept reappearing because the original sweep only understood one of the
- * two ways a chip gets written.
+ * AGENTS.md states twenty two rules. A rule enforced by whoever remembers it is
+ * a rule that regresses, and this session alone turned up a dead `touch:`
+ * variant that killed a product wide 44px floor, `hidden` classes that did not
+ * hide, and a link doing a control's job at 49x16. None of those were
+ * carelessness. They were rules with nothing checking them.
  *
- * Rules enforced by a human noticing are rules that regress. This runs in CI.
+ * Every rule here is structural: it reads shape, never a list of allowed paths.
+ * That distinction was learned the hard way. The em dash rule began as a list
+ * of allowed routes, had to be extended by hand whenever an AI surface shipped,
+ * was extended late twice, and allowed a whole file rather than the one line
+ * that needed it. Recognising the strip filter by its shape fixed all three at
+ * once.
+ *
+ * Rules that cannot be checked structurally (real data, real AI, non custodial,
+ * server authoritative rewards) stay prose in AGENTS.md and are deliberately
+ * absent here. A check that cannot fail teaches people the whole file is
+ * decorative.
+ *
+ * STRUCTURE
+ * Every rule is an object with a `check(file, text)` that returns findings.
+ * That is what makes them testable: scripts/check-house-rules.test.mjs feeds
+ * each one a planted violation and asserts it fails, so no check in here is one
+ * nobody has watched work. Importing this module runs nothing; the scan happens
+ * only when it is invoked as a script.
  *
  * Usage: npm run check:rules
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { argv } from "node:process";
+import { fileURLToPath } from "node:url";
 
 const DASH = /[—–]/;
 
@@ -54,24 +73,6 @@ function files(patterns) {
   return out.split("\n").filter(Boolean);
 }
 
-const problems = [];
-
-/* Rule 1: no em dashes or en dashes used as punctuation, anywhere. Markdown
-   counts. The original sweep only covered .ts and .tsx, which is exactly how
-   the documentation regression got in. */
-for (const f of files(["*.ts", "*.tsx", "*.md", "*.sql", "*.yml", "*.mjs"])) {
-  if (f === "scripts/check-house-rules.mjs") continue;
-  const text = readFileSync(f, "utf8");
-  text.split("\n").forEach((line, i) => {
-    if (DASH_STRIPPER.test(line)) return;
-    if (DASH.test(line)) {
-      problems.push(
-        `${f}:${i + 1}  em dash or en dash. Use a comma, a period, or restructure.`
-      );
-    }
-  });
-}
-
 /* Rule 2: buttons, tabs, chips and toggles are clean rounded rectangles.
    A rounded-full carrying horizontal padding is a chip, not a circle.
 
@@ -94,84 +95,6 @@ const HORIZONTAL_PAD = /\b(?:px|pl|pr)-[\d.]+/;
    Checked across the codebase when added: one match, zero false positives. */
 const CAPSULE_ROW = /\bgap-[\d.]+/;
 
-for (const f of files(["*.tsx"])) {
-  const text = readFileSync(f, "utf8");
-  text.split("\n").forEach((line, i) => {
-    if (!line.includes("rounded-full")) return;
-    // No horizontal padding and not a row, so it is a circle.
-    if (!HORIZONTAL_PAD.test(line) && !CAPSULE_ROW.test(line)) return;
-    if (PILL_ALLOWED.some((re) => re.test(line))) return;
-    problems.push(
-      `${f}:${i + 1}  pill shaped control. Controls use --radius-sm through --radius-2xl, never rounded-full.`
-    );
-  });
-}
-
-/* Rule 2b: the legacy button utilities are retired.
-
-   `.btn-gold` and `.btn-glass` were pasted into 268 hand written buttons, each
-   picking its own radius, padding and focus behaviour on top. Every one of
-   them is now the Button primitive, and this check is what stops the 269th
-   from appearing. The classes still exist in globals.css so nothing breaks
-   under an in flight branch, but nothing new may reach for them.
-
-   Matching on `className=` rather than the bare word deliberately: the two
-   files that still mention these names do so in a comment explaining what
-   they were converted off, which is documentation worth keeping. */
-for (const f of files(["*.tsx"])) {
-  const text = readFileSync(f, "utf8");
-  text.split("\n").forEach((line, i) => {
-    if (!/className=/.test(line)) return;
-    const m = line.match(/\b(btn-gold|btn-glass)\b/);
-    if (m) {
-      problems.push(
-        `${f}:${i + 1}  ${m[1]} is retired. Use the Button primitive from components/ui/button.`
-      );
-    }
-  });
-}
-
-/* Rule 2c: the glass container utilities are retired.
-
-   `.glass` and `.glass-sm` are unlayered, so they beat every layered
-   `rounded-*` a caller writes beside them. That is not a style preference, it
-   is a class that silently overrides the radius scale, and roughly a hundred
-   and thirty callers were carrying a `rounded-*` that did nothing. All of them
-   are now the Card primitive, which takes its rung from a prop and can
-   therefore be told which one to use.
-
-   The classes themselves are gone from globals.css, so a use of one is not a
-   style to discourage, it is a class that does nothing at all. This rule exists
-   to say which primitive replaced it rather than to leave a caller wondering
-   why their surface has no background. */
-for (const f of files(["*.tsx"])) {
-  const text = readFileSync(f, "utf8");
-  text.split("\n").forEach((line, i) => {
-    if (!/className=/.test(line)) return;
-    const m = line.match(/\b(glass|glass-sm|glass-warm|glass-hover)\b(?![-\w])/);
-    /* `variant="glass"` is the Button's own variant name and is not this. */
-    if (m && !/variant\s*[=:]/.test(line)) {
-      problems.push(
-        `${f}:${i + 1}  .${m[1]} is retired. Use the Card primitive from components/ui/card, which takes a radius prop.`
-      );
-    }
-  });
-}
-
-/* Rule 3: never put text on a fill only hue. --foe, --blood and --ash do not
-   clear WCAG AA as text and have -text twins for exactly this case. */
-for (const f of files(["*.tsx"])) {
-  const text = readFileSync(f, "utf8");
-  text.split("\n").forEach((line, i) => {
-    const m = line.match(/\btext-(foe|blood|ash)\b(?!-)/);
-    if (m) {
-      problems.push(
-        `${f}:${i + 1}  text-${m[1]} fails WCAG AA as text. Use text-${m[1]}-text, or --state-danger.`
-      );
-    }
-  });
-}
-
 /* Rule 3b: one gold, not two.
 
    The gold scale was retuned to match the 3D icon set: a sharper, thicker
@@ -187,42 +110,6 @@ for (const f of files(["*.tsx"])) {
    properties. Those files must therefore carry the current hex, which is why
    this checks for the RETIRED values rather than banning hexes outright. */
 const RETIRED_GOLD = /#(c8a24c|f0d68c|8a6a2c|d8b45a)\b/i;
-
-for (const f of files(["*.ts", "*.tsx", "*.css"])) {
-  if (f === "scripts/check-house-rules.mjs") continue;
-  const text = readFileSync(f, "utf8");
-  text.split("\n").forEach((line, i) => {
-    /* globals.css names the retired values in comments, as the history of what
-       each token replaced, and that is worth keeping. Skipping the whole file
-       to allow it was too blunt: it made globals.css the one place this check
-       could never see, which is exactly where a colour regression does the
-       most damage.
-
-       Comments are stripped rather than whole lines skipped, because the
-       history sits in a TRAILING comment on the token line itself:
-         --gold-rich: #ecc860; /* was #d8b45a *\/
-       Skipping that line would blind the check to the live value beside it. */
-    const code = line.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/, "");
-    const m = code.match(RETIRED_GOLD);
-    if (m) {
-      problems.push(
-        `${f}:${i + 1}  ${m[0]} is the retired gold. Use var(--gold) family, or the current hex in Satori rendered images.`
-      );
-    }
-  });
-}
-
-/* Rule 4: never green in brand surfaces, including success states. */
-for (const f of files(["*.tsx", "*.css"])) {
-  const text = readFileSync(f, "utf8");
-  text.split("\n").forEach((line, i) => {
-    if (/\b(?:text|bg|border|from|to|via)-(?:green|emerald|teal|lime)-\d/.test(line)) {
-      problems.push(
-        `${f}:${i + 1}  green is never used in brand surfaces. Success is gold.`
-      );
-    }
-  });
-}
 
 /* Rule 5: a background is a variant, never a class.
  *
@@ -344,31 +231,212 @@ function classNamesIn(tag) {
   return [];
 }
 
-for (const f of files(["*.tsx"])) {
-  if (/^components\/ui\/(card|button)\.tsx$/.test(f)) continue;
-  const text = readFileSync(f, "utf8");
-  for (const { component, allowed, fix } of BACKGROUND_GUARD) {
-    for (const { text: tag, line } of openingTags(text, component)) {
-      if (allowed(tag)) continue;
-      for (const cls of classNamesIn(tag)) {
-        /* A state or responsive variant paints over the gradient in its own
-           bucket and is a legitimate way to express a hover or a breakpoint. */
-        if (cls.includes(":")) continue;
-        if (!BACKGROUND.test(cls)) continue;
-        problems.push(
-          `${f}:${line}  <${component} className="... ${cls} ..."> cannot work: ` +
-            `the variant paints a gradient over it. Use ${fix}.`
-        );
+
+/* ------------------------------------------------------------------
+   The rules
+
+   Each one is `{ id, title, globs, check(file, text) -> [{ line, message }] }`.
+   A rule that returns nothing passes. The runner below turns findings into the
+   report; a rule never prints and never exits, which is what lets the test
+   suite call each one directly with a planted violation.
+   ------------------------------------------------------------------ */
+
+/* Walk every line of a file, one-based, collecting findings. The shape almost
+   every rule wants. */
+function byLine(text, fn) {
+  const found = [];
+  text.split("\n").forEach((line, i) => {
+    const message = fn(line, i + 1);
+    if (message) found.push({ line: i + 1, message });
+  });
+  return found;
+}
+
+export const RULES = [
+  {
+    id: "em-dash",
+    title: "Rule 1: no em dashes or en dashes used as punctuation",
+    /* Markdown counts. The original sweep only covered .ts and .tsx, which is
+       exactly how the documentation regression got in. */
+    globs: ["*.ts", "*.tsx", "*.md", "*.sql", "*.yml", "*.mjs"],
+    skip: (f) => f === "scripts/check-house-rules.mjs",
+    check: (file, text) =>
+      byLine(text, (line) => {
+        if (DASH_STRIPPER.test(line)) return null;
+        if (!DASH.test(line)) return null;
+        return "em dash or en dash. Use a comma, a period, or restructure.";
+      }),
+  },
+
+  {
+    id: "capsule",
+    title: "Rule 9: controls are rounded rectangles, never capsules",
+    globs: ["*.tsx"],
+    check: (file, text) =>
+      byLine(text, (line) => {
+        if (!line.includes("rounded-full")) return null;
+        // No horizontal padding and not a row, so it is a circle.
+        if (!HORIZONTAL_PAD.test(line) && !CAPSULE_ROW.test(line)) return null;
+        if (PILL_ALLOWED.some((re) => re.test(line))) return null;
+        return "pill shaped control. Controls use --radius-sm through --radius-2xl, never rounded-full.";
+      }),
+  },
+
+  {
+    id: "retired-button-utilities",
+    title: "Rule 18: the legacy button utilities are retired",
+    globs: ["*.tsx"],
+    check: (file, text) =>
+      byLine(text, (line) => {
+        if (!/className=/.test(line)) return null;
+        const m = line.match(/\b(btn-gold|btn-glass)\b/);
+        if (!m) return null;
+        return `${m[1]} is retired. Use the Button primitive from components/ui/button.`;
+      }),
+  },
+
+  {
+    id: "retired-glass-utilities",
+    title: "Rule 18: the glass container utilities are retired",
+    globs: ["*.tsx"],
+    check: (file, text) =>
+      byLine(text, (line) => {
+        if (!/className=/.test(line)) return null;
+        const m = line.match(/\b(glass|glass-sm|glass-warm|glass-hover)\b(?![-\w])/);
+        /* `variant="glass"` is the Button's own variant name and is not this. */
+        if (!m || /variant\s*[=:]/.test(line)) return null;
+        return `.${m[1]} is retired. Use the Card primitive from components/ui/card, which takes a radius prop.`;
+      }),
+  },
+
+  {
+    id: "fill-only-hue-as-text",
+    title: "Rule 11: never put text on a fill only hue",
+    globs: ["*.tsx"],
+    check: (file, text) =>
+      byLine(text, (line) => {
+        const m = line.match(/\btext-(foe|blood|ash)\b(?!-)/);
+        if (!m) return null;
+        return `text-${m[1]} fails WCAG AA as text. Use text-${m[1]}-text, or --state-danger.`;
+      }),
+  },
+
+  {
+    id: "retired-gold",
+    title: "Rule 13: one gold, not two",
+    globs: ["*.ts", "*.tsx", "*.css"],
+    skip: (f) => f === "scripts/check-house-rules.mjs",
+    check: (file, text) =>
+      byLine(text, (line) => {
+        const code = line.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/, "");
+        const m = code.match(RETIRED_GOLD);
+        if (!m) return null;
+        return `${m[0]} is the retired gold. Use var(--gold) family, or the current hex in Satori rendered images.`;
+      }),
+  },
+
+  {
+    id: "no-green",
+    title: "Rule 13: never green in brand surfaces, including success states",
+    globs: ["*.tsx", "*.css"],
+    check: (file, text) =>
+      byLine(text, (line) =>
+        /\b(?:text|bg|border|from|to|via)-(?:green|emerald|teal|lime)-\d/.test(line)
+          ? "green is never used in brand surfaces. Success is gold."
+          : null
+      ),
+  },
+
+  {
+    id: "background-is-a-variant",
+    title: "Rule 18: a background is a variant, never a class",
+    globs: ["*.tsx"],
+    skip: (f) => /^components\/ui\/(card|button)\.tsx$/.test(f),
+    check: (file, text) => {
+      const found = [];
+      for (const { component, allowed, fix } of BACKGROUND_GUARD) {
+        for (const { text: tag, line } of openingTags(text, component)) {
+          if (allowed(tag)) continue;
+          for (const cls of classNamesIn(tag)) {
+            /* A state or responsive variant paints over the gradient in its own
+               bucket and is a legitimate way to express a hover or a
+               breakpoint. */
+            if (cls.includes(":")) continue;
+            if (!BACKGROUND.test(cls)) continue;
+            found.push({
+              line,
+              message:
+                `<${component} className="... ${cls} ..."> cannot work: ` +
+                `the variant paints a gradient over it. Use ${fix}.`,
+            });
+          }
+        }
+      }
+      return found;
+    },
+  },
+];
+
+/* ------------------------------------------------------------------
+   The runner
+   ------------------------------------------------------------------ */
+
+/* Run every rule over the files it asks for. Returns formatted problems.
+   Injectable readers so the tests can run a rule over content that never
+   touches disk. */
+export function runRules({
+  rules = RULES,
+  list = files,
+  read = (f) => readFileSync(f, "utf8"),
+} = {}) {
+  const problems = [];
+  for (const rule of rules) {
+    for (const f of list(rule.globs)) {
+      if (rule.skip && rule.skip(f)) continue;
+      for (const { line, message } of rule.check(f, read(f)) ?? []) {
+        problems.push(`${f}:${line}  ${message}`);
       }
     }
   }
+  return problems;
 }
 
-if (problems.length > 0) {
-  console.error(`\nHouse rule violations (${problems.length}):\n`);
-  for (const p of problems) console.error(`  ${p}`);
-  console.error(`\nSee AGENTS.md for the rules.\n`);
-  process.exit(1);
+/* ------------------------------------------------------------------
+   CLI
+
+   Only when invoked as a script. Importing this module runs nothing, which is
+   what lets the test suite hold the rules directly.
+   ------------------------------------------------------------------ */
+
+/* Identity, not name. The first draft compared argv[1] to the string
+   "check-house-rules.mjs", which meant the scan silently did not run whenever
+   the file was invoked by any other path: it exited 0 and printed nothing,
+   which is indistinguishable from passing. Comparing resolved paths is
+   name independent and cannot drift. */
+function isMain() {
+  if (!argv[1]) return false;
+  try {
+    return realpathSync(argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
 }
 
-console.log("House rules: clean.");
+const invokedDirectly = isMain();
+
+if (invokedDirectly) {
+  const problems = runRules();
+
+  if (problems.length > 0) {
+    console.error(`\nHouse rule violations (${problems.length}):\n`);
+    for (const p of problems) console.error(`  ${p}`);
+    console.error(`\nSee AGENTS.md for the rules.\n`);
+    process.exit(1);
+  }
+
+  /* Say so on success. A gate that prints nothing when it passes is
+     indistinguishable from a gate that is broken, which is exactly how a
+     checker with an empty rule list sat there exiting 0. Naming the count is
+     the cheapest way to notice that the rules themselves went missing. */
+  console.log(`House rules: clean. ${RULES.length} rules checked.`);
+}
