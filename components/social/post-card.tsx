@@ -502,7 +502,12 @@ export function PostCard({ post }: { post: Post }) {
             </div>
           </div>
 
-          <Link href={`/post/${post.id}`} className="mt-1 block text-[15px] leading-relaxed text-bone">
+          {/* 14px with a tighter leading, down from 15px at `leading-relaxed`.
+              A raven is short by design, and at 15/1.625 a three line post
+              spent 73px of vertical space on two line gaps. The founder read
+              the timeline as loose on a real phone; this is where most of that
+              looseness was, because it multiplies by every post on screen. */}
+          <Link href={`/post/${post.id}`} className="mt-1 block text-sm leading-[1.5] text-bone">
             <RichBody text={post.body} />
           </Link>
 
