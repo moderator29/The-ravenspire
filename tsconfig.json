@@ -46,7 +46,11 @@
     ".next-lead/types/**/*.ts",
     ".next-lead/dev/types/**/*.ts",
     ".next-profile/types/**/*.ts",
-    ".next-profile/dev/types/**/*.ts"
+    ".next-profile/dev/types/**/*.ts",
+    ".next-foundation/types/**/*.ts",
+    ".next-foundation/dev/types/**/*.ts",
+    ".next-foundation-dev/types/**/*.ts",
+    ".next-foundation-dev/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
