@@ -338,14 +338,14 @@ is not built, because a card with invented contents breaks rule 4.
 | Posts | `posts.kind = 'raven'` | Live |
 | Calls | `posts.kind = 'call'` | Live |
 | Polls | `posts.kind = 'poll'` | Live |
-| Call verdicts | `call.resolved` | Spine emits, no card |
-| Achievements | `crest.earned` | Spine emits, no card |
-| House victories | `house.overtake` | Spine emits, no card |
-| Season updates | `season.milestone` | Spine emits, no card |
-| Quest cards | `quest.completed` | Spine emits, no card |
-| Chronicle updates | `raven.chronicle` | Spine emits, no card |
-| Challenge invitations | `duel.opened` | Spine emits, no card |
-| Oaths sworn | `oath.sworn` | Spine emits, no card |
+| Call verdicts | `call.resolved` | Live |
+| Achievements | `crest.earned` | Live |
+| House victories | `house.overtake` | Live |
+| Quest cards | `quest.completed` | Live |
+| Challenge invitations | `duel.opened` | Live, without an action until a duel surface exists |
+| Oaths sworn | `oath.sworn` | Live |
+| Season updates | `season.milestone` | **Kind defined, nothing emits it.** No card. |
+| Chronicle updates | `raven.chronicle` | **Kind defined, nothing emits it.** No card. |
 | House announcements | **No producer yet.** Needs a House post type authored by leadership. | Queued |
 | Leaderboards | **No producer yet.** A periodic standings snapshot card, not a live table in the feed. | Queued |
 | Trending discussions | **No producer yet.** Derived from reply and reaction velocity, not a stored event. | Queued |
@@ -355,14 +355,21 @@ is not built, because a card with invented contents breaks rule 4.
 | AI responses | Raven, once it posts rather than only replies. | Queued |
 | World events | Realm wide events with no single actor. | Queued |
 
-Eleven of these have a spine that already emits and no card that renders it.
-Seven need a producer built first. That distinction is the build order: render
-what already exists before inventing new sources.
+Six of these are now rendered in the Ravenry through the card registry in
+`components/stream/cards/registry.tsx`, resolved from the unified feed in
+`/api/feed`. Two of the nine spine kinds turned out to have no producer at all
+when checked against the code, `season.milestone` and `raven.chronicle`, and a
+ninth, `call.sealed`, is emitted but deliberately not drawn: sealing a Call
+already writes the post that carries it, and rendering both would double every
+Call in the timeline.
 
-- Card registry (6.2), resolved through one map so a new kind is one file and one registry line, never a change to the feed.
+Seven more need a producer built first. That distinction is the build order:
+render what already exists before inventing new sources.
+
+- Card registry (6.2), resolved through one map so a new kind is one file and one registry line, never a change to the feed. Done.
 - **Inline composer** at the top of the feed (the highest-leverage funnel fix in the product).
-- Fix pagination (B1). Add infinite scroll with a sentinel, keyset-paginated on `effectiveTime`.
-- Move audience filtering server-side (C1).
+- Fix pagination (B1). Done for correctness: the cursor holds one keyset position per source, plus the ids already consumed at the instant it stopped on, because a batch written by `emitMany` shares one `now()` and a strictly-older-than cursor drops its siblings. Infinite scroll with a sentinel is still to come; the page still ends in a button.
+- Move audience filtering server-side (C1). Done for both sources: `lib/social/feed-server.ts` for ravens, `lib/realm/feed-events.ts` for the spine.
 - Quest strip and season countdown, absorbed from the dissolved Throne.
 - Move filters server-side so a filter cannot silently empty a page.
 - Realtime "new ravens" pill: scope the subscription so it stops firing for blocked, muted, and self posts.
