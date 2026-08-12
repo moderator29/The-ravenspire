@@ -42,9 +42,18 @@ export function SiteFooter() {
     <Card render={<motion.footer initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.6 }} />} pad="none" className="mt-6 p-8 sm:p-10">
       <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
         <div className="col-span-2 sm:col-span-1">
-          <div className="flex items-center gap-2.5">
-            <RavenMark className="h-9 w-9" />
-            <span className="gold-text font-display text-lg font-semibold tracking-[0.1em]">
+          {/* The brand name broke across two lines here, in a 158px column of a
+              four column grid. The header and the hero both hold it on one
+              line; only the footer did not, which is the one place nobody
+              scrolls to while designing.
+
+              `whitespace-nowrap` on the name and `min-w-0` on the row, so the
+              name keeps its line and the row shrinks around it rather than
+              forcing the grid wider. A wordmark is a single object, not a
+              sentence. */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <RavenMark className="h-9 w-9 shrink-0" />
+            <span className="gold-text whitespace-nowrap font-display text-lg font-semibold tracking-[0.1em]">
               THE RAVENSPIRE
             </span>
           </div>

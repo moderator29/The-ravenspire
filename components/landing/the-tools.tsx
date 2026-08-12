@@ -120,13 +120,25 @@ export function TheTools() {
           {tools.map((t) => (
             <Card key={t.name} render={<Link href={t.href} />} pad="none" interactive className="group   snap-start shrink-0 flex w-[76vw] max-w-[300px] flex-col p-5 sm:w-[280px]">
               <Icon3D name={icon3dFor(t.href) ?? "workshop"} size="md" />
+              {/* Name on its line, plain-language label under it.
+
+                  These were one inline run, and "The Scrying Glass" beside
+                  "Smart money" is wider than a 280px card, so that one tag
+                  wrapped to a second line while the other three sat on one.
+                  A row of cards where one title block is a line taller than
+                  its neighbours reads as a rendering fault.
+
+                  Stacking is the better shape anyway: the name is the name and
+                  the plain word is what the name means, which is the same
+                  title-and-hint pair the Card chassis uses everywhere else. It
+                  also cannot break again when a tool gets a longer name. */}
               <p className="mt-4 font-display text-base font-semibold text-bone">
                 {t.name}
-                <span className="ml-2 text-[10px] uppercase tracking-wider text-bone-faint">
-                  {t.plain}
-                </span>
+              </p>
+              <p className="mt-1 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wider text-bone-faint">
+                {t.plain}
                 {t.soon ? (
-                  <span className="ml-2 rounded-[--radius-sm] border border-ember/45 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-state-warning">
+                  <span className="rounded-[--radius-sm] border border-ember/45 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-state-warning">
                     Soon
                   </span>
                 ) : null}
