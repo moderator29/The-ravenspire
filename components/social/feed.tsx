@@ -299,7 +299,7 @@ export function Feed() {
               onClick={() => void load(true)}
               className="mx-auto text-bone-mut"
             >
-              Older ravens
+              Earlier in the realm
             </Button>
           )}
         </StreamList>
