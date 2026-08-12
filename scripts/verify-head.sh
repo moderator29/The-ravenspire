@@ -14,24 +14,19 @@
 # Every local check passed and both deployments went red, because the tree had
 # the prop and HEAD did not.
 #
-# This exports HEAD to a scratch directory and runs the gates there. Two
-# details matter:
-#
-#   - node_modules is hard linked rather than symlinked. Turbopack refuses a
-#     symlink that points outside the project root and dies with an internal
-#     panic that says nothing about symlinks until you read the debug trace.
-#     Hard links cost no disk and stay inside the root.
-#   - The build gets its own output directory, so it does not fight whoever
-#     else is building.
-#
-# The Supabase values are build time placeholders, the same ones CI uses. The
-# browser client is constructed during prerender and throws without them. They
-# are not secrets and never reach a deployed environment.
+# This exports HEAD to a scratch directory and runs the house rules, the
+# typecheck and the tests there. node_modules is hard linked, which costs no
+# disk. See the note at the bottom for why the build is not among them.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORK="${TMPDIR:-/tmp}/ravenspire-verify-head"
+# One directory per run. A fixed path meant two people running this at once
+# each deleted the other's export mid check, and the symptom was a Node ENOENT
+# on uv_cwd that names no file and points at nothing. Cleaned up on exit so the
+# per run directories do not accumulate.
+WORK="${TMPDIR:-/tmp}/ravenspire-verify-head.$$"
+trap 'rm -rf "$WORK"' EXIT
 
 echo "Exporting HEAD ($(git -C "$ROOT" rev-parse --short HEAD)) to $WORK"
 rm -rf "$WORK"
@@ -66,11 +61,23 @@ npm run typecheck
 echo "== tests =="
 npx vitest run
 
-echo "== build =="
-NEXT_DIST_DIR=.next-verify \
-NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
-NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder \
-  npm run build
+# The build is deliberately NOT run here.
+#
+# It was, and it produced a false failure: 1138 Turbopack errors, every one of
+# them inside node_modules on imports that are plainly correct. The same commit
+# built clean in the repository and deployed clean on Vercel. Turbopack does not
+# resolve reliably through a hard linked dependency tree, and a symlinked one it
+# refuses outright.
+#
+# A gate that fails on good code is worse than no gate, because the next person
+# to see it learns to ignore it, and then it is not a gate at all. The three
+# checks below are exact here and are the ones that caught both real breakages
+# this harness was written for: a consumer committed without its producer, twice.
+# The build belongs to CI and to Vercel, which have a real install.
+#
+# If you want the build too, run it in the repository against a clean tree:
+#   NEXT_DIST_DIR=.next-yours npm run build
 
 echo
-echo "HEAD is clean on all four gates."
+echo "HEAD is clean on the house rules, the typecheck and the tests."
+echo "The build is not run here on purpose, see the comment in this script."
