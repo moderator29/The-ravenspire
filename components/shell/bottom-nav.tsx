@@ -23,6 +23,16 @@ import { bottomNav, subNavFor } from "@/lib/nav";
 
 const SPRING = { type: "spring" as const, visualDuration: 0.22, bounce: 0.14 };
 
+/* Both rows are sized by `min-h-11` rather than by vertical padding.
+ *
+ * Padding sized them before and both came out short: the dock's items ran to
+ * about 39px (10px of padding either side of a 19px icon) and the sub strip's
+ * chips to about 28px. This product already holds itself to 44px on touch, the
+ * standard the top bar was rebuilt to, and these are the two most tapped
+ * controls in the whole realm. A minimum height states the target directly
+ * instead of leaving it as the arithmetic of a font size and a padding rung
+ * that anybody could later adjust without realising what they were changing. */
+
 function isActive(pathname: string, href: string) {
   const base = href.split("?")[0];
   if (base === "/home") return pathname === "/home";
@@ -59,7 +69,7 @@ export function BottomNav() {
                   key={item.href}
                   href={item.href}
                   aria-current={current ? "page" : undefined}
-                  className={`shrink-0 whitespace-nowrap rounded-[--radius-sm] border px-3 py-1.5 text-[12px] font-medium backdrop-blur-xl transition-colors duration-150 ${
+                  className={`flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-[--radius-sm] border px-3.5 text-[12px] font-medium backdrop-blur-xl transition-colors duration-150 ${
                     current
                       ? "border-gold/40 bg-gold/15 text-gold-bright"
                       : "border-steel-line/70 bg-void/80 text-bone-mut active:text-bone"
@@ -84,7 +94,7 @@ export function BottomNav() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[--radius-md] px-2 py-2.5 text-[12px] font-semibold transition-colors duration-150 ${
+                className={`relative flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[--radius-md] px-2 text-[12px] font-semibold transition-colors duration-150 ${
                   active ? "text-gold-bright" : "text-bone-faint active:text-bone-mut"
                 }`}
               >
