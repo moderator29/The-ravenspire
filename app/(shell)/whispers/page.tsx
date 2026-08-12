@@ -491,23 +491,24 @@ export default function WhispersPage() {
                     )}
                   >
                     {m.image_url && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="lg"
+                        aria-label="Open image full size"
                         onClick={() => setLightbox(m.image_url)}
                         className={cx(
-                          "group block overflow-hidden rounded-lg border border-steel-line/60",
+                          "group h-auto max-w-[16rem] overflow-hidden px-0!",
                           m.body && "mb-2"
                         )}
-                        aria-label="Open image full size"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={m.image_url}
                           alt="Whispered image"
                           loading="lazy"
-                          className="max-h-64 w-full max-w-[16rem] object-cover transition-[filter] duration-fast ease-out-quint group-hover:brightness-110"
+                          className="max-h-64 w-full object-cover transition-[filter] duration-fast ease-out-quint group-hover:brightness-110"
                         />
-                      </button>
+                      </Button>
                     )}
                     {m.body && (
                       <p className="whitespace-pre-wrap break-words text-sm text-bone">
@@ -582,7 +583,7 @@ export default function WhispersPage() {
           loading={uploading}
           disabled={Boolean(pendingImage)}
           onClick={() => fileRef.current?.click()}
-          className="w-11 shrink-0 px-0"
+          className="w-11 shrink-0 px-0!"
         >
           {uploading ? null : <Icon name="image" className="h-5 w-5" />}
         </Button>
