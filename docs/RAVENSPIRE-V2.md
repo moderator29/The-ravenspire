@@ -2009,7 +2009,7 @@ From the security audit and my re-audit of the commerce code:
 ## 40. Item 7 decided, and founder only decisions still pending
 
 Decided (co-founder recommendation, stored server side, off customer surfaces
-until confirmed): chest pricing 4.99 / 14.99 / 59.99 USD, one print on demand
+until confirmed): chest pricing 5.99 / 15.49 / 25.00 USD, one print on demand
 vendor Gelato with Printful and Prodigi fallbacks behind a swappable abstraction,
 per card mint caps Rare 5,000 / Epic 1,500 / Legendary 400 / Mythic 75, art print
 edition 250 per champion.

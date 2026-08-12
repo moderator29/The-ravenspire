@@ -373,9 +373,9 @@ build output and security findings.
   Knight's Warchest (digital, 5 cards), King's Reliquary (physical box: merch, 10
   printed cards, single use mint code). Odds already validated in
   lib/collectibles/warchests.ts and unchanged.
-- **Pricing intent** (provisional, stored server side, off customer surfaces until
-  confirmed, guardrail: guaranteed floor value at or above price): Squire's 4.99,
-  Knight's 14.99, King's Reliquary 59.99, all USD.
+- **Pricing** (set by founder, stored server side, off customer surfaces until
+  confirmed, guardrail: guaranteed floor value at or above price): Squire's 5.99,
+  Knight's 15.49, King's Reliquary 25.00, all USD.
 - **Vendor intent**: one print on demand vendor, Gelato (apparel plus fine art
   prints plus global fulfillment, Stripe compatible, no fixed cost), with Printful
   as apparel fallback and Prodigi for numbered giclee prints. Built behind a
