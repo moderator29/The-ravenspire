@@ -57,7 +57,12 @@ export function DossierPage({
   return (
     <div
       className={cx(
-        "mx-auto w-full px-3 py-4 sm:px-4 sm:py-6",
+        /* One step tighter, the same step the card chassis took in c23139a. A
+           Dossier is comfortable density, which governs what is inside a
+           panel, not how much air the page wraps around it: 24px of top and
+           bottom gutter on a desktop Keep was pushing the hero down for
+           nothing. */
+        "mx-auto w-full px-3 py-3 sm:px-4 sm:py-4",
         WIDTH[width],
         className
       )}
@@ -171,7 +176,7 @@ export function DossierTabs({
     <Tabs
       value={value}
       onValueChange={onValueChange}
-      className={cx("mt-5", className)}
+      className={cx("mt-4", className)}
     >
       <TabsList>
         {tabs.map((t) => (
@@ -198,7 +203,7 @@ export function DossierTabPanel({
   children: ReactNode;
 }) {
   return (
-    <TabsPanel value={value} className={cx("mt-4", className)}>
+    <TabsPanel value={value} className={cx("mt-3", className)}>
       {children}
     </TabsPanel>
   );
@@ -240,9 +245,15 @@ export function DossierPanel({
   children: ReactNode;
 }) {
   return (
+    /* `pad="none"` plus hand written gutters, because the header and the body
+       need a hairline between them and one padded box cannot draw that. The
+       numbers are the card chassis's own `md` rung after c23139a tightened it
+       (14 base, 16 at `sm`); before this they were still the pre-c23139a 16/20,
+       so a Dossier panel was the one card in the product that had not moved and
+       it sat visibly looser than every card beside it. */
     <Card pad="none" className={cx(wide && "lg:col-span-2", className)}>
       {title ? (
-        <div className="flex items-center gap-2 border-b border-steel-line px-4 py-3 sm:px-5">
+        <div className="flex items-center gap-2 border-b border-steel-line px-3.5 py-2.5 sm:px-4">
           {icon ? (
             <Icon name={icon} className="h-4 w-4 shrink-0 text-gold" />
           ) : null}
@@ -257,7 +268,7 @@ export function DossierPanel({
           {action ? <div className="ml-auto shrink-0">{action}</div> : null}
         </div>
       ) : null}
-      <div className="px-4 py-4 sm:px-5">{children}</div>
+      <div className="px-3.5 py-3.5 sm:px-4 sm:py-4">{children}</div>
     </Card>
   );
 }
@@ -309,8 +320,11 @@ export function DossierSkeleton({
         <Skeleton radius="sm" className="mt-2 h-3 w-28" />
         <Skeleton radius="sm" className="mt-3 h-3 w-full max-w-sm" />
       </div>
-      <Skeleton radius="sm" className="mt-5 h-9 w-full" />
-      <div className="mt-4 flex flex-col gap-3">
+      {/* Tracks DossierTabs and DossierTabPanel above. A skeleton whose rhythm
+          does not match what arrives makes the page jump on load, which is the
+          one thing a skeleton exists to prevent. */}
+      <Skeleton radius="sm" className="mt-4 h-9 w-full" />
+      <div className="mt-3 flex flex-col gap-3">
         {Array.from({ length: panels }, (_, i) => (
           <Skeleton key={i} radius="xl" className="h-32 w-full" />
         ))}
