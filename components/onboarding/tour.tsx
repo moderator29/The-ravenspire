@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 const steps = [
   {
@@ -47,14 +49,19 @@ export function Tour({ onDone }: { onDone: () => void }) {
       aria-modal="true"
       aria-label="Welcome tour"
     >
-      <motion.div
+      <Card
         key={step}
-        initial={
-          reduce ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 8 }
+        pad="none"
+        render={
+          <motion.div
+            initial={
+              reduce ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 8 }
+            }
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          />
         }
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="glass w-full max-w-sm p-6 text-center"
+        className="w-full max-w-sm p-6 text-center"
       >
         <div
           className="mb-4 flex items-center justify-center gap-1.5"
@@ -77,18 +84,20 @@ export function Tour({ onDone }: { onDone: () => void }) {
         </p>
         <div className="mt-6 flex items-center gap-3">
           {!last && (
-            <button
+            <Button
+              variant="glass"
+              size="md"
+              className="text-bone-mut"
               onClick={onDone}
-              className="btn-glass px-4 py-2 text-sm text-bone-mut"
             >
               Skip
-            </button>
+            </Button>
           )}
-          <button onClick={next} className="btn-gold flex-1 py-2 text-sm">
+          <Button variant="gold" size="md" className="flex-1" onClick={next}>
             {last ? "Begin my reign" : "Next"}
-          </button>
+          </Button>
         </div>
-      </motion.div>
+      </Card>
     </motion.div>
   );
 }

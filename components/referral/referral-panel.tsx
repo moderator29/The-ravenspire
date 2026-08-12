@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { realmFetch } from "@/lib/auth/api";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
 import { shareOrCopy } from "@/lib/share";
 
@@ -27,14 +30,14 @@ interface RefData {
 
 function Stat({ value, label }: { value: number; label: string }) {
   return (
-    <div className="glass-sm rounded-xl border border-steel-line bg-void px-3 py-3 text-center">
+    <Card variant="inset" pad="none" className="px-3 py-3 text-center">
       <p className="tnum font-display text-xl font-semibold text-gold-bright">
         {value}
       </p>
       <p className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-bone-faint">
         {label}
       </p>
-    </div>
+    </Card>
   );
 }
 
@@ -84,7 +87,7 @@ export function ReferralPanel({ enabled }: { enabled: boolean }) {
   }
 
   if (loading) {
-    return <div className="glass-sm h-40 animate-pulse rounded-xl" />;
+    return <Skeleton className="h-40 w-full" radius="xl" />;
   }
 
   if (!code) {
@@ -105,24 +108,25 @@ export function ReferralPanel({ enabled }: { enabled: boolean }) {
       </div>
 
       {/* Banner link */}
-      <div className="glass-warm glass-sm rounded-xl p-4">
+      <Card variant="warm" pad="md">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bone-faint">
           Your banner link
         </p>
         <div className="mt-2.5 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-          <code className="glass-sm min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-steel-line bg-void px-3 py-2.5 text-xs text-gold-bright">
+          <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-[--radius-md] border border-steel-line bg-void px-3 py-2.5 text-xs text-gold-bright">
             {link}
           </code>
-          <button
-            type="button"
+          <Button
+            variant="gold"
+            size="lg"
+            className="shrink-0"
             onClick={copy}
-            className="btn-gold inline-flex shrink-0 items-center gap-2 px-4 py-2.5 text-sm"
           >
             <Icon name="banner" className="h-4 w-4" />
             {copied ? "Copied" : "Copy link"}
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* The roll of banners raised */}
       {data && data.referrals.length > 0 ? (
