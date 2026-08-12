@@ -1,0 +1,111 @@
+import { requireProfile, json } from "@/lib/auth/server";
+import { adminClient } from "@/lib/supabase/admin";
+import { award } from "@/lib/points";
+import { champions } from "@/lib/game/champions";
+
+const UPGRADE_BASE_COST = 120;
+
+async function getState(db: NonNullable<ReturnType<typeof adminClient>>, profileId: string) {
+  let { data: state } = await db
+    .from("war_state")
+    .select("*")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  if (!state) {
+    const { data: created } = await db
+      .from("war_state")
+      .insert({ profile_id: profileId })
+      .select("*")
+      .single();
+    state = created;
+  }
+  return state;
+}
+
+export async function POST(req: Request) {
+  const profile = await requireProfile(req);
+  if (!profile) return json({ error: "unauthenticated" }, 401);
+  const db = adminClient();
+  if (!db) return json({ error: "unavailable" }, 503);
+
+  const body = (await req.json().catch(() => null)) as {
+    action?: "daily" | "open_chest" | "upgrade";
+    champion?: string;
+  } | null;
+  if (!body?.action) return json({ error: "bad request" }, 400);
+
+  const state = await getState(db, profile.id);
+  if (!state) return json({ error: "unavailable" }, 503);
+
+  if (body.action === "daily") {
+    const today = new Date().toISOString().slice(0, 10);
+    const gold = 60;
+    const chest = new Date(today).getUTCDay() === 0 ? 1 : 0; /* chest on the seventh day */
+    /* B6: the "already claimed today" test lives inside the update, so two
+       taps arriving together cannot both pass a check the other is about to
+       invalidate. Only the call that actually paid gets true back. */
+    const { data: claimed } = await db.rpc("war_claim_daily", {
+      p_profile_id: profile.id,
+      p_today: today,
+      p_gold: gold,
+      p_chests: chest,
+    });
+    if (claimed !== true)
+      return json({ error: "Today's tribute is already claimed. Return with the dawn." }, 409);
+    await award(db, profile.id, { glory: 10, reason: "war_daily" });
+    return json({ ok: true, gold, chest, glory: 10 });
+  }
+
+  if (body.action === "open_chest") {
+    if (state.chests < 1)
+      return json({ error: "No relic chests to open. Battles and devotion earn them." }, 409);
+    /* The chest speaks: gold always, a champion when fortune smiles. */
+    const roll = Math.random();
+    const gold = 80 + Math.floor(Math.random() * 120);
+    let unlocked: string | null = null;
+    if (roll > 0.65) {
+      const locked = champions.filter(
+        (c) => c.art && !state.unlocked_champions.includes(c.slug)
+      );
+      if (locked.length) {
+        const pick = locked[Math.floor(Math.random() * locked.length)];
+        unlocked = pick.slug;
+      }
+    }
+    /* B6: the purse test is the update's WHERE clause. Two opens racing on a
+       single chest used to both pass the check above and both pay out. */
+    const { data: opened } = await db.rpc("war_open_chest", {
+      p_profile_id: profile.id,
+      p_gold: gold,
+      p_unlock: unlocked,
+    });
+    if (opened !== true)
+      return json({ error: "No relic chests to open. Battles and devotion earn them." }, 409);
+    return json({ ok: true, gold, unlocked });
+  }
+
+  if (body.action === "upgrade") {
+    const champ = champions.find((c) => c.slug === body.champion);
+    if (!champ) return json({ error: "Unknown champion" }, 400);
+    if (!state.unlocked_champions.includes(champ.slug))
+      return json({ error: "That champion is not yet sworn to you" }, 403);
+    const mastery = (state.mastery ?? {}) as Record<string, number>;
+    const level = mastery[champ.slug] ?? 0;
+    if (level >= 10)
+      return json({ error: "Mastery stands at its peak" }, 409);
+    const cost = UPGRADE_BASE_COST + level * 60;
+    mastery[champ.slug] = level + 1;
+    /* B6: the purse test and the spend are one statement, so two upgrades
+       racing on the same gold cannot both be forged. */
+    const { data: spent } = await db.rpc("war_spend_gold", {
+      p_profile_id: profile.id,
+      p_cost: cost,
+      p_mastery: mastery,
+    });
+    if (spent !== true)
+      return json({ error: `The forge asks ${cost} gold; your purse holds ${state.gold}.` }, 409);
+    return json({ ok: true, level: level + 1, cost });
+  }
+
+  return json({ error: "unknown action" }, 400);
+}

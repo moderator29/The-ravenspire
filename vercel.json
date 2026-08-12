@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/verdicts",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/houses/recompute",
+      "schedule": "20 0 * * *"
+    },
+    {
+      "path": "/api/cron/chronicle",
+      "schedule": "40 0 * * *"
+    },
+    {
+      "path": "/api/cron/trending",
+      "schedule": "50 0 * * *"
+    }
+  ]
+}

@@ -1,0 +1,736 @@
+@import "tailwindcss";
+@custom-variant touch (@media (pointer: coarse));
+
+/* `touch:` means "this pointer is a finger".
+
+   THE LINE ABOVE MUST STAY DIRECTLY UNDER THE IMPORT, with nothing between
+   them, not even this comment. Moved down by even one comment block, the
+   directive is silently dropped from the production build: the variant still
+   parses, the call sites still compile, and not one rule reaches the
+   stylesheet. It sat one comment too low and every `touch:` class in the
+   product had been dead since the day it was written, which is why an audit at
+   390px measured tabs at 24px and a segmented control at 32px while the source
+   plainly asked for 44. Verified by building all four arrangements and reading
+   the emitted CSS: below this comment, zero `touch:` rules; above it, both.
+
+   The product holds itself to a 44px minimum touch target and the control
+   scale did not encode it: sm is 32px and md is 36px, so only `lg` cleared the
+   bar and every author who reasonably reached for `md` shipped a control a
+   thumb cannot hit. An audit at 390px found about sixty of them, forty one on
+   the landing page alone.
+
+   A width breakpoint is the wrong test for this and always was. A 390px
+   viewport can be a desktop window and a 1024px one can be a tablet; what
+   decides whether 32px is enough is the pointer, not the page. So the floor
+   keys off `pointer: coarse`, which leaves the compact scale intact for a
+   mouse and lifts every control to 44px for a finger, without a single call
+   site having to remember. */
+
+/*
+  RAVENSPIRE Brand System v3: "Obsidian & Gold, Cinematic Metal"
+  Deep obsidian, forged antique gold, ember firelight, bone, steel, ash.
+  No green, ever. Gold is a gradient (bright top, base, bronze bottom),
+  never a flat fill. Glows are warm candlelight, never blue or cool.
+*/
+
+:root {
+  /* Obsidian surfaces */
+  --obsidian: #07070a;
+  --void: #0c0c11;
+  --panel: #101017;
+  --panel-warm: #14120c;
+
+  /* Forged gold.
+
+     Retuned to match the 3D icon set: richer and more saturated than the old
+     antique gold, with a brighter highlight so metal reads as polished rather
+     than dusty. The icons carry a thick shiny gold, and a muted interface gold
+     next to them made the interface look faded rather than the icons look rich.
+
+     Contrast against --panel-warm, the darkest surface we put text on:
+     gold 9.12:1, gold-rich 11.59:1, gold-bright 15.55:1. All clear WCAG AA
+     comfortably, and every one is an improvement on the values they replace.
+     gold-deep is the shadow stop of the gradient and a fill only, never text. */
+  --gold: #d9b040; /* was #c8a24c, 7.78:1 -> 9.12:1 */
+  --gold-bright: #ffe9a3; /* was #f0d68c, the polished highlight */
+  --gold-deep: #8f6717; /* was #8a6a2c, fill only */
+  --gold-rich: #ecc860; /* was #d8b45a, 11.59:1 */
+
+  /* Ember / fire */
+  --ember: #e5702a;
+  --ember-deep: #c6402f;
+  --ember-glow: rgba(229, 112, 42, 0.4);
+
+  /* Bone text. Every rung here must clear WCAG AA (4.5:1) against the darkest
+     surface we ever put text on, --panel-warm. bone-faint was #7c7568, which
+     measured 4.10:1 and failed; it is the second most used text colour in the
+     realm (635 uses, 92 of them at 10px), so the whole product read as slightly
+     unreadable. Lifted to 4.52:1. The shift is about 5% lightness and preserves
+     the hue exactly, so the brand is unchanged to the eye. */
+  --bone: #ece4d2; /* 14.80:1 on panel-warm */
+  --bone-mut: #b4ac9a; /* 8.30:1 */
+  --bone-faint: #837c6e; /* 4.52:1, was #7c7568 at 4.10:1 */
+
+  /* Steel structure. --steel is used as text, so it is held to the same bar
+     (was #6e7683 at 4.09:1). --steel-line is decorative hairline only. */
+  --steel: #747d8b; /* 4.50:1, was #6e7683 at 4.09:1 */
+  --steel-line: #2a2e38;
+  --steel-deep: #1b1e26;
+
+  /* Ash / smoke atmosphere. Decorative fills only, never text. */
+  --ash: #57544c;
+  --smoke: rgba(12, 12, 17, 0.7);
+
+  /* Battle HUD fills only (never in the social app, never as text). These are
+     deliberately deep and atmospheric and do not pass a text contrast bar.
+     When one of these hues has to carry a word, use the *-text twin below. */
+  --ally: #3e6ea8;
+  --foe: #b02e2a; /* 2.92:1 as text. Fill only. */
+  --blood: #7e1f1c; /* 1.87:1 as text. Fill only (mythic rarity glow). */
+
+  /* Text-safe twins of the fill-only hues, for the cases where these colours
+     must carry a label. Same hue, lifted to clear AA. */
+  --foe-text: #d4504b; /* 4.50:1 */
+  --blood-text: #d74d49; /* 4.50:1 */
+
+  /* Ink for text sitting on a forged gold fill. The gold button hardcoded
+     #171204 in one place and nowhere else, so nothing else could match it.
+     16.9:1 on --gold, so it clears AA on every rung of the gradient. */
+  --gold-ink: #171204;
+
+  /* Semantic state. This tier did not exist: success/warning/danger/info were
+     improvised per file, which is why errors are text-ember-deep in one place
+     and text-ember in another. Note success is gold, never green, per brand. */
+  --state-danger: var(--foe-text);
+  --state-warning: var(--ember);
+  --state-success: var(--gold-rich);
+  --state-info: var(--ally);
+  --state-focus-ring: var(--gold-bright); /* 13.11:1, clears the 3:1 bar easily */
+
+  /* Chart direction. components/social/call-chart.tsx referenced --chart-up and
+     --chart-down, but neither was ever defined, so its hardcoded hex fallbacks
+     always won and sat off brand. Gold for up, ember for down, never green. */
+  --chart-up: var(--gold-rich);
+  --chart-down: var(--ember-deep);
+}
+
+@theme inline {
+  --color-obsidian: var(--obsidian);
+  --color-void: var(--void);
+  --color-panel: var(--panel);
+  --color-panel-warm: var(--panel-warm);
+  --color-gold: var(--gold);
+  --color-gold-bright: var(--gold-bright);
+  --color-gold-deep: var(--gold-deep);
+  --color-gold-rich: var(--gold-rich);
+  --color-gold-ink: var(--gold-ink);
+  --color-ember: var(--ember);
+  --color-ember-deep: var(--ember-deep);
+  --color-bone: var(--bone);
+  --color-bone-mut: var(--bone-mut);
+  --color-bone-faint: var(--bone-faint);
+  --color-steel: var(--steel);
+  --color-steel-line: var(--steel-line);
+  --color-steel-deep: var(--steel-deep);
+  --color-ash: var(--ash);
+  --color-ally: var(--ally);
+  --color-foe: var(--foe);
+  --color-blood: var(--blood);
+  --color-foe-text: var(--foe-text);
+  --color-blood-text: var(--blood-text);
+
+  --color-state-danger: var(--state-danger);
+  --color-state-warning: var(--state-warning);
+  --color-state-success: var(--state-success);
+  --color-state-info: var(--state-info);
+
+  /* Chart direction was defined in the token layer but never exposed to
+     Tailwind, so `text-chart-up` compiled to nothing and every caller had to
+     reach it through an inline `style` instead. Exposing it here means a
+     direction colour can be a class like every other colour in the system. */
+  --color-chart-up: var(--chart-up);
+  --color-chart-down: var(--chart-down);
+
+  --font-display: var(--font-cinzel), serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* ── RADIUS ──────────────────────────────────────────────────────────────
+     Six rungs, down from fourteen ad hoc values. Controls are clean rounded
+     rectangles: there is deliberately no pill rung here. `--radius-full` stays
+     for avatars and genuinely circular icon buttons only, never for buttons,
+     tabs, nav items or chips. */
+  --radius-none: 0px;
+  --radius-sm: 8px; /* chips, small toggles, dense rows */
+  --radius-md: 12px; /* buttons, inputs, tabs, nav items */
+  --radius-lg: 16px; /* inner cards, list rows */
+  --radius-xl: 20px; /* the signature card */
+  --radius-2xl: 26px; /* modals, sheets, the nav bar shell */
+  --radius-full: 9999px; /* avatars only */
+
+  /* ── ELEVATION ───────────────────────────────────────────────────────────
+     Named, not ad hoc. Every raised surface is lit from the upper left with a
+     top highlight and a bottom occlusion, so the whole product shares one
+     light direction. Inconsistent light direction is the clearest tell of an
+     amateur dark interface. */
+  --shadow-flat: none;
+  --shadow-raised: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-card: inset 0 1px 0 rgba(255, 233, 163, 0.1),
+    0 18px 50px rgba(0, 0, 0, 0.45);
+  --shadow-lifted: inset 0 1px 0 rgba(255, 233, 163, 0.14),
+    0 22px 60px rgba(0, 0, 0, 0.55), 0 0 32px rgba(217, 176, 64, 0.07);
+  --shadow-overlay: 0 32px 80px rgba(0, 0, 0, 0.7);
+  --shadow-forge: inset 0 1px 0 rgba(255, 244, 214, 0.65),
+    inset 0 -2px 4px rgba(90, 66, 20, 0.45), 0 8px 26px rgba(217, 176, 64, 0.22);
+
+  /* The three rungs a control needs that a card does not.
+
+     `edge` is the resting state of every secondary control. A one pixel warm
+     specular line along the top and a tight occlusion beneath it, which is the
+     whole difference between a rectangle with a border and an object sitting
+     on a surface. It is deliberately far quieter than `--shadow-card`: a page
+     with thirty controls on it cannot afford thirty card shadows.
+
+     `pressed` is what a control wears while it is held. Moving a button down a
+     pixel without changing its light is the tell that it is a picture of a
+     button. The highlight goes and an occlusion arrives, so it reads as
+     pressing into the surface rather than sliding down it.
+
+     `forge-lit` is `--shadow-forge` under the member's cursor. The same light,
+     one step warmer and wider. Gold is the primary action and the only place
+     in the Ledger register that is allowed to answer a hover with light. */
+  --shadow-edge: inset 0 1px 0 rgba(255, 233, 163, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+  /* The recessed well. `inset` surfaces were flat, which meant a nested block
+     inside a card was distinguished from its parent by a background colour and
+     nothing else. A well is lit from the same upper left as everything else, so
+     its shadow falls along the top edge, which is the opposite of `--shadow-edge`
+     and reads as depth below the surface rather than above it. */
+  --shadow-well: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-pressed: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  --shadow-forge-lit: inset 0 1px 0 rgba(255, 244, 214, 0.75),
+    inset 0 -2px 4px rgba(90, 66, 20, 0.4), 0 10px 34px rgba(217, 176, 64, 0.34);
+
+  /* ── MOTION ──────────────────────────────────────────────────────────────
+     Current motion runs 0.28s to 0.9s, which is two to three times too slow
+     and is where "cheap" comes from. Entrances ease out, movement eases in and
+     out, exits run about 20% faster than entrances. Ambient atmosphere loops
+     (aurora, ember) are the sole exception and keep their long durations. */
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out-quart: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+
+  /* Tailwind v4 resolves the `duration-*` utility from the
+     `--transition-duration-*` namespace, not from `--duration-*`, so the scale
+     above compiles to nothing on its own and every caller falls back to an
+     arbitrary `duration-[220ms]`. These aliases are the same four values under
+     the name the compiler actually reads, which is what makes `duration-fast`
+     a real utility. No new timings are introduced here. */
+  --transition-duration-instant: var(--duration-instant);
+  --transition-duration-fast: var(--duration-fast);
+  --transition-duration-base: var(--duration-base);
+  --transition-duration-slow: var(--duration-slow);
+
+  /* ── SPACING ─────────────────────────────────────────────────────────────
+     Tailwind v4 ships a spacing multiplier rather than a scale, so every
+     integer and half step is free and there is nothing to violate. That is why
+     py-2.5, px-3.5, p-7 and p-9 are scattered through the codebase. These
+     named steps are the scale for all new work.
+
+     NOT YET ENFORCED. Setting `--spacing: initial` makes bare numeric spacing
+     utilities stop compiling entirely, which is the only thing that will
+     actually hold the line, but it breaks every existing p-4 and gap-3 at once.
+     That flip is a dedicated mechanical pass, tracked in docs/RAVENSPIRE-V2.md
+     section 13.3, and must not land while feature work is in flight. */
+  /* THESE ARE NAMES, NOT RUNGS, AND THEY MUST NOT BE CALLED `--spacing-N`.
+
+     They were, and it was silently redefining Tailwind's own numeric scale.
+     In Tailwind v4 `--spacing-N` is not documentation, it IS the definition of
+     utility rung N, so declaring `--spacing-8: 4rem` did not describe the
+     eighth step of a house scale, it redefined `h-8`, `w-8`, `p-8`, `gap-8`
+     and every other 8 in the product from 32px to 64px.
+
+     What that cost, read out of the emitted stylesheet:
+
+       h-8   32px intended, 64px emitted
+       w-8   32px intended, 64px emitted
+       h-6   24px intended, 32px emitted
+       h-7   28px intended, 48px emitted
+       p-5   20px intended, 24px emitted
+       gap-6 24px intended, 32px emitted
+
+     `h-8` is the Button primitive's `sm` height, and that file documents its
+     scale as "Dense by intent. 32 / 36 / 44px tall". Every small button in the
+     realm was rendering at double its documented height, which is how a back
+     control measured 64px tall while its source plainly asked for 32. Rungs 9
+     and above were untouched, since no name collided with them, which is why
+     `h-9` and `h-11` were always right and only some numbers looked wrong.
+
+     Renamed to `--space-*`, which collides with nothing. The values are
+     unchanged and they remain the named scale for new work; they simply no
+     longer reach into utilities nobody meant them to touch. */
+  --space-1: 0.25rem; /* 4, icon and text gaps */
+  --space-2: 0.5rem; /* 8, chip padding, tight rows */
+  --space-3: 0.75rem; /* 12, default inline gap */
+  --space-4: 1rem; /* 16, card padding on mobile */
+  --space-5: 1.5rem; /* 24, card padding on desktop, section gap */
+  --space-6: 2rem; /* 32 */
+  --space-7: 3rem; /* 48 */
+  --space-8: 4rem; /* 64, page rhythm */
+}
+
+/* ── Z INDEX ───────────────────────────────────────────────────────────────
+   Was thirteen values including z-[90], z-[91], z-[95], z-[96]. Seven named
+   rungs at gaps of 100 leave room to insert. Tailwind v4 has no --z-*
+   namespace, so these are plain custom properties exposed as utilities. */
+:root {
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-nav: 200;
+  --z-dropdown: 300;
+  --z-overlay: 400;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+}
+
+@utility z-sticky {
+  z-index: var(--z-sticky);
+}
+@utility z-nav {
+  z-index: var(--z-nav);
+}
+@utility z-dropdown {
+  z-index: var(--z-dropdown);
+}
+@utility z-overlay {
+  z-index: var(--z-overlay);
+}
+@utility z-modal {
+  z-index: var(--z-modal);
+}
+@utility z-toast {
+  z-index: var(--z-toast);
+}
+@utility z-tooltip {
+  z-index: var(--z-tooltip);
+}
+
+/* One focus ring for the whole realm. There were 268 hand written buttons and
+   zero uses of focus-visible, so every one of them was invisible to a keyboard.
+   Gold at 13.11:1 clears the 3:1 non-text bar with room to spare, and reads as
+   the realm rather than as a browser default. :focus-visible means a mouse
+   click never shows it, only keyboard and other non-pointer focus. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--state-focus-ring);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--obsidian);
+  color: var(--bone);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Keyboard focus, applied once to every interactive element in the realm.
+   This is deliberately an element level rule rather than a utility: there are
+   268 hand written buttons and retrofitting a class to each is 268 chances to
+   miss one. Element specificity also means any component that genuinely needs
+   a bespoke ring can still override it with a single class. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+  /* `border-radius: inherit` used to be here, to make the ring follow the
+     control's shape. It does not need help: `outline` has followed
+     `border-radius` natively in every current browser for years. What it did
+     instead was destroy the shape it was meant to trace.
+
+     This rule sits outside every `@layer`, which in the cascade beats any
+     layered rule whatever its specificity, so it outranked `rounded-md` from
+     Tailwind's utilities layer. `inherit` then took the radius of the parent,
+     which for a control is almost always a plain wrapper with none. So every
+     button, input, tab and link in the realm snapped to square corners the
+     moment it received keyboard focus, and went round again when focus left.
+
+     Found by measuring an autofocused search field: `rounded-md` present in
+     the class list, `.rounded-md{border-radius:12px}` present in the emitted
+     stylesheet, and `getComputedStyle` reporting 0px. That is the third time
+     on this branch that a class has been present, plausible and doing nothing,
+     and the second time the cause was where the CSS sat rather than what it
+     said. */
+}
+
+/* Faint parchment-grid atmosphere on the page itself */
+.realm-bg {
+  background-image:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      rgba(217, 176, 64, 0.07),
+      transparent 60%
+    ),
+    linear-gradient(rgba(217, 176, 64, 0.016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(217, 176, 64, 0.016) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    56px 56px,
+    56px 56px;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----- Glass containers: deleted -----
+
+   `.glass`, `.glass-sm`, `.glass-warm` and `.glass-hover` were the core surface
+   of the platform and are now the Card primitive in components/ui/card.tsx,
+   which expresses the same treatment against --radius-xl and --shadow-card.
+
+   The defect worth recording, because it is why the class had to go rather than
+   merely be discouraged: these rules were unlayered, so they beat every layered
+   `rounded-*` a caller wrote beside them. A surface that said `glass
+   rounded-2xl` was 24px, not 26px, and nothing in the class list showed it.
+   About a hundred and thirty of those overrides existed and every one of them
+   described nothing. That is a class silently overriding the radius scale,
+   which no amount of convention was going to fix.
+
+   Warm is Card's `warm` variant, hover is its `interactive` prop, and the 16px
+   rung is `radius="lg"`. A checker rule fails any new use of the names. */
+
+/* ----- Forged gold: gradient, never flat ----- */
+.gold-metal {
+  background: linear-gradient(
+    180deg,
+    var(--gold-bright) 0%,
+    var(--gold) 46%,
+    var(--gold-deep) 100%
+  );
+}
+.gold-text {
+  background: linear-gradient(
+    180deg,
+    var(--gold-bright) 8%,
+    var(--gold) 55%,
+    var(--gold-deep) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.btn-gold {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: linear-gradient(
+    180deg,
+    var(--gold-bright) 0%,
+    var(--gold) 48%,
+    var(--gold-deep) 100%
+  );
+  color: #171204;
+  font-weight: 650;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 233, 163, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 214, 0.65),
+    inset 0 -2px 4px rgba(90, 66, 20, 0.45),
+    0 8px 26px rgba(217, 176, 64, 0.22);
+  transition:
+    box-shadow 0.22s ease,
+    transform 0.22s ease,
+    filter 0.22s ease;
+}
+.btn-gold:hover {
+  filter: brightness(1.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 214, 0.7),
+    inset 0 -2px 4px rgba(90, 66, 20, 0.45),
+    0 10px 34px rgba(217, 176, 64, 0.34);
+}
+.btn-gold:active {
+  transform: translateY(1px);
+}
+.btn-glass {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background:
+    linear-gradient(180deg, rgba(255, 233, 163, 0.06), rgba(12, 12, 17, 0.4)),
+    rgba(16, 16, 23, 0.6);
+  border: 1px solid rgba(217, 176, 64, 0.22);
+  border-radius: 14px;
+  color: var(--bone);
+  font-weight: 550;
+  backdrop-filter: blur(10px);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+.btn-glass:hover {
+  border-color: rgba(217, 176, 64, 0.45);
+}
+
+/* Gold hairline + progress */
+.hairline {
+  border: 1px solid rgba(217, 176, 64, 0.16);
+}
+.bar-track {
+  background: var(--steel-deep);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar-gold {
+  background: linear-gradient(
+    90deg,
+    var(--gold-deep),
+    var(--gold) 55%,
+    var(--gold-bright)
+  );
+  border-radius: 999px;
+}
+
+/* ----- Rarity ladder ----- */
+.rarity-common {
+  --rarity: var(--steel);
+}
+.rarity-rare {
+  --rarity: var(--gold);
+}
+.rarity-epic {
+  --rarity: var(--ember);
+}
+.rarity-legendary {
+  --rarity: var(--gold-bright);
+}
+.rarity-mythic {
+  --rarity: var(--blood);
+}
+.rarity-frame {
+  border: 1px solid
+    color-mix(in srgb, var(--rarity, var(--steel)) 55%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 233, 163, 0.06),
+    0 0 24px color-mix(in srgb, var(--rarity, var(--steel)) 12%, transparent);
+}
+.rarity-chip {
+  color: var(--rarity, var(--steel));
+  border: 1px solid
+    color-mix(in srgb, var(--rarity, var(--steel)) 55%, transparent);
+  /* Was 999px, which is a capsule, which chips are not. This one hid in plain
+     sight because it is written as a hand rolled class rather than as a
+     `rounded-full` utility, so a check that reads class names could never see
+     it: the shape lives in the stylesheet, not in the markup. It was the last
+     capsule left in the product and it appeared ten times on the Crests screen
+     and ten more on the landing page. `--radius-sm` is the chip rung and the
+     rung the Badge primitive already uses. */
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+}
+
+/* ----- Aurora float (landing crests, ambient motifs) ----- */
+@keyframes aurora-float {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  33% {
+    transform: translate3d(14px, -22px, 0) rotate(4deg) scale(1.04);
+  }
+  66% {
+    transform: translate3d(-12px, 10px, 0) rotate(-3deg) scale(0.98);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+}
+@keyframes aurora-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+.aurora-item {
+  animation:
+    aurora-float 16s ease-in-out infinite,
+    aurora-glow 9s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Ember particle drift */
+@keyframes ember-rise {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-46vh) translateX(18px);
+    opacity: 0;
+  }
+}
+.ember-particle {
+  position: absolute;
+  bottom: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--ember);
+  filter: blur(0.5px);
+  box-shadow: 0 0 8px var(--ember-glow);
+  animation: ember-rise linear infinite;
+}
+
+/* In-app raven toast: a quiet slide-and-settle as it arrives. */
+@keyframes notif-toast-in {
+  0% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.notif-toast {
+  animation: notif-toast-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* A quick pop when an action toggles on (like, bookmark) — a small, satisfying
+   bounce, then settle. Respects reduced-motion. */
+@keyframes action-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
+  70% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.action-pop {
+  animation: action-pop 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Double-tap-to-like: a heart blooms from the center of the raven and fades. */
+@keyframes heart-burst {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  35% {
+    transform: scale(1.15);
+    opacity: 0.95;
+  }
+  70% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+.heart-burst {
+  animation: heart-burst 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* A card arriving in a Stream: a fade and a small rise, once, on the way in.
+   Transform and opacity only, and inside the 300ms ceiling. Motion signals
+   arrival, not existence, so nothing here loops. */
+@keyframes stream-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+.stream-enter {
+  animation: stream-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-pop,
+  .heart-burst,
+  .stream-enter {
+    animation: none;
+  }
+}
+
+::selection {
+  background: rgba(217, 176, 64, 0.32);
+  color: var(--bone);
+}
+
+/* iOS Safari auto-zooms into any field whose font-size is below 16px on focus.
+   Pin form controls to a 16px minimum on small screens so typing never
+   triggers that jarring zoom. The accessible fix, no maximum-scale hack. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 16px;
+  }
+}
+
+/* Thin, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--steel-line) transparent;
+}
+
+/* Fully hidden scrollbar for horizontal rails and tab strips. Cross browser:
+   Firefox (scrollbar-width), WebKit/iOS Safari (::-webkit-scrollbar). */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .aurora-item,
+  .ember-particle {
+    animation: none !important;
+  }
+}

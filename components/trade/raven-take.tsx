@@ -1,0 +1,139 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Icon } from "@/components/ui/icon";
+import { realmFetch } from "@/lib/auth/api";
+
+/* The Raven's read on a single coin. A real LLM (via /api/raven) reasoning over
+   the real market figures we already hold, folded into a short, sharp take.
+   Nothing canned: we send the live numbers as context and render what the
+   Herald says. Collapsed by default; the member taps to summon it. */
+export function RavenTake({
+  symbol,
+  address,
+  chainLabel,
+  priceUsd,
+  change24h,
+  marketCap,
+  liquidityUsd,
+  volume24h,
+  ageDays,
+}: {
+  symbol: string;
+  address: string;
+  chainLabel: string | null;
+  priceUsd: number | null;
+  change24h: number | null;
+  marketCap: number | null;
+  liquidityUsd: number | null;
+  volume24h: number | null;
+  ageDays: number | null;
+}) {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">(
+    "idle"
+  );
+  const [take, setTake] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const summon = async () => {
+    setState("loading");
+    setError(null);
+    const facts = [
+      `$${symbol}`,
+      chainLabel ? `on ${chainLabel}` : "",
+      `contract ${address}`,
+      priceUsd !== null ? `price $${priceUsd}` : "",
+      change24h !== null ? `24h change ${change24h.toFixed(1)}%` : "",
+      marketCap !== null ? `market cap $${Math.round(marketCap)}` : "",
+      liquidityUsd !== null ? `liquidity $${Math.round(liquidityUsd)}` : "",
+      volume24h !== null ? `24h volume $${Math.round(volume24h)}` : "",
+      ageDays !== null ? `pool age about ${ageDays} days` : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const prompt = `Give me your read on this coin as the Raven: ${facts}. In two or three sentences, say what it looks like, whether the trading interest reads organic or thin, and the honest risk. Do not give financial advice or price targets, do not use em-dashes.`;
+
+    const res = await realmFetch<{ reply?: string; error?: string }>(
+      "/api/raven",
+      {
+        method: "POST",
+        json: {
+          messages: [{ role: "user", content: prompt }],
+          length: "short",
+        },
+      }
+    );
+
+    if (res.ok && res.data?.reply) {
+      setTake(res.data.reply);
+      setState("done");
+    } else {
+      setError(
+        res.data?.error ??
+          "The Raven is preoccupied and could not read this coin right now."
+      );
+      setState("error");
+    }
+  };
+
+  return (
+    <Card variant="warm" pad="md" className="mt-3">
+      <div className="flex items-center gap-2">
+        <Icon name="raven" className="h-4 w-4 shrink-0 text-gold" />
+        <p className="text-sm font-semibold text-bone">The Raven&apos;s read</p>
+      </div>
+
+      {state === "idle" && (
+        <Button
+          size="sm"
+          variant="glass"
+          className="mt-3 text-gold"
+          onClick={() => void summon()}
+        >
+          <Icon name="eye" className="h-3.5 w-3.5" />
+          Summon the Raven&apos;s take
+        </Button>
+      )}
+
+      {state === "loading" && (
+        <div className="mt-3 flex flex-col gap-2">
+          <Skeleton className="h-3.5 w-full" />
+          <Skeleton className="h-3.5 w-11/12" />
+          <Skeleton className="h-3.5 w-2/3" />
+          <p className="mt-1 text-xs text-bone-faint">
+            The Raven studies the coin...
+          </p>
+        </div>
+      )}
+
+      {state === "done" && take && (
+        <p className="mt-2.5 text-sm leading-relaxed text-bone-mut">{take}</p>
+      )}
+
+      {state === "error" && (
+        <div className="mt-2.5">
+          <p className="text-sm text-bone-mut">{error}</p>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mt-2 text-gold"
+            onClick={() => void summon()}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
+
+      {state === "done" && (
+        <p className="mt-2.5 text-[11px] text-bone-faint">
+          The Raven reasons over live market data. It can be wrong. Never a
+          promise of price, only a read. Do your own research.
+        </p>
+      )}
+    </Card>
+  );
+}
