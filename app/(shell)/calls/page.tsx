@@ -9,7 +9,18 @@ import { Avatar } from "@/components/social/avatar";
 import { realmFetch } from "@/lib/auth/api";
 import { timeAgo } from "@/lib/social/types";
 import { Button } from "@/components/ui/button";
-import { StreamColumn } from "@/components/stream/stream-shell";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  StreamCard,
+  StreamCardSkeleton,
+  StreamColumn,
+  StreamEmpty,
+  StreamList,
+} from "@/components/stream/stream-shell";
+import { claimSentence, CATEGORY_LABEL } from "@/components/calls/claim";
+import { difficultyBand } from "@/lib/calls/analytics";
+import type { CallData } from "@/lib/calls/types";
 
 /* The Calls index.
 
@@ -46,14 +57,7 @@ interface CallItem {
   like_count: number;
   reply_count: number;
   author: Author | null;
-  call: {
-    token?: string;
-    stance?: "up" | "down";
-    timeframe?: string;
-    entry_price?: number;
-    verdict?: "open" | "hit" | "miss";
-    settled_price?: number;
-  } | null;
+  call: CallData | null;
 }
 
 /* Author rows come back from the API nullable, and Avatar needs a shape rather
@@ -72,6 +76,7 @@ interface Caller {
   misses: number;
   total: number;
   hit_rate: number;
+  score: number;
 }
 
 function price(n: number | undefined): string {
@@ -103,68 +108,66 @@ function Countdown({ to }: { to: number }) {
 }
 
 function VerdictChip({ verdict }: { verdict?: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    open: { label: "Open", cls: "border-gold/35 bg-gold/12 text-gold-bright" },
-    hit: { label: "Hit", cls: "border-gold/50 bg-gold/20 text-gold-bright" },
-    miss: {
-      label: "Miss",
-      cls: "border-steel-line bg-panel text-bone-faint",
-    },
-  };
-  const v = map[verdict ?? "open"] ?? map.open;
-  return (
-    <span
-      className={`rounded-[--radius-sm] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] ${v.cls}`}
-    >
-      {v.label}
-    </span>
-  );
+  if (verdict === "hit") return <Badge variant="success">Hit</Badge>;
+  if (verdict === "miss") return <Badge variant="danger">Miss</Badge>;
+  if (verdict === "void") return <Badge>Void</Badge>;
+  return <Badge variant="gold">Open</Badge>;
 }
 
+/* One Call in the stream. Ember rail, because that is what a Call is in the
+   card chassis (design system section 5). The claim reads as a sentence, and
+   the two figures that decide what it is worth, the frozen difficulty and the
+   stated confidence, are on the card rather than buried in the row. */
 function CallCard({ item }: { item: CallItem }) {
   const c = item.call;
-  const up = c?.stance === "up";
   const settled = c?.verdict && c.verdict !== "open";
   const move =
     settled && c?.settled_price && c?.entry_price
       ? ((c.settled_price - c.entry_price) / c.entry_price) * 100
       : null;
+  const band = typeof c?.pi_0 === "number" ? difficultyBand(c.pi_0) : null;
 
   return (
-    <Link
-      href={`/post/${item.id}`}
-      className="glass block rounded-[--radius-xl] p-4 transition-colors duration-150 hover:border-gold/25"
+    <StreamCard
+      rail="ember"
+      interactive
+      render={<Link href={`/calls/${item.id}`} />}
+      className="block"
     >
-      <div className="flex items-center gap-2">
-        <span className="font-display text-base font-semibold text-bone">
-          ${c?.token}
-        </span>
-        <span
-          className={`flex items-center gap-1 rounded-[--radius-sm] border px-2 py-0.5 text-[11px] font-semibold ${
-            up
-              ? "border-gold/35 bg-gold/12 text-gold-bright"
-              : "border-ember/35 bg-ember/12 text-ember"
-          }`}
-        >
-          <Icon name="arrow" className={`h-3 w-3 ${up ? "" : "rotate-180"}`} />
-          {up ? "Rises" : "Falls"}
-        </span>
-        <span className="text-[11px] text-bone-faint">{c?.timeframe}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge>{CATEGORY_LABEL[c?.category ?? "markets"] ?? "Markets"}</Badge>
+        {band && <Badge variant="gold">{band.label}</Badge>}
         <div className="ml-auto">
           <VerdictChip verdict={c?.verdict} />
         </div>
       </div>
 
-      {item.body && (
-        <p className="mt-2.5 line-clamp-2 text-sm leading-relaxed text-bone-mut">
+      <p className="mt-2 font-display text-[15px] font-semibold leading-snug text-bone">
+        {c ? claimSentence(c) : "A Call"}
+      </p>
+
+      {c?.rationale ? (
+        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-bone-mut">
+          {c.rationale}
+        </p>
+      ) : item.body ? (
+        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-bone-mut">
           {item.body}
         </p>
-      )}
+      ) : null}
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]">
-        <span className="text-bone-faint">
-          Sealed at <span className="tnum text-bone">{price(c?.entry_price)}</span>
-        </span>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+        {typeof c?.confidence === "number" && (
+          <span className="tnum text-bone-faint">
+            Stated{" "}
+            <span className="text-bone">{Math.round(c.confidence * 100)}%</span>
+          </span>
+        )}
+        {typeof c?.entry_price === "number" && (
+          <span className="text-bone-faint">
+            Sealed at <span className="tnum text-bone">{price(c.entry_price)}</span>
+          </span>
+        )}
         {settled ? (
           <span className="text-bone-faint">
             Settled at{" "}
@@ -187,7 +190,7 @@ function CallCard({ item }: { item: CallItem }) {
 
       <div className="mt-3 flex items-center gap-2 border-t border-steel-line/60 pt-3">
         <Avatar author={item.author ?? EMPTY_AUTHOR} size={22} />
-        <span className="truncate text-[12px] text-bone-mut">
+        <span className="truncate text-xs text-bone-mut">
           {item.author?.display_name ?? item.author?.handle ?? "Unknown"}
         </span>
         <span className="text-[11px] text-bone-faint">
@@ -204,14 +207,14 @@ function CallCard({ item }: { item: CallItem }) {
           </span>
         </span>
       </div>
-    </Link>
+    </StreamCard>
   );
 }
 
 function CallerRow({ caller, rank }: { caller: Caller; rank: number }) {
   return (
     <Link
-      href={`/u/${caller.author?.handle ?? ""}`}
+      href={`/calls/caller/${caller.author?.handle ?? ""}`}
       className="glass flex items-center gap-3 rounded-[--radius-lg] p-3 transition-colors duration-150 hover:border-gold/25"
     >
       <span className="tnum w-6 shrink-0 text-center font-display text-sm font-semibold text-gold">
@@ -242,7 +245,7 @@ function Empty({ view }: { view: ViewKey }) {
   const copy: Record<ViewKey, { title: string; body: string }> = {
     live: {
       title: "No Calls are open",
-      body: "A Call is a public, timestamped read you put your name to. Seal the first one and the realm will watch it settle.",
+      body: "A Call is a public, timestamped read you put your name to, sealed against a difficulty the realm measures before you commit. Seal the first one and the realm will watch it settle.",
     },
     closing: {
       title: "Nothing is closing yet",
@@ -263,25 +266,16 @@ function Empty({ view }: { view: ViewKey }) {
   };
   const c = copy[view];
   return (
-    <div className="glass flex flex-col items-center rounded-[--radius-xl] px-6 py-12 text-center">
-      <div className="glass glass-sm flex h-14 w-14 items-center justify-center rounded-[--radius-lg] text-gold">
-        <Icon name="orb" className="h-7 w-7" />
-      </div>
-      <h2 className="mt-4 font-display text-lg font-semibold text-bone">
-        {c.title}
-      </h2>
-      <p className="mt-2 max-w-sm text-sm leading-relaxed text-bone-mut">
-        {c.body}
-      </p>
-      <Button
-        variant="gold"
-        size="lg"
-        className="mt-6"
-        render={<Link href="/compose" />}
-      >
-        Seal a Call
-      </Button>
-    </div>
+    <StreamEmpty
+      icon="call-orb"
+      title={c.title}
+      body={c.body}
+      action={
+        <Button variant="gold" size="lg" render={<Link href="/compose" />}>
+          Seal a Call
+        </Button>
+      }
+    />
   );
 }
 
@@ -291,6 +285,7 @@ function CallsBody() {
   const [calls, setCalls] = useState<CallItem[] | null>(null);
   const [callers, setCallers] = useState<Caller[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const showSkeleton = useDelayedLoading(loading);
 
   useEffect(() => {
     let cancelled = false;
@@ -356,14 +351,11 @@ function CallsBody() {
         })}
       </div>
 
-      <div className="mt-4 flex flex-col gap-2.5">
-        {loading && (
+      <StreamList className="mt-4">
+        {showSkeleton && (
           <>
             {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="glass h-36 animate-pulse rounded-[--radius-xl]"
-              />
+              <StreamCardSkeleton key={i} lines={i === 1 ? 3 : 2} />
             ))}
           </>
         )}
@@ -379,7 +371,7 @@ function CallsBody() {
         {!loading &&
           view !== "leaderboard" &&
           calls?.map((c) => <CallCard key={c.id} item={c} />)}
-      </div>
+      </StreamList>
     </StreamColumn>
   );
 }
@@ -389,7 +381,7 @@ export default function CallsPage() {
     <Suspense
       fallback={
         <StreamColumn className="px-4 py-5">
-          <div className="glass h-36 animate-pulse rounded-[--radius-xl]" />
+          <Skeleton radius="xl" className="h-36 w-full" />
         </StreamColumn>
       }
     >
