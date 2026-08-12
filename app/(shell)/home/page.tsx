@@ -1,6 +1,7 @@
 import { Feed } from "@/components/social/feed";
 import { TourMount } from "@/components/onboarding/tour-mount";
 import { RealmStrip } from "@/components/social/realm-strip";
+import { StreamColumn } from "@/components/stream/stream-shell";
 
 /* The Ravenry.
  *
@@ -15,13 +16,13 @@ import { RealmStrip } from "@/components/social/realm-strip";
  * ravens stay the loudest thing on the page. */
 export default function HomePage() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       <h1 className="mb-3 font-display text-xl font-semibold text-bone">
         The Ravenry
       </h1>
       <TourMount />
       <RealmStrip />
       <Feed />
-    </div>
+    </StreamColumn>
   );
 }

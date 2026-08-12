@@ -17,6 +17,7 @@ import {
   type HouseStat,
   type PersonHit,
 } from "@/lib/social/explore-queries";
+import { StreamColumn } from "@/components/stream/stream-shell";
 
 interface ProfileHit {
   id: string;
@@ -104,7 +105,7 @@ export default function ExplorePage() {
   }, [query]);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       <h1 className="font-display text-xl font-semibold text-bone">
         The Crossroads
       </h1>
@@ -355,6 +356,6 @@ export default function ExplorePage() {
           ))
         )}
       </div>
-    </div>
+    </StreamColumn>
   );
 }

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
 import { realmFetch } from "@/lib/auth/api";
+import { StreamColumn } from "@/components/stream/stream-shell";
 
 /* Global search: members, cashtags and posts from anywhere in the realm. Real
    data only, live as you type, with honest empty states. */
@@ -55,10 +56,10 @@ export default function SearchPage() {
 
 function SearchFallback() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6">
+    <StreamColumn className="px-4 py-6">
       <BackButton />
       <div className="glass mt-4 h-12 animate-pulse rounded-2xl" />
-    </div>
+    </StreamColumn>
   );
 }
 
@@ -101,7 +102,7 @@ function SearchBody() {
     results.cashtags.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       <div className="mb-4">
         <BackButton />
       </div>
@@ -260,7 +261,7 @@ function SearchBody() {
           )
         )}
       </div>
-    </div>
+    </StreamColumn>
   );
 }
 

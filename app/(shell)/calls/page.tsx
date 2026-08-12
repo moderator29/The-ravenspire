@@ -9,6 +9,7 @@ import { Avatar } from "@/components/social/avatar";
 import { realmFetch } from "@/lib/auth/api";
 import { timeAgo } from "@/lib/social/types";
 import { Button } from "@/components/ui/button";
+import { StreamColumn } from "@/components/stream/stream-shell";
 
 /* The Calls index.
 
@@ -316,7 +317,7 @@ function CallsBody() {
   }, [loading, view, calls, callers]);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-5">
+    <StreamColumn className="px-4 py-5">
       <BackButton />
 
       <header className="mt-4">
@@ -379,7 +380,7 @@ function CallsBody() {
           view !== "leaderboard" &&
           calls?.map((c) => <CallCard key={c.id} item={c} />)}
       </div>
-    </div>
+    </StreamColumn>
   );
 }
 
@@ -387,9 +388,9 @@ export default function CallsPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto w-full max-w-2xl px-4 py-5">
+        <StreamColumn className="px-4 py-5">
           <div className="glass h-36 animate-pulse rounded-[--radius-xl]" />
-        </div>
+        </StreamColumn>
       }
     >
       <CallsBody />

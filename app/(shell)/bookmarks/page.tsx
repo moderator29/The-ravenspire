@@ -7,6 +7,7 @@ import { PostCard } from "@/components/social/post-card";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import type { Post } from "@/lib/social/types";
+import { StreamColumn } from "@/components/stream/stream-shell";
 
 export default function BookmarksPage() {
   const { ready, authenticated } = useRealmAuth();
@@ -20,7 +21,7 @@ export default function BookmarksPage() {
   }, [ready, authenticated]);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       <BackButton />
       <h1 className="mt-3 font-display text-xl font-semibold text-bone">Bookmarks</h1>
       <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
@@ -46,6 +47,6 @@ export default function BookmarksPage() {
           posts.map((p) => <PostCard key={p.id} post={p} />)
         )}
       </div>
-    </div>
+    </StreamColumn>
   );
 }

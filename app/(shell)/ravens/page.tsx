@@ -15,6 +15,7 @@ import {
   notifHref,
   type NotifActor,
 } from "@/lib/notification-view";
+import { StreamColumn } from "@/components/stream/stream-shell";
 
 interface Notif {
   id: string;
@@ -105,7 +106,7 @@ export default function RavensPage() {
   const unread = (items ?? []).filter((n) => n.fresh).length;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       <div className="mb-4">
         <BackButton />
       </div>
@@ -210,6 +211,6 @@ export default function RavensPage() {
           ))
         )}
       </div>
-    </div>
+    </StreamColumn>
   );
 }
