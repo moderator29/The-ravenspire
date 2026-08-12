@@ -511,7 +511,11 @@ export default function SwapPage() {
             }}
             placeholder="0"
             className={cx(
-              "tnum min-w-0 flex-1 bg-transparent text-right font-display text-2xl outline-none placeholder-bone-faint md:text-xl",
+              /* The amount field is the whole point of this screen and it
+                 measured 21px tall, because a bare input takes its height from
+                 its line box and nothing here asked for more. The floor on a
+                 finger only, so the desktop console stays as dense as it is. */
+              "tnum min-w-0 flex-1 bg-transparent text-right font-display text-2xl outline-none touch:min-h-11 placeholder-bone-faint md:text-xl",
               overBalance ? "text-ember" : "text-bone"
             )}
           />

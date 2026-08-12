@@ -41,7 +41,14 @@ const BASE =
      It lives in the shared base so no size, no variant and no call site can
      forget it, and it is a minimum rather than a height so the compact scale
      survives untouched for a mouse. */
-  "touch:min-h-11 " +
+  "touch:min-h-11 touch:min-w-11 " +
+  /* Width as well as height, and for the same reason. A control's height comes
+     off the size scale so it was always deliberate, but its width comes from
+     its label, which nobody chooses with a thumb in mind. Two filter buttons
+     labelled "All" measured 41px across on the War screens: three pixels short
+     of the floor, invisible to a reviewer, and produced by nothing more than a
+     short word. A minimum on both axes means a label can never make a control
+     smaller than the target it needs. */
   "transition-[transform,box-shadow,background-color,border-color,filter,opacity] " +
   /* Press physics. Moving a control down a pixel without changing its light is
      the tell that it is a picture of a button: the highlight stays lit while

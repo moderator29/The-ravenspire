@@ -232,8 +232,12 @@ export function Chip({
       className={cx(
         "shrink-0 rounded-sm border px-3 text-xs font-medium",
         "transition-colors duration-fast ease-out-quint",
-        /* 44px on touch, 28px on the compact rail. */
-        "h-11 md:h-7",
+        /* 44px on touch, 28px on the compact rail.
+           Width too, and it is the axis that was missing: a chip is as wide as
+           its word, and "All" made a 41px control on two War screens. Three
+           pixels short, produced by nothing but a short label, which is exactly
+           the kind of miss no reviewer catches. */
+        "h-11 min-w-11 md:h-7 md:min-w-0",
         active
           ? "border-gold/60 bg-gold/12 text-gold-bright"
           : "border-steel-line bg-void text-bone-mut hover:border-gold/40 hover:text-bone",
