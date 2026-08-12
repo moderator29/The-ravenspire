@@ -3,6 +3,7 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cx } from "@/components/ui/cx";
+import { mergeClasses } from "@/components/ui/merge";
 import { Icon } from "@/components/ui/icon";
 
 /* The realm's one button.
@@ -23,41 +24,92 @@ import { Icon } from "@/components/ui/icon";
 
 export type ButtonVariant = "gold" | "glass" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
+export type ButtonTone = "gold" | "ember" | "danger" | "steel";
+/* Horizontal padding, independent of height. Defaults to the size's own. */
+export type ButtonPad = "none" | "sm" | "md" | "lg";
 
+/* No radius here. It used to carry `rounded-md`, and `IconButton
+   shape="circle"` then added `rounded-[var(--radius-full)]` on top, which is
+   emitted earlier in the stylesheet and therefore lost every time: every
+   circular icon button in the product rendered as a rounded rectangle. The
+   rung is computed once now, at the single place that knows the shape, so the
+   two can never be in conflict. */
 const BASE =
   "relative inline-flex select-none items-center justify-center whitespace-nowrap " +
-  "rounded-md font-semibold leading-none " +
+  "font-semibold leading-none " +
+  /* The 44px floor, on a finger only. See the `touch` variant in globals.css.
+     It lives in the shared base so no size, no variant and no call site can
+     forget it, and it is a minimum rather than a height so the compact scale
+     survives untouched for a mouse. */
+  "touch:min-h-11 " +
   "transition-[transform,box-shadow,background-color,border-color,filter,opacity] " +
   "duration-fast ease-out-quint active:translate-y-px " +
   "disabled:pointer-events-none disabled:opacity-50 " +
   "aria-disabled:pointer-events-none aria-disabled:opacity-50";
 
+const RADIUS_RECT = "rounded-md";
+const RADIUS_CIRCLE = "rounded-[var(--radius-full)]";
+
 /* Gold is a gradient, never a flat fill, and it is the only variant that
    carries the forge shadow. `--gold-ink` is the one text colour cleared
-   against every rung of that gradient. */
+   against every rung of that gradient.
+
+   Border colour is split out into BORDER so `tone` can replace it. A caller
+   who wrote `border-ember/60` on a glass Button used to get nothing, because
+   the variant's own `border-gold/25` is emitted later in the stylesheet and
+   at equal specificity later wins. */
 const VARIANT: Record<ButtonVariant, string> = {
   gold:
-    "border border-gold-bright/55 text-gold-ink shadow-forge " +
+    "text-gold-ink shadow-forge " +
     "bg-[image:linear-gradient(180deg,var(--gold-bright)_0%,var(--gold)_48%,var(--gold-deep)_100%)] " +
     "hover:brightness-[1.06]",
   glass:
-    "border border-gold/25 bg-void/60 text-bone backdrop-blur-[10px] " +
+    "bg-void/60 text-bone backdrop-blur-[10px] " +
     "bg-[image:linear-gradient(180deg,rgba(255,233,163,0.06),rgba(12,12,17,0.4))] " +
     "hover:border-gold/45 hover:bg-void/75",
-  ghost:
-    "border border-transparent text-bone-mut hover:bg-panel hover:text-bone",
+  ghost: "text-bone-mut hover:bg-panel hover:text-bone",
   danger:
-    "border border-state-danger/45 bg-state-danger/10 text-state-danger " +
+    "bg-state-danger/10 text-state-danger " +
     "hover:border-state-danger/70 hover:bg-state-danger/20",
 };
 
-/* Dense by intent. 32 / 36 / 44px tall, with generous horizontal padding so
-   the control reads compact without reading cramped. `lg` lands exactly on the
-   44px touch target, which is why it is the size for primary mobile actions. */
+const BORDER: Record<ButtonVariant, string> = {
+  gold: "border-gold-bright/55",
+  glass: "border-gold/25",
+  ghost: "border-transparent",
+  danger: "border-state-danger/45",
+};
+
+const TONE: Record<ButtonTone, string> = {
+  gold: "border-gold/60",
+  ember: "border-ember/60",
+  danger: "border-state-danger/45",
+  steel: "border-steel-line",
+};
+
+/* The opaque surface, for a control that floats over arbitrary content. Glass
+   is translucent with a blur and a gold wash, which is right on a page and
+   wrong on a button sitting above a scrolling feed, where the text behind it
+   reads through. Two floating controls were asking for this with
+   `bg-panel-warm/95`, which never applied: it is a background colour under a
+   background image that paints over it. */
+const OPAQUE = "bg-panel-warm/95 backdrop-blur-none bg-none";
+
+/* Dense by intent. 32 / 36 / 44px tall. Height and horizontal padding are
+   separate so a caller can keep the 44px touch target and still have a narrow
+   control, which is what six icon shaped buttons wanted and none of them got:
+   `px-2.5` beside a size of `lg` is dead, because `px-5` is emitted later. */
 const SIZE: Record<ButtonSize, string> = {
-  sm: "h-8 gap-1.5 px-3 text-xs",
-  md: "h-9 gap-2 px-4 text-sm",
-  lg: "h-11 gap-2 px-5 text-[15px]",
+  sm: "h-8 gap-1.5 text-xs",
+  md: "h-9 gap-2 text-sm",
+  lg: "h-11 gap-2 text-[15px]",
+};
+
+const PAD: Record<ButtonPad, string> = {
+  none: "px-0",
+  sm: "px-3",
+  md: "px-4",
+  lg: "px-5",
 };
 
 const ICON_SIZE: Record<ButtonSize, string> = {
@@ -75,6 +127,15 @@ const ICON_GLYPH: Record<ButtonSize, string> = {
 export interface ButtonProps extends useRender.ComponentProps<"button"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /* The border accent, for a control that is selected, live, or destructive
+     in a place where the variant alone does not say so. */
+  tone?: ButtonTone;
+  /* Horizontal padding, when the size's own is wrong. An icon shaped control
+     wants the height of `lg` and the width of `sm`. */
+  pad?: ButtonPad;
+  /* Drops the translucency and the blur. For a control that floats over
+     scrolling content, where glass lets the content read through it. */
+  opaque?: boolean;
   /* Fills the width of its container. Full width buttons are a mobile pattern,
      so this is usually paired with a responsive class on the caller. */
   block?: boolean;
@@ -87,6 +148,9 @@ export function Button({
   render,
   variant = "glass",
   size = "md",
+  tone,
+  pad,
+  opaque,
   block,
   loading,
   className,
@@ -102,10 +166,18 @@ export function Button({
   const isCustomElement = render !== undefined;
 
   const defaultProps = {
-    className: cx(
+    /* mergeClasses, not cx: see components/ui/merge.ts. A join leaves the
+       winner to stylesheet emission order, which is not something a caller
+       can see or reason about. */
+    className: mergeClasses(
       BASE,
+      RADIUS_RECT,
       VARIANT[variant],
+      "border",
+      tone ? TONE[tone] : BORDER[variant],
       SIZE[size],
+      PAD[pad ?? size],
+      opaque && OPAQUE,
       block && "w-full",
       className
     ),
@@ -137,6 +209,7 @@ export interface IconButtonProps
   label: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  tone?: ButtonTone;
   /* Square rounded rectangle by default. `circle` exists only for genuinely
      circular affordances such as an avatar overlay, never for toolbar chrome. */
   shape?: "rect" | "circle";
@@ -148,6 +221,7 @@ export function IconButton({
   label,
   variant = "ghost",
   size = "md",
+  tone,
   shape = "rect",
   className,
   disabled,
@@ -156,12 +230,15 @@ export function IconButton({
   const isCustomElement = render !== undefined;
 
   const defaultProps = {
-    className: cx(
+    className: mergeClasses(
       BASE,
+      shape === "circle" ? RADIUS_CIRCLE : RADIUS_RECT,
       VARIANT[variant],
+      "border",
+      tone ? TONE[tone] : BORDER[variant],
       ICON_SIZE[size],
-      "shrink-0 p-0",
-      shape === "circle" && "rounded-[var(--radius-full)]",
+      /* Square, so an icon control needs the floor on both axes. */
+      "shrink-0 p-0 touch:min-w-11",
       className
     ),
     "aria-label": label,

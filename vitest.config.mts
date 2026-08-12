@@ -7,7 +7,13 @@ import { fileURLToPath } from "node:url";
    pure logic in the product: lib/calls/scoring.ts decides how much permanent
    Renown a Call mints, and lib/points.ts decides the tier ladder and the daily
    social allowance. Both are server-authoritative, both are irreversible once
-   they have paid out, and neither is exercised by typecheck. */
+   they have paid out, and neither is exercised by typecheck.
+
+   components/ui is included for one file, components/ui/merge.ts, which decides
+   which of two conflicting classes reaches the browser. It earns a test for the
+   same reason: it is pure, typecheck cannot see it, and when it is wrong the
+   symptom is a control that silently renders as something else. Every case in
+   that suite is a defect that actually shipped. */
 
 export default defineConfig({
   resolve: {
@@ -24,6 +30,6 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts"],
+    include: ["lib/**/*.test.ts", "components/ui/**/*.test.ts"],
   },
 });

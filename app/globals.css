@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* `touch:` means "this pointer is a finger".
+
+   The product holds itself to a 44px minimum touch target and the control
+   scale did not encode it: sm is 32px and md is 36px, so only `lg` cleared the
+   bar and every author who reasonably reached for `md` shipped a control a
+   thumb cannot hit. An audit at 390px found about sixty of them, forty one on
+   the landing page alone.
+
+   A width breakpoint is the wrong test for this and always was. A 390px
+   viewport can be a desktop window and a 1024px one can be a tablet; what
+   decides whether 32px is enough is the pointer, not the page. So the floor
+   keys off `pointer: coarse`, which leaves the compact scale intact for a
+   mouse and lifts every control to 44px for a finger, without a single call
+   site having to remember. */
+@custom-variant touch (@media (pointer: coarse));
+
 /*
   RAVENSPIRE Brand System v3: "Obsidian & Gold, Cinematic Metal"
   Deep obsidian, forged antique gold, ember firelight, bone, steel, ash.

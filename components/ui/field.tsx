@@ -6,6 +6,7 @@ import { Form as BaseForm } from "@base-ui/react/form";
 import { Select as BaseSelect } from "@base-ui/react/select";
 import { Switch } from "@base-ui/react/switch";
 import { cx } from "@/components/ui/cx";
+import { mergeClasses } from "@/components/ui/merge";
 import { Icon } from "@/components/ui/icon";
 
 /* Form controls on Base UI Field, Form and Select.
@@ -22,6 +23,9 @@ import { Icon } from "@/components/ui/icon";
 
 const CONTROL =
   "w-full rounded-md border border-steel-line bg-obsidian/60 px-3 text-sm text-bone " +
+  /* The 44px floor on a finger, the same one the Button scale carries. A 36px
+     text field is comfortable with a mouse and awkward with a thumb. */
+  "touch:min-h-11 " +
   "placeholder:text-bone-faint " +
   "transition-[border-color,box-shadow,background-color] duration-fast ease-out-quint " +
   "hover:border-steel " +
@@ -104,7 +108,12 @@ export type InputProps = Omit<
 > & { className?: string };
 
 export function Input({ className, ...props }: InputProps) {
-  return <BaseField.Control className={cx(CONTROL, "h-9", className)} {...props} />;
+  return (
+    <BaseField.Control
+      className={mergeClasses(CONTROL, "h-9", className)}
+      {...props}
+    />
+  );
 }
 
 export type TextareaProps = Omit<InputProps, "render">;
@@ -113,7 +122,11 @@ export function Textarea({ className, ...props }: TextareaProps) {
   return (
     <BaseField.Control
       render={<textarea />}
-      className={cx(CONTROL, "min-h-24 resize-y py-2 leading-relaxed", className)}
+      className={mergeClasses(
+        CONTROL,
+        "min-h-24 resize-y py-2 leading-relaxed",
+        className
+      )}
       {...props}
     />
   );
@@ -158,7 +171,7 @@ export function Select({
       required={required}
     >
       <BaseSelect.Trigger
-        className={cx(
+        className={mergeClasses(
           CONTROL,
           "flex h-9 items-center justify-between gap-2 text-left",
           "data-popup-open:border-gold/60",
@@ -262,6 +275,12 @@ export function Toggle({
       aria-label={label}
       className={cx(
         "relative shrink-0 rounded-sm border p-[2px]",
+        /* A switch keeps its 24px track: making the track itself 44px would
+           stop it reading as a switch. The hit area grows instead, through a
+           transparent pseudo element centred on the track, so a thumb gets its
+           44px and the control looks exactly as it did. */
+        "touch:before:absolute touch:before:inset-x-0 touch:before:top-1/2 " +
+          "touch:before:h-11 touch:before:-translate-y-1/2 touch:before:content-['']",
         "transition-[background-color,border-color] duration-fast ease-out-quint",
         "data-unchecked:border-steel-line data-unchecked:bg-steel-deep",
         "data-checked:border-gold/60 data-checked:bg-gold/20",

@@ -116,6 +116,10 @@ export function Tab({
       value={value}
       className={cx(
         "relative shrink-0 rounded-t-md px-3 py-2.5 text-sm font-semibold",
+        /* 44px on a finger. The compact height is right for a mouse and a tab
+           is a primary navigation control, so it must not be the thing a thumb
+           misses. See the `touch` variant in globals.css. */
+        "touch:min-h-11",
         "transition-colors duration-fast ease-out-quint",
         "text-bone-faint hover:text-bone-mut data-active:text-bone",
         className
@@ -219,6 +223,7 @@ export function SegmentedControl({
               value={item.value}
               className={cx(
                 "relative shrink-0 rounded-sm font-semibold",
+                "touch:min-h-11",
                 "transition-colors duration-fast ease-out-quint",
                 block && "flex-1",
                 size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm",
