@@ -238,6 +238,27 @@ export function SegmentedControl({
               value={item.value}
               className={cx(
                 "relative shrink-0 rounded-sm font-semibold",
+                /* The track wraps; a label never does. The comment above says
+                   the point of wrapping the track is to keep every label
+                   whole, and without this it did the opposite: `flex-1` is
+                   `flex: 1 1 0%`, so every segment settles at an equal share
+                   of the track, and a label wider than that share broke in
+                   half rather than pushing its segment onto the next row.
+
+                   Measured on the Scrying Glass lens switcher at 1024 and
+                   1440: three segments at 80.7px each, "Heating up" split to
+                   "Heating / up" and "Top volume" to "Top / volume", both 40px
+                   tall beside "Trending" at 24, and the track 50px tall on a
+                   Console whose whole rule is compact density. With nowrap the
+                   segments size to 83.1 / 71.7 / 87.3, one row, 34px, and the
+                   track is the same 256.1px wide it was.
+
+                   Checked against every other segmented control in the
+                   product, at 390 and 1440: Lock term, Crests, Ranking,
+                   Houses view, Crest filter, Range and Ledger view are all
+                   unchanged to the pixel. Nothing else was relying on a broken
+                   label to fit. */
+                "whitespace-nowrap",
                 /* Both axes. This carried only the height floor while the
                    Button base carries both, which is the same half-a-floor the
                    War's filter chips had: a segment is as wide as its label and
