@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { notFound } from "next/navigation";
 import { Icon3D } from "@/components/ui/icon-3d";
 import { BackButton } from "@/components/shell/back-button";
 import { comingSoonNav, findComingSoon } from "@/lib/nav";
-import { Button } from "@/components/ui/button";
+import { NotifyMe } from "@/components/realm/notify-me";
+import { isInterestFeature } from "@/lib/realm/interest";
 
 export function generateStaticParams() {
   return comingSoonNav.map((i) => ({ slug: i.slug }));
@@ -43,9 +43,15 @@ export default async function ComingSoonPage({
         <p className="mt-4 max-w-sm text-sm leading-relaxed text-bone-mut">
           {item.blurb}
         </p>
-        <Button variant="gold" size="lg" className="mt-7" render={<Link href="/ravens" />}>
-          Notify me
-        </Button>
+        {/* This button used to link to /ravens and register nothing, which was
+            a promise it did not keep (a recorded defect). It now writes to the
+            interest table through the same control the LockedGate uses, keyed
+            by the chapter's own slug; every chapter slug is on the explicit
+            allowlist in lib/realm/interest.ts. The guard is for a slug that
+            has fallen off that list: no button is honest, a dead one is not. */}
+        {isInterestFeature(item.slug) ? (
+          <NotifyMe feature={item.slug} size="lg" className="mt-7" />
+        ) : null}
         <p className="mt-3 text-[11px] text-bone-faint">
           A raven will find you the day this chapter opens.
         </p>

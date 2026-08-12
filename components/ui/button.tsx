@@ -114,27 +114,49 @@ const TONE: Record<ButtonTone, string> = {
    background image that paints over it. */
 const OPAQUE = "bg-panel-warm/95 backdrop-blur-none bg-none";
 
-/* Dense by intent. 32 / 36 / 44px tall. Height and horizontal padding are
-   separate so a caller can keep the 44px touch target and still have a narrow
-   control, which is what six icon shaped buttons wanted and none of them got:
-   `px-2.5` beside a size of `lg` is dead, because `px-5` is emitted later. */
+/* Dense by intent. 32 / 36 / 40px tall with a mouse, and never below 44 with a
+   thumb. Height and horizontal padding are separate so a caller can keep the
+   44px touch target and still have a narrow control, which is what six icon
+   shaped buttons wanted and none of them got: `px-2.5` beside a size of `lg`
+   is dead, because `px-5` is emitted later.
+
+   `lg` used to be a flat `h-11`, which is where the founder's "too big in
+   height" came from and it is the one part of that complaint with an honest
+   answer. Measured on a real phone the Follow control on a Keep was 44x111
+   with 20px of padding a side and a 15px label; at 1024 and 1440 it was the
+   same 44 tall, and on a mouse 44 is not a floor, it is just a number someone
+   typed. So the rung declares 40 and the shared `touch:min-h-11` above lifts
+   it back to 44 on a coarse pointer. Desktop loses four pixels of height it
+   never needed, a phone loses none, and the accessibility floor is enforced by
+   exactly one line in exactly one place, as before.
+
+   The label drops with it: 15px to 14px on `lg`, and every rung gives back a
+   step of horizontal padding (20/16/12 becomes 16/14/10). That is where the
+   bulk actually was. A 44px control with 20px of padding and a 15px label
+   reads bloated; the same 44px control with 16px of padding and a 14px label
+   reads compact, and only one of those two numbers was ever the floor. */
 const SIZE: Record<ButtonSize, string> = {
   sm: "h-8 gap-1.5 text-xs",
-  md: "h-9 gap-2 text-sm",
-  lg: "h-11 gap-2 text-[15px]",
+  md: "h-9 gap-1.5 text-sm",
+  lg: "h-10 gap-1.5 text-sm",
 };
 
 const PAD: Record<ButtonPad, string> = {
   none: "px-0",
-  sm: "px-3",
-  md: "px-4",
-  lg: "px-5",
+  sm: "px-2.5",
+  md: "px-3.5",
+  lg: "px-4",
 };
 
+/* Square, and on the same rungs as SIZE so an icon control and a labelled one
+   sitting in the same row are the same height. The `lg` icon button is the
+   "..." beside Follow on a Keep, and it tracked the labelled control down from
+   44 to 40 for a mouse; `touch:min-h-11 touch:min-w-11` below still makes it
+   44x44 under a thumb. */
 const ICON_SIZE: Record<ButtonSize, string> = {
   sm: "h-8 w-8",
   md: "h-9 w-9",
-  lg: "h-11 w-11",
+  lg: "h-10 w-10",
 };
 
 const ICON_GLYPH: Record<ButtonSize, string> = {

@@ -543,7 +543,12 @@ function CoinSkeleton() {
           <Skeleton radius="sm" className="h-2.5 w-40" />
         </div>
       </div>
-      <div className="flex flex-col gap-3 rounded-xl border border-gold/16 bg-void/60 p-4 md:p-3">
+      <div
+        className={cx(
+          "flex flex-col gap-3 rounded-xl border border-gold/16 bg-void/60",
+          CONSOLE_PAD
+        )}
+      >
         <div className="flex items-end justify-between">
           <Skeleton radius="sm" className="h-6 w-28" />
           <Skeleton radius="sm" className="h-5 w-16" />

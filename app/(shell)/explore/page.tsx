@@ -84,9 +84,9 @@ function ExploreBody() {
   const params = useSearchParams();
   const view = viewFromParam(params.get("view"));
 
-  /* The dock's contextual strip already links `?view=cashtags` on a phone, and
-     this page used to keep no view at all, so that chip changed the address bar
-     and nothing else. The view lives in the URL now, which makes the dock work
+  /* The view lives in the URL, so a shared link opens on the list it names
+     and the in-page chips below are the one switcher. The dock strip that
+     once wrote this param is retired, which is fine
      and keeps it and the rail from ever disagreeing. */
   const setView = useCallback(
     (next: ExploreView) => {

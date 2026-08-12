@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import { TokenLogo } from "@/components/wallet/token-logo";
@@ -50,7 +51,7 @@ export function CoinList({
   }, [tokens, filters]);
 
   return (
-    <Card pad="none" render={<section />} className="p-4 md:p-3">
+    <Card pad="none" render={<section />} className={CONSOLE_PAD}>
       {/* The list's controls sit on one rail, never scattered into the rows. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
