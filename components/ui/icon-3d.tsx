@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Icon } from "@/components/ui/icon";
+import type { Icon3DName } from "@/components/ui/icon-3d-names";
+
+export type { Icon3DName };
 
 /* The 3D icon set.
  *
@@ -24,83 +27,16 @@ import { Icon } from "@/components/ui/icon";
  * and simply get richer when it does.
  */
 
-export type Icon3DName =
-  /* Identity and the realm */
-  | "raven"
-  | "keep"
-  | "crown"
-  | "council"
-  | "leadership"
-  | "identity"
-  | "house-hall"
-  | "gatehouse"
-  | "tower"
-  | "world"
-  | "realm-map"
-  /* Houses */
-  | "banner"
-  | "house-corvane"
-  | "rivalry"
-  | "alliance"
-  | "oath-scroll"
-  /* Calls */
-  | "call-orb"
-  | "accuracy"
-  | "scales"
-  | "analytics"
-  | "scrying"
-  /* Reputation and rewards */
-  | "trophy"
-  | "podium"
-  | "chest"
-  | "coins"
-  | "vault"
-  | "celebration"
-  | "growth"
-  /* Competition */
-  | "duel"
-  | "arena"
-  | "crossed-axes"
-  | "dragon"
-  | "dragon-egg"
-  | "guard"
-  | "games"
-  | "training"
-  | "mount"
-  /* Social */
-  | "whispers"
-  | "envelope"
-  | "gathering"
-  | "quest-scroll"
-  | "chronicle"
-  | "chronicler"
-  | "notifications"
-  | "media"
-  | "archive"
-  /* Seasons and world */
-  | "season"
-  | "compass"
-  | "treasure-map"
-  | "portal"
-  | "voyage"
-  | "campfire"
-  | "brazier"
-  | "ember-hand"
-  | "nightvale"
-  | "hood"
-  /* Tools */
-  | "forge"
-  | "market"
-  | "search"
-  | "network"
-  | "workshop"
-  | "settings"
-  | "satchel"
-  | "cards"
-  | "alchemy"
-  | "herald-ai";
+/* Three readings of most subjects came off the sheets, and all three are kept.
+   The bare slug is the default. `-v2` is the brighter, higher contrast reading,
+   which reads better at small sizes and on dark panels. `-alt` is the darkest
+   and most ornate, which belongs to the Forge register: Crest unlocks, Call
+   resolutions, House victories. Picking per surface is the point of keeping
+   them, so nothing here privileges one. */
 
-const FALLBACK_GLYPH: Partial<Record<Icon3DName, string>> = {
+/* Keyed by base slug rather than by full name, so `raven`, `raven-v2` and
+   `raven-alt` all resolve to the same flat glyph without three entries. */
+const FALLBACK_GLYPH: Record<string, string> = {
   raven: "raven",
   keep: "home",
   crown: "crown",
@@ -218,7 +154,7 @@ export function Icon3D({
         style={{ width: px, height: px }}
       >
         <Icon
-          name={FALLBACK_GLYPH[name] ?? "orb"}
+          name={FALLBACK_GLYPH[name.replace(/-(v2|alt)$/, "")] ?? "orb"}
           className={FALLBACK_GLYPH_CLASS[size]}
         />
       </span>

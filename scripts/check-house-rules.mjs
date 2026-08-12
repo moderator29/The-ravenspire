@@ -153,11 +153,21 @@ for (const f of files(["*.tsx"])) {
 const RETIRED_GOLD = /#(c8a24c|f0d68c|8a6a2c|d8b45a)\b/i;
 
 for (const f of files(["*.ts", "*.tsx", "*.css"])) {
-  if (f === "app/globals.css") continue; // records them in a comment as history
   if (f === "scripts/check-house-rules.mjs") continue;
   const text = readFileSync(f, "utf8");
   text.split("\n").forEach((line, i) => {
-    const m = line.match(RETIRED_GOLD);
+    /* globals.css names the retired values in comments, as the history of what
+       each token replaced, and that is worth keeping. Skipping the whole file
+       to allow it was too blunt: it made globals.css the one place this check
+       could never see, which is exactly where a colour regression does the
+       most damage.
+
+       Comments are stripped rather than whole lines skipped, because the
+       history sits in a TRAILING comment on the token line itself:
+         --gold-rich: #ecc860; /* was #d8b45a *\/
+       Skipping that line would blind the check to the live value beside it. */
+    const code = line.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/, "");
+    const m = code.match(RETIRED_GOLD);
     if (m) {
       problems.push(
         `${f}:${i + 1}  ${m[0]} is the retired gold. Use var(--gold) family, or the current hex in Satori rendered images.`
