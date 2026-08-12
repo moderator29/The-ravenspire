@@ -140,7 +140,24 @@ export function BottomNav() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-nav lg:hidden">
+    <div
+      /* A scrim under the whole cluster, and it is fixing something visible
+         rather than adding decoration.
+
+         The dock is two floating bars with an 8px gap between them, over a
+         transparent fixed wrapper. Page content was live in that gap: measured
+         on the Crossroads at 390, `elementFromPoint` in the middle of the slot
+         returned the page's own content column, so a gold section heading sat
+         framed in a slot between the strip and the bar while the page scrolled
+         behind it. Two objects with a window between them, which reads as a
+         broken layout rather than as a floating dock.
+
+         The gradient fades content out into obsidian before it reaches either
+         bar, so the strip and the dock read as one anchored cluster. It stays
+         `pointer-events-none`, so nothing under it becomes untappable, and it
+         is a fill with no text on it. */
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-nav pt-8 lg:hidden bg-[image:linear-gradient(to_top,rgba(7,7,10,0.97)_0%,rgba(7,7,10,0.88)_52%,rgba(7,7,10,0)_100%)]"
+    >
       <div
         ref={dockRef}
         className="mx-auto w-full max-w-lg px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"

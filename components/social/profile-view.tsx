@@ -178,18 +178,35 @@ export function ProfileView({
     };
   }, [authenticated, profile.id]);
 
+  /* Both of the writes on this Keep flipped optimistically and kept the new
+     state when the server refused, so a follow that never happened read as a
+     follow, and the follower tally moved with it. FollowButton, which is the
+     same verb on the same route, has rolled back since it was written; these
+     two never did. */
+  const [writeError, setWriteError] = useState<string | null>(null);
+  const refuse = (message: string) => {
+    setWriteError(message);
+    window.setTimeout(() => setWriteError(null), 2600);
+  };
+
   const toggleBlock = async () => {
     if (!authenticated) {
       window.location.href = "/signin";
       return;
     }
     const on = !isBlocked;
+    const wasFollowing = following;
     setIsBlocked(on);
     if (on) setFollowing(false);
-    await realmFetch("/api/blocks", {
+    const res = await realmFetch("/api/blocks", {
       method: "POST",
       json: { profile_id: profile.id, on },
     });
+    if (!res.ok) {
+      setIsBlocked(!on);
+      if (on) setFollowing(wasFollowing);
+      refuse("The realm would not change that. Try again.");
+    }
   };
 
   useEffect(() => {
@@ -228,10 +245,17 @@ export function ProfileView({
     const on = !following;
     setFollowing(on);
     setCounts((c) => ({ ...c, followers: c.followers + (on ? 1 : -1) }));
-    await realmFetch("/api/social", {
+    const res = await realmFetch("/api/social", {
       method: "POST",
       json: { action: "follow", subject_id: profile.id, on },
     });
+    if (!res.ok) {
+      setFollowing(!on);
+      setCounts((c) => ({ ...c, followers: c.followers - (on ? 1 : -1) }));
+      refuse(
+        on ? "That follow did not reach the realm." : "That could not be undone."
+      );
+    }
   };
 
   const shareProfile = () => {
@@ -394,6 +418,16 @@ export function ProfileView({
         {isOwn && portraitError && (
           <p role="alert" className="mt-2 text-xs text-state-danger">
             {portraitError}
+          </p>
+        )}
+
+        {writeError && (
+          <p
+            role="status"
+            className="mt-2 flex items-center gap-1.5 text-xs text-state-danger"
+          >
+            <Icon name="alert" className="h-3.5 w-3.5 shrink-0" />
+            {writeError}
           </p>
         )}
 

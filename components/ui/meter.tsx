@@ -53,7 +53,19 @@ export function Meter({
 }: MeterProps) {
   const safeMax = max > 0 ? max : 1;
   const ratio = Math.min(1, Math.max(0, value) / safeMax);
-  const width = Math.min(100, Math.max(floor, ratio * 100));
+  /* The floor lifts a real but tiny value into view. It must not lift zero.
+
+     It did: the clamp ran unconditionally, so a mastery of 0 drew a 2% gold
+     sliver, and a sliver of gold on a progress bar says "you have started".
+     Found on the War's mastery board, where levels of 10/3/1/0/0 rendered the
+     two zeroes as visible progress that had not happened. That is invented
+     data on a rewards screen, which is the one place it costs the most, and
+     rule 4 does not have an exception for two percent of a bar.
+
+     One call site had already worked around it by passing
+     `floor={value > 0 ? 2 : 0}`, which is the right answer in the wrong place:
+     every future caller would have had to know to write it. */
+  const width = value > 0 ? Math.min(100, Math.max(floor, ratio * 100)) : 0;
 
   return (
     <div
