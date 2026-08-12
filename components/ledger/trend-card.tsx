@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { PriceChart } from "@/components/coin/price-chart";
 import { realmFetch } from "@/lib/auth/api";
 import { withDeadline } from "@/lib/deadline";
@@ -77,7 +78,7 @@ export function TrendCard({ address }: { address: string }) {
   const up = (trend.change30dPct ?? 0) >= 0;
 
   return (
-    <Card pad="none" className="p-4 md:p-3">
+    <Card pad="none" className={CONSOLE_PAD}>
       <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
         Portfolio value · 30 days
       </p>

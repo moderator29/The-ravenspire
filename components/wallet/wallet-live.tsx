@@ -5,6 +5,8 @@ import { useWallets } from "@privy-io/react-auth";
 import { Icon } from "@/components/ui/icon";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cx } from "@/components/ui/cx";
+import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CopyButton } from "@/components/wallet/copy-button";
 import { TokenLogo } from "@/components/wallet/token-logo";
@@ -139,7 +141,7 @@ export function WalletLive({ address }: { address?: string }) {
         variant="warm"
         pad="none"
         render={<section />}
-        className="relative overflow-hidden p-4 md:p-3"
+        className={cx("relative overflow-hidden", CONSOLE_PAD)}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
