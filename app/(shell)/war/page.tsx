@@ -182,7 +182,13 @@ export default function WarPage() {
                 <Icon name={mode.icon} className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <p className="truncate font-display text-[15px] font-semibold text-bone">
+                {/* Not truncated. The grid is three up from `lg`, which gives
+                    each card a 232px column at 1024 and 264px at 1440, and
+                    "Rewards and Progression" needs 212px for its own line
+                    inside a 146px box there: measured, the desktop card read
+                    "Rewards and Progr...". A mode's name is the one thing the
+                    card exists to say, so it wraps and the row equalises. */}
+                <p className="font-display text-[15px] font-semibold text-bone">
                   {mode.name}
                 </p>
                 <p className="truncate text-xs text-bone-faint">{mode.plain}</p>
@@ -205,8 +211,13 @@ export default function WarPage() {
                 <Icon name={mode.icon} className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate font-display text-[15px] font-semibold text-bone-mut">
+                {/* Same three up column, and the Soon badge sits on the name's
+                    own row, so the name has less of it. Measured at 1024:
+                    "Campaign" lost 11px and "House War" 18px to the ellipsis.
+                    The badge drops to a second row rather than eating the
+                    name. */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="font-display text-[15px] font-semibold text-bone-mut">
                     {mode.name}
                   </p>
                   <Badge variant="beta" icon="lock">
