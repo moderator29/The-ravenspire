@@ -126,6 +126,40 @@ export function BottomNav() {
     };
   }, [pathname, sub]);
 
+  /* Bring the current chip into view, because the strip's whole job is to say
+     where you are and on one destination it could not.
+   *
+   * Measured on the Ravenry at 390: the strip needs 401px in a 366px box, so
+   * "Latest", the fifth chip, sits at x 347 with a width of 65 against a clip
+   * edge at 378. Thirty one pixels of it are visible and thirty four are not,
+   * and `scrollLeft` was 0 with 35px of slack, so arriving on that tab from
+   * anywhere else showed you a half chip and never moved.
+   *
+   * It was reported as the chip being untappable, which it is not: a hit test
+   * at the middle of the visible sliver lands on the link. The geometric
+   * centre falls at x 380, past the clip edge, so a probe that uses an
+   * element's own centre reports a control nobody can press when the truth is
+   * a control nobody can read. Worth writing down, because the same probe
+   * shape has now produced two false readings on this project.
+   *
+   * `scrollLeft` directly rather than `scrollIntoView`, which walks up the
+   * ancestor chain and will scroll the page as well as the strip. Instant
+   * rather than smooth: this runs on arrival, and a dock that slides on first
+   * paint reads as a glitch rather than as motion. */
+  useEffect(() => {
+    const el = stripRef.current;
+    const chip = el?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!el || !chip) return;
+    const pad = 12;
+    const left = chip.offsetLeft - pad;
+    const right = chip.offsetLeft + chip.offsetWidth + pad;
+    if (right > el.scrollLeft + el.clientWidth) {
+      el.scrollLeft = right - el.clientWidth;
+    } else if (left < el.scrollLeft) {
+      el.scrollLeft = left;
+    }
+  }, [pathname, params, sub]);
+
   /* A sub destination is current when every query param it declares matches.
      A bare href (no query) is current only when no competing param is set. */
   const subIsCurrent = (href: string) => {
