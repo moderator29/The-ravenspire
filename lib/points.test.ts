@@ -10,6 +10,7 @@ vi.mock("@/lib/crests", () => ({
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   DAILY_SOCIAL_RENOWN_CAP,
+  DAILY_WAR_GLORY_CAP,
   TIERS,
   award,
   tierFor,
@@ -75,7 +76,7 @@ describe("tierFor", () => {
   });
 
   it("matches the ladder the SQL mirrors", () => {
-    /* increment_profile_totals, apply_call_score and award_social_capped each
+    /* increment_profile_totals, apply_call_score and award_capped each
        carry this ladder in SQL. If it drifts from the TypeScript one, a member
        sees a different tier depending on which path awarded them. */
     const expected: [number, string][] = [
@@ -194,7 +195,7 @@ describe("award: the daily social allowance", () => {
        itself for a social action, two concurrent likes would both see room and
        both spend it, which is exactly the collusion path the cap closes. */
     const { db, recorded } = fakeDb({
-      award_social_capped: { points: 1, glory: 0, capped: false },
+      award_capped: { points: 1, glory: 0, capped: false },
     });
     await award(db, PROFILE, {
       points: 1,
@@ -205,7 +206,7 @@ describe("award: the daily social allowance", () => {
     expect(recorded.inserts).toHaveLength(0);
     expect(recorded.rpcs).toHaveLength(1);
     expect(recorded.rpcs[0]).toEqual({
-      name: "award_social_capped",
+      name: "award_capped",
       args: {
         p_profile_id: PROFILE,
         p_points: 1,
@@ -213,13 +214,14 @@ describe("award: the daily social allowance", () => {
         p_reason: "liked_by_someone",
         p_ref: "post-9",
         p_daily_cap: DAILY_SOCIAL_RENOWN_CAP,
+        p_category: "social",
       },
     });
   });
 
   it("reports what was actually granted, not what was requested", async () => {
     const { db } = fakeDb({
-      award_social_capped: { points: 3, glory: 0, capped: true },
+      award_capped: { points: 3, glory: 0, capped: true },
     });
     const result = await award(db, PROFILE, {
       points: 8,
@@ -232,7 +234,7 @@ describe("award: the daily social allowance", () => {
 
   it("skips the crest check when the allowance granted nothing", async () => {
     const { db } = fakeDb({
-      award_social_capped: { points: 0, glory: 0, capped: true },
+      award_capped: { points: 0, glory: 0, capped: true },
     });
     const result = await award(db, PROFILE, {
       points: 5,
@@ -269,7 +271,7 @@ describe("award: the daily social allowance", () => {
     });
     expect(result).toEqual({ points: 0, glory: 0, capped: false });
     expect(recorded.inserts).toHaveLength(0);
-    expect(recorded.rpcs.map((r) => r.name)).toEqual(["award_social_capped"]);
+    expect(recorded.rpcs.map((r) => r.name)).toEqual(["award_capped"]);
   });
 
   it("sets a cap a real member never reaches and a farm reaches within the hour", async () => {
@@ -277,5 +279,70 @@ describe("award: the daily social allowance", () => {
        a budget an ordinary member has to think about. */
     expect(DAILY_SOCIAL_RENOWN_CAP).toBeGreaterThan(100);
     expect(DAILY_SOCIAL_RENOWN_CAP).toBeLessThan(1000);
+  });
+});
+
+describe("award: the daily War Glory allowance", () => {
+  it("routes a War award through the same atomic RPC, on its own allowance", async () => {
+    /* The larger of the two farming holes, and the one that needed no second
+       account: twelve settled battles an hour at up to 400 Glory each is
+       roughly 115,000 Glory a day, and Glory decides the Clash, the Throne and
+       the Season reward vault. */
+    const { db, recorded } = fakeDb({
+      award_capped: { points: 0, glory: 220, capped: false },
+    });
+    await award(db, PROFILE, {
+      glory: 220,
+      reason: "war_victory",
+      category: "war",
+    });
+    expect(recorded.inserts).toHaveLength(0);
+    expect(recorded.rpcs).toHaveLength(1);
+    expect(recorded.rpcs[0]).toEqual({
+      name: "award_capped",
+      args: {
+        p_profile_id: PROFILE,
+        p_points: 0,
+        p_glory: 220,
+        p_reason: "war_victory",
+        p_ref: null,
+        p_daily_cap: DAILY_WAR_GLORY_CAP,
+        p_category: "war",
+      },
+    });
+  });
+
+  it("reports the Glory actually banked once the day is spent", async () => {
+    const { db } = fakeDb({
+      award_capped: { points: 0, glory: 40, capped: true },
+    });
+    const result = await award(db, PROFILE, {
+      glory: 400,
+      reason: "war_victory",
+      category: "war",
+    });
+    expect(result).toEqual({ points: 0, glory: 40, capped: true });
+  });
+
+  it("leaves a resolved Call uncapped, by design", async () => {
+    /* A Call costs a scarce open slot and is scored against a difficulty
+       baseline, so it is the one earning path the realm wants more of. If this
+       ever starts routing through the capped RPC, that is a product decision
+       somebody should have to make on purpose. */
+    const { db, recorded } = fakeDb({ increment_profile_totals: null });
+    await award(db, PROFILE, { points: 900, reason: "call_resolved", category: "call" });
+    expect(recorded.rpcs.map((r) => r.name)).toEqual(["increment_profile_totals"]);
+    expect(recorded.inserts[0].table).toBe("points_ledger");
+  });
+
+  it("sets a ceiling a real evening in the War never reaches", async () => {
+    /* A decisive victory pays about 150 to 250. Ten of those is a long night
+       and lands under the cap; a client grinding twelve battles an hour
+       crosses it in about ninety minutes. */
+    expect(DAILY_WAR_GLORY_CAP).toBeGreaterThan(1000);
+    expect(DAILY_WAR_GLORY_CAP).toBeLessThan(5000);
+    /* And it is far above the social ceiling, because playing the game is
+       meant to earn more than liking a raven. */
+    expect(DAILY_WAR_GLORY_CAP).toBeGreaterThan(DAILY_SOCIAL_RENOWN_CAP);
   });
 });

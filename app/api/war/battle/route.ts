@@ -198,14 +198,23 @@ export async function POST(req: Request) {
     | null
     | undefined;
 
-  await award(db, profile.id, {
+  /* Categorised, so it draws on the daily War allowance rather than minting
+     Glory without limit. Twelve settled battles an hour against a 400 Glory
+     ceiling per battle used to be roughly 115,000 Glory a day from one member,
+     and Glory decides the Clash, the Throne and the Season. */
+  const granted = await award(db, profile.id, {
     glory,
     reason: victory ? "war_victory" : "war_fought",
+    category: "war",
   });
 
   return json({
     ok: true,
-    glory,
+    /* What was actually banked, not what the battle was worth. A member who
+       has spent the day's allowance is told so rather than shown a number the
+       ledger did not write. */
+    glory: granted.glory,
+    glory_capped: granted.capped,
     gold,
     battles: totals?.battles ?? state.battles + 1,
     wins: totals?.wins ?? state.wins + (victory ? 1 : 0),
