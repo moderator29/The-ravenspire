@@ -3,6 +3,8 @@ import { adminClient } from "@/lib/supabase/admin";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { prepareCall, type CallInput } from "@/lib/calls/create";
 import { peerBaselineFor } from "@/lib/calls/peers";
+import { callerRecordFor } from "@/lib/calls/record";
+import { discussionFor, similarCalls } from "@/lib/calls/similar";
 
 /* The difficulty preview (V2 section 9.1).
 
@@ -56,12 +58,25 @@ export async function POST(req: Request) {
      members have already Called this exact claim, over this window, in this
      threshold band. House-mates and the member's own Calls are excluded by
      peers.ts, so this is a crowd rather than a chorus. */
-  const peers = await peerBaselineFor(db, {
-    call,
-    authorId: profile.id,
-    houseSlug: profile.house_slug,
-    createdAt: new Date().toISOString(),
-  });
+  /* Three free reads that need no model at all (V2 section 10). The member's
+     own record and calibration are arithmetic over Calls they already settled,
+     similarity is an exact structured match on the pinned subject, and the
+     discussion count is one indexed count over cashtags already stored. Asking
+     a model for any of them would be paying it to invent numbers the realm can
+     simply read. They ride on this request because the composer already makes
+     it, so the composer gains all three for nothing. */
+  const [peers, record, similar, discussion] = await Promise.all([
+    peerBaselineFor(db, {
+      call,
+      authorId: profile.id,
+      houseSlug: profile.house_slug,
+      createdAt: new Date().toISOString(),
+    }),
+    callerRecordFor(db, { authorId: profile.id, call }),
+    similarCalls(db, { call, viewerId: profile.id, limit: 6 }),
+    discussionFor(db, call.token),
+  ]);
+
   const peerMean =
     peers.confidences.length > 0
       ? peers.confidences.reduce((a, b) => a + b, 0) / peers.confidences.length
@@ -85,6 +100,9 @@ export async function POST(req: Request) {
         eligible: peers.eligible,
         mean_confidence: peerMean,
       },
+      record,
+      similar,
+      discussion,
     },
   });
 }

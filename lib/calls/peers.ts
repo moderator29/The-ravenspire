@@ -34,30 +34,41 @@ export function thresholdBucket(threshold: number): number {
   return Math.round(threshold * 20) / 20;
 }
 
+/* What the Call is about, with nothing about how it is stated. Two Calls on the
+   same coin share this key even when one says it rises 5 percent in a day and
+   the other says it falls 40 percent in a month, which is exactly the relation
+   the similarity reader in lib/calls/similar.ts needs and the peer baseline
+   must not have. */
+export function subjectKey(call: CallData): string | null {
+  const normalized = normalizeCall(call);
+  if (!normalized) return null;
+
+  if (normalized.resolver === "internal") {
+    const claim = normalized.claim;
+    if (!claim) return null;
+    return JSON.stringify(claim);
+  }
+
+  const subject = priceSubjectFor(normalized);
+  if (!subject) return null;
+  return subject.kind === "dex"
+    ? `${subject.chain}:${subject.address.toLowerCase()}`
+    : subject.kind === "coingecko"
+      ? `cg:${subject.id}`
+      : `ticker:${subject.token.toUpperCase()}`;
+}
+
 /* The key that decides whether two Calls are the same claim: same subject, same
    direction, same threshold band, same window. */
 export function bucketKey(call: CallData): string | null {
   const normalized = normalizeCall(call);
   if (!normalized) return null;
 
-  let subjectKey: string;
-  if (normalized.resolver === "internal") {
-    const claim = normalized.claim;
-    if (!claim) return null;
-    subjectKey = JSON.stringify(claim);
-  } else {
-    const subject = priceSubjectFor(normalized);
-    if (!subject) return null;
-    subjectKey =
-      subject.kind === "dex"
-        ? `${subject.chain}:${subject.address.toLowerCase()}`
-        : subject.kind === "coingecko"
-          ? `cg:${subject.id}`
-          : `ticker:${subject.token.toUpperCase()}`;
-  }
+  const subject = subjectKey(normalized);
+  if (!subject) return null;
 
   return [
-    subjectKey,
+    subject,
     normalized.stance ?? "up",
     thresholdBucket(normalized.threshold ?? 0),
     normalized.timeframe ?? "24h",

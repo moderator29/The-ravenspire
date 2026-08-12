@@ -228,6 +228,28 @@ export function calibration(points: CalibrationPoint[]): CalibrationBucket[] {
     }));
 }
 
+/* The bucket a stated confidence falls in, or null when the member has never
+   settled a Call at that confidence.
+
+   Lives here rather than beside the record reader because both the server and
+   the composer need it: the server hands the Herald the member's measured
+   calibration, and the confidence slider reads the same band on every step
+   without going back to the server for it. An empty band returns null. A member
+   who has never called anything at 90 percent has no record at 90 percent, and
+   drawing that as a zero would invent one. */
+export function bandFor(
+  buckets: CalibrationBucket[],
+  confidence: number
+): CalibrationBucket | null {
+  if (!Number.isFinite(confidence)) return null;
+  return (
+    buckets.find(
+      (b) =>
+        confidence >= b.from && (confidence < b.to || (b.to >= 1 && confidence <= 1))
+    ) ?? null
+  );
+}
+
 /* How far a live Call has travelled toward the move it needs.
 
    This is the difference between a receipt and a spectacle (section 9.7): the
