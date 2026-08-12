@@ -287,6 +287,7 @@ export function ProfileView({
           <Button
             variant="glass"
             size="md"
+            dense
             render={<label className={PICKER_FOCUS} />}
             className="absolute right-3 top-3 text-xs text-bone-mut"
           >
@@ -342,9 +343,16 @@ export function ProfileView({
             <Avatar author={displayProfile} size={76} />
           )}
 
+          {/* The Keep's header actions sit at `md`, not `lg`. As primary CTAs
+              they had grown into the heaviest thing in the header, above the
+              member's own name, which is backwards: a member looks at their
+              Keep to see their standing, not to press Edit. `md` keeps the
+              gold weight and the 44px touch target while tightening the height
+              and padding, so the actions read as controls rather than as the
+              headline. */}
           {isOwn ? (
             onEdit ? (
-              <Button variant="gold" size="lg" onClick={onEdit}>
+              <Button variant="gold" size="md" dense onClick={onEdit}>
                 <Icon name="sliders" className="h-3.5 w-3.5" />
                 Edit profile
               </Button>
@@ -359,7 +367,8 @@ export function ProfileView({
             <div className="flex items-center gap-2">
               <Button
                 variant={following ? "glass" : "gold"}
-                size="lg"
+                size="md"
+                dense
                 onClick={toggleFollow}
                 aria-pressed={following}
                 className={following ? "text-bone-mut" : ""}
@@ -372,7 +381,8 @@ export function ProfileView({
                     icon="dots"
                     label="More"
                     variant="glass"
-                    size="lg"
+                    size="md"
+                    dense
                   />
                 }
               >
