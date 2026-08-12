@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BackButton } from "@/components/shell/back-button";
+import { champions, type Champion } from "@/lib/game/champions";
 
 /* The War's shared chrome.
 
@@ -217,6 +218,58 @@ export function StatBar({
       >
         <div className="bar-gold h-full" style={{ width: `${pct}%` }} />
       </div>
+    </div>
+  );
+}
+
+/* The four numbers that decide a fight, and the scale they are drawn against.
+
+   Two routes were each carrying their own copy of a hardcoded ceiling, and the
+   two copies had already drifted from the catalog. A bar has to be measured
+   against something, so it is measured against the strongest champion actually
+   in the realm. That keeps the scale real: if a stronger hero is added, every
+   bar in The War rescales itself, and nobody has to remember to edit a
+   constant. */
+export const STAT_KEYS = ["attack", "defense", "health", "speed"] as const;
+export type StatKey = (typeof STAT_KEYS)[number];
+
+export const STAT_LABELS: Record<StatKey, string> = {
+  attack: "Attack",
+  defense: "Defense",
+  health: "Health",
+  speed: "Speed",
+};
+
+export const STAT_MAX: Record<StatKey, number> = {
+  attack: Math.max(...champions.map((c) => c.stats.attack)),
+  defense: Math.max(...champions.map((c) => c.stats.defense)),
+  health: Math.max(...champions.map((c) => c.stats.health)),
+  speed: Math.max(...champions.map((c) => c.stats.speed)),
+};
+
+/* The stat block, one column on a phone and two from `sm`. */
+export function ChampionStats({
+  stats,
+  className,
+}: {
+  stats: Champion["stats"];
+  className?: string;
+}) {
+  return (
+    <div
+      className={cx(
+        "grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2",
+        className
+      )}
+    >
+      {STAT_KEYS.map((key) => (
+        <StatBar
+          key={key}
+          label={STAT_LABELS[key]}
+          value={stats[key]}
+          max={STAT_MAX[key]}
+        />
+      ))}
     </div>
   );
 }
