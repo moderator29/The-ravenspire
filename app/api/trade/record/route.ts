@@ -2,6 +2,7 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { tradeChainById } from "@/lib/trade/config";
 import { notifyFollowers } from "@/lib/notifications";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* The platform-wide trade feed. After a member's own wallet confirms an in-app
    buy, sell or swap (the on-chain transfer is the source of truth), the client
@@ -104,6 +105,23 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* Anti-automation. This route writes to the shared realm trade feed and fans a
+     notification out to every one of the trader's followers, all off a
+     client-supplied tx hash the server does not verify on-chain. Without a
+     ceiling a script can inject fabricated trades as fake social proof and
+     amplify notification spam across a whole follower list. A real trader records
+     a handful an hour; this bounds abuse while never touching genuine use. Keyed
+     on the account, consistent with every other mutating route. */
+  const rl = await rateLimit(profileKey("trade_record", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "You trade faster than the ledger can be sealed. Rest a moment.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     kind?: string;
