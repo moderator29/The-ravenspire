@@ -270,10 +270,22 @@ export function CardRow({
 export function SectionHeader({
   title,
   hint,
+  action,
   className,
 }: {
   title: ReactNode;
   hint?: ReactNode;
+  /* One control belonging to the section, on the section's own line.
+
+     A section's single control (see all, full view, manage) kept turning up as
+     a bare underlined link in a row of its own between the heading and the
+     card, right aligned, belonging visually to neither. On `/settings` that
+     link measured 49x16, which is not a target. Put on the heading's line it
+     lands where the reader is already looking and can be a real button.
+
+     One control, not a toolbar. If a section needs two, it is a card header,
+     not a section header. */
+  action?: ReactNode;
   className?: string;
 }) {
   return (
@@ -283,6 +295,10 @@ export function SectionHeader({
       </h2>
       {hint ? <span className="text-[11px] text-bone-faint">{hint}</span> : null}
       <span className="h-px flex-1 bg-steel-line" />
+      {/* After the rule, so the rule still does its job of pushing the heading
+          left and the control right. `shrink-0` because the rule is the only
+          thing here that should give way. */}
+      {action ? <span className="shrink-0">{action}</span> : null}
     </div>
   );
 }

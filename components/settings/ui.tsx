@@ -21,17 +21,13 @@ import { Toggle as UIToggle } from "@/components/ui/field";
 
    Prefer importing from @/components/ui directly in new work. */
 
-/* A section header, optionally carrying one control on its own baseline.
+/* The `action` slot has been promoted into the `SectionHeader` primitive, so
+   this is now a pass through and every surface gets the same behaviour. It
+   also gained the rule between the heading and the control, which the local
+   version dropped whenever an action was present.
 
-   The Wallet section had its control, a link through to the full Vault, sitting
-   in a row of its own between the header and the card: right aligned, underlined
-   text, no target to speak of, and belonging visually to neither the heading
-   above it nor the card below. A section's one control belongs on the section's
-   own line, which is where a reader is already looking.
-
-   The `action` slot lives in this wrapper rather than in the `SectionHeader`
-   primitive because that primitive is being worked on elsewhere right now. It
-   is a candidate to move up once that settles. */
+   Kept only so the settings call sites keep their `title: string` signature.
+   New work should import `SectionHeader` from @/components/ui/card. */
 export function SectionHeader({
   title,
   hint,
@@ -41,13 +37,7 @@ export function SectionHeader({
   hint?: string;
   action?: ReactNode;
 }) {
-  if (!action) return <UISectionHeader title={title} hint={hint} />;
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <UISectionHeader title={title} hint={hint} className="min-w-0 flex-1" />
-      <div className="shrink-0 pt-2">{action}</div>
-    </div>
-  );
+  return <UISectionHeader title={title} hint={hint} action={action} />;
 }
 
 export function Card({
