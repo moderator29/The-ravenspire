@@ -245,6 +245,78 @@ describe("rule 11, fill only hues never carry text", () => {
   });
 });
 
+describe("rule 12, the focus ring", () => {
+  it("says nothing about outline-none, which cannot defeat an unlayered rule", () => {
+    /* Measured, not argued. Three inputs carrying outline-none were focused in
+       a real browser and all three computed a 2px solid gold outline, because
+       the global ring is unlayered and Tailwind utilities are not. A rule that
+       flagged this would have reported two perfectly accessible controls. */
+    expect(
+      check("focus-ring-not-defeated", "a.tsx", '<input className="bg-transparent outline-none" />')
+    ).toEqual([]);
+  });
+
+  it("catches an inline style removing the outline", () => {
+    /* An inline style is the one thing a caller can write that outranks an
+       unlayered rule without reaching for important. */
+    expect(
+      check("focus-ring-not-defeated", "a.tsx", '<input style={{ outline: "none" }} />')
+    ).toHaveLength(1);
+    expect(
+      check("focus-ring-not-defeated", "a.tsx", "<input style={{ outlineStyle: 'none' }} />")
+    ).toHaveLength(1);
+  });
+
+  it("catches an important outline-none, which outranks unlayered CSS", () => {
+    expect(
+      check("focus-ring-not-defeated", "a.tsx", '<button className="!outline-none" />')
+    ).toHaveLength(1);
+  });
+
+  it("catches raw CSS removing an outline", () => {
+    expect(check("focus-ring-not-defeated", "a.css", "button:focus { outline: none; }")).toHaveLength(1);
+  });
+
+  it("accepts the global ring exactly as globals.css writes it", () => {
+    const src = [
+      "@layer utilities { .outline-none { outline-style: none } }",
+      ":where(a, button, input):focus-visible {",
+      "  outline: 2px solid var(--state-focus-ring);",
+      "}",
+    ].join("\n");
+    expect(check("focus-ring-survives-the-cascade", "app/globals.css", src)).toEqual([]);
+  });
+
+  it("catches the ring being moved inside a layer, which un-protects the product", () => {
+    /* One edit away from removing the focus ring from every interactive element
+       in the product, with nothing else anywhere that would notice. */
+    const src = [
+      "@layer base {",
+      "  :where(a, button, input):focus-visible {",
+      "    outline: 2px solid var(--state-focus-ring);",
+      "  }",
+      "}",
+    ].join("\n");
+    const found = check("focus-ring-survives-the-cascade", "app/globals.css", src);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/inside a cascade layer/);
+  });
+
+  it("catches the ring being deleted outright", () => {
+    const found = check("focus-ring-survives-the-cascade", "app/globals.css", ":root { --gold: #fff; }");
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/is gone/);
+  });
+
+  it("is not fooled by a layer order declaration, which opens no block", () => {
+    const src = [
+      "@layer theme, base, utilities;",
+      ":where(a, button):focus-visible { outline: 2px solid var(--state-focus-ring); }",
+    ].join("\n");
+    expect(check("focus-ring-survives-the-cascade", "app/globals.css", src)).toEqual([]);
+  });
+});
+
 describe("rule 13, one gold and never green", () => {
   it("catches a retired gold hex", () => {
     expect(check("retired-gold", "a.css", "--gold: #d8b45a;")).toHaveLength(1);

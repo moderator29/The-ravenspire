@@ -347,6 +347,110 @@ export const RULES = [
   },
 
   {
+    id: "focus-ring-not-defeated",
+    title: "Rule 12: nothing may remove the focus ring",
+    globs: ["*.tsx", "*.ts", "*.css"],
+    /* This rule is deliberately not "flag outline-none", and the reason is
+       worth writing down because the obvious version is wrong here.
+       
+       globals.css draws the product's focus ring from an UNLAYERED rule:
+       `:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible`.
+       Unlayered CSS beats every cascade layer, and Tailwind emits utilities
+       inside `@layer utilities`, so a className of `outline-none` cannot touch
+       it. Measured rather than argued: three inputs carrying `outline-none`
+       were focused in a real browser and all three computed
+       `outline: 2px solid rgb(255, 233, 163)`.
+       
+       So a rule that flagged `outline-none` would have reported two controls
+       that are perfectly accessible and pushed someone into "fixing" them. The
+       three things that CAN defeat an unlayered rule are an inline style, an
+       important utility, and other unlayered CSS. Those are what this checks. */
+    check: (file, text) => {
+      const found = [];
+      if (file.endsWith(".css")) {
+        return byLine(stripComments(text), (line) =>
+          /outline:\s*(none|0)\b/.test(line) && !/outline:\s*(none|0)\b.*outline:/.test(line)
+            ? "raw CSS removing an outline competes with the global focus ring, which is unlayered. Leave the ring alone."
+            : null
+        );
+      }
+      for (const { line, message } of byLine(stripComments(text), (line) => {
+        /* An inline style is the one thing a member of this codebase can write
+           that outranks an unlayered rule without using !important. */
+        if (/outline(?:Style)?:\s*["'`]?(?:none|0)\b/.test(line))
+          return "an inline style removing the outline defeats the global focus ring. Remove it.";
+        /* An important utility outranks unlayered CSS too. */
+        if (/!outline-none|\boutline-none!/.test(line))
+          return "an important outline-none defeats the global focus ring. Remove it.";
+        return null;
+      }))
+        found.push({ line, message });
+      return found;
+    },
+  },
+
+  {
+    id: "focus-ring-survives-the-cascade",
+    title: "Rule 12: the global focus ring exists and stays unlayered",
+    globs: ["app/globals.css"],
+    /* The load bearing half.
+       
+       Every interactive element in the product is focus visible because of one
+       unlayered rule in this file, and nothing else. Move it inside an
+       `@layer`, or delete it, and every `outline-none` in the codebase silently
+       starts winning. That is a single edit away from removing the focus ring
+       from the entire product, with no other test anywhere that would notice.
+       
+       So this asserts the rule is present and that it sits outside every layer
+       block, which is the property that makes it unbeatable. */
+    check: (file, text) => {
+      const src = stripComments(text);
+      const RING = /:focus-visible\s*\{[^}]*outline:/;
+      /* Blank out every @layer block, then look for the ring in what is left. */
+      let unlayered = "";
+      let i = 0;
+      while (i < src.length) {
+        const at = src.indexOf("@layer", i);
+        if (at === -1) {
+          unlayered += src.slice(i);
+          break;
+        }
+        unlayered += src.slice(i, at);
+        let j = src.indexOf("{", at);
+        const semi = src.indexOf(";", at);
+        if (j === -1 || (semi !== -1 && semi < j)) {
+          /* `@layer a, b;` declares an order and opens no block. */
+          i = semi + 1;
+          continue;
+        }
+        let depth = 0;
+        while (j < src.length) {
+          if (src[j] === "{") depth++;
+          else if (src[j] === "}") {
+            depth--;
+            if (depth === 0) break;
+          }
+          j++;
+        }
+        i = j + 1;
+      }
+
+      if (RING.test(unlayered)) return [];
+      const line = RING.test(src)
+        ? src.slice(0, src.search(RING)).split("\n").length
+        : 1;
+      return [
+        {
+          line,
+          message: RING.test(src)
+            ? "the global :focus-visible ring has moved inside a cascade layer, so every outline-none in the product now beats it. Move it back outside every @layer block."
+            : "the global :focus-visible ring is gone. Every interactive element in the product depends on it.",
+        },
+      ];
+    },
+  },
+
+  {
     id: "retired-button-utilities",
     title: "Rule 18: the legacy button utilities are retired",
     globs: ["*.tsx"],
