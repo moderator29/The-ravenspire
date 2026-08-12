@@ -115,6 +115,7 @@ export function RoomAudio({ roomId }: { roomId: string }) {
     }
     if (audioBinRef.current) audioBinRef.current.innerHTML = "";
     setStatus("idle");
+    setCanPublish(false);
     setMicOn(false);
     setMicBusy(false);
     setMicError(null);
@@ -150,6 +151,11 @@ export function RoomAudio({ roomId }: { roomId: string }) {
       if (res.data?.configured === false) {
         setStatus("unavailable");
         setError(res.data.error ?? null);
+      } else if (res.status === 401) {
+        /* The route answers "unauthenticated", which is a word for a log, not
+           for a member standing outside a court. */
+        setStatus("error");
+        setError("Enter the realm to take a seat on the audio stage.");
       } else {
         setStatus("error");
         setError(res.data?.error ?? "Could not join the audio stage.");
@@ -294,14 +300,17 @@ export function RoomAudio({ roomId }: { roomId: string }) {
             Live
           </Badge>
         ) : null}
-        {live ? (
+        {/* Both states need a way out. A join that hangs on a slow handshake
+            used to leave the member watching a spinner with nothing to press,
+            and abandoning the page was the only escape. */}
+        {live || status === "connecting" ? (
           <Button
             variant="ghost"
             size="sm"
             onClick={teardown}
-            className="ml-auto"
+            className="ml-auto min-h-11 md:min-h-0"
           >
-            Leave
+            {live ? "Leave" : "Cancel"}
           </Button>
         ) : null}
       </div>
@@ -362,12 +371,15 @@ export function RoomAudio({ roomId }: { roomId: string }) {
 
         {live ? (
           <>
-            <div className="flex flex-wrap gap-2">
+            <ul
+              aria-label="On the stage"
+              className="flex flex-wrap gap-2"
+            >
               {people.map((p) => {
                 const isSpeaking = speaking.has(p.identity);
                 const muted = p.isLocal && p.canPublish && !micOn;
                 return (
-                  <span
+                  <li
                     key={p.identity}
                     className={cx(
                       "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs",
@@ -390,10 +402,10 @@ export function RoomAudio({ roomId }: { roomId: string }) {
                         Muted
                       </span>
                     ) : null}
-                  </span>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
 
             {soundBlocked ? (
               <div className="flex flex-col gap-2">
@@ -429,14 +441,22 @@ export function RoomAudio({ roomId }: { roomId: string }) {
                 {micOn ? "Mute your voice" : "Unmute your voice"}
               </Button>
             ) : (
-              <p className="text-[11px] text-bone-faint">
-                You are listening. If the host invites you up to speak, leave
-                the stage and enter it again to take the floor.
+              /* Honest about what this seat can do. Publish rights are read
+                 from the member's seat when the token is minted, so a seat
+                 raised to speaker takes effect on the next join, not this one.
+                 Nothing in the realm raises a seat yet, so this says what is
+                 true rather than promising an invitation that cannot come. */
+              <p className="text-xs text-bone-mut">
+                You are listening. The floor belongs to the host and to seats
+                raised to speaker, and a raised seat takes the floor the next
+                time it enters the stage.
               </p>
             )}
 
             {micError ? (
-              <p className="text-xs text-state-danger">{micError}</p>
+              <p role="alert" className="text-xs text-state-danger">
+                {micError}
+              </p>
             ) : null}
           </>
         ) : null}
