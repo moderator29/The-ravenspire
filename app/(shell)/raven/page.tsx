@@ -302,6 +302,7 @@ export default function RavenPage() {
         activeId={history.activeId}
         onSelect={selectConversation}
         onNewChat={startNewChat}
+        onRename={history.renameConversation}
         onDelete={history.deleteConversation}
         onOpenSettings={() => {
           setHistoryOpen(false);

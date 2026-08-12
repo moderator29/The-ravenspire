@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, IconButton } from "@/components/ui/button";
+import { Menu, MenuItem } from "@/components/ui/menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/field";
@@ -42,6 +43,7 @@ export function HistoryPanel({
   activeId,
   onSelect,
   onNewChat,
+  onRename,
   onDelete,
   onOpenSettings,
   onClearAll,
@@ -52,12 +54,18 @@ export function HistoryPanel({
   activeId: string | null;
   onSelect: (id: string) => void;
   onNewChat: () => void;
+  onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
   onOpenSettings: () => void;
   onClearAll: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
+  /* The row being renamed, and its draft. One at a time: a list where several
+     rows are editable at once has no obvious Enter target. */
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const editRef = useRef<HTMLInputElement>(null);
 
   /* Reset the search and the destructive confirmation every time the drawer
      opens. A half typed filter or an armed "clear everything" button surviving
@@ -66,8 +74,25 @@ export function HistoryPanel({
     if (open) {
       setQuery("");
       setConfirmClear(false);
+      setEditing(null);
     }
   }, [open]);
+
+  /* Focus the field the moment a rename starts, and select what is there, so
+     the common case (replace the auto-derived title outright) is one keystroke
+     rather than a select-all first. */
+  useEffect(() => {
+    if (!editing) return;
+    editRef.current?.focus();
+    editRef.current?.select();
+  }, [editing]);
+
+  const commitRename = (id: string) => {
+    const next = draft.trim();
+    setEditing(null);
+    if (!next) return;
+    onRename(id, next);
+  };
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -174,31 +199,85 @@ export function HistoryPanel({
                           : "border-steel-line/50 bg-panel/40 hover:border-steel-line/80 hover:bg-panel/70"
                       }`}
                     >
-                      <button
-                        type="button"
-                        onClick={() => onSelect(c.id)}
-                        className="flex min-h-11 min-w-0 flex-1 flex-col items-start justify-center gap-0.5 text-left"
-                      >
-                        <span
-                          className={`w-full truncate text-sm ${
-                            active ? "text-gold" : "text-bone"
-                          }`}
-                        >
-                          {c.title || "Untitled"}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-[0.14em] text-bone-faint">
-                          {relTime(c.updatedAt)}
-                        </span>
-                      </button>
-                      {/* Revealed on hover at desktop, always present on touch,
-                          where there is no hover to reveal it with. */}
-                      <IconButton
-                        icon="close"
-                        label={`Delete ${c.title || "Untitled"}`}
-                        size="sm"
-                        onClick={() => onDelete(c.id)}
-                        className="hover:text-state-danger focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                      />
+                      {editing === c.id ? (
+                        /* Rename in place. A modal to change one short string
+                           is more ceremony than the act deserves, and editing
+                           where the title already is keeps the member's eye
+                           where their attention already was. */
+                        <Input
+                          ref={editRef}
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onBlur={() => commitRename(c.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              commitRename(c.id);
+                            }
+                            /* Escape abandons. A rename with no way out but
+                               saving is a trap on a title you opened by
+                               accident. */
+                            if (e.key === "Escape") {
+                              e.preventDefault();
+                              setEditing(null);
+                            }
+                          }}
+                          aria-label="Conversation title"
+                          className="h-11"
+                        />
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onSelect(c.id)}
+                            className="flex min-h-11 min-w-0 flex-1 flex-col items-start justify-center gap-0.5 text-left"
+                          >
+                            <span
+                              className={`w-full truncate text-sm ${
+                                active ? "text-gold" : "text-bone"
+                              }`}
+                            >
+                              {c.title || "Untitled"}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-[0.14em] text-bone-faint">
+                              {relTime(c.updatedAt)}
+                            </span>
+                          </button>
+                          {/* One control per row rather than two. Rename earned
+                              its place beside delete, and a third target on a
+                              row that is already 44px tall at 390px would have
+                              crowded the title it acts on. Revealed on hover at
+                              desktop, always present on touch, where there is
+                              no hover to reveal it with. */}
+                          <Menu
+                            trigger={
+                              <IconButton
+                                icon="dots"
+                                label={`Actions for ${c.title || "Untitled"}`}
+                                size="sm"
+                                className="focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                              />
+                            }
+                          >
+                            <MenuItem
+                              icon="pencil"
+                              onClick={() => {
+                                setDraft(c.title || "");
+                                setEditing(c.id);
+                              }}
+                            >
+                              Rename
+                            </MenuItem>
+                            <MenuItem
+                              icon="close"
+                              tone="danger"
+                              onClick={() => onDelete(c.id)}
+                            >
+                              Delete
+                            </MenuItem>
+                          </Menu>
+                        </>
+                      )}
                     </div>
                   </li>
                 );

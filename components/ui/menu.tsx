@@ -37,6 +37,12 @@ const POPUP =
 
 const ITEM =
   "flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2.5 py-2 " +
+  /* The 44px floor, the same one the Button and the field carry. A menu row is
+     the densest control in the product and it measured 32px on a phone, which
+     put two destructive-adjacent choices a thumb-width apart. Padding alone
+     could not fix it without making desktop rows loose, and this leaves the
+     mouse case exactly as it was. */
+  "touch:min-h-11 " +
   "text-left text-xs font-medium text-bone-mut outline-none " +
   "transition-colors duration-instant ease-out-quint " +
   "data-highlighted:bg-panel data-highlighted:text-bone " +

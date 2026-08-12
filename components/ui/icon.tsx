@@ -173,6 +173,15 @@ const paths: Record<string, React.ReactNode> = {
      mark and was the only cross in the set, so every dismiss control in the
      product was either borrowing a logo or drawing its own inline SVG. */
   close: <path d="M6 6l12 12M18 6L6 18" />,
+  /* Rename, edit in place. The set had no glyph for editing at all, so the
+     alternative was borrowing one that means something else, which is how a
+     product ends up with a pen that means compose and a pen that means rename. */
+  pencil: (
+    <>
+      <path d="M4 20.5l.9-3.6L15.7 6.1a2.3 2.3 0 0 1 3.2 3.2L8.1 20.1l-4.1.4z" />
+      <path d="M14.3 7.5l2.2 2.2" />
+    </>
+  ),
   check: <path d="M4.5 12.5l5 5 10-11" />,
   "chevron-down": <path d="M6 9.5l6 6 6-6" />,
   "chevron-up": <path d="M6 14.5l6-6 6 6" />,

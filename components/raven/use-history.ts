@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
-import { MAX_CONVERSATIONS } from "@/lib/raven/history";
+import { MAX_CONVERSATIONS, MAX_TITLE_CHARS } from "@/lib/raven/history";
 import {
   CONVOS_KEY,
   ACTIVE_KEY,
@@ -128,6 +128,7 @@ export interface RavenHistory {
   persisted: boolean;
   startNewChat: () => void;
   selectConversation: (id: string) => void;
+  renameConversation: (id: string, title: string) => void;
   deleteConversation: (id: string) => void;
   clearAll: () => void;
   /* A send, in two halves. The member's message shows the instant they send it
@@ -405,6 +406,27 @@ export function useRavenHistory(): RavenHistory {
     [conversations, setActive]
   );
 
+  /* A title a member chose, rather than the first sixty characters of whatever
+     they happened to type first. Applied locally at once and sent after: a
+     rename that waits on a round trip feels broken on a slow connection, and
+     the failure path already exists and says so. */
+  const renameConversation = useCallback((id: string, title: string) => {
+    const clean = title.replace(/\s+/g, " ").trim().slice(0, MAX_TITLE_CHARS);
+    if (!clean) return;
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: clean } : c))
+    );
+    if (!persistedRef.current) return;
+    void (async () => {
+      const { ok } = await realmFetch(`/api/raven/conversations/${id}`, {
+        method: "PATCH",
+        json: { title: clean },
+      });
+      if (!ok) setSyncError("That conversation could not be renamed.");
+      else setSyncError(null);
+    })();
+  }, []);
+
   const deleteConversation = useCallback(
     (id: string) => {
       setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -469,6 +491,7 @@ export function useRavenHistory(): RavenHistory {
     persisted,
     startNewChat,
     selectConversation,
+    renameConversation,
     deleteConversation,
     clearAll,
     beginTurn,
