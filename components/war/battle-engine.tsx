@@ -490,8 +490,15 @@ export function BattleEngine({
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
           {!landscape && isTouch() && <RotateHint />}
 
-          {/* Top HUD: hero, army progress, kills, glory, time, retreat. */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+          {/* Top HUD: hero, army progress, kills, glory, time, retreat.
+
+              The furniture is centred in a column from `md`; the canvas stays
+              full bleed behind it, because on this one surface the atmosphere
+              is the product. Edge to edge at 1440 the hero's health bar was a
+              1240px hairline, which is a shape that tells you nothing: a bar
+              that long moves too little per point of damage to read at a
+              glance mid fight. */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:mx-auto md:max-w-2xl">
             <div className="flex items-center gap-2.5">
               <Card
                 pad="none"
@@ -559,8 +566,16 @@ export function BattleEngine({
             </div>
           </div>
 
-          {/* Controls: Shield (left), Ultimate + Dash (right). */}
-          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          {/* Controls: Shield (left), Ultimate + Dash (right).
+
+              Thrown to the two bottom corners they are a two thumb layout,
+              which is right for the phone this was measured on and wrong for
+              the pointer nobody had measured. At 1440 the Shield sat at
+              cx=44 and the Dash at cx=1384: 1340px of travel between two
+              controls in a real time fight, with no keyboard path to either.
+              Gathered into a centred band from `md` that span is 348px, and
+              the split that tells Shield from strike still reads. */}
+          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:mx-auto md:max-w-md">
             <ControlButton
               onClick={doShield}
               cooldown={hud.shieldReady}

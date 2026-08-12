@@ -12,6 +12,7 @@ import {
   CONSOLE_PAD,
 } from "@/components/console/console-shell";
 import { realmFetch } from "@/lib/auth/api";
+import { withDeadline, DEADLINE_MODEL } from "@/lib/deadline";
 
 /* The Oracle: an AI scan of your OWN account. A real LLM reads your real
    standing, posts and (if linked) wallet, and returns an honest briefing.
@@ -39,20 +40,34 @@ export default function ScannerPage() {
   const [stats, setStats] = useState<ScanStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /* The Oracle is a real model call, so it is allowed to take its time, but
+     it is not allowed to take forever. This had no `catch` and no deadline:
+     measured against a read that never answers, the button still said "The
+     Oracle reads you..." with the spinner turning thirty seconds later, and it
+     would have said it until the member left. A rejection now lands in the
+     same error state a bad answer lands in. */
   const scan = async () => {
     setState("loading");
     setError(null);
-    const res = await realmFetch<{
-      briefing?: string;
-      stats?: ScanStats;
-      error?: string;
-    }>("/api/scanner", { method: "POST" });
-    if (res.ok && res.data?.briefing) {
-      setBriefing(res.data.briefing);
-      setStats(res.data.stats ?? null);
-      setState("done");
-    } else {
-      setError(res.data?.error ?? "The Oracle could not read you right now.");
+    try {
+      const res = await withDeadline(
+        realmFetch<{
+          briefing?: string;
+          stats?: ScanStats;
+          error?: string;
+        }>("/api/scanner", { method: "POST" }),
+        DEADLINE_MODEL
+      );
+      if (res.ok && res.data?.briefing) {
+        setBriefing(res.data.briefing);
+        setStats(res.data.stats ?? null);
+        setState("done");
+      } else {
+        setError(res.data?.error ?? "The Oracle could not read you right now.");
+        setState("error");
+      }
+    } catch {
+      setError("The Oracle went quiet. Try again in a moment.");
       setState("error");
     }
   };

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
+import { withDeadline } from "@/lib/deadline";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -53,8 +54,14 @@ export default function LedgerPage() {
     setRefreshing(true);
     setFailed(false);
     try {
-      const res = await realmFetch<BalancesResponse>(
-        `/api/wallet/balances?address=${encodeURIComponent(address)}`
+      /* `data === null && !failed` is what draws the skeleton, and only this
+         try can move either of them, so the deadline is what stops a read that
+         never answers from holding a portfolio behind two grey slabs
+         indefinitely. A rejection already falls to "could not be read". */
+      const res = await withDeadline(
+        realmFetch<BalancesResponse>(
+          `/api/wallet/balances?address=${encodeURIComponent(address)}`
+        )
       );
       if (!res.data) throw new Error("unreachable");
       setData(res.data);

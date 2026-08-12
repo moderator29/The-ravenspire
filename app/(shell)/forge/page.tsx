@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { withDeadline } from "@/lib/deadline";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,13 +37,24 @@ export default function ForgePage() {
     void (async () => {
       try {
         const supabase = createClient();
-        const { data, error } = await supabase
-          .from("feature_flags")
-          .select("enabled")
-          .eq("key", "forge_staking")
-          .maybeSingle();
+        /* supabase-js retries a failed read with backoff of its own, so this
+           does not simply reject and fall through. Measured against an
+           unreachable realm the attempts landed at +714ms, +1.9s, +4.3s and
+           +8.5s, and until the last one gave up the badge was absent and a
+           grey bar sat under the pitch: 9.5 seconds of a Console claiming a
+           number was arriving. Against a socket that hangs rather than fails
+           there is no last attempt at all. The deadline bounds both. */
+        const { data, error } = await withDeadline(
+          supabase
+            .from("feature_flags")
+            .select("enabled")
+            .eq("key", "forge_staking")
+            .maybeSingle()
+        );
         if (!cancelled) setLive(!error && data ? Boolean(data.enabled) : false);
       } catch {
+        /* Unknown reads as not live, which is the safe answer: nothing is
+           signable until the flag says so anyway. */
         if (!cancelled) setLive(false);
       }
     })();

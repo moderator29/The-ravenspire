@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { PriceChart } from "@/components/coin/price-chart";
 import { realmFetch } from "@/lib/auth/api";
+import { withDeadline } from "@/lib/deadline";
 
 /* The Ledger's 30-day portfolio value trend: a sparkline plus real 7d and 30d
    PnL, aggregated daily across every chain (value over time, from GoldRush
@@ -42,15 +43,28 @@ export function TrendCard({ address }: { address: string }) {
   const [trend, setTrend] = useState<Trend | null>(null);
   const [done, setDone] = useState(false);
 
+  /* The card renders nothing until `done`, so a read that rejects used to
+     throw out of this effect unhandled and leave the panel absent with no
+     record of why, and a read that never answers left it absent forever.
+     Settled either way now: no trend is an honest absence, the same one a
+     wallet with under two days of history gets. */
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const res = await realmFetch<{ trend?: Trend | null }>(
-        `/api/ledger/trend?address=${address}`
-      );
-      if (cancelled) return;
-      setTrend(res.data?.trend ?? null);
-      setDone(true);
+      try {
+        const res = await withDeadline(
+          realmFetch<{ trend?: Trend | null }>(
+            `/api/ledger/trend?address=${address}`
+          )
+        );
+        if (cancelled) return;
+        setTrend(res.data?.trend ?? null);
+      } catch {
+        if (cancelled) return;
+        setTrend(null);
+      } finally {
+        if (!cancelled) setDone(true);
+      }
     })();
     return () => {
       cancelled = true;

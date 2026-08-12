@@ -24,6 +24,7 @@ import { TokenLogo } from "@/components/wallet/token-logo";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { shareOrCopy } from "@/lib/share";
 import { realmFetch } from "@/lib/auth/api";
+import { withDeadline } from "@/lib/deadline";
 import type {
   WatchCheck,
   WatchVerdict,
@@ -161,10 +162,15 @@ export default function WatchPage() {
     setResult(null);
     setShared(false);
     try {
-      const res = await fetch(
-        `/api/watch?address=${encodeURIComponent(addr.trim())}&chain=${chainId}`
+      /* Bounded, response and body both. `loading` draws the scan skeleton and
+         holds the Scan button in its loading state, and only this try clears
+         it, so a read that never answers left a member staring at a pulsing
+         score panel for a token they were about to buy. */
+      const body = await withDeadline(
+        fetch(
+          `/api/watch?address=${encodeURIComponent(addr.trim())}&chain=${chainId}`
+        ).then((res) => res.json() as Promise<WatchResult>)
       );
-      const body = (await res.json()) as WatchResult;
       setResult(body);
       if (!body.error) setScanned({ address: addr.trim(), chain: chainId });
     } catch {
@@ -205,8 +211,10 @@ export default function WatchPage() {
     setApprovalsLoading(true);
     setRevokeError(null);
     try {
-      const res = await realmFetch<ApprovalsResult>(
-        `/api/approvals?address=${encodeURIComponent(address)}&chain=${chain}`
+      const res = await withDeadline(
+        realmFetch<ApprovalsResult>(
+          `/api/approvals?address=${encodeURIComponent(address)}&chain=${chain}`
+        )
       );
       setApprovals(
         res.data ?? {

@@ -92,6 +92,12 @@ function files(patterns) {
    both of them because it only understood the shorthand. Any of px, pl or pr
    means the control has width beyond its content, which is what makes a
    rounded-full a capsule rather than a circle. */
+/* The radius scale, as the checker sees it. `none` and `full` are on it: zero
+   is a legitimate choice, and full is for avatars and genuinely circular icon
+   buttons, which rule 9 allows by name. Everything else Tailwind ships, `xs`
+   at 2px, `3xl` at 24px, `4xl` at 32px, is off it. */
+const RADIUS_RUNGS = new Set(["none", "sm", "md", "lg", "xl", "2xl", "full"]);
+
 const FULL_RADIUS =
   /\brounded-(?:full|\[var\(--radius-full\)\]|\[--radius-full\])/;
 
@@ -343,6 +349,24 @@ export const RULES = [
           return m[1] === "z"
             ? `${m[0]} is off the z index scale. Use z-base through z-tooltip.`
             : `${m[0]} is off the radius scale. Use rounded-sm through rounded-2xl, or the --radius-full token for an avatar.`;
+        }
+        /* Named rungs, not only arbitrary values, and this is the half that
+           was missing. `@theme` adds our radius scale, it does not replace
+           Tailwind's, so `rounded-3xl` still resolves and still emits 24px,
+           which is on no rung of 8/12/16/20/26. Two of them shipped on the
+           landing page and this rule watched them go past, because it only
+           ever looked inside square brackets. An off-scale radius does not
+           become on-scale by having a name. */
+        for (const m of line.matchAll(
+          /\brounded(?:-(?:t|r|b|l|tl|tr|br|bl|s|e|ss|se|es|ee))?(?:-([a-z0-9]+))?(?=["'`\s}])/g
+        )) {
+          const rung = m[1];
+          if (rung === undefined) {
+            return `${m[0]} is Tailwind's default 4px radius, which is off the scale. Name a rung: rounded-sm through rounded-2xl.`;
+          }
+          if (!RADIUS_RUNGS.has(rung)) {
+            return `${m[0]} is off the radius scale, which runs 8, 12, 16, 20, 26. Use rounded-sm through rounded-2xl, or rounded-full for an avatar.`;
+          }
         }
         return null;
       }),
