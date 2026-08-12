@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "icons": "node scripts/slice-icons.mjs",
-    "check:rules": "node scripts/check-house-rules.mjs"
+    "check:rules": "node scripts/check-house-rules.mjs",
+    "verify:head": "bash scripts/verify-head.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
