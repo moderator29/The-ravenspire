@@ -542,7 +542,13 @@ body {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  padding: 2px 8px;
+  /* 4px vertical, not 2px, and the reason is geometric rather than cosmetic.
+     At 2px the chip is 16px tall, and `--radius-sm` is 8px, which is exactly
+     half of it: fully rounded ends, which is a capsule, which is the one shape
+     chips may not be. Moving to the correct rung was not enough on its own.
+     4px makes the chip 20px, the 8px radius reads as a rounded rectangle, and
+     a 10px uppercase label gets a little air it wanted anyway. */
+  padding: 4px 8px;
 }
 
 /* ----- Aurora float (landing crests, ambient motifs) ----- */
