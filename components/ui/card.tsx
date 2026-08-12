@@ -23,10 +23,10 @@ const BASE = "relative rounded-xl";
 const VARIANT: Record<CardVariant, string> = {
   default:
     "border border-gold/16 bg-void/60 shadow-card backdrop-blur-[14px] " +
-    "bg-[image:linear-gradient(180deg,rgba(240,214,140,0.05)_0%,rgba(240,214,140,0.012)_12%,rgba(16,16,23,0.55)_100%)]",
+    "bg-[image:linear-gradient(180deg,rgba(255,233,163,0.05)_0%,rgba(255,233,163,0.012)_12%,rgba(16,16,23,0.55)_100%)]",
   warm:
     "border border-gold/16 bg-panel-warm/70 shadow-card backdrop-blur-[14px] " +
-    "bg-[image:linear-gradient(180deg,rgba(240,214,140,0.06),rgba(20,18,12,0.7))]",
+    "bg-[image:linear-gradient(180deg,rgba(255,233,163,0.06),rgba(20,18,12,0.7))]",
   /* Inset is the recessed well: a nested block inside another card, a code
      sample, a quoted post. No blur and no shadow, because a surface that sits
      below its parent must not also appear to float above the page. */

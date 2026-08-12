@@ -42,7 +42,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     "hover:brightness-[1.06]",
   glass:
     "border border-gold/25 bg-void/60 text-bone backdrop-blur-[10px] " +
-    "bg-[image:linear-gradient(180deg,rgba(240,214,140,0.06),rgba(12,12,17,0.4))] " +
+    "bg-[image:linear-gradient(180deg,rgba(255,233,163,0.06),rgba(12,12,17,0.4))] " +
     "hover:border-gold/45 hover:bg-void/75",
   ghost:
     "border border-transparent text-bone-mut hover:bg-panel hover:text-bone",

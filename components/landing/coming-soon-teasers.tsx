@@ -96,7 +96,7 @@ export function ComingSoonTeasers() {
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full opacity-25 blur-3xl"
-              style={{ background: "radial-gradient(circle, rgba(200,162,76,0.4), transparent 70%)" }}
+              style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.4), transparent 70%)" }}
             />
             <div className="flex items-center justify-between gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-void">

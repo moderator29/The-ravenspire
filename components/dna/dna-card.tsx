@@ -35,7 +35,7 @@ export function DnaCard({ result }: { result: DnaResult }) {
           className="pointer-events-none absolute inset-0 opacity-70"
           style={{
             background:
-              "radial-gradient(ellipse 60% 80% at 15% -10%, rgba(200,162,76,0.14), transparent 60%)",
+              "radial-gradient(ellipse 60% 80% at 15% -10%, rgba(217, 176, 64,0.14), transparent 60%)",
           }}
         />
         <div className="relative flex items-start gap-3">

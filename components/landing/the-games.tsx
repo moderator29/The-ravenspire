@@ -83,7 +83,7 @@ export function TheGames() {
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full opacity-40 blur-2xl"
-            style={{ background: "radial-gradient(circle, rgba(200,162,76,0.35), transparent 70%)" }}
+            style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.35), transparent 70%)" }}
           />
           <div className="relative p-6">
             <div className="flex items-center gap-2">

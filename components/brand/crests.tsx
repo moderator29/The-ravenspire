@@ -85,7 +85,7 @@ export function CrestRoundel({
   dim?: boolean;
 }) {
   const id = `crest-gold-${seq++}`;
-  const stroke = dim ? "rgba(200,162,76,0.45)" : `url(#${id})`;
+  const stroke = dim ? "rgba(217, 176, 64,0.45)" : `url(#${id})`;
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
       <defs>

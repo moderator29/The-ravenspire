@@ -326,7 +326,7 @@ export function PostCard({ post }: { post: Post }) {
         >
           <Icon
             name="heart"
-            className="heart-burst h-20 w-20 text-gold drop-shadow-[0_0_16px_rgba(200,162,76,0.6)]"
+            className="heart-burst h-20 w-20 text-gold drop-shadow-[0_0_16px_rgba(217,176,64,0.6)]"
           />
         </span>
       )}

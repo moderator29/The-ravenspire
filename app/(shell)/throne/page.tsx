@@ -54,7 +54,7 @@ export default function ThroneComingSoon() {
           className="pointer-events-none absolute inset-x-0 top-0 h-40"
           style={{
             background:
-              "radial-gradient(ellipse 60% 100% at 50% 0%, rgba(200,162,76,0.20), transparent 70%)",
+              "radial-gradient(ellipse 60% 100% at 50% 0%, rgba(217, 176, 64,0.20), transparent 70%)",
           }}
         />
         <span className="inline-flex items-center gap-1.5 rounded-[--radius-sm] border border-gold/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-gold">

@@ -108,7 +108,7 @@ export function Tokenomics() {
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-25 blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(200,162,76,0.4), transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.4), transparent 70%)" }}
       />
 
       <motion.div

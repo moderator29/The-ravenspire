@@ -48,7 +48,7 @@ export default function SignInPage() {
           aria-hidden="true"
           style={{
             background:
-              "radial-gradient(ellipse 60% 70% at 50% 0%, rgba(200,162,76,0.14), transparent 70%)",
+              "radial-gradient(ellipse 60% 70% at 50% 0%, rgba(217, 176, 64,0.14), transparent 70%)",
           }}
         />
         <div
@@ -84,7 +84,7 @@ export default function SignInPage() {
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-30 blur-3xl"
-              style={{ background: "radial-gradient(circle, rgba(200,162,76,0.22), transparent 70%)" }}
+              style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.22), transparent 70%)" }}
             />
             <div className="relative">
               <div className="flex items-center gap-2.5">

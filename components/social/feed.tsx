@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { PostCard } from "@/components/social/post-card";
+import { FeedItemCard } from "@/components/stream/cards/registry";
 import { WhoToFollow } from "@/components/social/who-to-follow";
 import { CashtagChip } from "@/components/social/cashtag-chip";
 import { BackToTop } from "@/components/shell/back-to-top";
@@ -23,12 +23,16 @@ import {
 import { fetchTrendingCashtags, type Cashtag } from "@/lib/social/explore-queries";
 import { InlineComposer } from "@/components/social/inline-composer";
 import {
-  fetchFeed,
+  fetchFeedPage,
   subscribeToFeed,
-  FEED_PAGE_SIZE,
   type FeedTab,
 } from "@/lib/social/queries";
-import type { Post } from "@/lib/social/types";
+import {
+  feedItemActorId,
+  feedItemKey,
+  postItem,
+  type FeedItem,
+} from "@/lib/feed/types";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 
@@ -37,7 +41,13 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
    One column at 640px at every width, a fixed gap with variable card heights,
    and comfortable density throughout. The tabs are a chip rail rather than a
    segmented control because the set is a filter that can grow, which is the
-   rule in section 3 of the design system. */
+   rule in section 3 of the design system.
+
+   The timeline is no longer a list of ravens. /api/feed returns ravens and the
+   realm event spine already interleaved, and every item is drawn through the
+   card registry, so this component knows only that a feed item exists and
+   nothing at all about what kinds there are. A tenth card type never touches
+   this file. */
 
 const TABS: { key: FeedTab; label: string }[] = [
   { key: "foryou", label: "For You" },
@@ -78,7 +88,7 @@ const FILTER_ROWS: {
 export function Feed() {
   const { authenticated } = useRealmAuth();
   const [tab, setTab] = useState<FeedTab>("foryou");
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasNew, setHasNew] = useState(false);
   const [done, setDone] = useState(false);
@@ -98,14 +108,14 @@ export function Feed() {
     void fetchTrendingCashtags().then((tags) => setTrending(tags.slice(0, 8)));
   }, []);
   /* B1: `load` is a useCallback keyed on the tab, so anything it reads out of
-     state is frozen at the moment that callback was built. Reading `posts`
-     directly meant "Older ravens" always paged from `undefined`, refetching
-     page one forever and appending duplicate keys. The ref always holds the
-     current page, so the cursor is always the true last raven. */
-  const latest = useRef<Post[]>([]);
-  useEffect(() => {
-    latest.current = posts;
-  }, [posts]);
+     state is frozen at the moment that callback was built. Reading state
+     directly meant "Older ravens" always paged from undefined, refetching page
+     one forever and appending duplicate keys. The cursor lives in a ref, so
+     paging always continues from where the last page actually stopped.
+
+     The cursor is opaque now: it describes a position in two sources at once,
+     and the browser has no business reasoning about either. */
+  const cursor = useRef<string | null>(null);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -123,14 +133,20 @@ export function Feed() {
       /* Who is reading, which House they are sworn to and who they follow are
          all resolved from the bearer token inside /api/feed. The browser no
          longer states its own audience, because it could always lie. */
-      const current = latest.current;
-      const last = current[current.length - 1];
-      const before = append
-        ? (last?.effectiveTime ?? last?.created_at)
-        : undefined;
-      const batch = await fetchFeed({ tab, before });
-      setDone(batch.length < FEED_PAGE_SIZE);
-      setPosts((prev) => (append ? [...prev, ...batch] : batch));
+      const page = await fetchFeedPage({
+        tab,
+        before: append ? cursor.current : null,
+      });
+      cursor.current = page.nextCursor;
+      setDone(!page.nextCursor);
+      setItems((prev) => {
+        if (!append) return page.items;
+        /* Belt and braces against a repeated row at a page boundary: the
+           server owns the cursor, but a duplicate key here would break the
+           list rather than merely repeat a card. */
+        const seen = new Set(prev.map(feedItemKey));
+        return [...prev, ...page.items.filter((i) => !seen.has(feedItemKey(i)))];
+      });
       setLoading(false);
       setHasNew(false);
     },
@@ -152,12 +168,24 @@ export function Feed() {
   const showSkeleton = useDelayedLoading(loading);
   const activeFilters = FILTER_ROWS.filter((r) => filters[r.key]).length;
 
-  const visible = posts
-    .filter((p) => !blocked.has(p.author_id))
-    .filter((p) => !muted.has(p.author_id))
-    .filter((p) => !filters.hideHerald || !p.author.is_agent)
-    .filter((p) => !filters.mediaOnly || p.media.length > 0)
-    .filter((p) => !filters.callsOnly || p.kind === "call");
+  /* Blocks and mutes reach the whole timeline, not only its ravens: a member
+     you have banished does not get to reach you through a quest card either.
+     The three optional filters are about ravens, so an event passes them only
+     when it is the same thing the filter is asking for. */
+  const visible = items.filter((item) => {
+    const actor = feedItemActorId(item);
+    if (actor && (blocked.has(actor) || muted.has(actor))) return false;
+    if (item.type === "event") {
+      if (filters.mediaOnly) return false;
+      if (filters.callsOnly) return item.event.kind === "call.resolved";
+      return true;
+    }
+    const p = item.post;
+    if (filters.hideHerald && p.author.is_agent) return false;
+    if (filters.mediaOnly && p.media.length === 0) return false;
+    if (filters.callsOnly && p.kind !== "call") return false;
+    return true;
+  });
 
   return (
     <StreamColumn className="flex flex-col gap-3">
@@ -166,7 +194,7 @@ export function Feed() {
           triggering a refetch, so the member keeps their place in the feed. */}
       <InlineComposer
         onPosted={(post) => {
-          if (post) setPosts((prev) => [post, ...prev]);
+          if (post) setItems((prev) => [postItem(post), ...prev]);
         }}
       />
 
@@ -261,11 +289,8 @@ export function Feed() {
         </StreamList>
       ) : (
         <StreamList>
-          {visible.map((p) => (
-            <PostCard
-              key={`${p.id}:${p.repostedBy ? p.effectiveTime : "own"}`}
-              post={p}
-            />
+          {visible.map((item) => (
+            <FeedItemCard key={feedItemKey(item)} item={item} />
           ))}
           {!done && (
             <Button

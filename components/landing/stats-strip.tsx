@@ -85,7 +85,7 @@ export function StatsStrip() {
       <motion.div
         aria-hidden="true"
         className="pointer-events-none absolute -top-24 left-1/2 h-56 w-[36rem] max-w-full -translate-x-1/2 rounded-full opacity-30 blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(200,162,76,0.35), transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.35), transparent 70%)" }}
         animate={{ opacity: [0.2, 0.4, 0.2] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
       />

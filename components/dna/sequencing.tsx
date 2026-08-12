@@ -62,7 +62,7 @@ export function Sequencing({ subject }: { subject: string }) {
           height: 8px;
           border-radius: 999px;
           flex-shrink: 0;
-          box-shadow: 0 0 8px rgba(200, 162, 76, 0.5);
+          box-shadow: 0 0 8px rgba(217, 176, 64, 0.5);
         }
         .dna-node-a { background: var(--gold-bright); }
         .dna-node-b { background: var(--gold-deep); }
@@ -73,7 +73,7 @@ export function Sequencing({ subject }: { subject: string }) {
           background: linear-gradient(
             90deg,
             var(--gold-bright),
-            rgba(200, 162, 76, 0.25),
+            rgba(217, 176, 64, 0.25),
             var(--gold-deep)
           );
         }
@@ -86,7 +86,7 @@ export function Sequencing({ subject }: { subject: string }) {
           background: linear-gradient(
             180deg,
             transparent,
-            rgba(240, 214, 140, 0.22),
+            rgba(255, 233, 163, 0.22),
             transparent
           );
           animation: dna-scan 1.9s linear infinite;

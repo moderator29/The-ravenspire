@@ -71,7 +71,7 @@ export default async function Image({
           justifyContent: "space-between",
           background: "#07070A",
           backgroundImage:
-            "radial-gradient(circle at 80% 10%, rgba(200,162,76,0.18), rgba(7,7,10,0) 55%)",
+            "radial-gradient(circle at 80% 10%, rgba(217, 176, 64,0.18), rgba(7,7,10,0) 55%)",
           padding: 72,
         }}
       >

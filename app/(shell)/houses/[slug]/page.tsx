@@ -153,7 +153,7 @@ function HouseBanner({
       variant="warm"
       pad="lg"
       style={{
-        boxShadow: `inset 0 1px 0 rgba(240,214,140,0.1), 0 18px 50px rgba(0,0,0,0.45), 0 0 44px ${meta.color}14`,
+        boxShadow: `inset 0 1px 0 rgba(255, 233, 163,0.1), 0 18px 50px rgba(0,0,0,0.45), 0 0 44px ${meta.color}14`,
       }}
     >
       <div className="flex items-start gap-4">

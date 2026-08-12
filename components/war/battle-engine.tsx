@@ -859,7 +859,7 @@ function render(
   sky.addColorStop(1, "#050507");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = "rgba(200,162,76,0.06)";
+  ctx.fillStyle = "rgba(217, 176, 64,0.06)";
   ctx.fillRect(0, H * 0.62, W, H * 0.38);
 
   /* Draw back to front by y. */
@@ -882,8 +882,8 @@ function render(
     /* Hero aura so the player always finds themselves at a glance. */
     if (u.hero && u.team === 0 && u.alive) {
       const glow = ctx.createRadialGradient(px, py, r * 0.2, px, py, r * 1.7);
-      glow.addColorStop(0, "rgba(240,214,140,0.35)");
-      glow.addColorStop(1, "rgba(240,214,140,0)");
+      glow.addColorStop(0, "rgba(255, 233, 163,0.35)");
+      glow.addColorStop(1, "rgba(255, 233, 163,0)");
       ctx.fillStyle = glow;
       ctx.beginPath();
       ctx.arc(px, py, r * 1.7, 0, Math.PI * 2);
@@ -920,7 +920,7 @@ function render(
     ctx.arc(px, py, r, 0, Math.PI * 2);
     ctx.stroke();
     if (u.shield > 0) {
-      ctx.strokeStyle = "rgba(240,214,140,0.8)";
+      ctx.strokeStyle = "rgba(255, 233, 163,0.8)";
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(px, py, r + 4, 0, Math.PI * 2);

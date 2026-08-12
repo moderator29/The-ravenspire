@@ -88,7 +88,7 @@ export function HowItWorks() {
               <span
                 aria-hidden="true"
                 className="absolute inset-0 rounded-full opacity-40 blur-md"
-                style={{ background: "radial-gradient(circle, rgba(200,162,76,0.5), transparent 70%)" }}
+                style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.5), transparent 70%)" }}
               />
               <span className="relative font-display text-sm font-semibold text-gold">
                 {i + 1}

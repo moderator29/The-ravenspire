@@ -135,7 +135,7 @@ export default function Landing() {
             className="pointer-events-none absolute left-1/2 top-1/3 -z-10 h-[36rem] w-[36rem] max-w-full -translate-x-1/2 rounded-full opacity-40 blur-3xl"
             style={{
               background:
-                "radial-gradient(circle, rgba(200,162,76,0.12), rgba(229,112,42,0.05) 45%, transparent 70%)",
+                "radial-gradient(circle, rgba(217, 176, 64,0.12), rgba(229,112,42,0.05) 45%, transparent 70%)",
             }}
           />
           <motion.div
@@ -156,7 +156,7 @@ export default function Landing() {
             <motion.span
               aria-hidden="true"
               className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl"
-              style={{ background: "radial-gradient(circle, rgba(200,162,76,0.4), transparent 70%)" }}
+              style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.4), transparent 70%)" }}
               animate={{ opacity: [0.35, 0.7, 0.35], scale: [0.92, 1.08, 0.92] }}
               transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
             />
@@ -407,7 +407,7 @@ export default function Landing() {
               className="pointer-events-none absolute inset-x-0 top-0 h-40 opacity-40"
               style={{
                 background:
-                  "radial-gradient(ellipse 50% 100% at 50% 0%, rgba(200,162,76,0.16), transparent 70%)",
+                  "radial-gradient(ellipse 50% 100% at 50% 0%, rgba(217, 176, 64,0.16), transparent 70%)",
               }}
             />
             <RavenMark className="relative mx-auto h-12 w-12" />

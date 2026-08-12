@@ -80,7 +80,7 @@ export function FloatingCompose() {
           aria-label={open ? "Close actions" : "Open actions"}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="gold-metal flex h-14 w-14 items-center justify-center rounded-full border border-gold-bright/60 text-obsidian shadow-[0_10px_30px_rgba(200,162,76,0.35)] transition-transform duration-fast active:scale-95"
+          className="gold-metal flex h-14 w-14 items-center justify-center rounded-full border border-gold-bright/60 text-obsidian shadow-[0_10px_30px_rgba(217,176,64,0.35)] transition-transform duration-fast active:scale-95"
         >
           <Icon
             name="plus"
