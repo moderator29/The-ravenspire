@@ -212,7 +212,19 @@ export function SegmentedControl({
       <BaseTabs.List
         aria-label={label}
         className={cx(
-          "flex w-full items-center gap-0.5 rounded-md border border-steel-line bg-obsidian/70 p-1"
+          /* Wraps rather than spilling. Four segments whose labels total more
+             than the track is not hypothetical: the Herald's voice switcher
+             (Default, Lore, Normal, Degen) needed 278px inside a 261px sheet
+             at 390px, and "Degen" ran off the screen edge. Nothing measured it
+             as an overflow, because the track's `overflow-x` is visible and the
+             document never grew.
+
+             Wrapping is the right answer rather than scrolling or truncating.
+             A truncated segment label ("Deg...") is unreadable, and a
+             scrolling four item control hides options behind a gesture with no
+             affordance saying they are there. Two rows of two shows every
+             option, keeps every label whole, and makes each target larger. */
+          "flex w-full flex-wrap items-center gap-0.5 rounded-md border border-steel-line bg-obsidian/70 p-1"
         )}
       >
         {items.map((item) => {

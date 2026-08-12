@@ -65,22 +65,33 @@ export function SettingsSheet({
       description="Remembered on this device"
     >
       <div className="flex flex-col gap-6">
+        {/* A Select, not a segmented control.
+
+            Four segments labelled Default, Lore, Normal and Degen need 278px,
+            and the sheet gives them 261px at 390px, so "Degen" ran off the
+            right edge of the screen. Nothing reported it: the track's overflow
+            is visible, so the document never grew and every overflow check on
+            this route read zero.
+
+            Shrinking the segments was the wrong repair. It would have cost the
+            44px floor or truncated a label to "Deg...", and a member picking a
+            voice they cannot read the name of is worse than one extra tap. The
+            hint moves under the control for the same reason, since beside the
+            heading it had to truncate too. */}
         <section className="flex flex-col gap-2.5">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
-              Voice
-            </span>
-            <span className="truncate text-[11px] text-bone-faint">
-              {activeVoice.hint}
-            </span>
-          </div>
-          <SegmentedControl
-            label="Voice"
-            block
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
+            Voice
+          </span>
+          <Select
             value={voice}
-            onValueChange={(next) => onVoice(next as Voice)}
+            onValueChange={(next) => {
+              if (next) onVoice(next as Voice);
+            }}
             items={VOICES.map((v) => ({ value: v.id, label: v.label }))}
           />
+          <p className="text-[11px] leading-relaxed text-bone-faint">
+            {activeVoice.hint}
+          </p>
         </section>
 
         <section className="flex items-center justify-between gap-3 border-t border-steel-line/60 pt-5">
