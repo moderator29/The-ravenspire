@@ -1864,3 +1864,88 @@ planned supplies per rarity before anything mints.
    preview mistakes cost a deploy.
 5. The realm lexicon holds. Every new surface gets a realm name and a plain
    label, same as every existing one.
+
+## 35. The ownership loop
+
+Shipped. The first of the twelve V2 missions, and the one everything else in
+the collectibles realm rests on: what you earn or buy is yours, in your own
+wallet, and the platform cannot take it back.
+
+### 35.1 What was already there, and what was missing
+
+The holdings ledger existed. `public.inventory`, from the commerce engine, is
+one row per copy of a card, written by chest opening and redemption,
+server-authoritative under the same law as points. What had never existed was
+the mechanism that takes a row in that ledger and turns it into a token the
+member holds themselves.
+
+A note on how that was found, because it matters more than the feature. The
+commerce engine migration had been applied to the live project by a session
+whose branch never reached `main`, so production carried five tables the
+repository had no record of. It is recovered as
+`supabase/migrations/20260812224950_commerce_engine.sql`, read back out of
+`supabase_migrations.schema_migrations` and committed verbatim. A schema that
+exists only in production is a schema nobody can review, test against or
+rebuild. Check the two agree before writing a migration, every time.
+
+### 35.2 The loop, end to end
+
+1. A server flow grants a copy and writes `inventory`. Already built.
+2. The member asks to claim it. `POST /api/claims` resolves the holding
+   against the ledger that owns the fact (`inventory` for cards,
+   `user_crests` for crests), derives the frozen token id, signs an EIP-712
+   voucher naming the member's own wallet and a deadline, and records it in
+   `collectible_claims`. The client names a holding and nothing else: not a
+   token id, not a contract, not an amount, not a wallet.
+3. The member's own wallet executes the mint and pays its own gas. The
+   platform never holds a key, never holds a token, and never takes custody
+   for a moment in between. An unspent voucher would still work if the
+   platform vanished, which is the honest test of whether a thing is
+   custodial.
+4. `POST /api/claims/[id]/confirm` reads the receipt off the chain: the
+   transaction landed, it was sent by that member's wallet, it reached our
+   contract, and it minted that exact token to them. Only then is the claim
+   `minted`. The client asserts a hash and nothing else.
+
+`GET /api/inventory` is the Hoard, and `GET /api/claims` is the claim history
+and the mint's state in one read.
+
+### 35.3 The rules the loop is built on
+
+- **One claim is one copy.** The holdings ledger is per copy, so a claim
+  points at exactly one row and mints exactly one token. There is never a
+  question of how much of a holding has been carried on-chain.
+- **Token ids are frozen forever.** `lib/collectibles/token-ids.ts` is the
+  only place they are decided. Cards derive theirs from the collector number
+  already printed on the card; crests carry a hand written table, because
+  reordering a display list must never renumber a token somebody owns. Its
+  test is a tripwire on both tables.
+- **Crests are soulbound.** A separate contract, and the voucher says so in
+  its own signed payload. A crest is a record of something a member did, and
+  one that can be sold is a record of something somebody paid for, which is a
+  different object with the same picture. The secondary market (mission 4)
+  reads `isSoulbound` and must never list one.
+- **Four replay guards.** A unique nonce inside the signed payload, a
+  deadline, a wallet the voucher is bound to, and a partial unique index so
+  one copy carries one live claim.
+- **A hash proven wrong is never persisted.** It would otherwise squat the
+  unique index and block the real one.
+
+### 35.4 Sealed until the founder says otherwise
+
+Three things are founder-only and all three are absent: the deployed
+contracts, the voucher signing key, and the chain. `mint_live` ships off
+beside `reliquary_live`, `chests_live` and `mercer_live`. Both the flag and
+the configuration must be present before a single voucher is signed, and they
+report differently because they are different situations: 423 for a sealed
+chapter, 503 for a missing signer.
+
+`lib/chain/claim-abi.ts` records the interface the deployed contract must
+implement, field for field with the signed voucher. The two cannot be edited
+alone. A struct that differs by one field or one ordering produces a
+signature that verifies against nothing, and the member meets that failure in
+the worst possible place: in their own wallet, after paying gas.
+
+To open the mint: deploy the two contracts on Base, set `MINT_CHAIN_ID`,
+`MINT_CARD_CONTRACT`, `MINT_CREST_CONTRACT` and `MINT_VOUCHER_SIGNER_KEY`,
+then flip `mint_live`. No deploy is needed for any of it.
