@@ -1,5 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { splitFollowUps } from "@/lib/ai/followups";
 import {
   RAVEN_SYSTEM_PROMPT,
   resolveVoicePrompt,
@@ -41,6 +42,10 @@ export type RavenResult = {
      member browsing was unavailable. */
   browseAvailable: boolean;
   sources: RavenSource[];
+  /* Follow-ups the Herald itself proposed, grounded in the answer it just
+     gave. Empty when it offered none, which the caller treats as "show
+     nothing" rather than falling back to a generic set. */
+  suggestions: string[];
 };
 
 export type AskRavenOptions = {
@@ -68,6 +73,22 @@ function buildSystem(context: string | undefined, opts: AskRavenOptions): string
       `## Live realm context (real, verified, safe to state)\nThe lines below were fetched from live sources moments ago. Cite these figures freely and name them only once. Do NOT invent any number that is absent here.\n\n${context}`
     );
   }
+
+  /* Follow-ups, written by the Herald rather than assembled from templates.
+   *
+   * These used to be generated from the question's cashtags: ask about no
+   * token and every member on the platform was offered the same three chips,
+   * "What is $ETH doing today", "Settle a debate for me", "Which House suits
+   * me best", regardless of what had just been discussed. They were decoration
+   * that looked like intelligence.
+   *
+   * Emitted in the same call as the answer, so they cost no extra latency and
+   * no second request, and they can reference what was actually said because
+   * the model writing them is the model that just said it. The block is
+   * stripped from the spoken text before it reaches the member. */
+  parts.push(
+    `## Follow-ups\n\nAfter your answer, always end your message with a block in exactly this form, and nothing after it:\n\n<<<FOLLOWUPS>>>\nfirst follow-up\nsecond follow-up\nthird follow-up\n\nRules for that block: exactly two or three lines, one per line, no numbering, no bullets, no quotes. Each must be a natural next thing THIS member would actually say next given what you just told them, written in their voice as if they were typing it, under about nine words. They must follow from the specific content of your answer, never generic prompts. If you named a token, a House, a Call, a champion or a feature, a good follow-up digs into that specific thing. Never offer a follow-up whose answer you already gave in full. Write them in the same language as your reply.`
+  );
 
   /* Last, deliberately. The realm context above is written in English and the
      voice prompt is a wall of English, so a language instruction placed before
@@ -139,7 +160,9 @@ export async function askRaven(
       messages,
       ...(wantsBrowse ? { tools: [WEB_SEARCH_TOOL] } : {}),
     });
-    const text = extractText(res.content);
+    const raw = extractText(res.content);
+    if (!raw) return null;
+    const { text, suggestions } = splitFollowUps(raw);
     if (!text) return null;
     return {
       text,
@@ -147,6 +170,7 @@ export async function askRaven(
       browseRequested: wantsBrowse,
       browseAvailable: wantsBrowse,
       sources: wantsBrowse ? extractSources(res.content) : [],
+      suggestions,
     };
   } catch (err) {
     // Graceful degradation: if browsing was requested and the call failed
@@ -160,7 +184,9 @@ export async function askRaven(
           system: buildSystem(context, { ...opts, browse: false }),
           messages,
         });
-        const text = extractText(res.content);
+        const raw = extractText(res.content);
+        if (!raw) return null;
+        const { text, suggestions } = splitFollowUps(raw);
         if (!text) return null;
         return {
           text,
@@ -168,6 +194,7 @@ export async function askRaven(
           browseRequested: true,
           browseAvailable: false,
           sources: [],
+          suggestions,
         };
       } catch {
         return null;
