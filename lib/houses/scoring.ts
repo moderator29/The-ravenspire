@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emit } from "@/lib/realm/events";
+import { realmWeek } from "@/lib/realm/period";
 import { HOUSE_TOP_N, houses } from "@/lib/data/houses";
 import {
   MASTER_OF_RAVENS_MIN_CALLS,
@@ -454,6 +455,8 @@ export async function recomputeSeason(
     });
   }
 
+  await emitStandingsSnapshot(db, season, standings);
+
   /* Leadership. Every open oath drops back to sworn first, so a title a member
      no longer holds does not linger on their name for another season. */
   const membersByHouse = new Map<string, string[]>();
@@ -507,4 +510,57 @@ export async function recomputeSeason(
   }
 
   return { seasonId: season.id, standings, roles, overtakes };
+}
+
+/* The weekly standings card (V2 section 8, "Leaderboards").
+ *
+ * A snapshot, deliberately, not a live table in the feed. A table in a stream
+ * is a table you scroll past; a snapshot is a thing that happened, it takes its
+ * position in the timeline from when it happened, and it can say what moved
+ * since the last one. It also keeps the Board archetype where it belongs, on
+ * the Roll of Honour and the Houses surface, rather than smuggling a second
+ * copy of it into the Ravenry.
+ *
+ * Weekly rather than daily, from a job that runs daily. The period key carries
+ * the ISO week and the unique index on (kind, subject_id) turns seven runs into
+ * one row, so there is no schedule to add and nothing to keep in sync.
+ *
+ * Real data or no card at all. A season where every House still sits on zero
+ * has no standing to report, and a snapshot of six zeroes is a card describing
+ * nothing, so it is not written. */
+async function emitStandingsSnapshot(
+  db: SupabaseClient,
+  season: SeasonRow,
+  standings: HouseStanding[]
+): Promise<void> {
+  const ranked = standings.filter((s) => s.score > 0);
+  /* One House out in front of five empty ones is not a standing either. It
+     takes two Houses with something on the board before there is a race to
+     report. */
+  if (ranked.length < 2) return;
+
+  await emit(db, {
+    kind: "standings.snapshot",
+    subjectType: "season",
+    subjectId: `standings:${season.id}:${realmWeek()}`,
+    payload: {
+      v: 1,
+      season_id: season.id,
+      week: realmWeek(),
+      top_n: HOUSE_TOP_N,
+      /* Three is what a card can show without becoming the table it replaces.
+         The full standings are one tap away on the Houses surface. */
+      houses: ranked.slice(0, 3).map((s) => ({
+        slug: s.slug,
+        rank: s.rank,
+        score: s.score,
+        contributors: s.contributorCount,
+      })),
+      /* The gap between first and second is the whole story of a standings
+         card, and it is the one figure a reader cannot compute from the three
+         rows alone once they are rounded. */
+      lead: ranked[0].score - ranked[1].score,
+      counted: ranked.length,
+    },
+  });
 }

@@ -1,4 +1,5 @@
 import { json } from "@/lib/auth/server";
+import { emit } from "@/lib/realm/events";
 import { requireAdmin, isResponse, logAdminAction } from "../_admin";
 
 const SEASON_SELECT = "id, name, starts_at, ends_at, status, vault_raven";
@@ -195,6 +196,29 @@ export async function POST(req: Request) {
     if (stErr) return json({ error: "update_failed" }, 500);
 
     const totalPoints = rows.reduce((sum, r) => sum + r.points, 0);
+
+    /* The realm hears the season close. This is the one reward announcement
+       the product can make honestly: the figures are server settled, frozen in
+       season_settlements, and aggregate. A per member payout card is
+       deliberately not emitted, because publishing one member's earned balance
+       to the realm is a privacy decision nobody has made and rule 7 constrains
+       how a balance may be shown at all.
+
+       Once only, keyed on the season, so re-running a settlement to correct a
+       row does not announce the same close twice. */
+    await emit(db, {
+      kind: "season.milestone",
+      subjectType: "season",
+      subjectId: `season:${id}:settled`,
+      payload: {
+        v: 1,
+        phase: "settled",
+        season_id: id,
+        members: rows.length,
+        total_points: totalPoints,
+      },
+    });
+
     await logAdminAction(db, profile.id, "season_settle", {
       targetType: "season",
       targetId: id,
@@ -218,6 +242,23 @@ export async function POST(req: Request) {
       .maybeSingle();
     if (error) return json({ error: "update_failed" }, 500);
     if (!updated) return json({ error: "not_found" }, 404);
+
+    /* A world event: the realm's calendar turning, with no member behind it.
+       This is the producer season.milestone has been missing since the spine
+       was written, which is why the kind was defined and nothing drew it. */
+    await emit(db, {
+      kind: "season.milestone",
+      subjectType: "season",
+      subjectId: `season:${id}:${action === "activate" ? "opened" : "closed"}`,
+      payload: {
+        v: 1,
+        phase: action === "activate" ? "opened" : "closed",
+        season_id: id,
+        name: (updated as { name?: string }).name ?? null,
+        starts_at: (updated as { starts_at?: string }).starts_at ?? null,
+        ends_at: (updated as { ends_at?: string }).ends_at ?? null,
+      },
+    });
 
     await logAdminAction(db, profile.id, `season_${action}`, {
       targetType: "season",

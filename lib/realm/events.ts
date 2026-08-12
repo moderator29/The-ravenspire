@@ -25,6 +25,12 @@ export const EVENT_KINDS = [
   "oath.sworn",
   "season.milestone",
   "raven.chronicle",
+  /* The realm speaking about itself rather than about one member. None of
+     these has an actor, and all four are derived from something the product
+     already stores, never from a new source invented to fill a card. */
+  "standings.snapshot",
+  "clash.opened",
+  "discussion.trending",
 ] as const;
 
 export type RealmEventKind = (typeof EVENT_KINDS)[number];
@@ -47,7 +53,8 @@ export type RealmSubjectType =
   | "duel"
   | "quest"
   | "crest"
-  | "season";
+  | "season"
+  | "clash";
 
 export interface RealmEvent {
   kind: RealmEventKind;

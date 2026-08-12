@@ -42,7 +42,9 @@
     ".next-raven/types/**/*.ts",
     ".next-raven/dev/types/**/*.ts",
     ".next-shots/types/**/*.ts",
-    ".next-shots/dev/types/**/*.ts"
+    ".next-shots/dev/types/**/*.ts",
+    ".next-uiaudit/types/**/*.ts",
+    ".next-uiaudit/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

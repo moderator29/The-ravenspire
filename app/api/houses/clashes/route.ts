@@ -3,6 +3,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { HOUSE_TOP_N, houseBySlug, houses } from "@/lib/data/houses";
 import { loadIdentities } from "@/lib/houses/members";
 import { loadSeasonWindow } from "@/lib/houses/oath";
+import { emit } from "@/lib/realm/events";
 
 /* House Clashes (V2 section 11.3).
  *
@@ -219,5 +220,30 @@ export async function POST(req: Request) {
     .single();
   if (error) return json({ error: "create_failed" }, 500);
 
-  return json({ ok: true, clash: { ...data, phase: phaseOf(data as ClashRow) } });
+  /* The realm hears about it. A Clash is the one thing in the product that is
+     already a scheduled, bounded, realm wide event authored by a person, which
+     is exactly what the directive means by a community event, so it needed a
+     producer rather than a new table.
+     
+     Realm audience and no actor: a Clash is called by the stewards on behalf of
+     the realm, and naming the steward who typed it would make an announcement
+     read as a member's act. The window travels in the payload so the card can
+     say honestly whether it is open, opening or closed without a second read. */
+  const row = data as ClashRow;
+  await emit(db, {
+    kind: "clash.opened",
+    subjectType: "clash",
+    subjectId: row.id,
+    payload: {
+      v: 1,
+      title: row.title,
+      token: row.token,
+      theme: row.theme,
+      starts_at: row.starts_at,
+      ends_at: row.ends_at,
+      season_id: row.season_id,
+    },
+  });
+
+  return json({ ok: true, clash: { ...row, phase: phaseOf(row) } });
 }
