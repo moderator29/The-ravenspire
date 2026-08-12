@@ -322,7 +322,7 @@ export function PostCard({ post }: { post: Post }) {
       {heartBurst && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
         >
           <Icon
             name="heart"

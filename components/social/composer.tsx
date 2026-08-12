@@ -251,8 +251,8 @@ export function Composer({
             rows={page ? undefined : body.length > 80 ? 4 : 2}
             className={
               page
-                ? "min-h-[28vh] w-full flex-1 resize-none bg-transparent text-lg leading-relaxed text-bone placeholder-bone-faint outline-none"
-                : "w-full resize-none bg-transparent text-[15px] text-bone placeholder-bone-faint outline-none"
+                ? "min-h-[28vh] w-full flex-1 resize-none bg-transparent text-lg leading-relaxed text-bone placeholder-bone-faint"
+                : "w-full resize-none bg-transparent text-[15px] text-bone placeholder-bone-faint"
             }
           />
 

@@ -66,7 +66,7 @@ function ReplyBox({
         aria-label="Your reply"
         rows={2}
         autoFocus
-        className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint outline-none"
+        className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint"
       />
       <div className="flex shrink-0 flex-col items-stretch gap-1">
         <Button
@@ -350,7 +350,7 @@ export function CommentThread({ postId }: { postId: string }) {
             placeholder="Add your voice... (@raven answers when called)"
             aria-label="Add your voice"
             rows={2}
-            className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint outline-none"
+            className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint"
           />
           <Button
             variant="gold"
