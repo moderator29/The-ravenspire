@@ -143,7 +143,13 @@ function WhispersMock() {
       </div>
       <div className="mt-3 flex flex-col gap-2.5">
         <div className="flex justify-start">
-          <div className="rounded-lg max-w-[80%] px-3 py-2 text-[12px] text-bone-mut">
+          {/* The incoming bubbles carried a radius and a padding and no
+              surface, so only Ysolde's half of the conversation had a bubble
+              and the other half read as loose text floating in the frame. A
+              mock of a chat that does not look like a chat is worse than no
+              mock. `bg-panel` against the outgoing `bg-panel-warm` keeps the
+              two sides distinguishable without introducing a third colour. */}
+          <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel px-3 py-2 text-[12px] text-bone-mut">
             The Throne shifts this week. Will Goldmane hold the lead?
           </div>
         </div>
@@ -153,7 +159,7 @@ function WhispersMock() {
           </div>
         </div>
         <div className="flex justify-start">
-          <div className="rounded-lg max-w-[80%] px-3 py-2 text-[12px] text-bone-mut">
+          <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel px-3 py-2 text-[12px] text-bone-mut">
             Bold words. Court at dusk, then. Bring witnesses.
           </div>
         </div>
@@ -276,11 +282,11 @@ export function PlatformPreview() {
       />
 
       <motion.div variants={rise} className="relative flex flex-wrap items-center gap-3">
-        <span className="inline-flex min-h-11 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
+        <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
           <LandingIcon name="vision" className="h-4 w-4" />
           See the realm
         </span>
-        <span className="inline-flex min-h-11 items-center gap-1.5 rounded-sm border border-gold/25 bg-void/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
+        <span className="inline-flex items-center gap-1.5 rounded-sm border border-gold/25 bg-void/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
           <span className="h-1.5 w-1.5 rounded-full bg-ember" />
           Product preview
         </span>
