@@ -192,8 +192,14 @@ export default function WarPage() {
           </Card>
         ))}
 
+        {/* A battlefield you cannot enter is structurally lower energy than one
+            you can, per section 5. `raised` is the flat plate: no backdrop
+            blur, no gold wash, a steel hairline and the quiet `edge` light.
+            Before this both sets were the same lit chassis, so the four modes
+            that are actually open competed for attention with the three that
+            are not, and only a small badge told them apart. */}
         {lockedModes.map((mode) => (
-          <Card key={mode.name} pad="none" className="p-4">
+          <Card key={mode.name} variant="raised" pad="none" className="p-4">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-panel text-bone-faint">
                 <Icon name={mode.icon} className="h-5 w-5" />

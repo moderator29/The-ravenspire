@@ -1,12 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { createClient } from "@/lib/supabase/client";
 import { crests, CrestRoundel } from "@/components/brand/crests";
-import { Card } from "@/components/ui/card";
+import { Badge, RarityChip } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SegmentedControl } from "@/components/ui/tabs";
 import { BackButton } from "@/components/shell/back-button";
+
+/* Crests and Renown.
+
+   Archetype: Dossier. Your standing first, then the collection.
+
+   The register split this page was missing, and it was the clearest case of
+   AGENTS.md rule 21 in the product. Every one of the ten crest cards carried
+   `rarity-frame`, which is a coloured border plus a 24px coloured glow.
+   Measured on a 390x844 phone, ten glowing boxes on one screen, eight of them
+   for crests nobody has earned and two of them for crests that do not exist in
+   the realm yet. A locked crest glowed exactly as brightly as an earned one,
+   so the glow carried no information at all, and the screen it sat on was the
+   one screen in the product whose entire job is to say what you have earned.
+
+   So the glow is earned now, literally. A crest you hold is the Forge
+   register: the rarity frame, its light, the roundel in full gold and a gold
+   Earned badge. Everything else is a flat Ledger plate with a dimmed roundel.
+   The difference between the two is the page's whole message, and it is now
+   visible from across the room.
+
+   Rarity keeps its meaning on the chip, which is where it was already legible.
+   That chip is the `RarityChip` primitive rather than the hand rolled
+   `.rarity-chip` class this page used to reach for. The class colours its text
+   with `--rarity`, and for mythic that resolves to `--blood`, a fill only hue
+   that measures 1.87:1 as text, so the "Blood of the Dragon" chip has been
+   failing rule 11 on this screen. The primitive uses the `-text` twin.
+
+   The segmented control is the pattern section 3 of the design system names
+   for this exact page ("Renown, earned vs locked crests"), and the page had no
+   tabs at all. Real data only: nothing is counted as earned until the read
+   lands, so a signed out member sees an honest empty Earned tab rather than a
+   collection that looks like theirs. */
 
 interface MeProfile {
   id: string;
@@ -24,10 +61,19 @@ const TIERS = [
   { slug: "king", name: "King / Queen", min: 15000 },
 ];
 
+type Filter = "all" | "earned" | "locked";
+
+const FILTERS = [
+  { value: "all", label: "All" },
+  { value: "earned", label: "Earned" },
+  { value: "locked", label: "Locked" },
+];
+
 export default function RenownPage() {
   const { ready, authenticated } = useRealmAuth();
   const [me, setMe] = useState<MeProfile | null>(null);
   const [earned, setEarned] = useState<Set<string> | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
     if (!ready || !authenticated) return;
@@ -70,30 +116,50 @@ export default function RenownPage() {
         )
       : 100;
 
+  /* Only ever what the server actually returned. Before that read lands, and
+     for anyone not signed in, nothing is earned, because nothing is known. */
+  const held = useMemo(() => earned ?? new Set<string>(), [earned]);
+  const shown = useMemo(
+    () =>
+      crests.filter((c) =>
+        filter === "all"
+          ? true
+          : filter === "earned"
+            ? held.has(c.slug)
+            : !held.has(c.slug)
+      ),
+    [filter, held]
+  );
+
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-3 py-4 sm:px-4 sm:py-6 md:gap-3">
+      <div className="flex">
         <BackButton />
       </div>
-      <h1 className="font-display text-xl font-semibold text-bone">
-        Crests and Renown
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Standing · badges of deed
-      </p>
 
-      {/* Tier ladder */}
-      <div className="mt-5 -mx-3 overflow-x-auto px-3 sm:-mx-4 sm:px-4">
+      <div>
+        <h1 className="font-display text-xl font-semibold text-bone sm:text-2xl">
+          Crests and Renown
+        </h1>
+        <p className="mt-1 text-[11px] uppercase tracking-[0.26em] text-bone-faint">
+          Standing · badges of deed
+        </p>
+      </div>
+
+      {/* The tier ladder. A rail, so it is allowed to run past the edge: it
+          scrolls, and the page does not. */}
+      <div className="-mx-3 overflow-x-auto px-3 sm:-mx-4 sm:px-4">
         <div className="flex w-max gap-2 pb-1">
           {TIERS.map((t, i) => {
             const isMine = me !== null && i === tierIndex;
             return (
               <Card
                 key={t.slug}
+                variant={isMine ? "warm" : "raised"}
+                {...(isMine ? { tone: "gold" as const } : {})}
+                radius="lg"
                 pad="none"
-                className={`shrink-0 px-4 py-3 text-center ${
-                  isMine ? "border border-gold/60" : ""
-                }`}
+                className="shrink-0 px-4 py-3 text-center"
               >
                 <p
                   className={`font-display text-sm font-semibold ${
@@ -105,19 +171,19 @@ export default function RenownPage() {
                 <p className="tnum mt-0.5 text-[11px] text-bone-faint">
                   {t.min.toLocaleString()}+ Renown
                 </p>
-                {isMine && (
+                {isMine ? (
                   <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-gold">
                     Your tier
                   </p>
-                )}
+                ) : null}
               </Card>
             );
           })}
         </div>
       </div>
 
-      {me && (
-        <Card pad="md" className="mt-3">
+      {me ? (
+        <Card>
           {nextTier ? (
             <>
               <div className="flex items-baseline justify-between gap-3">
@@ -132,8 +198,15 @@ export default function RenownPage() {
                   Renown
                 </p>
               </div>
-              <div className="bar-track mt-2 h-2 w-full">
-                <div className="bar-gold h-full" style={{ width: `${progress}%` }} />
+              <div
+                className="bar-track mt-2 h-2 w-full"
+                role="img"
+                aria-label={`${me.renown.toLocaleString()} of ${nextTier.min.toLocaleString()} Renown`}
+              >
+                <div
+                  className="bar-gold h-full"
+                  style={{ width: `${progress}%` }}
+                />
               </div>
             </>
           ) : (
@@ -142,58 +215,103 @@ export default function RenownPage() {
             </p>
           )}
         </Card>
-      )}
+      ) : null}
 
-      {/* Crests */}
-      <h2 className="mt-8 font-display text-base font-semibold text-bone">
-        The Crests
-      </h2>
-      <p className="text-xs text-bone-faint">
+      {/* The promise is a sentence, so it is a paragraph. Passed as the
+          header's `hint` it competed with the heading for the same row and
+          wrapped "The Crests" onto two lines at 390px: that slot is sized for
+          a count, not for prose. */}
+      <SectionHeader title="The Crests" />
+      <p className="-mt-1 px-1 text-xs text-bone-faint">
         Earned, never bought. Never NFTs, never for sale.
       </p>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {crests.map((c) => {
-          const isEarned = earned?.has(c.slug) ?? false;
-          const dim = c.status === "locked" || (earned !== null && !isEarned);
-          return (
-            <Card
-              key={c.slug}
-              pad="none"
-              variant="inset"
-              className={`rarity-${c.rarity} rarity-frame flex flex-col items-center p-5 text-center`}
-            >
-              <CrestRoundel icon={c.icon} className="h-20 w-20" dim={dim} />
-              <p className="mt-3 font-display text-base font-semibold text-bone">
-                {c.name}
-              </p>
-              <p className="text-xs text-bone-faint">{c.plain}</p>
-              <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5">
-                <span className={`rarity-${c.rarity} rarity-chip`}>
-                  {c.rarity}
-                </span>
-                <span
-                  className={`rounded-[--radius-sm] border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${
-                    c.status === "live"
-                      ? "border-steel-line text-bone-mut"
-                      : "border-steel-line text-bone-faint"
+      {/* Three mutually exclusive views of the same collection, switched in
+          place, which is the segmented control case. */}
+      <SegmentedControl
+        label="Crests"
+        block
+        value={filter}
+        onValueChange={(next) => setFilter(next as Filter)}
+        items={FILTERS}
+      />
+
+      {shown.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon3d="trophy"
+            title={
+              filter === "earned"
+                ? "No crests to your name yet"
+                : "Nothing left to claim here"
+            }
+            body={
+              filter === "earned"
+                ? "Crests are earned by deed, never bought. Enter the realm and the first will be struck against your name."
+                : "Every crest in the realm is already yours."
+            }
+            {...(filter === "earned" && !authenticated
+              ? {
+                  action: (
+                    <Button
+                      variant="gold"
+                      size="md"
+                      render={<Link href="/signin" />}
+                    >
+                      Enter the realm
+                    </Button>
+                  ),
+                }
+              : {})}
+          />
+        </Card>
+      ) : (
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {shown.map((c) => {
+            const isEarned = held.has(c.slug);
+            return (
+              <li key={c.slug} className="flex">
+                {/* Forge only when it is actually yours. */}
+                <Card
+                  variant={isEarned ? "warm" : "raised"}
+                  radius="lg"
+                  pad="none"
+                  className={`flex w-full flex-col items-center p-4 text-center ${
+                    isEarned ? `rarity-${c.rarity} rarity-frame` : ""
                   }`}
                 >
-                  {c.status === "live" ? "Live" : "Locked"}
-                </span>
-                {isEarned && (
-                  <span className="rounded-[--radius-sm] border border-gold/60 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-gold-bright">
-                    Earned
-                  </span>
-                )}
-              </div>
-              <p className="mt-2.5 text-xs leading-relaxed text-bone-mut">
-                {c.earn}
-              </p>
-            </Card>
-          );
-        })}
-      </div>
+                  <CrestRoundel
+                    icon={c.icon}
+                    className="h-16 w-16"
+                    dim={!isEarned}
+                  />
+                  <p
+                    className={`mt-2.5 font-display text-[15px] font-semibold ${
+                      isEarned ? "text-bone" : "text-bone-mut"
+                    }`}
+                  >
+                    {c.name}
+                  </p>
+                  <p className="text-[11px] text-bone-faint">{c.plain}</p>
+                  <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                    <RarityChip rarity={c.rarity} />
+                    {isEarned ? (
+                      <Badge variant="gold" icon="medal">
+                        Earned
+                      </Badge>
+                    ) : c.status === "locked" ? (
+                      <Badge icon="lock">Not yet live</Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-bone-mut">
+                    {c.earn}
+                  </p>
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

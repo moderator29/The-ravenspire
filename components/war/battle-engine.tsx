@@ -9,6 +9,7 @@ import {
   ultimateEffectText,
   playstyleTag,
 } from "@/lib/game/combat";
+import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
@@ -1008,9 +1009,7 @@ function HowToPlay({
           <p className="font-display text-base font-semibold text-bone">
             {champion.name}
           </p>
-          <span className="rounded-[--radius-sm] border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-gold">
-            {battleKit.tag}
-          </span>
+          <Badge variant="gold">{battleKit.tag}</Badge>
         </div>
         <div className="mt-3 flex gap-3">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
@@ -1074,6 +1073,11 @@ function HowToPlay({
   );
 }
 
+/* Steel, not gold. The four control rules say the same four things before
+   every battle in the realm, which is the definition of ambient, and six gold
+   bordered tiles on one briefing left nothing for the champion's own kit above
+   to be brighter than. The kit card keeps its gold because it is the half that
+   changes with the champion you brought. */
 function Rule({
   icon,
   title,
@@ -1085,7 +1089,7 @@ function Rule({
 }) {
   return (
     <div className="mb-3 flex gap-3 last:mb-0">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-steel-line bg-void text-bone-mut">
         <Icon name={icon} className="h-4 w-4" />
       </span>
       <div>
@@ -1098,11 +1102,16 @@ function Rule({
   );
 }
 
+/* The hint sat dead centre of the play field, and it never leaves while the
+   phone is upright, so it covered the hero and the fight happening around them
+   for the whole battle. A permanent overlay in the middle of the thing it is
+   describing is noise, not help. It now rides just under the HUD, clear of the
+   field, where it says the same sentence without standing in front of it. */
 function RotateHint() {
   return (
-    <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[--radius-sm] bg-obsidian/80 px-4 py-2 text-center backdrop-blur-sm">
-      <p className="flex items-center gap-2 text-xs text-gold">
-        <Icon name="compass" className="h-4 w-4" />
+    <div className="pointer-events-none absolute inset-x-0 top-[calc(7rem+env(safe-area-inset-top))] flex justify-center px-4">
+      <p className="flex items-center gap-2 rounded-[--radius-sm] bg-obsidian/80 px-3 py-1.5 text-xs text-gold backdrop-blur-sm">
+        <Icon name="compass" className="h-4 w-4 shrink-0" />
         Turn sideways for the full field
       </p>
     </div>
