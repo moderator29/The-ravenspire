@@ -94,7 +94,7 @@ export function CallResolvedCard({ event }: { event: FeedEvent }) {
       </p>
       <CardFacts>
         {entry !== null ? (
-          <CardFact label="Sealed" value={formatPrice(entry)} />
+          <CardFact label="Sealed" value={formatPrice(entry)} secondary />
         ) : null}
         {settled !== null ? (
           <CardFact label="Settled" value={formatPrice(settled)} />

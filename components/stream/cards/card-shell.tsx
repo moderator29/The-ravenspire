@@ -140,9 +140,9 @@ export function SystemCard({
             fastest way a reader tells the realm's voice from a member's. */}
         <span
           aria-hidden
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-steel-line bg-panel text-steel"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-steel-line bg-panel text-steel"
         >
-          <Icon name={icon} className="h-[18px] w-[18px]" />
+          <Icon name={icon} className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <MetaRow label={label} at={event.created_at} trailing={trailing} />
@@ -180,12 +180,12 @@ export function ForgeCard({
       className="stream-enter"
     >
       <div className="flex gap-3 pl-1.5">
-        {/* 40px on a phone, 64px from sm, which is the reward row size in the
-            icon table. The card does not otherwise change: same chassis, same
-            column, same rhythm. */}
+        {/* 40px, the same width as the avatar on a member's raven, so the text
+            column starts in the same place whatever kind of card this is. The
+            3D set never goes below 40px, and a feed card is not the place it
+            goes above it. */}
         <span aria-hidden className="shrink-0">
-          <Icon3D name={icon} size="sm" className="sm:hidden" />
-          <Icon3D name={icon} size="md" className="max-sm:hidden" />
+          <Icon3D name={icon} size="sm" />
         </span>
         <div className="min-w-0 flex-1">
           <MetaRow label={label} at={event.created_at} trailing={trailing} />
@@ -219,13 +219,23 @@ export function CardFact({
   label,
   value,
   tone,
+  secondary,
 }: {
   label: string;
   value: ReactNode;
   tone?: "up" | "down" | "gold";
+  /* Drops below sm. A phone gets a simpler card, not the same card scaled:
+     four facts on a 360px screen wrap into a paragraph and stop being a
+     glance. */
+  secondary?: boolean;
 }) {
   return (
-    <div className="flex min-w-0 items-baseline gap-1.5">
+    <div
+      className={cx(
+        "flex min-w-0 items-baseline gap-1.5",
+        secondary && "max-sm:hidden"
+      )}
+    >
       <dt
         className={cx(
           "shrink-0 uppercase tracking-[0.16em] text-bone-faint",
