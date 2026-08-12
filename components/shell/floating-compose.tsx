@@ -36,9 +36,17 @@ export function FloatingCompose() {
         />
       )}
 
+      {/* Clear of the dock, whatever the dock currently is.
+
+          This sat at a flat 80px, which is taller than the bar alone and
+          shorter than the bar plus its contextual strip, so on the one route
+          this button renders on, the Ravenry, which does carry a strip, it
+          landed on the right end of that strip and covered the last chip.
+          The dock measures itself and publishes --dock-height; the fallback
+          matches the bar without a strip, for the frame before it reports. */}
       <div
         style={{ position: "fixed" }}
-        className="bottom-20 right-4 z-40 flex flex-col items-end gap-3 lg:bottom-8 lg:right-8"
+        className="bottom-[calc(var(--dock-height,4.5rem)+0.75rem)] right-4 z-40 flex flex-col items-end gap-3 lg:bottom-8 lg:right-8"
       >
         {open && (
           <>
