@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
@@ -33,6 +34,22 @@ const SPRING = { type: "spring" as const, visualDuration: 0.22, bounce: 0.14 };
  * instead of leaving it as the arithmetic of a font size and a padding rung
  * that anybody could later adjust without realising what they were changing. */
 
+/* The fade, as one of four fixed classes rather than a computed gradient, so
+   Tailwind can see every one of them at build time. */
+const MASKS = {
+  none: "",
+  end: "[mask-image:linear-gradient(to_right,black_calc(100%-20px),transparent)]",
+  start: "[mask-image:linear-gradient(to_left,black_calc(100%-20px),transparent)]",
+  both: "[mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]",
+} as const;
+
+function maskFor(more: { start: boolean; end: boolean }): string {
+  if (more.start && more.end) return MASKS.both;
+  if (more.start) return MASKS.start;
+  if (more.end) return MASKS.end;
+  return MASKS.none;
+}
+
 function isActive(pathname: string, href: string) {
   const base = href.split("?")[0];
   if (base === "/home") return pathname === "/home";
@@ -43,6 +60,71 @@ export function BottomNav() {
   const pathname = usePathname();
   const params = useSearchParams();
   const sub = subNavFor(pathname);
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  /* Which edges the strip still has content behind. Both false means it fits,
+     and no fade is drawn at all. */
+  const [more, setMore] = useState({ start: false, end: false });
+
+  /* The dock publishes its own height, because anything else floating above it
+     has to clear it and nothing else can know how tall it is. It changes with
+     the route, since the contextual strip is present on six of them and absent
+     on the rest, and it changes with the safe area inset. The floating compose
+     button used to sit at a fixed 80px and landed squarely on top of the right
+     end of the strip, which is where the last chip lives. Measuring it here
+     means that arithmetic exists once, in the element that owns it. */
+  useEffect(() => {
+    const el = dockRef.current;
+    if (!el) return;
+    const publish = () => {
+      document.documentElement.style.setProperty(
+        "--dock-height",
+        `${Math.round(el.getBoundingClientRect().height)}px`
+      );
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--dock-height");
+    };
+  }, [pathname, sub]);
+
+  /* The strip's own overflow, measured on the strip rather than on the page.
+
+     A horizontal scroller never grows the document, so a document level
+     overflow check reads zero on a strip whose last chip is cut in half at the
+     screen edge. The only place the difference shows is scrollWidth against
+     clientWidth on the scroller itself, which is what this asks. */
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) {
+      setMore({ start: false, end: false });
+      return;
+    }
+    const measure = () => {
+      const slack = el.scrollWidth - el.clientWidth;
+      /* A pixel of tolerance: sub pixel layout leaves fractional slack on
+         strips that visibly fit, and a fade over nothing is a lie too. */
+      if (slack <= 1) {
+        setMore({ start: false, end: false });
+        return;
+      }
+      setMore({
+        start: el.scrollLeft > 1,
+        end: el.scrollLeft < slack - 1,
+      });
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      observer.disconnect();
+    };
+  }, [pathname, sub]);
 
   /* A sub destination is current when every query param it declares matches.
      A bare href (no query) is current only when no competing param is set. */
@@ -59,9 +141,22 @@ export function BottomNav() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-nav lg:hidden">
-      <div className="mx-auto w-full max-w-lg px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div
+        ref={dockRef}
+        className="mx-auto w-full max-w-lg px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      >
         {sub && sub.length > 0 && (
-          <div className="scrollbar-none pointer-events-auto mb-2 flex gap-1.5 overflow-x-auto">
+          /* The strip scrolls when a section has more sub destinations than a
+             390px screen fits, and it used to end in a hard cut at the screen
+             edge that read as a broken layout rather than as more to come. A
+             20px fade is the standard signal, and it is drawn only on the edges
+             that actually have something behind them: a strip that fits gets
+             none, and scrolling to the end clears the trailing one rather than
+             leaving the last chip permanently half faded. */
+          <div
+            ref={stripRef}
+            className={`scrollbar-none pointer-events-auto mb-2 flex gap-1.5 overflow-x-auto ${maskFor(more)}`}
+          >
             {sub.map((item) => {
               const current = subIsCurrent(item.href);
               return (
