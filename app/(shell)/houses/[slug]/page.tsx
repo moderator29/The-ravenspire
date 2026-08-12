@@ -2,13 +2,11 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { BackButton } from "@/components/shell/back-button";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { Card, SectionHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/meter";
-import { SegmentedControl } from "@/components/ui/tabs";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import {
   Board,
@@ -16,6 +14,15 @@ import {
   BoardStack,
   type BoardColumn,
 } from "@/components/board/board-shell";
+import {
+  DossierHeader,
+  DossierHero,
+  DossierMissing,
+  DossierPage,
+  DossierSkeleton,
+  DossierTabPanel,
+  DossierTabs,
+} from "@/components/dossier/dossier-shell";
 import { Avatar } from "@/components/social/avatar";
 import { PostCard } from "@/components/social/post-card";
 import { fetchFeed } from "@/lib/social/queries";
@@ -87,56 +94,55 @@ function HouseHallView({ slug }: { slug: string }) {
 
   if (!meta)
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <div className="mb-6 flex justify-center">
-          <BackButton href="/houses" />
-        </div>
-        <p className="text-sm text-bone-mut">
-          No such House holds a banner in this realm.
-        </p>
-      </div>
+      <DossierMissing
+        backHref="/houses"
+        title="No such House"
+        body="No House by that name holds a banner in this realm."
+      />
     );
 
   if (showSkeleton)
-    return (
-      <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
-        <Skeleton radius="xl" className="h-44 w-full" />
-        <Skeleton radius="xl" className="mt-4 h-72 w-full" />
-      </div>
-    );
+    return <DossierSkeleton width="wide" panels={1} portrait={false} />;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-3">
-        <BackButton href="/houses" />
-      </div>
+    <DossierPage width="wide">
+      <DossierHeader backHref="/houses" />
 
-      <HouseBanner meta={meta} hall={hall} />
+      {/* The hero is the one place a Dossier may carry the Forge register, and
+          a House hall is where that is most obviously earned: the sigil in its
+          own colour, the rank, the level and the rival. */}
+      <DossierHero>
+        <HouseBanner meta={meta} hall={hall} />
+      </DossierHero>
 
-      <div className="mt-4">
-        <SegmentedControl
-          block
-          label="House hall view"
-          value={tab}
-          onValueChange={(next) => setTab(next as Tab)}
-          items={[
-            { value: "board", label: "Contributors" },
-            { value: "roster", label: "Roster" },
-            { value: "hall", label: "The hall" },
-          ]}
-        />
-      </div>
-
-      <div className="mt-4">
-        {tab === "board" ? (
+      {/* Three genuinely different views of one subject, each with a count.
+          That is the underline pattern by section 3, and it used to be a
+          SegmentedControl, which says "two views of the same data". Picking
+          the wrong tab pattern is a design bug, so this is the fix. */}
+      <DossierTabs
+        value={tab}
+        onValueChange={(next) => setTab(next as Tab)}
+        tabs={[
+          {
+            value: "board",
+            label: "Contributors",
+            count: hall?.board.length ?? 0,
+          },
+          { value: "roster", label: "Roster", count: hall?.roster.length ?? 0 },
+          { value: "hall", label: "The hall", count: posts?.length ?? 0 },
+        ]}
+      >
+        <DossierTabPanel value="board">
           <ContributorBoard hall={hall} />
-        ) : tab === "roster" ? (
+        </DossierTabPanel>
+        <DossierTabPanel value="roster">
           <Roster hall={hall} />
-        ) : (
+        </DossierTabPanel>
+        <DossierTabPanel value="hall">
           <HallFeed posts={posts} />
-        )}
-      </div>
-    </div>
+        </DossierTabPanel>
+      </DossierTabs>
+    </DossierPage>
   );
 }
 
@@ -297,7 +303,7 @@ function ContributorBoard({ hall }: { hall: HouseHall | null }) {
     return (
       <Card>
         <EmptyState
-          icon="medal"
+          icon3d="podium"
           title="Nobody is carrying the House yet"
           body="Contribution comes from Calls that resolve, duels won, and the realm's own rewards. The first member to earn any this season opens this board."
         />
@@ -414,7 +420,7 @@ function Roster({ hall }: { hall: HouseHall | null }) {
     return (
       <Card>
         <EmptyState
-          icon="banner"
+          icon3d="banner"
           title="No one is sworn to this House"
           body="The banner is raised and waiting. The first oath sworn here starts the roster."
         />
@@ -662,7 +668,7 @@ function HallFeed({ posts }: { posts: Post[] | null }) {
     return (
       <Card>
         <EmptyState
-          icon="raven"
+          icon3d="house-hall"
           title="The hall is quiet"
           body="Ravens from sworn members gather here, including the ones sent to the House alone."
         />

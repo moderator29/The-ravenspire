@@ -229,8 +229,11 @@ export default function LeaderboardsPage() {
           </Card>
         ) : entries.length === 0 ? (
           <Card pad="lg">
+            {/* The empty owns the whole surface here, which is where the 3D
+                set is earned. The error state above it keeps the flat glyph:
+                a failure is not a moment worth illustrating. */}
             <EmptyState
-              icon="medal"
+              icon3d="podium"
               title="No standings yet"
               body={`Earn ${active.label} and claim your place on the roll.`}
             />

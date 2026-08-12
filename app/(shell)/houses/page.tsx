@@ -147,7 +147,7 @@ function Standings() {
       {rows.length === 0 ? (
         <Card>
           <EmptyState
-            icon="banner"
+            icon3d="banner"
             title="No standings yet"
             body="The realm has not opened a season, so no House has a score to defend."
           />
