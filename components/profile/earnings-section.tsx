@@ -230,7 +230,7 @@ export function EarningsSection({
   };
 
   if (loading) {
-    return <Skeleton className="mt-4 h-56 w-full" radius="xl" />;
+    return <Skeleton className="mt-3 h-56 w-full" radius="xl" />;
   }
   if (!data) return null;
 
@@ -248,7 +248,7 @@ export function EarningsSection({
      balance is public on-chain data, so we still surface it up top. */
   if (!data.visible) {
     return (
-      <Card variant="warm" pad="md" render={<section />} className="mt-4 overflow-hidden">
+      <Card variant="warm" pad="sm" render={<section />} className="mt-3 overflow-hidden">
         <CoffersBanner
           owner={false}
           handle={pub.handle}
@@ -257,10 +257,10 @@ export function EarningsSection({
         />
 
         {hasPublicBalance && (
-          <div className="mt-4">
+          <div className="mt-3">
             <Coffer icon="wallet" label="Wallet balance" live>
               <div className="flex items-baseline gap-1.5">
-                <span className="font-display text-3xl font-bold tnum leading-none text-bone">
+                <span className="font-display text-2xl font-bold tnum leading-none text-bone">
                   {fmtUsd(publicBalanceUsd)}
                 </span>
               </div>
@@ -271,19 +271,19 @@ export function EarningsSection({
           </div>
         )}
 
-        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-steel-line/70 bg-void/40 px-4 py-3 text-bone-mut">
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-steel-line/70 bg-void/40 px-3 py-2.5 text-bone-mut">
           <Icon name="lock" className="h-4 w-4 shrink-0 text-gold" />
           <span className="text-sm">
             This Keep seals its coffers. Earnings are kept private.
           </span>
         </div>
-        <div className="tnum mt-4 grid grid-cols-3 gap-3">
+        <div className="tnum mt-3 grid grid-cols-3 gap-2.5">
           <Stat label="Renown" value={fmt.format(pub.renown)} icon="medal" />
           <Stat label="Calls won" value={fmt.format(pub.callsWon)} icon="target" />
           <Stat label="Crests" value={fmt.format(pub.crestCount)} icon="crown" />
         </div>
         {pub.thesis && (
-          <p className="mt-4 flex items-center gap-2 border-t border-steel-line pt-3 text-sm italic text-bone-mut">
+          <p className="mt-3 flex items-center gap-2 border-t border-steel-line pt-3 text-sm italic text-bone-mut">
             <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
             &ldquo;{pub.thesis}&rdquo;
           </p>
@@ -334,7 +334,7 @@ export function EarningsSection({
   const PREVIEW = 4;
 
   return (
-    <Card variant="warm" pad="md" render={<section />} className="mt-4 overflow-hidden">
+    <Card variant="warm" pad="sm" render={<section />} className="mt-3 overflow-hidden">
       <CoffersBanner
         owner={owner}
         handle={pub.handle}
@@ -344,13 +344,13 @@ export function EarningsSection({
 
       {/* Twin coffers: platform earnings beside the wallet balance (owner) or
           public standing (other members). */}
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <Coffer accent icon="coin" label="Points earned">
           <div className="flex items-baseline gap-1.5">
-            <span className="gold-text font-display text-3xl font-bold tnum leading-none">
+            <span className="gold-text font-display text-2xl font-bold tnum leading-none">
               {fmt.format(earn?.grandTotal ?? 0)}
             </span>
-            <span className="text-sm font-semibold text-gold">points</span>
+            <span className="text-xs font-semibold text-gold">points</span>
           </div>
           {hasEarnings ? (
             <div className="mt-2 flex items-center gap-2">
@@ -390,7 +390,7 @@ export function EarningsSection({
         {owner ? (
           <Coffer icon="wallet" label="Wallet balance" live>
             <div className="flex items-baseline gap-1.5">
-              <span className="font-display text-3xl font-bold tnum leading-none text-bone">
+              <span className="font-display text-2xl font-bold tnum leading-none text-bone">
                 {!address
                   ? "Resting"
                   : balanceLoading
@@ -411,7 +411,7 @@ export function EarningsSection({
         ) : hasPublicBalance ? (
           <Coffer icon="wallet" label="Wallet balance" live>
             <div className="flex items-baseline gap-1.5">
-              <span className="font-display text-3xl font-bold tnum leading-none text-bone">
+              <span className="font-display text-2xl font-bold tnum leading-none text-bone">
                 {fmtUsd(publicBalanceUsd)}
               </span>
             </div>
@@ -422,10 +422,10 @@ export function EarningsSection({
         ) : (
           <Coffer icon="medal" label="Standing">
             <div className="flex items-baseline gap-1.5">
-              <span className="font-display text-4xl font-bold tnum leading-none text-bone">
+              <span className="font-display text-3xl font-bold tnum leading-none text-bone">
                 {fmt.format(pub.renown)}
               </span>
-              <span className="text-sm font-semibold text-gold">Renown</span>
+              <span className="text-xs font-semibold text-gold">Renown</span>
             </div>
             <p className="tnum mt-2 text-xs text-bone-faint">
               {fmt.format(pub.glory)} Glory &middot; {fmt.format(pub.callsWon)} calls won
@@ -435,7 +435,7 @@ export function EarningsSection({
       </div>
 
       {/* Timeframe toggle + windowed climb */}
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className="mt-3 flex items-center justify-between gap-3">
         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
           The climb
         </span>
@@ -466,7 +466,7 @@ export function EarningsSection({
 
       {/* Holdings roll */}
       {(hasTokens || (owner && positions !== null)) && (
-        <div className="mt-4">
+        <div className="mt-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
               Holdings
@@ -497,7 +497,7 @@ export function EarningsSection({
       {/* Shareable thesis */}
       {owner ? (
         thesisEditing ? (
-          <div className="mt-4 border-t border-steel-line pt-3">
+          <div className="mt-3 border-t border-steel-line pt-3">
             <label className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
               Your thesis
             </label>
@@ -507,7 +507,7 @@ export function EarningsSection({
               rows={2}
               maxLength={140}
               placeholder="One line the realm should know you by."
-              className="mt-1.5 w-full resize-none rounded-xl border border-steel-line bg-void px-3 py-2 text-sm text-bone outline-none focus:border-gold/40"
+              className="mt-1.5 w-full resize-none rounded-lg border border-steel-line bg-void px-3 py-2 text-sm text-bone outline-none focus:border-gold/40"
             />
             <div className="mt-2 flex items-center justify-between">
               <span className="text-[11px] text-bone-faint">
@@ -550,7 +550,7 @@ export function EarningsSection({
                rolled button: the default is `submit`, and this one sits
                inside a card that will eventually hold a form. */
             onClick={() => setThesisEditing(true)}
-            className="mt-4 flex w-full touch:min-h-11 items-center gap-2 border-t border-steel-line pt-3 text-left text-sm text-bone-mut transition hover:text-bone"
+            className="mt-3 flex w-full touch:min-h-11 items-center gap-2 border-t border-steel-line pt-3 text-left text-sm text-bone-mut transition hover:text-bone"
           >
             <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
             {pub.thesis ? (
@@ -561,7 +561,7 @@ export function EarningsSection({
           </button>
         )
       ) : pub.thesis ? (
-        <p className="mt-4 flex items-center gap-2 border-t border-steel-line pt-3 text-sm italic text-bone-mut">
+        <p className="mt-3 flex items-center gap-2 border-t border-steel-line pt-3 text-sm italic text-bone-mut">
           <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
           &ldquo;{pub.thesis}&rdquo;
         </p>
@@ -573,7 +573,7 @@ export function EarningsSection({
         size="sm"
         block
         aria-expanded={expanded}
-        className="mt-4 text-bone-mut"
+        className="mt-3 text-bone-mut"
         onClick={() => setExpanded((v) => !v)}
       >
         {expanded ? "Hide breakdown" : "View more"}
@@ -684,12 +684,18 @@ function CoffersBanner({
           This is the same missing link every time: `min-w-0` belongs on the
           flex child, and the chain has to be unbroken. */}
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/5 text-gold">
-          <Icon name="wallet" className="h-5 w-5" />
+        {/* 36px at `--radius-lg`, down from 40px at `--radius-2xl`. A radius is
+            a capsule the moment it reaches half the box height, and 26px on a
+            40px square is well past that: the panel's identity tile was
+            rendering as a circle, which rule 9 reserves for avatars and
+            genuinely circular icon buttons. 16px on a 36px square is a rounded
+            rectangle and stays one. */}
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gold/30 bg-gold/5 text-gold">
+          <Icon name="wallet" className="h-4 w-4" />
         </span>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="gold-text font-display text-lg font-bold leading-none">
+            <h3 className="gold-text font-display text-base font-bold leading-none">
               The Coffers
             </h3>
             <span className="relative flex h-2 w-2" aria-hidden>
@@ -734,8 +740,14 @@ function Coffer({
   children: React.ReactNode;
 }) {
   return (
+    /* `--radius-lg` is the inner card rung and this is an inner card. It was
+       drawn at `--radius-xl`, the signature card rung, so a coffer inside The
+       Coffers had the same corner as the panel holding it and the nesting read
+       as one soft blob rather than a box inside a box. 12px of padding, down
+       from 16: a coffer holds a number and a line of meta, and the outer Card
+       already carries the panel's own gutter. */
     <div
-      className={`rounded-xl border p-4 ${
+      className={`rounded-lg border p-3 ${
         accent
           ? "border-gold/25 bg-gradient-to-b from-gold/[0.06] to-transparent"
           : "border-steel-line/70 bg-void/40"
@@ -753,7 +765,7 @@ function Coffer({
           </span>
         )}
       </div>
-      <div className="mt-2.5">{children}</div>
+      <div className="mt-2">{children}</div>
     </div>
   );
 }
@@ -768,12 +780,12 @@ function Stat({
   icon: string;
 }) {
   return (
-    <div className="rounded-2xl border border-steel-line/70 bg-void/40 px-3 py-2.5">
+    <div className="rounded-lg border border-steel-line/70 bg-void/40 px-2.5 py-2">
       <div className="flex items-center gap-1.5 text-bone-faint">
         <Icon name={icon} className="h-3.5 w-3.5 text-gold" />
         <span className="text-[10px] uppercase tracking-[0.16em]">{label}</span>
       </div>
-      <p className="tnum mt-1 text-lg font-semibold text-bone">{value}</p>
+      <p className="tnum mt-1 text-base font-semibold text-bone">{value}</p>
     </div>
   );
 }
