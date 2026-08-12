@@ -67,7 +67,11 @@ function eventScope(
   houseSlug: string | null
 ): { enabled: boolean; actorIds?: string[]; houseSlug?: string | null } {
   if (tab === "signal") return { enabled: false };
-  if (tab === "houses") return { enabled: true, houseSlug };
+  /* A House hall with no House is not the realm. A member who has not sworn
+     yet sees an empty hall and an invitation to swear, never every event in
+     the realm because the filter had nothing to narrow with. */
+  if (tab === "houses")
+    return houseSlug ? { enabled: true, houseSlug } : { enabled: false };
   if (tab === "following") {
     const actorIds = viewer.id
       ? [...viewer.followingIds, viewer.id]
