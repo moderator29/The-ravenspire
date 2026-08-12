@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Providers } from "@/components/providers";
+import { InertBackground } from "@/components/shell/inert-background";
 import "./globals.css";
 
 /* Both faces are self hosted rather than pulled through next/font/google.
@@ -73,6 +74,11 @@ export default function RootLayout({
       className={`${cinzel.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Outside Providers on purpose: it watches `document.body` for the
+            `aria-hidden` Base UI puts on the background while a dialog is
+            open, so it must not be a descendant of anything that gets hidden.
+            See the file for the measurement. */}
+        <InertBackground />
         <Providers>{children}</Providers>
       </body>
     </html>
