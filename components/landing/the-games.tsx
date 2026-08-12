@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
+import { Icon3D } from "@/components/ui/icon-3d";
 
 /*
   The contests. Two cinematic teasers. The War uses public/game/battlefield.png
@@ -87,9 +88,7 @@ export function TheGames() {
           />
           <div className="relative p-6">
             <div className="flex items-center gap-2">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/40 bg-void text-gold">
-                <Icon name="orb" className="h-5 w-5" />
-              </span>
+              <Icon3D name="call-orb" size="md" />
               <span className="rounded-[--radius-sm] border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
                 The flagship
               </span>
@@ -134,9 +133,7 @@ export function TheGames() {
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-void via-void/85 to-void/40" />
           <div className="relative p-6">
             <div className="flex items-center gap-2">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-ember/40 bg-void text-ember">
-                <Icon name="swords" className="h-5 w-5" />
-              </span>
+              <Icon3D name="crossed-axes" size="md" />
               <span className="rounded-[--radius-sm] border border-ember/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-ember">
                 Battle RPG
               </span>

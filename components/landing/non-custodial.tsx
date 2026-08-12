@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
-import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { LandingIcon } from "@/components/landing/icons";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { ScrollRail } from "@/components/landing/scroll-rail";
 
 /*
@@ -17,29 +18,29 @@ const rise: Variants = {
 };
 
 type Vow = {
-  icon: LandingIconName;
+  icon: Icon3DName;
   title: string;
   body: string;
 };
 
 const vows: Vow[] = [
   {
-    icon: "shieldKey",
+    icon: "vault",
     title: "Your keys, always",
     body: "A wallet is minted to you the moment you enter. The keys are yours from the first second and exportable any time.",
   },
   {
-    icon: "lock",
+    icon: "guard",
     title: "We never hold funds",
     body: "The platform takes no custody. We cannot move, freeze or spend what is in your vault, and every action is signed by you.",
   },
   {
-    icon: "badge",
+    icon: "trophy",
     title: "Earned, never bought",
     body: "No pay to win, no bought standing. Renown and crests come from showing up and being good, in the open.",
   },
   {
-    icon: "eye",
+    icon: "scales",
     title: "Real data only",
     body: "Every figure is read from the chain or the markets. If a number is not in front of us, we say so rather than invent it.",
   },
@@ -75,9 +76,7 @@ export function NonCustodial() {
               key={v.title}
               className="glass snap-start shrink-0 w-[72vw] max-w-[300px] p-5 sm:w-[280px]"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/25 bg-void text-gold">
-                <LandingIcon name={v.icon} className="h-5 w-5" />
-              </span>
+              <Icon3D name={v.icon} size="md" />
               <h3 className="mt-4 font-display text-base font-semibold text-bone">
                 {v.title}
               </h3>

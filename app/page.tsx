@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, MotionConfig, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { CrestRoundel, crests } from "@/components/brand/crests";
-import { Icon } from "@/components/ui/icon";
+import { Icon3D } from "@/components/ui/icon-3d";
 import { Button } from "@/components/ui/button";
 import { LandingIcon } from "@/components/landing/icons";
 import { comingSoonNav } from "@/lib/nav";
@@ -307,7 +307,7 @@ export default function Landing() {
                   key={c.slug}
                   className="glass-sm flex items-start gap-3 rounded-2xl border border-steel-line bg-panel p-4"
                 >
-                  <Icon name={c.icon} className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
+                  <Icon3D name={c.icon3d} size="sm" className="shrink-0" />
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 font-display text-sm font-semibold text-bone">
                       {c.themed}

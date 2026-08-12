@@ -1,7 +1,9 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
-import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { LandingIcon } from "@/components/landing/icons";
+import { Icon3D } from "@/components/ui/icon-3d";
+import { icon3dFor } from "@/lib/nav";
 
 /*
   Two forward-looking teasers built to stoke presale hype. Each is clearly
@@ -13,7 +15,10 @@ type Teaser = {
   eyebrow: string;
   title: string;
   body: string;
-  icon: LandingIconName;
+  /* The chapter's own route in comingSoonNav, which is where its 3D identity
+     is declared. Kept as an href rather than an icon name so the teaser and
+     the chapter page cannot drift apart. */
+  href: string;
   points: string[];
 };
 
@@ -30,7 +35,7 @@ const teasers: Teaser[] = [
     eyebrow: "Prophecies",
     title: "Prediction markets for the realm",
     body: "Call the market. Win the realm. Take a position on the questions that matter, from token moves to House standings, and let resolution settle in the open where anyone can check it.",
-    icon: "eye",
+    href: "/soon/prophecies",
     points: [
       "Transparent, checkable resolution",
       "Built on the Calls engine already running",
@@ -41,7 +46,7 @@ const teasers: Teaser[] = [
     eyebrow: "The Mint",
     title: "Trading across every chain",
     body: "Trade any token across chains, shielded from MEV, and gasless. The Swap already trades non-custodially on a single chain today; the Mint is what it becomes when the routing crosses chains.",
-    icon: "coin",
+    href: "/soon/mint",
     points: ["Any token, any chain", "Shielded from MEV", "Gasless, and still non-custodial"],
   },
 ];
@@ -99,9 +104,7 @@ export function ComingSoonTeasers() {
               style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.4), transparent 70%)" }}
             />
             <div className="flex items-center justify-between gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-void">
-                <LandingIcon name={t.icon} className="h-5 w-5 text-gold" />
-              </span>
+              <Icon3D name={icon3dFor(t.href) ?? "portal"} size="lg" />
               <span className="inline-flex items-center rounded-[--radius-sm] border border-gold/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gold/80">
                 Coming soon
               </span>

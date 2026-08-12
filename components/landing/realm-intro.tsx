@@ -1,7 +1,8 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
-import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { LandingIcon } from "@/components/landing/icons";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { ScrollRail } from "@/components/landing/scroll-rail";
 
 /*
@@ -17,7 +18,7 @@ const rise: Variants = {
 };
 
 type Pillar = {
-  icon: LandingIconName;
+  icon: Icon3DName;
   kicker: string;
   title: string;
   body: string;
@@ -25,19 +26,19 @@ type Pillar = {
 
 const pillars: Pillar[] = [
   {
-    icon: "mission",
+    icon: "accuracy",
     kicker: "Mission",
     title: "Make the on-chain world a place worth living in",
     body: "Give people a home where the social life comes first and the serious crypto tools sit quietly beneath it, honest, non-custodial, and genuinely fun to open every day.",
   },
   {
-    icon: "vision",
+    icon: "scrying",
     kicker: "Vision",
     title: "A realm where reputation is the real currency",
     body: "A world of Houses, champions and Seasons where standing is earned in the open, never bought, and every wallet, Call and victory is proven against real data. Renown you earn is permanent and can never be taken back.",
   },
   {
-    icon: "history",
+    icon: "chronicle",
     kicker: "History",
     title: "Built by people tired of soulless dashboards",
     body: "The Ravenspire began as a rebellion against cold terminals and empty hype. We set out to wrap real portfolio, safety and market tools in a living story people actually enjoy.",
@@ -84,9 +85,7 @@ export function RealmIntro() {
               className="glass glass-hover snap-start shrink-0 w-[82vw] max-w-[360px] p-6 sm:w-[360px]"
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/25 bg-void text-gold">
-                  <LandingIcon name={p.icon} className="h-5 w-5" />
-                </span>
+                <Icon3D name={p.icon} size="md" />
                 <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
                   {p.kicker}
                 </span>

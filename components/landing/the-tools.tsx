@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
-import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { LandingIcon } from "@/components/landing/icons";
 import { ScrollRail } from "@/components/landing/scroll-rail";
+import { Icon3D } from "@/components/ui/icon-3d";
+import { icon3dFor } from "@/lib/nav";
 
 /*
   The Tools. The serious surfaces under the play, drawn from lib/nav
@@ -17,7 +19,6 @@ import { ScrollRail } from "@/components/landing/scroll-rail";
 */
 
 type Tool = {
-  icon: LandingIconName;
   name: string;
   plain: string;
   href: string;
@@ -28,56 +29,48 @@ type Tool = {
 
 const tools: Tool[] = [
   {
-    icon: "ledger",
     name: "The Ledger",
     plain: "Portfolio",
     href: "/ledger",
     desc: "Net worth and profit across chains, read from real on-chain data only, never a fabricated figure.",
   },
   {
-    icon: "shield",
     name: "The Watch",
     plain: "Safety",
     href: "/watch",
     desc: "Scans any token for rugs, hidden mints and honeypots before you ever touch it.",
   },
   {
-    icon: "eye",
     name: "The Scrying Glass",
     plain: "Smart money",
     href: "/scrying",
     desc: "See what the great wallets are watching, live from the markets as it moves.",
   },
   {
-    icon: "wallet",
     name: "The Vault",
     plain: "Wallet",
     href: "/vault",
     desc: "Your non-custodial wallet, created on sign-up and truly yours. Export the keys any time.",
   },
   {
-    icon: "flame",
     name: "The Swap",
     plain: "Trade",
     href: "/swap",
     desc: "Trade any supported coin for any other, routed for the best price and signed by your own wallet, never by us.",
   },
   {
-    icon: "spark",
     name: "The Bloodline",
     plain: "Wallet DNA",
     href: "/dna",
     desc: "Read the character of a wallet or an account: what it holds, how it moves, what it keeps doing.",
   },
   {
-    icon: "eye",
     name: "The Oracle",
     plain: "Account scan",
     href: "/scanner",
     desc: "An honest briefing on your own standing, ravens and wallet. Your data only, and nobody else's.",
   },
   {
-    icon: "flame",
     name: "The Forge",
     plain: "Staking",
     href: "/forge",
@@ -129,9 +122,7 @@ export function TheTools() {
               href={t.href}
               className="group glass glass-hover snap-start shrink-0 flex w-[76vw] max-w-[300px] flex-col p-5 sm:w-[280px]"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/25 bg-void text-gold">
-                <LandingIcon name={t.icon} className="h-5 w-5" />
-              </span>
+              <Icon3D name={icon3dFor(t.href) ?? "workshop"} size="md" />
               <p className="mt-4 font-display text-base font-semibold text-bone">
                 {t.name}
                 <span className="ml-2 text-[10px] uppercase tracking-wider text-bone-faint">
