@@ -290,6 +290,10 @@ export function CommentThread({ postId }: { postId: string }) {
     [postId, requireAuth, load]
   );
 
+  /* Both of these flipped and stayed flipped when the write failed. Measured
+     with /api/social answering 500: a reply's like count went 2 to 3 and held
+     there, and the bookmark stayed gold. `void` on the promise is what hid it,
+     because nothing was ever looking at the answer. */
   const onToggleLike = useCallback(
     (c: ThreadComment) => {
       if (!requireAuth()) return;
@@ -301,6 +305,10 @@ export function CommentThread({ postId }: { postId: string }) {
       void realmFetch("/api/social", {
         method: "POST",
         json: { action: "like", subject_type: "comment", subject_id: c.id, on },
+      }).then((res) => {
+        if (res.ok) return;
+        patch(c.id, { liked: !on, like_count: c.like_count });
+        setError("That like did not reach the realm.");
       });
     },
     [requireAuth, patch]
@@ -319,6 +327,10 @@ export function CommentThread({ postId }: { postId: string }) {
           subject_id: c.id,
           on,
         },
+      }).then((res) => {
+        if (res.ok) return;
+        patch(c.id, { bookmarked: !on });
+        setError("That bookmark did not reach the realm.");
       });
     },
     [requireAuth, patch]

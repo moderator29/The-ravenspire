@@ -47,6 +47,8 @@ function PollBlock({ post }: { post: Post }) {
   const [voted, setVoted] = useState(false);
   const total = options.reduce((s, o) => s + o.votes, 0);
 
+  const [voteError, setVoteError] = useState<string | null>(null);
+
   const vote = async (i: number) => {
     if (!authenticated) {
       window.location.assign("/signin");
@@ -54,11 +56,22 @@ function PollBlock({ post }: { post: Post }) {
     }
     if (voted) return;
     setVoted(true);
+    setVoteError(null);
     const res = await realmFetch<{ options?: { text: string; votes: number }[] }>(
       "/api/polls",
       { method: "POST", json: { post_id: post.id, option: i } }
     );
-    if (res.data?.options) setOptions(res.data.options);
+    if (res.ok && res.data?.options) {
+      setOptions(res.data.options);
+      return;
+    }
+    /* Measured with the vote route answering 500: the first tap sent one
+       request, and the tap after it sent none at all. `voted` had already
+       latched, so the poll was closed to a member whose vote was never
+       recorded, and nothing on screen said so. Unlatching is the fix; the
+       tally never moved, so there is nothing else to roll back. */
+    setVoted(false);
+    setVoteError("That vote did not reach the realm. Try again.");
   };
 
   if (!options.length) return null;
@@ -97,6 +110,11 @@ function PollBlock({ post }: { post: Post }) {
       <p className="tnum px-1 text-[10px] text-bone-faint">
         {total} {total === 1 ? "voice" : "voices"}
       </p>
+      {voteError && (
+        <p role="status" className="px-1 text-[10px] text-state-danger">
+          {voteError}
+        </p>
+      )}
     </div>
   );
 }
@@ -167,6 +185,20 @@ export function PostCard({ post }: { post: Post }) {
     return true;
   };
 
+  /* An optimistic control that cannot take itself back is a control that
+     lies. Every one of these flipped instantly and then kept the new state
+     for good when the server refused: measured with every write answering
+     500, the like count went 13 to 14 and stayed, re-raven went 3 to 4 and
+     stayed, and the bookmark stayed gold. The member is then looking at a
+     tally the realm does not have.
+     `refused` carries the one sentence that says so, announced politely
+     because the change happens after the fact with no focus move. */
+  const [refused, setRefused] = useState<string | null>(null);
+  const refuse = (what: string) => {
+    setRefused(what);
+    window.setTimeout(() => setRefused(null), 2600);
+  };
+
   const toggleLike = async () => {
     if (!requireAuth()) return;
     const on = !liked;
@@ -179,10 +211,15 @@ export function PostCard({ post }: { post: Post }) {
       window.setTimeout(() => setLikePop(false), 360);
       window.setTimeout(() => setHeartBurst(false), 720);
     }
-    await realmFetch("/api/social", {
+    const res = await realmFetch("/api/social", {
       method: "POST",
       json: { action: "like", subject_type: "post", subject_id: post.id, on },
     });
+    if (!res.ok) {
+      setLiked(!on);
+      setLikes((n) => n - (on ? 1 : -1));
+      refuse(on ? "That like did not reach the realm." : "That could not be undone.");
+    }
   };
   const toggleBookmark = async () => {
     if (!requireAuth()) return;
@@ -193,20 +230,29 @@ export function PostCard({ post }: { post: Post }) {
       setBmPop(true);
       window.setTimeout(() => setBmPop(false), 360);
     }
-    await realmFetch("/api/social", {
+    const res = await realmFetch("/api/social", {
       method: "POST",
       json: { action: "bookmark", subject_id: post.id, on },
     });
+    if (!res.ok) {
+      setBookmarked(!on);
+      refuse("That bookmark did not reach the realm.");
+    }
   };
   const toggleRepost = async () => {
     if (!requireAuth()) return;
     const on = !reposted;
     setReposted(on);
     setReposts((n) => Math.max(0, n + (on ? 1 : -1)));
-    await realmFetch("/api/social", {
+    const res = await realmFetch("/api/social", {
       method: "POST",
       json: { action: "repost", subject_id: post.id, on },
     });
+    if (!res.ok) {
+      setReposted(!on);
+      setReposts((n) => Math.max(0, n - (on ? 1 : -1)));
+      refuse("That re-raven did not reach the realm.");
+    }
   };
   const [shared, setShared] = useState<null | "shared" | "copied" | "failed">(
     null
@@ -222,10 +268,16 @@ export function PostCard({ post }: { post: Post }) {
     if (!requireAuth()) return;
     if (!window.confirm("Delete this raven for good?")) return;
     setRemoved(true);
-    await realmFetch("/api/posts", {
+    const res = await realmFetch("/api/posts", {
       method: "DELETE",
       json: { id: post.id },
     });
+    /* A raven that vanished from the timeline but still exists on the server
+       is the worst of these: the member believes it is gone and it is not. */
+    if (!res.ok) {
+      setRemoved(false);
+      refuse("The realm would not delete that raven. It is still there.");
+    }
   };
   /* Copy a shareable link to this raven. Feedback lives in the menu label. */
   const doCopyLink = () => {
@@ -239,10 +291,16 @@ export function PostCard({ post }: { post: Post }) {
     if (!requireAuth()) return;
     if (reported) return;
     setReported(true);
-    await realmFetch("/api/reports", {
+    const res = await realmFetch("/api/reports", {
       method: "POST",
       json: { subject_type: "post", subject_id: post.id, reason: "member_flag" },
     });
+    /* The menu item disables itself on "Reported", so a swallowed failure
+       both lies and locks the member out of trying again. */
+    if (!res.ok) {
+      setReported(false);
+      refuse("That report did not reach the stewards. Try again.");
+    }
   };
   const doMute = async () => {
     if (!requireAuth()) return;
@@ -254,10 +312,16 @@ export function PostCard({ post }: { post: Post }) {
   const doBlock = async () => {
     if (!requireAuth()) return;
     setHidden("block");
-    await realmFetch("/api/blocks", {
+    const res = await realmFetch("/api/blocks", {
       method: "POST",
       json: { profile_id: post.author_id, on: true },
     });
+    /* Mute already brought the raven back when the server refused. Block did
+       not, so a failed banishment read as a successful one. */
+    if (!res.ok) {
+      setHidden(null);
+      refuse("The realm would not banish them. Try again.");
+    }
   };
   const undoHide = async () => {
     if (undoBusy) return;
@@ -367,9 +431,14 @@ export function PostCard({ post }: { post: Post }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 text-sm">
+              {/* The primary tap target on every raven in the feed, and it
+                  measured 175x20. The 44px it needs is already in this row,
+                  spent by the bookmark and overflow controls in the corner
+                  opposite, so the link takes the height rather than the card
+                  growing to give it one. */}
               <Link
                 href={a.handle ? `/u/${a.handle}` : "#"}
-                className="font-semibold text-bone hover:underline"
+                className="inline-flex items-center font-semibold text-bone hover:underline touch:min-h-11"
               >
                 {a.display_name ?? a.handle ?? "A stranger"}
               </Link>
@@ -522,20 +591,35 @@ export function PostCard({ post }: { post: Post }) {
 
           {/* Constant-width action bar: views on the left, the actions spread
              evenly to the right so every raven reads the same. Bookmark lives
-             up in the header corner. */}
-          <div className="mt-2 flex items-center justify-between">
+             up in the header corner.
+
+             The arithmetic of this row is why it reaches back into the avatar
+             gutter below `sm`. Five controls each hold a 44px width floor, so
+             they cannot go below 220 together, and the views readout is 74.
+             That is 294 in a 280px content column, so fourteen pixels sat
+             outside the box with nothing to scroll them, on every raven in the
+             product. The card itself is 332 wide and the gutter under the
+             avatar is empty, so the bar takes the width that is already there
+             rather than a control giving up its floor.
+
+             `shrink-0` on the glyphs is the other half, and it was the worse
+             half: at 390 the flex squeeze had shrunk every count-bearing icon
+             to exactly 0px. Reply, re-raven and like rendered as bare numbers
+             with no icon at all, while the class list said 18px. */}
+          <div className="mt-2 flex items-center justify-between max-sm:-ml-14">
             <span
-              className="flex items-center gap-1.5 px-1 py-1 text-xs text-bone-faint"
+              className="flex shrink-0 items-center gap-1.5 px-1 py-1 text-xs text-bone-faint"
               aria-label={`${views} views`}
               title={`${views.toLocaleString()} views`}
             >
-              <Icon name="eye" className="h-[18px] w-[18px]" />
+              <Icon name="eye" className="h-[18px] w-[18px] shrink-0" />
               <span className="tnum">{views.toLocaleString()}</span>
             </span>
             <StreamAction
               icon="reply"
               label="Reply"
               count={post.reply_count}
+              iconClassName="shrink-0"
               render={<Link href={`/post/${post.id}`} />}
             />
             <StreamAction
@@ -543,6 +627,7 @@ export function PostCard({ post }: { post: Post }) {
               count={reposts}
               active={reposted}
               label="Re-raven"
+              iconClassName="shrink-0"
               onClick={toggleRepost}
             />
             <StreamAction
@@ -550,13 +635,14 @@ export function PostCard({ post }: { post: Post }) {
               count={likes}
               active={liked}
               label="Like"
-              iconClassName={likePop ? "action-pop" : ""}
+              iconClassName={likePop ? "action-pop shrink-0" : "shrink-0"}
               onClick={toggleLike}
             />
             <StreamAction
               icon="coin"
               active={tipSent || tipOpen}
               label="Tip"
+              iconClassName="shrink-0"
               onClick={() => {
                 if (!requireAuth()) return;
                 setTipOpen(true);
@@ -566,6 +652,7 @@ export function PostCard({ post }: { post: Post }) {
               icon="share"
               active={shared !== null}
               label="Share"
+              iconClassName="shrink-0"
               onClick={share}
             />
           </div>
@@ -573,6 +660,15 @@ export function PostCard({ post }: { post: Post }) {
           {/* Section 11: an optimistic change announces through a polite live
               region. Both of these appear after the fact with no focus move,
               so a screen reader would otherwise never learn the tap landed. */}
+          {refused && (
+            <p
+              role="status"
+              className="mt-1 flex items-center gap-1.5 pl-1 text-xs text-state-danger"
+            >
+              <Icon name="alert" className="h-3.5 w-3.5 shrink-0" />
+              {refused}
+            </p>
+          )}
           {tipSent && (
             <p
               role="status"

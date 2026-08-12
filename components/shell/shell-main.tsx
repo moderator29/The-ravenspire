@@ -21,7 +21,20 @@ export function ShellMain({ children }: { children: React.ReactNode }) {
       className={
         full
           ? "min-w-0 flex-1 lg:h-screen"
-          : "min-w-0 flex-1 pb-28 lg:pb-8"
+          : /* The dock's own measurement, not a number that agrees with it on
+               some routes. This was `pb-28`, a flat 112px, against a dock that
+               publishes `--dock-height` precisely so this arithmetic exists in
+               one place. Measured on the Crossroads at 390: the dock reported
+               122px because that route carries the contextual strip, so the
+               last 10px of the page sat under it permanently, and on the many
+               routes with no strip the same 112px left about 36px of dead
+               space below the content. Both directions wrong, from the same
+               constant.
+
+               The fallback matches the old value so nothing shifts before the
+               effect runs, and `lg:pb-8` still wins on desktop, where the dock
+               is display:none and measures zero. */
+            "min-w-0 flex-1 pb-[calc(var(--dock-height,7rem)+1rem)] lg:pb-8"
       }
     >
       {children}
