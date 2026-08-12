@@ -17,8 +17,24 @@ import { Icon } from "@/components/ui/icon";
 
 export type CardVariant = "default" | "warm" | "inset";
 export type CardPad = "none" | "sm" | "md" | "lg";
+export type CardRadius = "sm" | "md" | "lg" | "xl" | "2xl";
 
-const BASE = "relative rounded-xl";
+const BASE = "relative";
+
+/* A prop rather than a caller passing `rounded-lg`, and the reason is the
+   defect recorded in V2 section 21: class attribute order does not decide CSS
+   precedence, emission order does, and this project's Tailwind emits
+   `rounded-2xl`, `rounded-lg`, `rounded-md`, `rounded-xl` in that order. So a
+   caller's `rounded-lg` on a Card is silently dead. Choosing the rung here
+   means the class is never in conflict with itself, and every rung comes off
+   the scale in globals.css. */
+const RADIUS: Record<CardRadius, string> = {
+  sm: "rounded-sm",
+  md: "rounded-md",
+  lg: "rounded-lg",
+  xl: "rounded-xl",
+  "2xl": "rounded-2xl",
+};
 
 const VARIANT: Record<CardVariant, string> = {
   default:
@@ -42,6 +58,9 @@ const PAD: Record<CardPad, string> = {
 
 export interface CardProps extends useRender.ComponentProps<"div"> {
   variant?: CardVariant;
+  /* The signature card is `xl`. Drop to `lg` for an inner card or a list row,
+     which is the rung the retired `.glass-sm` was frozen at. */
+  radius?: CardRadius;
   /* `md` matches the card padding the product already uses. Set `none` when
      composing with CardHeader / CardBody / CardFooter, which carry their own. */
   pad?: CardPad;
@@ -55,6 +74,7 @@ export function Card({
   render,
   variant = "default",
   pad = "md",
+  radius = "xl",
   interactive,
   className,
   ...props
@@ -62,6 +82,7 @@ export function Card({
   const defaultProps = {
     className: cx(
       BASE,
+      RADIUS[radius],
       VARIANT[variant],
       PAD[pad],
       interactive &&
