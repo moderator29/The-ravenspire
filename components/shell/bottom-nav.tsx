@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
-import { bottomNav, subNavFor } from "@/lib/nav";
+import { bottomNav } from "@/lib/nav";
 
 /* The dock.
 
@@ -18,37 +18,24 @@ import { bottomNav, subNavFor } from "@/lib/nav";
    plate behind the active item is a single shared layout element, so it slides
    between destinations instead of cross fading.
 
-   Above the dock sits a contextual strip of sub destinations for the current
-   section. That is what lets the whole product carry depth in one predictable
-   place instead of re-inventing a tab row at the top of every page. */
+   The contextual sub-strip that used to float above this bar is retired, on
+   the founder's direction: every section now carries its own switcher at the
+   top of its own column as plain text, so the boxed copy down here was two
+   controls for one job, and the far one never fit (five chips needed 401px of
+   a 366px dock). The strip renderer, its fade masks, its overflow measurement
+   and its scroll-into-view logic are removed whole rather than left as dead
+   machinery; lib/nav.ts carries the matching tombstone where subNav lived. */
 
 const SPRING = { type: "spring" as const, visualDuration: 0.22, bounce: 0.14 };
 
-/* Both rows are sized by `min-h-11` rather than by vertical padding.
+/* The row is sized by `min-h-11` rather than by vertical padding.
  *
- * Padding sized them before and both came out short: the dock's items ran to
- * about 39px (10px of padding either side of a 19px icon) and the sub strip's
- * chips to about 28px. This product already holds itself to 44px on touch, the
- * standard the top bar was rebuilt to, and these are the two most tapped
- * controls in the whole realm. A minimum height states the target directly
- * instead of leaving it as the arithmetic of a font size and a padding rung
- * that anybody could later adjust without realising what they were changing. */
-
-/* The fade, as one of four fixed classes rather than a computed gradient, so
-   Tailwind can see every one of them at build time. */
-const MASKS = {
-  none: "",
-  end: "[mask-image:linear-gradient(to_right,black_calc(100%-20px),transparent)]",
-  start: "[mask-image:linear-gradient(to_left,black_calc(100%-20px),transparent)]",
-  both: "[mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]",
-} as const;
-
-function maskFor(more: { start: boolean; end: boolean }): string {
-  if (more.start && more.end) return MASKS.both;
-  if (more.start) return MASKS.start;
-  if (more.end) return MASKS.end;
-  return MASKS.none;
-}
+ * Padding sized it before and it came out short: about 39px from 10px of
+ * padding either side of a 19px icon. This product holds itself to 44px on
+ * touch, and this is the most tapped control in the whole realm. A minimum
+ * height states the target directly instead of leaving it as the arithmetic
+ * of a font size and a padding rung that anybody could later adjust without
+ * realising what they were changing. */
 
 function isActive(pathname: string, href: string) {
   const base = href.split("?")[0];
@@ -58,21 +45,13 @@ function isActive(pathname: string, href: string) {
 
 export function BottomNav() {
   const pathname = usePathname();
-  const params = useSearchParams();
-  const sub = subNavFor(pathname);
   const dockRef = useRef<HTMLDivElement | null>(null);
-  const stripRef = useRef<HTMLDivElement | null>(null);
-  /* Which edges the strip still has content behind. Both false means it fits,
-     and no fade is drawn at all. */
-  const [more, setMore] = useState({ start: false, end: false });
 
   /* The dock publishes its own height, because anything else floating above it
      has to clear it and nothing else can know how tall it is. It changes with
-     the route, since the contextual strip is present on six of them and absent
-     on the rest, and it changes with the safe area inset. The floating compose
-     button used to sit at a fixed 80px and landed squarely on top of the right
-     end of the strip, which is where the last chip lives. Measuring it here
-     means that arithmetic exists once, in the element that owns it. */
+     the safe area inset, and the floating compose button used to sit at a
+     fixed 80px and land on top of dock furniture. Measuring it here means
+     that arithmetic exists once, in the element that owns it. */
   useEffect(() => {
     const el = dockRef.current;
     if (!el) return;
@@ -89,149 +68,23 @@ export function BottomNav() {
       observer.disconnect();
       document.documentElement.style.removeProperty("--dock-height");
     };
-  }, [pathname, sub]);
-
-  /* The strip's own overflow, measured on the strip rather than on the page.
-
-     A horizontal scroller never grows the document, so a document level
-     overflow check reads zero on a strip whose last chip is cut in half at the
-     screen edge. The only place the difference shows is scrollWidth against
-     clientWidth on the scroller itself, which is what this asks. */
-  useEffect(() => {
-    const el = stripRef.current;
-    if (!el) {
-      setMore({ start: false, end: false });
-      return;
-    }
-    const measure = () => {
-      const slack = el.scrollWidth - el.clientWidth;
-      /* A pixel of tolerance: sub pixel layout leaves fractional slack on
-         strips that visibly fit, and a fade over nothing is a lie too. */
-      if (slack <= 1) {
-        setMore({ start: false, end: false });
-        return;
-      }
-      setMore({
-        start: el.scrollLeft > 1,
-        end: el.scrollLeft < slack - 1,
-      });
-    };
-    measure();
-    el.addEventListener("scroll", measure, { passive: true });
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => {
-      el.removeEventListener("scroll", measure);
-      observer.disconnect();
-    };
-  }, [pathname, sub]);
-
-  /* Bring the current chip into view, because the strip's whole job is to say
-     where you are and on one destination it could not.
-   *
-   * Measured on the Ravenry at 390: the strip needs 401px in a 366px box, so
-   * "Latest", the fifth chip, sits at x 347 with a width of 65 against a clip
-   * edge at 378. Thirty one pixels of it are visible and thirty four are not,
-   * and `scrollLeft` was 0 with 35px of slack, so arriving on that tab from
-   * anywhere else showed you a half chip and never moved.
-   *
-   * It was reported as the chip being untappable, which it is not: a hit test
-   * at the middle of the visible sliver lands on the link. The geometric
-   * centre falls at x 380, past the clip edge, so a probe that uses an
-   * element's own centre reports a control nobody can press when the truth is
-   * a control nobody can read. Worth writing down, because the same probe
-   * shape has now produced two false readings on this project.
-   *
-   * `scrollLeft` directly rather than `scrollIntoView`, which walks up the
-   * ancestor chain and will scroll the page as well as the strip. Instant
-   * rather than smooth: this runs on arrival, and a dock that slides on first
-   * paint reads as a glitch rather than as motion. */
-  useEffect(() => {
-    const el = stripRef.current;
-    const chip = el?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!el || !chip) return;
-    const pad = 12;
-    const left = chip.offsetLeft - pad;
-    const right = chip.offsetLeft + chip.offsetWidth + pad;
-    if (right > el.scrollLeft + el.clientWidth) {
-      el.scrollLeft = right - el.clientWidth;
-    } else if (left < el.scrollLeft) {
-      el.scrollLeft = left;
-    }
-  }, [pathname, params, sub]);
-
-  /* A sub destination is current when every query param it declares matches.
-     A bare href (no query) is current only when no competing param is set. */
-  const subIsCurrent = (href: string) => {
-    const [base, qs] = href.split("?");
-    if (base !== pathname) return false;
-    const declared = new URLSearchParams(qs ?? "");
-    if ([...declared.keys()].length === 0) {
-      const keys = ["tab", "view"];
-      return keys.every((k) => !params.get(k));
-    }
-    return [...declared.entries()].every(([k, v]) => params.get(k) === v);
-  };
+  }, [pathname]);
 
   return (
     <div
-      /* A scrim under the whole cluster, and it is fixing something visible
-         rather than adding decoration.
-
-         The dock is two floating bars with an 8px gap between them, over a
-         transparent fixed wrapper. Page content was live in that gap: measured
-         on the Crossroads at 390, `elementFromPoint` in the middle of the slot
-         returned the page's own content column, so a gold section heading sat
-         framed in a slot between the strip and the bar while the page scrolled
-         behind it. Two objects with a window between them, which reads as a
-         broken layout rather than as a floating dock.
-
-         The gradient fades content out into obsidian before it reaches either
-         bar, so the strip and the dock read as one anchored cluster. It stays
-         `pointer-events-none`, so nothing under it becomes untappable, and it
-         is a fill with no text on it. */
+      /* A scrim under the dock, fixing something visible rather than adding
+         decoration: page content was live in the transparent wrapper around
+         the floating bar, so a gold section heading could sit framed against
+         its edges while the page scrolled behind it. The gradient fades
+         content out into obsidian before it reaches the bar, so the dock
+         reads as one anchored object. It stays `pointer-events-none`, so
+         nothing under it becomes untappable, and it is a fill with no text. */
       className="pointer-events-none fixed inset-x-0 bottom-0 z-nav pt-8 lg:hidden bg-[image:linear-gradient(to_top,rgba(7,7,10,0.97)_0%,rgba(7,7,10,0.88)_52%,rgba(7,7,10,0)_100%)]"
     >
       <div
         ref={dockRef}
         className="mx-auto w-full max-w-lg px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
-        {sub && sub.length > 0 && (
-          /* The strip scrolls when a section has more sub destinations than a
-             390px screen fits, and it used to end in a hard cut at the screen
-             edge that read as a broken layout rather than as more to come. A
-             20px fade is the standard signal, and it is drawn only on the edges
-             that actually have something behind them: a strip that fits gets
-             none, and scrolling to the end clears the trailing one rather than
-             leaving the last chip permanently half faded. */
-          <div
-            ref={stripRef}
-            className={`scrollbar-none pointer-events-auto mb-2 flex gap-1.5 overflow-x-auto ${maskFor(more)}`}
-          >
-            {sub.map((item) => {
-              const current = subIsCurrent(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={current ? "page" : undefined}
-                  /* `shadow-edge`, like every other resting control. The strip
-                     sits directly above the dock, which carries the overlay
-                     shadow, so without any light of its own it read as painted
-                     onto the page while the bar below it floated. */
-                  className={`flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-sm border px-3.5 text-[12px] font-medium shadow-edge backdrop-blur-xl transition-colors duration-150 ${
-                    current
-                      ? "border-gold/40 bg-gold/15 text-gold-bright"
-                      : "border-steel-line/70 bg-void/80 text-bone-mut active:text-bone"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        )}
-
         <nav
           aria-label="Primary"
           className="pointer-events-auto flex items-stretch gap-1 rounded-2xl border border-steel-line/70 bg-obsidian/90 p-1.5 backdrop-blur-2xl"
