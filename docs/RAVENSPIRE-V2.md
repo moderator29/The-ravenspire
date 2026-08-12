@@ -886,27 +886,55 @@ a guess. Updated as work lands.
 - **Builds no longer block each other.** `NEXT_DIST_DIR` overrides the output
   directory. Next locks `.next`, so a second build in a shared checkout exits
   rather than queueing, and its message looks nothing like a compile error.
+- **Board on the member facing boards.** The Roll of Honour, House standings,
+  the contributor board, the three roster boards and the caller board all run
+  through `Board`. None of them was a table: every one was a column of cards at
+  every width, which is the Stream shape, so on a desktop no member could
+  compare two rows without reading both end to end. Above `md` each is a table
+  with the metrics right aligned and tabular, below `md` a card list at a 44px
+  target. `Board` grew what they needed rather than each page re-deriving it:
+  `rowHref` and `rowLabel` for one link over a row, `highlight` for the viewer's
+  own row, `divider` for a named rule across the board, `muted` for a row that
+  is real but no longer counts, plus `BoardPage`, `BoardHeader` and `BoardStack`
+  for the frame. Three real defects fell out of the conversion, recorded below.
+- **The Dossier shell exists**, `components/dossier/dossier-shell.tsx`, and the
+  Keep, public profiles, the House hall and post detail are on it. All four
+  archetypes with a shell now have exactly one each.
+- **`Meter` in `components/ui`.** The gold bar was pasted into nine places, each
+  re-deciding its height and the clamp that keeps a real but tiny value from
+  drawing as nothing.
+
+**Defects the sweep found, and fixed**
+
+- The accuracy leaderboard, which is the **default** board, answered in the
+  database's snake case while its three siblings answered camel cased. Every key
+  the page read by name came back undefined, so nobody had a display name or an
+  avatar, no verification mark ever drew, and no member could find their own row.
+- The caller board selected `is_agent` on every author and never read it, and
+  never looked at `is_banned` at all, so the realm's own agents ranked on a
+  member facing board. It also kept callers with no handle, whose row linked to
+  `/calls/caller/` with nothing after it.
+- The House hall carried its three sections on a `SegmentedControl`. Section 3
+  assigns that pattern to two to four views of the same data; sections of one
+  subject are underline tabs. The cut line on the contributor board, which is
+  where a member stops counting toward the House score, existed only in the
+  desktop list, so the most important line on that board was absent on a phone.
 
 **Queued, in priority order**
 
-1. **Adopt Board on the member facing boards.** Leaderboards, House standings,
-   the House roster and the caller board are Boards by the design law and none
-   of them use the shell yet. Every one of them is a table today, so every one
-   of them is a horizontal scroll on a phone until it moves.
-2. **Archetype shells on the routes that still have none.** Roughly twenty
-   routes resolve to an archetype in the design law but do not use its shell.
-   The Dossier routes are the largest gap: the Keep, public profiles, House
-   halls and post detail.
-3. **The Ravenry card layer**, which is section 8 and the biggest single item.
-4. **Fix the primitive override defect** recorded in section 21. Caller class
+1. **The Ravenry card layer**, which is section 8 and the biggest single item.
+2. **The archetype shells still missing.** Call detail, Coin and Champion are
+   Dossier routes and the shell now exists for them. Everything else that
+   resolves to an archetype and does not use its shell follows.
+3. **Fix the primitive override defect** recorded in section 21. Caller class
    overrides on `Card` and `Button` are silently dead in some cases because
    `cx` assumes class attribute order decides CSS precedence, which is false.
    Needs a deliberate visual pass, because the fix activates every currently
    dead override at once.
-5. **Retire the `.glass` utilities** once the remaining raw usages are gone. The
+4. **Retire the `.glass` utilities** once the remaining raw usages are gone. The
    class is frozen at a 24px radius that predates the radius scale and sits
    outside Tailwind's layers, so it beats any `rounded-*` a caller applies.
-6. **Spacing scale enforcement** (`--spacing: initial`), which is approved but
+5. **Spacing scale enforcement** (`--spacing: initial`), which is approved but
    breaks every existing `p-4` at once and needs its own mechanical pass.
 
 **Standing rules for this sweep**
