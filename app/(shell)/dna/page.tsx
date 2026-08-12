@@ -107,8 +107,13 @@ function Analyzer() {
           void analyze(query);
         }}
       >
-        {/* The one control rail on this Console: subject in, analysis out. */}
-        <div className="flex items-center gap-2 rounded-lg border border-steel-line bg-void/50 p-1.5 pl-3">
+        {/* The one control rail on this Console: subject in, analysis out.
+
+            A `label`, not a `div`. The row is 48px and the input inside it was
+            39px, so the rail looked like the target and only part of it was.
+            Wrapping in a label makes the whole rail focus the field, which is
+            what a member is already aiming at. */}
+        <label className="flex items-center gap-2 rounded-lg border border-steel-line bg-void/50 p-1.5 pl-3">
           <Icon
             name="search"
             aria-hidden
@@ -125,7 +130,7 @@ function Analyzer() {
             spellCheck={false}
             autoCapitalize="none"
             autoCorrect="off"
-            className="min-w-0 flex-1 bg-transparent py-2 text-sm text-bone outline-none placeholder:text-bone-faint md:py-1 md:text-[13px]"
+            className="min-w-0 flex-1 bg-transparent py-2 text-sm text-bone outline-none touch:min-h-11 placeholder:text-bone-faint md:py-1 md:text-[13px]"
           />
           <Button
             variant="gold"
@@ -137,7 +142,7 @@ function Analyzer() {
           >
             {loading ? "Sequencing" : "Analyze"}
           </Button>
-        </div>
+        </label>
 
         {/* Live detect hint */}
         <div className="mt-2 flex min-h-[1rem] items-center gap-2 px-1 text-[11px]">
