@@ -29,6 +29,11 @@ const WINDOW_MS: Record<string, number> = {
 
 const AUTHOR_SELECT =
   "author:profiles!posts_author_id_fkey (handle, display_name, avatar_url, house_slug, tier, is_agent)";
+/* The caller board needs the two flags that decide whether a member belongs on
+   a member facing ranking. They are read on the server and never returned, so
+   they stay off the shape every other view answers with. */
+const BOARD_AUTHOR_SELECT =
+  "author:profiles!posts_author_id_fkey (handle, display_name, avatar_url, house_slug, tier, is_agent, is_banned)";
 const CALL_SELECT = `id, author_id, kind, body, call, cashtags, like_count, reply_count, repost_count, view_count, created_at, ${AUTHOR_SELECT}`;
 
 interface CallRow {
@@ -77,7 +82,7 @@ export async function GET(req: NextRequest) {
        This scores settled Calls only. An open Call has no outcome to score. */
     const { data, error } = await db
       .from("posts")
-      .select(`author_id, call, ${AUTHOR_SELECT}`)
+      .select(`author_id, call, ${BOARD_AUTHOR_SELECT}`)
       .eq("kind", "call")
       .eq("deleted", false)
       .neq("call->>verdict", "open")
@@ -85,17 +90,32 @@ export async function GET(req: NextRequest) {
 
     if (error) return json({ error: error.message }, 500);
 
+    type BoardAuthor = NonNullable<CallRow["author"]> & {
+      is_agent: boolean | null;
+      is_banned: boolean | null;
+    };
+    type BoardRow = Omit<CallRow, "author"> & { author: BoardAuthor | null };
+
     const byAuthor = new Map<
       string,
-      { hits: number; total: number; author: CallRow["author"] }
+      { hits: number; total: number; author: BoardAuthor }
     >();
-    for (const row of (data ?? []) as unknown as CallRow[]) {
+    for (const row of (data ?? []) as unknown as BoardRow[]) {
       const verdict = row.call?.verdict;
       if (verdict !== "hit" && verdict !== "miss") continue;
+      /* The member facing board shows members. The realm's own agents post
+         Calls and settle them like anyone else, so without this they ranked
+         against the people they were written for. The Roll of Honour has
+         excluded agents and banned accounts since it was written; this board
+         selected is_agent and then never read it. A caller with no handle is
+         dropped for the same reason: the row links to /calls/caller/handle,
+         so a nameless one was a link to nowhere. */
+      const a = row.author;
+      if (!a || a.is_agent || a.is_banned || !a.handle) continue;
       const entry = byAuthor.get(row.author_id) ?? {
         hits: 0,
         total: 0,
-        author: row.author,
+        author: a,
       };
       entry.total += 1;
       if (verdict === "hit") entry.hits += 1;
@@ -106,7 +126,15 @@ export async function GET(req: NextRequest) {
     const callers = [...byAuthor.entries()]
       .map(([id, e]) => ({
         profile_id: id,
-        author: e.author,
+        /* is_agent and is_banned are read here and never sent on. Moderation
+           state is not the client's business. */
+        author: {
+          handle: e.author.handle,
+          display_name: e.author.display_name,
+          avatar_url: e.author.avatar_url,
+          house_slug: e.author.house_slug,
+          tier: e.author.tier,
+        },
         hits: e.hits,
         misses: e.total - e.hits,
         total: e.total,

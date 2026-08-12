@@ -18,6 +18,12 @@ import {
   StreamEmpty,
   StreamList,
 } from "@/components/stream/stream-shell";
+import {
+  Board,
+  BoardCard,
+  BoardPage,
+  BoardSkeleton,
+} from "@/components/board/board-shell";
 import { claimSentence, CATEGORY_LABEL } from "@/components/calls/claim";
 import { difficultyBand } from "@/lib/calls/analytics";
 import type { CallData } from "@/lib/calls/types";
@@ -211,33 +217,103 @@ function CallCard({ item }: { item: CallItem }) {
   );
 }
 
-function CallerRow({ caller, rank }: { caller: Caller; rank: number }) {
+/* The board answers already ranked, so the rank travels on the row rather
+   than being an index the renderer happens to be holding. */
+type RankedCaller = Caller & { rank: number };
+
+function callerName(caller: Caller): string {
+  return caller.author?.display_name ?? caller.author?.handle ?? "Unknown";
+}
+
+function callerHref(caller: Caller): string | null {
+  return caller.author?.handle ? `/calls/caller/${caller.author.handle}` : null;
+}
+
+/* The caller board. A Board, not a Stream: the whole point of it is comparing
+   one record against another, and a stack of cards at every width made that
+   impossible on the surface with the most room to do it. */
+function CallerBoard({ callers }: { callers: RankedCaller[] }) {
   return (
-    <Link
-      href={`/calls/caller/${caller.author?.handle ?? ""}`}
-      className="glass flex items-center gap-3 rounded-[--radius-lg] p-3 transition-colors duration-150 hover:border-gold/25"
-    >
-      <span className="tnum w-6 shrink-0 text-center font-display text-sm font-semibold text-gold">
-        {rank}
-      </span>
-      <Avatar author={caller.author ?? EMPTY_AUTHOR} size={34} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-bone">
-          {caller.author?.display_name ?? caller.author?.handle ?? "Unknown"}
-        </p>
-        <p className="text-[11px] text-bone-faint">
-          {caller.hits} hit, {caller.misses} missed
-        </p>
-      </div>
-      <div className="text-right">
-        <p className="tnum font-display text-base font-semibold text-gold-bright">
-          {Math.round(caller.hit_rate * 100)}%
-        </p>
-        <p className="text-[10px] uppercase tracking-[0.16em] text-bone-faint">
-          {caller.total} settled
-        </p>
-      </div>
-    </Link>
+    <Board
+      label="Callers ranked by their record on settled Calls"
+      rows={callers}
+      rowKey={(c) => c.profile_id}
+      rowHref={callerHref}
+      rowLabel={(c) => `${callerName(c)}, rank ${c.rank}`}
+      columns={[
+        {
+          key: "rank",
+          header: "#",
+          className: "w-10 whitespace-nowrap",
+          cell: (c) => <span className="tnum text-bone-faint">{c.rank}</span>,
+        },
+        {
+          key: "caller",
+          header: "Caller",
+          cell: (c) => (
+            <span className="flex items-center gap-2.5">
+              <Avatar author={c.author ?? EMPTY_AUTHOR} size={26} />
+              <span className="truncate font-medium text-bone">
+                {callerName(c)}
+              </span>
+            </span>
+          ),
+        },
+        {
+          key: "hits",
+          header: "Hit",
+          numeric: true,
+          className: "whitespace-nowrap",
+          cell: (c) => c.hits,
+        },
+        {
+          key: "misses",
+          header: "Missed",
+          numeric: true,
+          className: "whitespace-nowrap",
+          cell: (c) => c.misses,
+        },
+        {
+          key: "total",
+          header: "Settled",
+          numeric: true,
+          className: "whitespace-nowrap",
+          cell: (c) => c.total,
+        },
+        {
+          key: "rate",
+          header: "Rate",
+          numeric: true,
+          className: "whitespace-nowrap font-semibold text-gold",
+          cell: (c) => `${Math.round(c.hit_rate * 100)}%`,
+        },
+      ]}
+      card={(c) => (
+        <BoardCard
+          {...(callerHref(c) ? { href: callerHref(c)! } : {})}
+          leading={
+            <span className="flex items-center gap-2.5">
+              <span className="tnum w-5 text-center text-xs text-bone-faint">
+                {c.rank}
+              </span>
+              <Avatar author={c.author ?? EMPTY_AUTHOR} size={36} />
+            </span>
+          }
+          title={callerName(c)}
+          subtitle={`${c.hits} hit, ${c.misses} missed`}
+          trailing={
+            <>
+              <span className="block text-sm font-semibold text-gold">
+                {Math.round(c.hit_rate * 100)}%
+              </span>
+              <span className="block text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                {c.total} settled
+              </span>
+            </>
+          }
+        />
+      )}
+    />
   );
 }
 
@@ -304,15 +380,22 @@ function CallsBody() {
     };
   }, [view]);
 
+  const board = view === "leaderboard";
+
   const isEmpty = useMemo(() => {
     if (loading) return false;
-    return view === "leaderboard"
+    return board
       ? !callers || callers.length === 0
       : !calls || calls.length === 0;
-  }, [loading, view, calls, callers]);
+  }, [loading, board, calls, callers]);
 
-  return (
-    <StreamColumn className="px-4 py-5">
+  const ranked: RankedCaller[] = (callers ?? []).map((c, i) => ({
+    ...c,
+    rank: i + 1,
+  }));
+
+  const head = (
+    <>
       <BackButton />
 
       <header className="mt-4">
@@ -350,6 +433,34 @@ function CallsBody() {
           );
         })}
       </div>
+    </>
+  );
+
+  /* Callers is the one view here that is not a Stream. Four of the five views
+     are a column of Calls and keep the 640px law; the fifth is a ranking, and
+     a ranking wants the room its columns can use. Same page, same header, a
+     different frame under it, which is what responsive is not a resize means
+     applied to a view rather than to a breakpoint. */
+  if (board) {
+    return (
+      <BoardPage width="wide" className="px-4 py-5">
+        {head}
+        <div className="mt-4">
+          {showSkeleton ? (
+            <BoardSkeleton rows={8} columns={6} />
+          ) : !loading && isEmpty ? (
+            <Empty view={view} />
+          ) : !loading ? (
+            <CallerBoard callers={ranked} />
+          ) : null}
+        </div>
+      </BoardPage>
+    );
+  }
+
+  return (
+    <StreamColumn className="px-4 py-5">
+      {head}
 
       <StreamList className="mt-4">
         {showSkeleton && (
@@ -362,15 +473,7 @@ function CallsBody() {
 
         {!loading && isEmpty && <Empty view={view} />}
 
-        {!loading &&
-          view === "leaderboard" &&
-          callers?.map((c, i) => (
-            <CallerRow key={c.profile_id} caller={c} rank={i + 1} />
-          ))}
-
-        {!loading &&
-          view !== "leaderboard" &&
-          calls?.map((c) => <CallCard key={c.id} item={c} />)}
+        {!loading && calls?.map((c) => <CallCard key={c.id} item={c} />)}
       </StreamList>
     </StreamColumn>
   );
