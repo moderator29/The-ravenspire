@@ -1,39 +1,45 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "@/components/ui/icon";
+import { IconButton } from "@/components/ui/button";
+import { BackButton } from "@/components/shell/back-button";
 import { ChatInput } from "@/components/raven/chat-input";
 import { MessageList } from "@/components/raven/message-list";
 import { SettingsSheet } from "@/components/raven/settings-sheet";
 import { HistoryPanel } from "@/components/raven/history-panel";
 import { realmFetch } from "@/lib/auth/api";
+import { useRavenHistory } from "@/components/raven/use-history";
 import {
-  VOICES,
   VOICE_KEY,
   BROWSE_KEY,
   LENGTH_KEY,
-  CONVOS_KEY,
-  ACTIVE_KEY,
+  LANGUAGE_KEY,
+  LANGUAGES,
   type Msg,
   type Voice,
   type Length,
-  type Conversation,
+  type Language,
   type TokenCard,
   type WalletCard,
   type Source,
 } from "@/components/raven/types";
 import type { RealmPulse } from "@/components/raven/cards";
 
-function newId(): string {
-  try {
-    return crypto.randomUUID();
-  } catch {
-    return `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-  }
+/* Append the wait to a rate limit message, in the units a person thinks in.
+   The server answers in seconds, which reads badly past a minute or two. */
+function withWait(message: string, retryAfter?: number): string {
+  if (!retryAfter || retryAfter <= 0) return message;
+  const mins = Math.ceil(retryAfter / 60);
+  const wait =
+    retryAfter < 90
+      ? `${Math.ceil(retryAfter)} seconds`
+      : mins < 60
+        ? `${mins} minutes`
+        : `${Math.ceil(mins / 60)} hours`;
+  return `${message} Try again in about ${wait}.`;
 }
 
 export default function RavenPage() {
-  const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -43,15 +49,18 @@ export default function RavenPage() {
   const [voice, setVoice] = useState<Voice>("default");
   const [browse, setBrowse] = useState(false);
   const [length, setLength] = useState<Length>("normal");
+  const [language, setLanguage] = useState<Language>("auto");
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  /* Conversations, the active thread and the transcript all live in one hook,
+     because on the server they are one thing: a member's history. The page
+     keeps what is genuinely the page's, which is the draft, the busy flag and
+     the four preferences. */
+  const history = useRavenHistory();
+  const { messages } = history;
 
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const activeIdRef = useRef<string | null>(null);
 
-  /* Restore settings + history once on mount. */
+  /* Restore the four preferences. History restores itself inside the hook. */
   useEffect(() => {
     try {
       const v = localStorage.getItem(VOICE_KEY);
@@ -60,25 +69,15 @@ export default function RavenPage() {
       const l = localStorage.getItem(LENGTH_KEY);
       if (l === "brief" || l === "normal" || l === "detailed") setLength(l);
       if (localStorage.getItem(BROWSE_KEY) === "1") setBrowse(true);
-
-      const rawConvos = localStorage.getItem(CONVOS_KEY);
-      if (rawConvos) {
-        const parsed = JSON.parse(rawConvos) as Conversation[];
-        if (Array.isArray(parsed)) {
-          setConversations(parsed);
-          const active = localStorage.getItem(ACTIVE_KEY);
-          const found = active ? parsed.find((c) => c.id === active) : null;
-          if (found) {
-            setMessages(found.messages);
-            setActiveId(found.id);
-            activeIdRef.current = found.id;
-          }
-        }
-      }
+      /* Validated against the shared list rather than a second literal union,
+         so a language removed from the list stops being restorable here
+         without anyone having to remember this line. */
+      const lang = localStorage.getItem(LANGUAGE_KEY);
+      if (lang && LANGUAGES.some((l) => l.id === lang))
+        setLanguage(lang as Language);
     } catch {
       /* storage unavailable, defaults are fine */
     }
-    setLoaded(true);
   }, []);
 
   const persist = (key: string, value: string) => {
@@ -89,39 +88,6 @@ export default function RavenPage() {
     }
   };
 
-  /* Fold the live thread into the saved history whenever it changes. */
-  useEffect(() => {
-    if (!loaded || messages.length === 0) return;
-    let id = activeIdRef.current;
-    if (!id) {
-      id = newId();
-      activeIdRef.current = id;
-      setActiveId(id);
-    }
-    const firstUser = messages.find((m) => m.role === "user");
-    const title =
-      (firstUser?.content ?? "New chat").trim().slice(0, 60) || "New chat";
-    const convoId = id;
-    setConversations((prev) => {
-      const others = prev.filter((c) => c.id !== convoId);
-      return [
-        { id: convoId, title, messages, updatedAt: Date.now() },
-        ...others,
-      ].slice(0, 40);
-    });
-  }, [messages, loaded]);
-
-  /* Mirror history + active pointer into storage. */
-  useEffect(() => {
-    if (!loaded) return;
-    persist(CONVOS_KEY, JSON.stringify(conversations));
-  }, [conversations, loaded]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    if (activeId) persist(ACTIVE_KEY, activeId);
-  }, [activeId, loaded]);
-
   /* Keep the transcript pinned to the newest message. */
   useEffect(() => {
     const el = scrollerRef.current;
@@ -131,8 +97,12 @@ export default function RavenPage() {
   const send = async (text?: string) => {
     const content = (text ?? draft).trim();
     if (!content || busy) return;
-    const next: Msg[] = [...messages, { role: "user", content }];
-    setMessages(next);
+    const question: Msg = { role: "user", content };
+    const next: Msg[] = [...messages, question];
+    /* The question shows now and is held. It is written only once the Herald
+       answers, so an interrupted send does not leave a one line thread with no
+       reply sitting in the drawer. */
+    history.beginTurn(question);
     setDraft("");
     setBusy(true);
     try {
@@ -140,7 +110,7 @@ export default function RavenPage() {
         .filter((m) => m.role === "user" || m.role === "assistant")
         .slice(-12)
         .map((m) => ({ role: m.role, content: m.content }));
-      const { ok: resOk, data } = await realmFetch<{
+      const { ok: resOk, status, data } = await realmFetch<{
         reply?: string;
         cards?: TokenCard[];
         walletCard?: WalletCard | null;
@@ -151,82 +121,72 @@ export default function RavenPage() {
         browseRequested?: boolean;
         browseAvailable?: boolean;
         error?: string;
+        retryAfter?: number;
       }>("/api/raven", {
         method: "POST",
-        json: { messages: payload, voice, browse, length },
+        json: { messages: payload, voice, browse, length, language },
       });
       if (!resOk || !data?.reply) {
-        setMessages((m) => [
-          ...m,
-          {
-            role: "error",
-            content:
-              data?.error ?? "The Raven is preoccupied. Try again shortly.",
-          },
-        ]);
+        /* The server's own words, never ours over the top of them. Two cases
+           carry meaning a generic failure message would destroy.
+
+           503 with no key configured means there is no Herald here at all.
+           That must read as an absence, because a member cannot tell a fake
+           Herald from a real one and would trust either.
+
+           429 means a spend cap was reached, and the cap is the honest reason.
+           The wait is appended rather than the request being retried quietly,
+           since a silent retry against a cap is just a slower way to hit it
+           again. */
+        history.completeTurn({
+          role: "error",
+          content: withWait(
+            data?.error ?? "The Raven is preoccupied. Try again shortly.",
+            status === 429 ? data?.retryAfter : undefined
+          ),
+        });
       } else {
-        setMessages((m) => [
-          ...m,
-          {
-            role: "assistant",
-            content: data.reply as string,
-            cards:
-              Array.isArray(data.cards) && data.cards.length
-                ? data.cards
-                : undefined,
-            walletCard: data.walletCard ?? undefined,
-            pulse: data.pulse ?? undefined,
-            suggestions:
-              Array.isArray(data.suggestions) && data.suggestions.length
-                ? data.suggestions
-                : undefined,
-            sources:
-              Array.isArray(data.sources) && data.sources.length
-                ? data.sources
-                : undefined,
-            browsed: data.browsed,
-            browseRequested: data.browseRequested,
-            browseAvailable: data.browseAvailable,
-          },
-        ]);
+        history.completeTurn({
+          role: "assistant",
+          content: data.reply as string,
+          cards:
+            Array.isArray(data.cards) && data.cards.length
+              ? data.cards
+              : undefined,
+          walletCard: data.walletCard ?? undefined,
+          pulse: data.pulse ?? undefined,
+          suggestions:
+            Array.isArray(data.suggestions) && data.suggestions.length
+              ? data.suggestions
+              : undefined,
+          sources:
+            Array.isArray(data.sources) && data.sources.length
+              ? data.sources
+              : undefined,
+          browsed: data.browsed,
+          browseRequested: data.browseRequested,
+          browseAvailable: data.browseAvailable,
+        });
       }
     } catch {
-      setMessages((m) => [
-        ...m,
-        {
-          role: "error",
-          content: "The winds swallowed your message. Try again shortly.",
-        },
-      ]);
+      history.completeTurn({
+        role: "error",
+        content: "The winds swallowed your message. Try again shortly.",
+      });
     } finally {
       setBusy(false);
     }
   };
 
   const startNewChat = () => {
-    setMessages([]);
-    setActiveId(null);
-    activeIdRef.current = null;
+    history.startNewChat();
     setDraft("");
     setHistoryOpen(false);
   };
 
   const selectConversation = (id: string) => {
-    const convo = conversations.find((c) => c.id === id);
-    if (!convo) return;
-    setMessages(convo.messages);
-    setActiveId(id);
-    activeIdRef.current = id;
+    history.selectConversation(id);
     setHistoryOpen(false);
-  };
-
-  const deleteConversation = (id: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    if (id === activeIdRef.current) {
-      setMessages([]);
-      setActiveId(null);
-      activeIdRef.current = null;
-    }
   };
 
   const setVoicePref = (v: Voice) => {
@@ -241,33 +201,33 @@ export default function RavenPage() {
     setLength(l);
     persist(LENGTH_KEY, l);
   };
-
-  const activeVoice = VOICES.find((v) => v.id === voice) ?? VOICES[0];
+  const setLanguagePref = (l: Language) => {
+    setLanguage(l);
+    persist(LANGUAGE_KEY, l);
+  };
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-6rem)] w-full max-w-3xl flex-col lg:h-[calc(100dvh-2rem)]">
-      {/* Header bar: thin, full width, border below like a real chat app. */}
-      <header className="flex shrink-0 items-center gap-2.5 border-b border-steel-line/70 bg-obsidian/60 px-3 py-2.5 backdrop-blur-sm sm:px-4">
-        <button
-          type="button"
-          onClick={() => setHistoryOpen(true)}
-          aria-label="Chat history"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line/70 bg-panel text-bone-mut transition-colors hover:border-gold/35 hover:text-bone"
-        >
-          <Icon name="scroll" className="h-4 w-4" />
-        </button>
+    /* A conversation owns the whole viewport. The shell drops its dock, its
+       right rail and its mobile top bar for this route (lib/nav fullBleed), so
+       the three regions below are the only things on screen: a header that
+       does not scroll, a transcript that is the only thing that does, and a
+       composer against the bottom edge. 100dvh rather than 100vh, because on
+       iOS Safari the difference is the address bar and using vh puts the
+       composer underneath it. */
+    <div className="flex h-[100dvh] w-full flex-col">
+      {/* Back on the left, identity in the middle, history on the right. Three
+          slots, and nothing else: every control that is not one of those three
+          lives in the drawer, which is what keeps the header readable at
+          390px. */}
+      <header className="flex shrink-0 items-center gap-3 border-b border-steel-line/70 bg-obsidian/70 px-3 py-3 backdrop-blur-sm sm:px-5">
+        <BackButton circle />
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h1 className="gold-text font-display text-base font-semibold leading-tight">
-              The Raven
-            </h1>
-            <span className="rounded-full border border-gold/40 bg-panel-warm/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-gold">
-              Beta
-            </span>
-          </div>
-          <p className="flex items-center gap-1.5 text-[11px] text-bone-mut">
-            <span className="truncate">Voice: {activeVoice.label}</span>
+          <h1 className="gold-text truncate font-display text-lg font-semibold leading-tight">
+            The Raven
+          </h1>
+          <p className="flex items-center gap-1.5 text-[12px] text-bone-mut">
+            <span className="truncate">Beta</span>
             {browse && (
               <span className="inline-flex items-center gap-1 text-gold">
                 <span className="h-1 w-1 rounded-full bg-gold" />
@@ -277,22 +237,14 @@ export default function RavenPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={startNewChat}
-          aria-label="New chat"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line/70 bg-panel text-bone-mut transition-colors hover:border-gold/35 hover:text-bone"
-        >
-          <Icon name="plus" className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setSettingsOpen(true)}
-          aria-label="AI settings"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line/70 bg-panel text-bone-mut transition-colors hover:border-gold/35 hover:text-bone"
-        >
-          <Icon name="sliders" className="h-4 w-4" />
-        </button>
+        <IconButton
+          icon="scroll"
+          label="Conversations"
+          variant="glass"
+          shape="circle"
+          size="lg"
+          onClick={() => setHistoryOpen(true)}
+        />
       </header>
 
       {/* Transcript: the only scrolling region, fills the middle. */}
@@ -302,6 +254,18 @@ export default function RavenPage() {
       >
         <MessageList messages={messages} busy={busy} onSend={(t) => void send(t)} />
       </div>
+
+      {/* Said out loud, never swallowed. A member who believes their history is
+          safe and finds it gone has been lied to by the interface, and the only
+          moment we can tell them is the moment the write fails. */}
+      {history.syncError && (
+        <p
+          role="status"
+          className="shrink-0 border-t border-state-danger/30 bg-state-danger/10 px-4 py-2 text-center text-[12px] text-bone-mut"
+        >
+          {history.syncError}
+        </p>
+      )}
 
       {/* Composer: pinned to the bottom of the column, full width, with a top
           border and safe-area padding so it is never crowded by the mobile
@@ -325,18 +289,26 @@ export default function RavenPage() {
         voice={voice}
         browse={browse}
         length={length}
+        language={language}
         onVoice={setVoicePref}
         onBrowse={setBrowsePref}
         onLength={setLengthPref}
+        onLanguage={setLanguagePref}
       />
       <HistoryPanel
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        conversations={conversations}
-        activeId={activeId}
+        conversations={history.conversations}
+        activeId={history.activeId}
         onSelect={selectConversation}
         onNewChat={startNewChat}
-        onDelete={deleteConversation}
+        onRename={history.renameConversation}
+        onDelete={history.deleteConversation}
+        onOpenSettings={() => {
+          setHistoryOpen(false);
+          setSettingsOpen(true);
+        }}
+        onClearAll={history.clearAll}
       />
     </div>
   );

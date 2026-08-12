@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { usdWhole, usd, pct, type Portfolio } from "@/components/ledger/portfolio-data";
 
 /* A two-point trend from the value 24h ago to the value now. Both endpoints
@@ -14,7 +15,7 @@ function TrendLine({ prev, now, up }: { prev: number; now: number; up: boolean }
   const y = (v: number) => h - pad - ((v - min) / span) * (h - pad * 2);
   const x0 = pad;
   const x1 = w - pad;
-  const stroke = up ? "var(--gold)" : "var(--ember)";
+  const stroke = up ? "var(--chart-up)" : "var(--chart-down)";
 
   return (
     <svg
@@ -42,19 +43,26 @@ function TrendLine({ prev, now, up }: { prev: number; now: number; up: boolean }
 export function ValueHeader({ portfolio }: { portfolio: Portfolio }) {
   const { totalUsd, change24hUsd, changePct, prevTotalUsd } = portfolio;
   const up = change24hUsd >= 0;
-  const tone = up ? "text-gold-bright" : "text-ember";
 
   return (
-    <section className="glass glass-warm p-6 sm:p-7">
+    <Card
+      variant="warm"
+      pad="none"
+      render={<section />}
+      className="p-4 md:p-3"
+    >
       <p className="text-[11px] uppercase tracking-[0.26em] text-bone-faint">
         Net worth
       </p>
-      <div className="mt-2 flex items-end justify-between gap-4">
+      <div className="mt-2 flex items-end justify-between gap-4 md:mt-1.5">
         <div className="min-w-0">
-          <p className="gold-text font-display tnum text-4xl font-semibold leading-none">
+          <p className="gold-text font-display tnum text-4xl font-semibold leading-none md:text-3xl">
             {usdWhole(totalUsd)}
           </p>
-          <p className={`tnum mt-2 text-sm font-medium ${tone}`}>
+          <p
+            className="tnum mt-2 text-sm font-medium md:mt-1.5 md:text-[13px]"
+            style={{ color: up ? "var(--chart-up)" : "var(--chart-down)" }}
+          >
             {up ? "+" : ""}
             {usd(change24hUsd)}
             <span className="ml-2 text-bone-faint">{pct(changePct)} / 24h</span>
@@ -67,11 +75,11 @@ export function ValueHeader({ portfolio }: { portfolio: Portfolio }) {
           </p>
         </div>
       </div>
-      <p className="mt-4 border-t border-steel-line pt-3 text-[11px] leading-relaxed text-bone-faint">
+      <p className="mt-3 border-t border-steel-line pt-2.5 text-[11px] leading-relaxed text-bone-faint md:mt-2 md:pt-2">
         Live snapshot of on-chain balances. The 24h figure uses provider rate
         moves; longer performance history is not tracked, so nothing here is
         reconstructed or estimated.
       </p>
-    </section>
+    </Card>
   );
 }

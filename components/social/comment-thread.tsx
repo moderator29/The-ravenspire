@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/social/avatar";
 import { RichBody } from "@/components/social/rich-body";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import { StreamAction } from "@/components/stream/stream-shell";
 import { TipDialog } from "@/components/tip/tip-dialog";
 import { timeAgo, type Author } from "@/lib/social/types";
 import { realmFetch } from "@/lib/auth/api";
@@ -41,38 +47,6 @@ interface RowApi {
   copiedId: string | null;
 }
 
-function ActionBit({
-  icon,
-  label,
-  count,
-  active,
-  activeClass,
-  onClick,
-}: {
-  icon: string;
-  label: string;
-  count?: number;
-  active?: boolean;
-  activeClass?: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs transition hover:bg-panel ${
-        active ? (activeClass ?? "text-gold") : "text-bone-faint hover:text-bone-mut"
-      }`}
-    >
-      <Icon name={icon} className="h-4 w-4" />
-      {count !== undefined && count > 0 && (
-        <span className="tnum">{count}</span>
-      )}
-    </button>
-  );
-}
-
 function ReplyBox({
   onSubmit,
   onCancel,
@@ -84,34 +58,32 @@ function ReplyBox({
 }) {
   const [text, setText] = useState("");
   return (
-    <div className="glass glass-sm mt-2 flex items-end gap-2 p-2.5">
+    <Card pad="sm" className="mt-2 flex items-end gap-2">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value.slice(0, 600))}
         placeholder="Reply in this thread... (@raven answers when called)"
+        aria-label="Your reply"
         rows={2}
         autoFocus
-        className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint outline-none"
+        className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint"
       />
-      <div className="flex shrink-0 flex-col gap-1">
-        <button
-          type="button"
+      <div className="flex shrink-0 flex-col items-stretch gap-1">
+        <Button
+          variant="gold"
+          size="md"
           onClick={() => text.trim() && onSubmit(text.trim())}
+          loading={busy}
           disabled={busy || !text.trim()}
-          className="btn-gold px-3 py-1.5 text-xs disabled:opacity-50"
         >
-          <Icon name="send" className="h-3.5 w-3.5" />
-          {busy ? "..." : "Reply"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-3 py-1 text-[11px] text-bone-faint hover:text-bone-mut"
-        >
+          {busy ? null : <Icon name="send" className="h-3.5 w-3.5" />}
+          Reply
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -138,58 +110,62 @@ function CommentNode({
       }
     >
       <div className="flex gap-2.5 py-2.5">
-        <Link href={c.author.handle ? `/u/${c.author.handle}` : "#"}>
+        <Link
+          href={c.author.handle ? `/u/${c.author.handle}` : "#"}
+          /* A 30px portrait is right for a reply and wrong for a thumb. The
+             hit area grows through a transparent pseudo element centred on
+             the portrait, the same trick the Toggle uses for its track, so a
+             finger gets its 44px and the thread's rhythm does not move a
+             pixel. Growing the portrait itself would have re-spaced every
+             comment in the product. */
+          className={
+            "relative shrink-0 self-start rounded-[var(--radius-full)] " +
+            "touch:before:absolute touch:before:left-1/2 touch:before:top-1/2 " +
+            "touch:before:h-11 touch:before:w-11 touch:before:-translate-x-1/2 " +
+            "touch:before:-translate-y-1/2 touch:before:content-['']"
+          }
+        >
           <Avatar author={c.author} size={30} />
         </Link>
         <div className="min-w-0 flex-1">
-          <p className="text-xs">
+          <p className="flex flex-wrap items-center gap-x-1.5 text-xs">
             <Link
               href={c.author.handle ? `/u/${c.author.handle}` : "#"}
               className="font-semibold text-bone hover:underline"
             >
               {c.author.display_name ?? c.author.handle ?? "A stranger"}
             </Link>
-            {c.author.is_agent && (
-              <span className="ml-1.5 rounded-full border border-gold/40 px-1.5 text-[8px] font-bold uppercase tracking-wider text-gold">
-                Herald
-              </span>
-            )}
-            <span className="ml-1.5 text-bone-faint">
-              {timeAgo(c.created_at)}
-            </span>
+            {c.author.is_agent && <Badge variant="gold">Herald</Badge>}
+            <span className="text-bone-faint">{timeAgo(c.created_at)}</span>
           </p>
           <p className="mt-0.5 text-sm leading-relaxed text-bone">
             <RichBody text={c.body} />
           </p>
 
           <div className="-ml-2 mt-0.5 flex flex-wrap items-center gap-0.5">
-            <ActionBit
+            <StreamAction
               icon="reply"
               label="Reply"
               onClick={() =>
                 api.onStartReply(api.replyingTo === c.id ? null : c.id)
               }
             />
-            <ActionBit
+            <StreamAction
               icon="heart"
               label="Like"
               count={c.like_count}
               active={c.liked}
-              activeClass="text-ember"
+              tone="ember"
               onClick={() => api.onToggleLike(c)}
             />
-            <ActionBit
+            <StreamAction
               icon="bookmark"
-              label="Bookmark"
+              label={c.bookmarked ? "Remove bookmark" : "Bookmark"}
               active={c.bookmarked}
               onClick={() => api.onToggleBookmark(c)}
             />
-            <ActionBit
-              icon="coin"
-              label="Tip"
-              onClick={() => api.onTip(c)}
-            />
-            <ActionBit
+            <StreamAction icon="coin" label="Tip" onClick={() => api.onTip(c)} />
+            <StreamAction
               icon="share"
               label="Copy link"
               active={api.copiedId === c.id}
@@ -213,6 +189,19 @@ function CommentNode({
   );
 }
 
+/* A skeleton shaped like a comment: avatar, name line, one line of body. */
+function CommentSkeleton() {
+  return (
+    <div className="flex gap-2.5 py-2.5" aria-hidden>
+      <Skeleton radius="full" className="h-[30px] w-[30px] shrink-0" />
+      <div className="min-w-0 flex-1">
+        <Skeleton radius="sm" className="h-3 w-32" />
+        <Skeleton radius="sm" className="mt-2 h-3.5 w-4/5" />
+      </div>
+    </div>
+  );
+}
+
 export function CommentThread({ postId }: { postId: string }) {
   const { authenticated } = useRealmAuth();
   const [comments, setComments] = useState<ThreadComment[]>([]);
@@ -224,6 +213,14 @@ export function CommentThread({ postId }: { postId: string }) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [tipTarget, setTipTarget] = useState<ThreadComment | null>(null);
+
+  /* The Herald's read on the thread. Member triggered and nothing else: the
+     verdict in V2 section 10 is "on demand only, never automatic", and a
+     summary that fired on render would spend the realm's day on people
+     scrolling past a conversation they were already reading. */
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [summaryBusy, setSummaryBusy] = useState(false);
 
   const load = useCallback(async () => {
     const res = await realmFetch<{ comments: ThreadComment[] }>(
@@ -293,6 +290,10 @@ export function CommentThread({ postId }: { postId: string }) {
     [postId, requireAuth, load]
   );
 
+  /* Both of these flipped and stayed flipped when the write failed. Measured
+     with /api/social answering 500: a reply's like count went 2 to 3 and held
+     there, and the bookmark stayed gold. `void` on the promise is what hid it,
+     because nothing was ever looking at the answer. */
   const onToggleLike = useCallback(
     (c: ThreadComment) => {
       if (!requireAuth()) return;
@@ -304,6 +305,10 @@ export function CommentThread({ postId }: { postId: string }) {
       void realmFetch("/api/social", {
         method: "POST",
         json: { action: "like", subject_type: "comment", subject_id: c.id, on },
+      }).then((res) => {
+        if (res.ok) return;
+        patch(c.id, { liked: !on, like_count: c.like_count });
+        setError("That like did not reach the realm.");
       });
     },
     [requireAuth, patch]
@@ -322,6 +327,10 @@ export function CommentThread({ postId }: { postId: string }) {
           subject_id: c.id,
           on,
         },
+      }).then((res) => {
+        if (res.ok) return;
+        patch(c.id, { bookmarked: !on });
+        setError("That bookmark did not reach the realm.");
       });
     },
     [requireAuth, patch]
@@ -360,52 +369,132 @@ export function CommentThread({ postId }: { postId: string }) {
   };
 
   const roots = comments.filter((c) => !c.parent_id);
+  const showSkeleton = useDelayedLoading(loading);
+
+  /* A thread shorter than this is quicker to read than a paragraph about it,
+     and the server refuses it anyway. The control simply does not appear. */
+  const summarisable = comments.length >= 5;
+
+  const askSummary = async () => {
+    if (summaryBusy || !requireAuth()) return;
+    setSummaryBusy(true);
+    setSummaryError(null);
+    const res = await realmFetch<{ text?: string; error?: string }>(
+      `/api/posts/${encodeURIComponent(postId)}/summary`,
+      { method: "POST" }
+    );
+    setSummaryBusy(false);
+    if (res.data?.text) setSummary(res.data.text);
+    else setSummaryError(res.data?.error ?? "The Herald could not be reached.");
+  };
 
   return (
     <div className="mt-4">
       {authenticated ? (
-        <div className="glass glass-sm flex items-end gap-2 p-3">
+        <Card pad="sm" className="flex items-end gap-2">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value.slice(0, 600))}
             placeholder="Add your voice... (@raven answers when called)"
+            aria-label="Add your voice"
             rows={2}
-            className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint outline-none"
+            className="min-w-0 flex-1 resize-none bg-transparent text-sm text-bone placeholder-bone-faint"
           />
-          <button
+          <Button
+            variant="gold"
+            size="md"
             onClick={send}
+            loading={busy}
             disabled={busy || !draft.trim()}
-            className="btn-gold px-3.5 py-1.5 text-xs disabled:opacity-50"
+            className="shrink-0"
           >
-            <Icon name="send" className="h-3.5 w-3.5" />
-            {busy ? "Sending..." : "Reply"}
-          </button>
-        </div>
+            {busy ? null : <Icon name="send" className="h-3.5 w-3.5" />}
+            Reply
+          </Button>
+        </Card>
       ) : (
-        <p className="glass glass-sm p-3 text-center text-xs text-bone-faint">
-          <Link href="/signin" className="text-gold underline">
-            Enter the realm
-          </Link>{" "}
-          to join the thread.
+        <Card pad="sm">
+          <EmptyState
+            size="sm"
+            icon="user"
+            title="The thread is open to read"
+            body="Enter the realm to add your voice to it."
+            action={
+              <Button variant="gold" size="lg" render={<Link href="/signin" />}>
+                Enter the realm
+              </Button>
+            }
+          />
+        </Card>
+      )}
+      {error && (
+        <p role="alert" className="mt-2 text-xs text-state-danger">
+          {error}
         </p>
       )}
-      {error && <p className="mt-2 text-xs text-ember-deep">{error}</p>}
 
       {!loading && comments.length > 0 && (
-        <p className="tnum mt-4 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-bone-faint">
-          {comments.length} {comments.length === 1 ? "voice" : "voices"}
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 px-1">
+          <p className="tnum text-[11px] font-semibold uppercase tracking-[0.18em] text-bone-faint">
+            {comments.length} {comments.length === 1 ? "voice" : "voices"}
+          </p>
+          {summarisable && !summary && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void askSummary()}
+              loading={summaryBusy}
+              disabled={summaryBusy}
+              className="text-gold hover:text-gold-bright"
+            >
+              {summaryBusy ? null : (
+                <Icon name="raven" className="h-3.5 w-3.5" />
+              )}
+              {summaryError ? "Ask again" : "Ask the Herald to read it"}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* The Herald's summary, written over the replies below it and nothing
+          else. No cached copy and no example: when the Herald cannot be
+          reached this says so rather than filling the space. */}
+      {summary && (
+        <Card pad="sm" className="mt-2 flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <Icon name="raven" className="h-3.5 w-3.5 shrink-0 text-gold" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
+              The Herald read the thread
+            </span>
+          </div>
+          <p className="text-sm leading-relaxed text-bone-mut">{summary}</p>
+          <p className="text-[11px] leading-relaxed text-bone-faint">
+            Written over these replies alone. It reports what was said, it does
+            not take a side.
+          </p>
+        </Card>
+      )}
+
+      {summaryError && !summary && (
+        <p role="alert" className="mt-2 px-1 text-xs text-state-danger">
+          {summaryError}
         </p>
       )}
 
       <div className="mt-2 divide-y divide-steel-line/40">
         {loading ? (
-          <p className="py-6 text-center text-xs text-bone-faint">
-            Unrolling the thread...
-          </p>
+          showSkeleton ? (
+            <>
+              <CommentSkeleton />
+              <CommentSkeleton />
+            </>
+          ) : null
         ) : roots.length === 0 ? (
-          <p className="py-6 text-center text-xs text-bone-faint">
-            No replies yet. Every great thread starts with one brave voice.
-          </p>
+          <EmptyState
+            icon3d="whispers"
+            title="No replies yet"
+            body="Every great thread starts with one brave voice."
+          />
         ) : (
           roots.map((c) => (
             <CommentNode key={c.id} c={c} all={comments} depth={0} api={api} />

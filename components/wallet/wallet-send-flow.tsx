@@ -10,6 +10,7 @@ import {
   parseUnits,
 } from "viem";
 import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/wallet/copy-button";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
@@ -155,8 +156,11 @@ export function WalletSendFlow({
   if (step === "sent" && hash) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-gold/25 bg-panel-warm/60 p-5 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/30 bg-panel">
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-gold/25 bg-panel-warm/60 p-4 text-center">
+          <span
+            aria-hidden
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-gold/30 bg-panel"
+          >
             <Icon name="send" className="h-5 w-5 text-gold" />
           </span>
           <div>
@@ -170,7 +174,7 @@ export function WalletSendFlow({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-steel-line bg-panel/50 p-3">
+        <div className="rounded-lg border border-steel-line bg-panel/50 p-3">
           <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
             Transaction hash
           </p>
@@ -181,48 +185,50 @@ export function WalletSendFlow({
             <div className="flex shrink-0 items-center gap-2">
               <CopyButton value={hash} label="Copy hash" iconOnly />
               {explorer ? (
-                <a
-                  href={explorer}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
-                >
-                  <Icon name="arrow" className="h-3.5 w-3.5" />
-                  View
-                </a>
+                <Button
+                  size="sm"
+                  render={
+                    <a href={explorer} target="_blank" rel="noreferrer">
+                      <Icon name="arrow" className="h-3.5 w-3.5" />
+                      View
+                    </a>
+                  }
+                />
               ) : null}
             </div>
           </div>
         </div>
 
-        <button
-          type="button"
+        <Button
+          block
+          size="lg"
+          className="md:h-9 md:text-sm"
           onClick={() => {
             setStep("recipient");
             setTo("");
             setAmount("");
             setHash(null);
           }}
-          className="btn-glass w-full px-5 py-2.5 text-sm"
         >
           Send more
-        </button>
+        </Button>
       </div>
     );
   }
 
   /* ----- Header shared by both steps ----- */
   const header = (
-    <div className="flex items-center gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3">
-      <TokenLogo logo={token.logo} symbol={token.symbol} size={38} />
+    <div className="flex items-center gap-2.5 rounded-lg border border-steel-line bg-panel/40 p-2.5">
+      <TokenLogo logo={token.logo} symbol={token.symbol} size={32} />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-bone">{token.symbol}</p>
-        <p className="truncate text-xs text-bone-faint">
+        <p className="text-sm font-medium text-bone md:text-[13px]">
+          {token.symbol}
+        </p>
+        <p className="truncate text-xs text-bone-faint md:text-[11px]">
           {token.name} on {chain?.name ?? token.chainName}
         </p>
       </div>
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gold/25 bg-panel-warm/60 px-2.5 py-1 text-[11px] font-medium text-bone">
-        <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+      <span className="shrink-0 rounded-sm border border-gold/25 bg-panel-warm/60 px-2 py-1 text-[11px] font-medium text-bone">
         {token.chainShort}
       </span>
     </div>
@@ -244,7 +250,8 @@ export function WalletSendFlow({
             spellCheck={false}
             autoComplete="off"
             placeholder="0x..."
-            className={`tnum w-full rounded-2xl border bg-panel/60 px-3.5 py-3 font-mono text-sm text-bone outline-none transition-colors placeholder:text-bone-faint focus:border-gold ${
+            aria-label="Recipient address"
+            className={`tnum h-11 w-full rounded-md border bg-panel/60 px-3 font-mono text-sm text-bone outline-none transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px] ${
               to.trim() === "" || recipientValid
                 ? "border-steel-line"
                 : "border-ember/60"
@@ -257,15 +264,17 @@ export function WalletSendFlow({
           ) : null}
         </label>
 
-        <button
-          type="button"
+        <Button
+          variant="gold"
+          size="lg"
+          block
+          className="md:h-9 md:text-sm"
           disabled={!recipientValid}
           onClick={() => setStep("amount")}
-          className="btn-gold w-full px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Icon name="arrow" className="h-4 w-4" />
           Next
-        </button>
+        </Button>
 
         <p className="text-xs leading-relaxed text-bone-faint">
           Send only on {chain?.name ?? token.chainName}. Double-check the
@@ -343,15 +352,18 @@ export function WalletSendFlow({
         ) : null}
       </label>
 
-      <button
-        type="button"
+      <Button
+        variant="gold"
+        size="lg"
+        block
+        className="md:h-9 md:text-sm"
         disabled={!canSend}
+        loading={pending}
         onClick={() => void submit()}
-        className="btn-gold w-full px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <Icon name="send" className="h-4 w-4" />
+        {pending ? null : <Icon name="send" className="h-4 w-4" />}
         {pending ? "Confirm in the window..." : "Review and send"}
-      </button>
+      </Button>
 
       {error ? <p className="text-xs text-ember">{error}</p> : null}
       {!wallet ? (

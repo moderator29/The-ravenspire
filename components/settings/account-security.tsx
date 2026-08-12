@@ -7,14 +7,25 @@ import {
   useMfaEnrollment,
 } from "@privy-io/react-auth";
 import { Card, Row, StatusPill } from "@/components/settings/ui";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { ConfirmDialog } from "@/components/ui/modal";
 
 /* Real account security for a non-custodial Privy app. There is no traditional
    password here; instead we surface Privy's genuine security primitives:
      - a recovery password on the embedded wallet (useSetWalletRecovery)
      - multi-factor auth enrollment (useMfaEnrollment)
      - linking / unlinking the login methods (email, X, external wallet)
-   MUST render only when Privy is mounted, so these hooks have their provider. */
+   MUST render only when Privy is mounted, so these hooks have their provider.
+
+   Archetype: Console. This is dense data plus controls, read and operated at
+   the same time, so every control is compact above `md` and never smaller than
+   a 44px touch target below it. */
+
+/* Section 11 of the design system: touch targets stay at 44px below `md`
+   whatever density the archetype declares. Applied as a minimum so it never
+   fights the height the Button size already sets above `md`. */
+const TOUCH = "min-h-11 md:min-h-0";
 
 function short(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -25,6 +36,15 @@ const MFA_LABELS: Record<string, string> = {
   sms: "Text message",
   passkey: "Passkey",
 };
+
+/* Unlinking removes a way into the account, and no click can put it back
+   without going through the provider again, so each one asks first. */
+interface PendingUnlink {
+  id: string;
+  what: string;
+  detail: string;
+  run: () => Promise<unknown> | void;
+}
 
 export function AccountSecurity() {
   const {
@@ -45,6 +65,7 @@ export function AccountSecurity() {
     tone: "ok" | "warn";
     text: string;
   } | null>(null);
+  const [pending, setPending] = useState<PendingUnlink | null>(null);
 
   const email = user?.email?.address ?? null;
   const twitter = user?.twitter ?? null;
@@ -87,6 +108,8 @@ export function AccountSecurity() {
     }
   };
 
+  const keepOne = canUnlink ? undefined : "Keep at least one way to sign in";
+
   return (
     <div className="flex flex-col gap-3">
       {/* Recovery password + MFA */}
@@ -103,17 +126,16 @@ export function AccountSecurity() {
             <StatusPill tone={recoverySet ? "on" : "off"}>
               {recoverySet ? "Set" : "Not set"}
             </StatusPill>
-            <button
-              type="button"
-              disabled={busy === "recovery"}
-              onClick={() =>
-                void run("recovery", () => setWalletRecovery())
-              }
-              className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
+            <Button
+              variant="glass"
+              size="sm"
+              className={TOUCH}
+              loading={busy === "recovery"}
+              onClick={() => void run("recovery", () => setWalletRecovery())}
             >
               <Icon name="lock" className="h-3.5 w-3.5" />
               {recoverySet ? "Change" : "Set password"}
-            </button>
+            </Button>
           </div>
         </Row>
 
@@ -129,56 +151,63 @@ export function AccountSecurity() {
             <StatusPill tone={mfaOn ? "on" : "off"}>
               {mfaOn ? "On" : "Off"}
             </StatusPill>
-            <button
-              type="button"
-              disabled={busy === "mfa"}
+            <Button
+              variant="glass"
+              size="sm"
+              className={TOUCH}
+              loading={busy === "mfa"}
               onClick={() =>
                 void run("mfa", () => {
                   showMfaEnrollmentModal();
                 })
               }
-              className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
             >
               <Icon name="shield" className="h-3.5 w-3.5" />
               Manage
-            </button>
+            </Button>
           </div>
         </Row>
 
         <p className="mt-3 text-xs text-bone-faint">
-          These protections live with Privy, your non-custodial keeper. The Ravenspire
-          never sees your password, recovery phrase, or second factor, and cannot
-          move your funds.
+          These protections live with Privy, your non-custodial keeper. The
+          Ravenspire never sees your password, recovery phrase, or second factor,
+          and cannot move your funds.
         </p>
       </Card>
 
       {/* Linked login methods */}
       <Card icon="user" title="Linked accounts" plain="How you enter">
         {/* Email */}
-        <Row
-          title="Email"
-          desc={email ?? "No email linked to this account"}
-        >
+        <Row title="Email" desc={email ?? "No email linked to this account"}>
           {email ? (
-            <button
-              type="button"
+            <Button
+              variant="glass"
+              size="sm"
+              className={TOUCH}
               disabled={!canUnlink || busy === "email"}
-              onClick={() => void run("email", () => unlinkEmail(email))}
-              title={canUnlink ? undefined : "Keep at least one way to sign in"}
-              className="btn-glass px-3 py-1.5 text-xs disabled:opacity-50"
+              title={keepOne}
+              onClick={() =>
+                setPending({
+                  id: "email",
+                  what: "email",
+                  detail: email,
+                  run: () => unlinkEmail(email),
+                })
+              }
             >
               Unlink
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              disabled={busy === "email"}
+            <Button
+              variant="glass"
+              size="sm"
+              className={TOUCH}
+              loading={busy === "email"}
               onClick={() => void run("email", () => linkEmail())}
-              className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
             >
               <Icon name="mail" className="h-3.5 w-3.5" />
               Link
-            </button>
+            </Button>
           )}
         </Row>
 
@@ -194,63 +223,70 @@ export function AccountSecurity() {
           }
         >
           {twitter ? (
-            <button
-              type="button"
+            <Button
+              variant="glass"
+              size="sm"
+              className={TOUCH}
               disabled={!canUnlink || busy === "twitter"}
+              title={keepOne}
               onClick={() =>
-                void run("twitter", () => unlinkTwitter(twitter.subject))
+                setPending({
+                  id: "twitter",
+                  what: "X account",
+                  detail: twitter.username ? `@${twitter.username}` : "Connected",
+                  run: () => unlinkTwitter(twitter.subject),
+                })
               }
-              title={canUnlink ? undefined : "Keep at least one way to sign in"}
-              className="btn-glass px-3 py-1.5 text-xs disabled:opacity-50"
             >
               Unlink
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              disabled={busy === "twitter"}
+            <Button
+              variant="glass"
+              size="sm"
+              className={TOUCH}
+              loading={busy === "twitter"}
               onClick={() => void run("twitter", () => linkTwitter())}
-              className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
             >
               <Icon name="xlogo" className="h-3.5 w-3.5" />
               Link
-            </button>
+            </Button>
           )}
         </Row>
 
         {/* External wallets (login), one row each, plus a link action */}
         {externalWallets.map((w) => (
-          <Row
-            key={w.address}
-            title="Wallet"
-            desc={short(w.address)}
-          >
-            <button
-              type="button"
+          <Row key={w.address} title="Wallet" desc={short(w.address)}>
+            <Button
+              variant="glass"
+              size="sm"
+              className={TOUCH}
               disabled={!canUnlink || busy === `wallet-${w.address}`}
+              title={keepOne}
               onClick={() =>
-                void run(`wallet-${w.address}`, () => unlinkWallet(w.address))
+                setPending({
+                  id: `wallet-${w.address}`,
+                  what: "wallet",
+                  detail: short(w.address),
+                  run: () => unlinkWallet(w.address),
+                })
               }
-              title={canUnlink ? undefined : "Keep at least one way to sign in"}
-              className="btn-glass px-3 py-1.5 text-xs disabled:opacity-50"
             >
               Unlink
-            </button>
+            </Button>
           </Row>
         ))}
-        <Row
-          title="Add a wallet"
-          desc="Sign in with an external wallet as well"
-        >
-          <button
-            type="button"
-            disabled={busy === "link-wallet"}
+        <Row title="Add a wallet" desc="Sign in with an external wallet as well">
+          <Button
+            variant="glass"
+            size="sm"
+            className={TOUCH}
+            loading={busy === "link-wallet"}
             onClick={() => void run("link-wallet", () => linkWallet())}
-            className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
           >
             <Icon name="wallet" className="h-3.5 w-3.5" />
             Link wallet
-          </button>
+          </Button>
         </Row>
 
         {!ready ? (
@@ -259,19 +295,43 @@ export function AccountSecurity() {
           </p>
         ) : note ? (
           <p
+            role="status"
             className={`mt-3 text-xs ${
-              note.tone === "warn" ? "text-ember" : "text-bone-faint"
+              note.tone === "warn" ? "text-state-danger" : "text-bone-faint"
             }`}
           >
             {note.text}
           </p>
         ) : (
           <p className="mt-3 text-xs text-bone-faint">
-            Link more than one method so you can always get back in. You must keep
-            at least one.
+            Link more than one method so you can always get back in. You must
+            keep at least one.
           </p>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(next) => {
+          if (!next) setPending(null);
+        }}
+        title={pending ? `Unlink this ${pending.what}?` : ""}
+        description={
+          pending
+            ? `${pending.detail} stops being a way into your account. You can link it again later, but you will need the provider to let you back in first.`
+            : undefined
+        }
+        confirmLabel="Unlink it"
+        cancelLabel="Keep it linked"
+        tone="danger"
+        pending={pending !== null && busy === pending.id}
+        onConfirm={() => {
+          const p = pending;
+          if (!p) return;
+          setPending(null);
+          void run(p.id, p.run);
+        }}
+      />
     </div>
   );
 }

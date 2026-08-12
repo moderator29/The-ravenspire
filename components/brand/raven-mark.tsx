@@ -11,9 +11,9 @@ export function RavenMark({ className = "h-12 w-12" }: { className?: string }) {
     <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#F0D68C" />
-          <stop offset="48%" stopColor="#C8A24C" />
-          <stop offset="100%" stopColor="#8A6A2C" />
+          <stop offset="0%" stopColor="#FFE9A3" />
+          <stop offset="48%" stopColor="#D9B040" />
+          <stop offset="100%" stopColor="#8F6717" />
         </linearGradient>
       </defs>
       <g fill={`url(#${id})`}>

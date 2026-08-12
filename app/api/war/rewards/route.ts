@@ -39,18 +39,19 @@ export async function POST(req: Request) {
 
   if (body.action === "daily") {
     const today = new Date().toISOString().slice(0, 10);
-    if (state.last_daily === today)
-      return json({ error: "Today's tribute is already claimed. Return with the dawn." }, 409);
     const gold = 60;
     const chest = new Date(today).getUTCDay() === 0 ? 1 : 0; /* chest on the seventh day */
-    await db
-      .from("war_state")
-      .update({
-        last_daily: today,
-        gold: state.gold + gold,
-        chests: state.chests + chest,
-      })
-      .eq("profile_id", profile.id);
+    /* B6: the "already claimed today" test lives inside the update, so two
+       taps arriving together cannot both pass a check the other is about to
+       invalidate. Only the call that actually paid gets true back. */
+    const { data: claimed } = await db.rpc("war_claim_daily", {
+      p_profile_id: profile.id,
+      p_today: today,
+      p_gold: gold,
+      p_chests: chest,
+    });
+    if (claimed !== true)
+      return json({ error: "Today's tribute is already claimed. Return with the dawn." }, 409);
     await award(db, profile.id, { glory: 10, reason: "war_daily" });
     return json({ ok: true, gold, chest, glory: 10 });
   }
@@ -71,16 +72,15 @@ export async function POST(req: Request) {
         unlocked = pick.slug;
       }
     }
-    await db
-      .from("war_state")
-      .update({
-        chests: state.chests - 1,
-        gold: state.gold + gold,
-        unlocked_champions: unlocked
-          ? [...state.unlocked_champions, unlocked]
-          : state.unlocked_champions,
-      })
-      .eq("profile_id", profile.id);
+    /* B6: the purse test is the update's WHERE clause. Two opens racing on a
+       single chest used to both pass the check above and both pay out. */
+    const { data: opened } = await db.rpc("war_open_chest", {
+      p_profile_id: profile.id,
+      p_gold: gold,
+      p_unlock: unlocked,
+    });
+    if (opened !== true)
+      return json({ error: "No relic chests to open. Battles and devotion earn them." }, 409);
     return json({ ok: true, gold, unlocked });
   }
 
@@ -94,13 +94,16 @@ export async function POST(req: Request) {
     if (level >= 10)
       return json({ error: "Mastery stands at its peak" }, 409);
     const cost = UPGRADE_BASE_COST + level * 60;
-    if (state.gold < cost)
-      return json({ error: `The forge asks ${cost} gold; your purse holds ${state.gold}.` }, 409);
     mastery[champ.slug] = level + 1;
-    await db
-      .from("war_state")
-      .update({ gold: state.gold - cost, mastery })
-      .eq("profile_id", profile.id);
+    /* B6: the purse test and the spend are one statement, so two upgrades
+       racing on the same gold cannot both be forged. */
+    const { data: spent } = await db.rpc("war_spend_gold", {
+      p_profile_id: profile.id,
+      p_cost: cost,
+      p_mastery: mastery,
+    });
+    if (spent !== true)
+      return json({ error: `The forge asks ${cost} gold; your purse holds ${state.gold}.` }, 409);
     return json({ ok: true, level: level + 1, cost });
   }
 

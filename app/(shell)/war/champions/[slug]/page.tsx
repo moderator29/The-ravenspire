@@ -2,25 +2,32 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { champions } from "@/lib/game/champions";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { RarityChip } from "@/components/ui/badge";
+import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 import { BackButton } from "@/components/shell/back-button";
+import {
+  ChampionStats,
+  WarPage as WarFrame,
+  WAR_META,
+} from "@/components/war/war-chrome";
+import { champions } from "@/lib/game/champions";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 
-const statMax = {
-  attack: 3800,
-  defense: 1600,
-  health: 14000,
-  speed: 500,
-} as const;
+/* A single champion.
 
-const statLabels: { key: keyof typeof statMax; label: string }[] = [
-  { key: "attack", label: "Attack" },
-  { key: "defense", label: "Defense" },
-  { key: "health", label: "Health" },
-  { key: "speed", label: "Speed" },
-];
+   Archetype: Dossier. Hero band, then tabs, then panels, always that order.
+   The hero is the one place a Dossier may borrow the Forge register, so the
+   portrait and the gold name live there and every panel below is flat Ledger.
+
+   Three genuinely different views of one subject, each worth its own panel, is
+   exactly the underline tab case from section 3 of the design system. It also
+   fixes the old page, which stacked stats, abilities and lore into one long
+   scroll that buried the lore nobody could reach on a phone. */
 
 export default function ChampionDetailPage({
   params,
@@ -33,178 +40,215 @@ export default function ChampionDetailPage({
 
   useEffect(() => {
     if (!ready || !authenticated) return;
+    let live = true;
     void (async () => {
       const res = await realmFetch<{ state: { unlocked_champions: string[] } }>(
         "/api/war/battle"
       );
+      if (!live) return;
       if (res.ok && res.data?.state?.unlocked_champions) {
         setUnlockedSlugs(res.data.state.unlocked_champions);
       }
     })();
+    return () => {
+      live = false;
+    };
   }, [ready, authenticated]);
 
   const champion = champions.find((c) => c.slug === slug);
 
   if (!champion) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="font-display text-2xl font-semibold text-bone">
-          No such champion
-        </h1>
-        <p className="mt-3 text-sm text-bone-mut">
-          The heralds have no record of this hero. Perhaps the name was
-          miscopied by a sleepy scribe.
-        </p>
-        <Link
-          href="/war/champions"
-          className="btn-glass mt-6 inline-flex px-5 py-2 text-sm"
-        >
-          Back to the Collection
-        </Link>
-      </div>
+      <WarFrame width="narrow">
+        <div className="flex">
+          <BackButton href="/war/champions" label="All champions" />
+        </div>
+        <Card>
+          <EmptyState
+            icon3d="search"
+            title="No such champion"
+            body="The heralds have no record of this hero. The name may have been miscopied by a sleepy scribe."
+            action={
+              <Button
+                variant="glass"
+                size="md"
+                render={<Link href="/war/champions" />}
+              >
+                Back to the roster
+              </Button>
+            }
+          />
+        </Card>
+      </WarFrame>
     );
   }
 
+  /* Before the server answers there is nothing honest to say about what you
+     own, so the catalog's own default stands in rather than a guess. */
   const unlocked = unlockedSlugs
     ? unlockedSlugs.includes(champion.slug)
     : champion.unlocked;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6">
-      <BackButton href="/war/champions" label="All champions" />
+    <WarFrame width="board">
+      {/* Sized to its label: bare in a `flex-col` it would stretch. */}
+      <div className="flex">
+        <BackButton href="/war/champions" label="All champions" />
+      </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,320px)_1fr]">
-        <div
-          className={`rarity-${champion.rarity} rarity-frame glass overflow-hidden`}
-        >
-          <div className="relative aspect-[3/4] w-full">
+      {/* The hero band. */}
+      <Card pad="none" className="overflow-hidden">
+        <div className="flex flex-col sm:flex-row">
+          <div className="relative h-52 w-full shrink-0 bg-void sm:h-auto sm:w-48 lg:w-56">
             {champion.art ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={champion.art}
                 alt={champion.name}
-                className={`absolute inset-0 h-full w-full object-cover ${
-                  unlocked ? "" : "opacity-40"
+                className={`absolute inset-0 h-full w-full object-cover object-top ${
+                  unlocked ? "" : "opacity-40 grayscale"
                 }`}
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-void">
-                <Icon name="user" className="h-16 w-16 text-bone-faint" />
-              </div>
-            )}
-            {!unlocked && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-obsidian/70 text-gold">
-                  <Icon name="lock" className="h-6 w-6" />
-                </span>
+                <Icon name="user" className="h-12 w-12 text-bone-faint" />
               </div>
             )}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="gold-text font-display text-3xl font-semibold">
-              {champion.name}
-            </h1>
-            <span
-              className={`rarity-${champion.rarity} rarity-chip capitalize`}
-            >
-              {champion.rarity}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-bone-mut">{champion.title}</p>
-          <p className="mt-2 text-xs text-bone-faint">
-            {champion.house} · {champion.weapon} ({champion.weaponClass})
-          </p>
-
-          <div className="glass-sm mt-5 p-4">
-            <h2 className="text-[11px] uppercase tracking-wide text-bone-faint">
-              Battle stats
-            </h2>
-            <div className="mt-3 space-y-3">
-              {statLabels.map(({ key, label }) => {
-                const value = champion.stats[key];
-                const pct = Math.min(100, Math.round((value / statMax[key]) * 100));
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-bone-mut">{label}</span>
-                      <span className="tnum text-bone">
-                        {value.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="bar-track mt-1">
-                      <div className="bar-gold" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-5">
-            {unlocked ? (
-              <Link
-                href={`/war/battle?champion=${champion.slug}`}
-                className="btn-gold inline-flex items-center gap-2 px-6 py-2.5 text-sm"
-              >
-                <Icon name="swords" className="h-4 w-4" />
-                Deploy to Battle
-              </Link>
-            ) : (
-              <div className="glass-sm flex items-start gap-3 p-4">
-                <Icon name="lock" className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
-                <p className="text-sm text-bone-mut">
-                  This champion has not yet sworn to your banner. Heroes are
-                  earned through play, won with Glory, or claimed as the Season
-                  unfolds.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="glass mt-5 p-5">
-        <h2 className="font-display text-lg font-semibold text-bone">
-          Abilities
-        </h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <Icon name="eye" className="h-4 w-4 text-gold" />
-              <span className="text-[11px] uppercase tracking-wide text-bone-faint">
-                Passive
+            {/* The art fades into the plate rather than ending on a hard
+                edge, so the band reads as one surface at every width. */}
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-gradient-to-t from-obsidian/85 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-obsidian/70"
+            />
+            {!unlocked ? (
+              <span className="absolute inset-0 flex items-center justify-center text-gold">
+                <Icon name="lock" className="h-7 w-7" />
               </span>
-            </div>
-            <div className="mt-1 font-display text-sm font-semibold text-gold-bright">
-              {champion.passive.name}
-            </div>
-            <p className="mt-1 text-sm text-bone-mut">{champion.passive.desc}</p>
+            ) : null}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <Icon name="flame" className="h-4 w-4 text-ember" />
-              <span className="text-[11px] uppercase tracking-wide text-bone-faint">
-                Ultimate
-              </span>
+
+          <div className="min-w-0 flex-1 p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="gold-text font-display text-2xl font-semibold sm:text-3xl">
+                {champion.name}
+              </h1>
+              <RarityChip rarity={champion.rarity} />
             </div>
-            <div className="mt-1 font-display text-sm font-semibold text-gold-bright">
-              {champion.ultimate.name}
-            </div>
-            <p className="mt-1 text-sm text-bone-mut">
-              {champion.ultimate.desc}
+            <p className="mt-1 text-sm text-bone-mut">{champion.title}</p>
+            <p className={`mt-2 text-bone-faint ${WAR_META}`}>
+              {champion.house}, {champion.weapon} ({champion.weaponClass})
             </p>
+
+            <div className="mt-4">
+              {unlocked ? (
+                <Button
+                  variant="gold"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                  render={
+                    <Link href={`/war/battle?champion=${champion.slug}`} />
+                  }
+                >
+                  <Icon name="swords" className="h-4 w-4" />
+                  Deploy to battle
+                </Button>
+              ) : (
+                <Card
+                  variant="inset"
+                  pad="sm"
+                  className="flex items-start gap-2.5"
+                >
+                  <Icon
+                    name="lock"
+                    className="mt-0.5 h-4 w-4 shrink-0 text-gold"
+                  />
+                  <p className="text-xs text-bone-mut">
+                    This champion has not yet sworn to your banner. Heroes are
+                    earned through play, won with Glory, or claimed as the
+                    Season unfolds.
+                  </p>
+                </Card>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div className="glass mt-5 p-5">
-        <h2 className="font-display text-lg font-semibold text-bone">Lore</h2>
-        <p className="mt-2 text-sm leading-relaxed text-bone-mut">
-          {champion.lore}
-        </p>
+      {/* Then the tabs, then the panels. */}
+      <Tabs defaultValue="stats">
+        <TabsList>
+          <Tab value="stats">Battle stats</Tab>
+          <Tab value="abilities">Abilities</Tab>
+          <Tab value="lore">Lore</Tab>
+        </TabsList>
+
+        <TabsPanel value="stats" className="pt-4">
+          <Card>
+            <ChampionStats stats={champion.stats} />
+            <p className={`mt-4 text-bone-faint ${WAR_META}`}>
+              Each bar is drawn against the strongest champion in the realm.
+            </p>
+          </Card>
+        </TabsPanel>
+
+        <TabsPanel value="abilities" className="pt-4">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <Ability
+              icon="eye"
+              iconClass="text-gold"
+              kind="Passive"
+              name={champion.passive.name}
+              desc={champion.passive.desc}
+            />
+            <Ability
+              icon="flame"
+              iconClass="text-ember"
+              kind="Ultimate"
+              name={champion.ultimate.name}
+              desc={champion.ultimate.desc}
+            />
+          </div>
+        </TabsPanel>
+
+        <TabsPanel value="lore" className="pt-4">
+          <Card>
+            <p className="max-w-[68ch] text-sm leading-relaxed text-bone-mut">
+              {champion.lore}
+            </p>
+          </Card>
+        </TabsPanel>
+      </Tabs>
+    </WarFrame>
+  );
+}
+
+function Ability({
+  icon,
+  iconClass,
+  kind,
+  name,
+  desc,
+}: {
+  icon: string;
+  iconClass: string;
+  kind: string;
+  name: string;
+  desc: string;
+}) {
+  return (
+    <Card>
+      <div className="flex items-center gap-2">
+        <Icon name={icon} className={`h-4 w-4 ${iconClass}`} />
+        <span
+          className={`uppercase tracking-[0.16em] text-bone-faint ${WAR_META}`}
+        >
+          {kind}
+        </span>
       </div>
-    </div>
+      <p className="mt-1.5 font-display text-sm font-semibold text-gold-bright">
+        {name}
+      </p>
+      <p className="mt-1 text-sm leading-relaxed text-bone-mut">{desc}</p>
+    </Card>
   );
 }

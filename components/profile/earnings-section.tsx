@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SegmentedControl } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { shareOrCopy } from "@/lib/share";
@@ -159,7 +163,12 @@ export function EarningsSection({
       setData(res.data);
       /* Only seed the editable thesis from the server on the first fetch, so a
          background refresh never clobbers what the owner is typing. */
-      if (firstLoad.current) setThesis(res.data.public.thesis ?? "");
+      /* `res.data.public` is optional-chained rather than assumed. The live
+         route always sends it, so this is hardening rather than a live bug,
+         but a 200 without that block would throw inside an effect and take the
+         whole Keep down with it. A missing thesis is an empty field; it is not
+         a reason for the screen to disappear. */
+      if (firstLoad.current) setThesis(res.data.public?.thesis ?? "");
     }
     firstLoad.current = false;
     setLoading(false);
@@ -178,7 +187,7 @@ export function EarningsSection({
   /* Live holdings + wallet balance. The route enforces the gate on the token
      LIST (owners and public-positions members only), but the aggregate wallet
      total is public on-chain data and comes back for every Keep with a linked
-     wallet. So we fetch for every profile — even one that seals its PnL — so
+     wallet. So we fetch for every profile, even one that seals its PnL, so
      The Coffers can always show a real balance instead of a reputation stand-in. */
   useEffect(() => {
     let alive = true;
@@ -221,7 +230,7 @@ export function EarningsSection({
   };
 
   if (loading) {
-    return <div className="glass glass-warm mt-4 h-56 animate-pulse" />;
+    return <Skeleton className="mt-4 h-56 w-full" radius="xl" />;
   }
   if (!data) return null;
 
@@ -230,7 +239,7 @@ export function EarningsSection({
 
   /* The public wallet balance total (on-chain, so it is shown for every Keep
      that has linked a wallet). Null when no wallet is linked or the balance
-     service is unavailable — in that case The Coffers falls back to standing. */
+     service is unavailable, in that case The Coffers falls back to standing. */
   const publicBalanceUsd: number | null =
     typeof positions?.totalUsd === "number" ? positions.totalUsd : null;
   const hasPublicBalance = publicBalanceUsd !== null;
@@ -239,7 +248,7 @@ export function EarningsSection({
      balance is public on-chain data, so we still surface it up top. */
   if (!data.visible) {
     return (
-      <section className="glass glass-warm mt-4 overflow-hidden p-4">
+      <Card variant="warm" pad="md" render={<section />} className="mt-4 overflow-hidden">
         <CoffersBanner
           owner={false}
           handle={pub.handle}
@@ -279,7 +288,7 @@ export function EarningsSection({
             &ldquo;{pub.thesis}&rdquo;
           </p>
         )}
-      </section>
+      </Card>
     );
   }
 
@@ -325,7 +334,7 @@ export function EarningsSection({
   const PREVIEW = 4;
 
   return (
-    <section className="glass glass-warm mt-4 overflow-hidden p-4">
+    <Card variant="warm" pad="md" render={<section />} className="mt-4 overflow-hidden">
       <CoffersBanner
         owner={owner}
         handle={pub.handle}
@@ -346,7 +355,7 @@ export function EarningsSection({
           {hasEarnings ? (
             <div className="mt-2 flex items-center gap-2">
               <span
-                className={`tnum inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                className={`tnum inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-semibold ${
                   windowDelta === 0
                     ? "border-steel-line/70 text-bone-faint"
                     : up
@@ -430,30 +439,18 @@ export function EarningsSection({
         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
           The climb
         </span>
-        <div
-          role="tablist"
-          aria-label="Earnings timeframe"
-          className="flex items-center gap-0.5 rounded-full border border-steel-line/70 bg-void/50 p-0.5"
-        >
-          {TIMEFRAMES.map((f) => {
-            const active = f === tf;
-            return (
-              <button
-                key={f}
-                role="tab"
-                aria-selected={active}
-                onClick={() => setTf(f)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  active
-                    ? "bg-gold/15 text-gold"
-                    : "text-bone-faint hover:text-bone-mut"
-                }`}
-              >
-                {f}
-              </button>
-            );
-          })}
-        </div>
+        {/* A capsule rail of rectangular tabs, which is the exact shape the
+            realm does not use. SegmentedControl is the right primitive here
+            anyway: the timeframes are few and mutually exclusive, and the
+            hand rolled version had no arrow key handling and no roving
+            tabindex despite carrying tablist and tab roles. */}
+        <SegmentedControl
+          label="Earnings timeframe"
+          size="sm"
+          value={tf}
+          onValueChange={(next) => setTf(next as (typeof TIMEFRAMES)[number])}
+          items={TIMEFRAMES.map((f) => ({ value: f, label: f }))}
+        />
       </div>
 
       <div className="mt-2">
@@ -517,29 +514,43 @@ export function EarningsSection({
                 {thesis.length}/140
               </span>
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="glass"
+                  size="sm"
+                  className="text-bone-mut"
                   onClick={() => {
                     setThesis(pub.thesis ?? "");
                     setThesisEditing(false);
                   }}
-                  className="btn-glass px-3 py-1 text-xs text-bone-mut"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="gold"
+                  size="sm"
+                  loading={thesisSaving}
                   onClick={() => void saveThesis()}
-                  disabled={thesisSaving}
-                  className="btn-gold px-3 py-1 text-xs"
                 >
                   {thesisSaving ? "Saving..." : "Save"}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         ) : (
           <button
+            type="button"
+            /* `touch:min-h-11`, because this row is a control and its height
+               was an accident of its padding: `pt-3` over one line of
+               `text-sm` measured 300x33 on a phone, populated and empty
+               alike. Eleven pixels under the floor, produced by nobody
+               choosing a height at all, which is how most of the misses in
+               this product were made.
+
+               `type="button"` for the same reason it belongs on every hand
+               rolled button: the default is `submit`, and this one sits
+               inside a card that will eventually hold a form. */
             onClick={() => setThesisEditing(true)}
-            className="mt-4 flex w-full items-center gap-2 border-t border-steel-line pt-3 text-left text-sm text-bone-mut transition hover:text-bone"
+            className="mt-4 flex w-full touch:min-h-11 items-center gap-2 border-t border-steel-line pt-3 text-left text-sm text-bone-mut transition hover:text-bone"
           >
             <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
             {pub.thesis ? (
@@ -557,16 +568,20 @@ export function EarningsSection({
       ) : null}
 
       {/* View more */}
-      <button
+      <Button
+        variant="glass"
+        size="sm"
+        block
+        aria-expanded={expanded}
+        className="mt-4 text-bone-mut"
         onClick={() => setExpanded((v) => !v)}
-        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-steel-line/70 py-2 text-xs font-semibold text-bone-mut transition hover:border-gold/30 hover:text-bone"
       >
         {expanded ? "Hide breakdown" : "View more"}
         <Icon
           name="arrow"
-          className={`h-3.5 w-3.5 transition-transform ${expanded ? "-rotate-90" : "rotate-90"}`}
+          className={`h-3.5 w-3.5 transition-transform duration-fast ${expanded ? "-rotate-90" : "rotate-90"}`}
         />
-      </button>
+      </Button>
 
       {expanded && (
         <div className="mt-3 flex flex-col gap-4 border-t border-steel-line pt-4">
@@ -640,7 +655,7 @@ export function EarningsSection({
           </div>
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -658,7 +673,17 @@ function CoffersBanner({
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <div className="flex items-center gap-3">
+      {/* `min-w-0` here, not only on the text block inside it.
+
+          A flex item will not shrink below its content unless every ancestor
+          between it and the flex container says it may. The `truncate` two
+          levels down was doing nothing, because this row could not shrink to
+          let it: the header measured 379px of content inside a 300px box at
+          390px wide, so the Share button sat outside the card.
+
+          This is the same missing link every time: `min-w-0` belongs on the
+          flex child, and the chain has to be unbroken. */}
+      <div className="flex min-w-0 items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/5 text-gold">
           <Icon name="wallet" className="h-5 w-5" />
         </span>
@@ -680,13 +705,15 @@ function CoffersBanner({
         </div>
       </div>
 
-      <button
+      <Button
+        variant="glass"
+        size="sm"
+        className="shrink-0 text-bone-mut"
         onClick={onShare}
-        className="btn-glass flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs text-bone-mut"
       >
         <Icon name="share" className="h-3.5 w-3.5" />
         {copied ? "Copied" : "Share"}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -708,7 +735,7 @@ function Coffer({
 }) {
   return (
     <div
-      className={`rounded-2xl border p-4 ${
+      className={`rounded-xl border p-4 ${
         accent
           ? "border-gold/25 bg-gradient-to-b from-gold/[0.06] to-transparent"
           : "border-steel-line/70 bg-void/40"

@@ -58,7 +58,7 @@ export default async function Image({
           justifyContent: "space-between",
           background: "#07070A",
           backgroundImage:
-            "radial-gradient(circle at 80% 10%, rgba(200,162,76,0.18), rgba(7,7,10,0) 55%)",
+            "radial-gradient(circle at 80% 10%, rgba(217, 176, 64,0.18), rgba(7,7,10,0) 55%)",
           padding: 72,
         }}
       >
@@ -66,7 +66,7 @@ export default async function Image({
           style={{
             display: "flex",
             alignItems: "center",
-            color: "#C8A24C",
+            color: "#D9B040",
             fontSize: 26,
             letterSpacing: 8,
             fontFamily: serif,
@@ -81,7 +81,7 @@ export default async function Image({
               width: 52,
               height: 52,
               borderRadius: 14,
-              border: "4px solid #C8A24C",
+              border: "4px solid #D9B040",
               marginRight: 20,
               fontSize: 36,
             }}
@@ -106,13 +106,13 @@ export default async function Image({
 
         <div style={{ display: "flex", alignItems: "center", gap: 60 }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{ color: "#C8A24C", fontSize: 56, fontWeight: 700 }}>
+            <span style={{ color: "#D9B040", fontSize: 56, fontWeight: 700 }}>
               {renown.toLocaleString("en-US")}
             </span>
             <span style={{ color: "#8C877B", fontSize: 26, letterSpacing: 4 }}>RENOWN</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{ color: "#C8A24C", fontSize: 56, fontWeight: 700 }}>
+            <span style={{ color: "#D9B040", fontSize: 56, fontWeight: 700 }}>
               {glory.toLocaleString("en-US")}
             </span>
             <span style={{ color: "#8C877B", fontSize: 26, letterSpacing: 4 }}>GLORY</span>

@@ -1,4 +1,5 @@
 import { requireProfile, json } from "@/lib/auth/server";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 import Anthropic from "@anthropic-ai/sdk";
 
 /* Client setup and env var copied from lib/ai/raven.ts: the realm speaks to
@@ -24,6 +25,18 @@ export async function POST(req: Request) {
     return json({ error: "Finish onboarding first" }, 403);
   if (!client)
     return json({ error: "The rookery is quiet. Try again later." }, 503);
+
+  /* C4: every call here is a paid Anthropic call and the composer can fire it
+     on a keystroke. Metered per account, shared across instances. */
+  const rl = await rateLimit(profileKey("compose", profile.id), 40, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "The quill needs rest. Try again within the hour.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     draft?: string;

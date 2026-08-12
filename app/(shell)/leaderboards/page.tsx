@@ -1,14 +1,35 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SegmentedControl } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
-import { BackButton } from "@/components/shell/back-button";
+import { Avatar } from "@/components/social/avatar";
+import {
+  Board,
+  BoardCard,
+  BoardHeader,
+  BoardPage,
+  BoardSkeleton,
+  BoardStack,
+  type BoardColumn,
+} from "@/components/board/board-shell";
+import { houseBySlug } from "@/lib/data/houses";
 import { realmFetch } from "@/lib/auth/api";
 
-/* The Roll of Honour: real standings across the realm by Renown, Glory and
-   Points. Points are the earned balance shown as points (they convert to $RSP
-   at TGE); no $RSP figure is surfaced. Real data only, honest empty state. */
+/* The Roll of Honour: real standings across the realm by accuracy, Renown,
+   Glory and Points. Points are the earned balance shown as points (they convert
+   to $RSP at TGE); no $RSP figure is surfaced. Real data only, honest empty
+   state.
+
+   Board archetype (design system section 2). It used to be a single stack of
+   cards at every width, which is the Stream shape, so a member could never
+   compare two rows without reading both of them end to end. Above `md` it is
+   now a table with the metrics right aligned and tabular; below `md` it stays
+   a card list, because a five column table on a phone is a horizontal scroll
+   and section 10 forbids that. */
 
 interface Entry {
   rank: number;
@@ -20,10 +41,15 @@ interface Entry {
   tier: string | null;
   isVerified: boolean;
   value: number;
+  /* Accuracy board only: the raw rate and its sample size. The board ranks on
+     a shrunk mean, but a member should see the honest numbers behind it. */
+  hit_rate?: number;
+  total?: number;
   isViewer: boolean;
 }
 
 const METRICS = [
+  { key: "accuracy", label: "Accuracy", icon: "target", blurb: "Judgment on settled Calls, weighted so a long record beats a lucky streak" },
   { key: "renown", label: "Renown", icon: "medal", blurb: "Standing earned across the realm" },
   { key: "glory", label: "Glory", icon: "swords", blurb: "Won in the games and the War" },
   { key: "points", label: "Points", icon: "flame", blurb: "Earned toward $RSP at TGE" },
@@ -35,12 +61,63 @@ function fmt(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-function rankGlyph(rank: number): string {
-  return `${rank}`;
+function memberName(e: Entry): string {
+  return e.displayName ?? (e.handle ? `@${e.handle}` : "A member");
+}
+
+function houseName(slug: string | null): string {
+  return houseBySlug(slug)?.name ?? "Unsworn";
+}
+
+/* Avatar, name and the verification mark, the identity cell of every row. */
+function Member({ entry, size }: { entry: Entry; size: number }) {
+  return (
+    <span className="flex items-center gap-2.5">
+      <Avatar
+        author={{
+          handle: entry.handle,
+          display_name: entry.displayName,
+          avatar_url: entry.avatarUrl,
+          house_slug: entry.houseSlug,
+        }}
+        size={size}
+      />
+      <span className="min-w-0">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate font-medium text-bone">
+            {memberName(entry)}
+          </span>
+          {entry.isVerified ? (
+            <Icon name="medal" className="h-3.5 w-3.5 shrink-0 text-gold" />
+          ) : null}
+        </span>
+        {entry.handle ? (
+          <span className="block truncate text-[11px] text-bone-faint">
+            @{entry.handle}
+          </span>
+        ) : null}
+      </span>
+    </span>
+  );
+}
+
+/* The rank badge. Top three carry the gold well, everyone else is a figure. */
+function Rank({ rank }: { rank: number }) {
+  return (
+    <span
+      className={
+        rank <= 3
+          ? "tnum inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-gold/50 bg-panel-warm px-1 font-semibold text-gold-bright"
+          : "tnum text-bone-faint"
+      }
+    >
+      {rank}
+    </span>
+  );
 }
 
 export default function LeaderboardsPage() {
-  const [metric, setMetric] = useState<MetricKey>("renown");
+  const [metric, setMetric] = useState<MetricKey>("accuracy");
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState(false);
 
@@ -63,119 +140,173 @@ export default function LeaderboardsPage() {
   }, [metric, load]);
 
   const active = METRICS.find((m) => m.key === metric)!;
+  const accuracy = metric === "accuracy";
+
+  const columns: BoardColumn<Entry>[] = [
+    {
+      key: "rank",
+      header: "#",
+      className: "w-10 whitespace-nowrap",
+      cell: (e) => <Rank rank={e.rank} />,
+    },
+    {
+      key: "member",
+      header: "Member",
+      cell: (e) => <Member entry={e} size={28} />,
+    },
+    {
+      key: "tier",
+      header: "Tier",
+      className: "whitespace-nowrap capitalize",
+      cell: (e) => e.tier ?? "Smallfolk",
+    },
+    {
+      key: "house",
+      header: "House",
+      className: "whitespace-nowrap",
+      cell: (e) => houseName(e.houseSlug),
+    },
+    accuracy
+      ? {
+          key: "rate",
+          header: "Rate",
+          numeric: true,
+          className: "whitespace-nowrap font-semibold text-gold",
+          cell: (e) => `${Math.round((e.hit_rate ?? 0) * 100)}%`,
+        }
+      : {
+          key: "value",
+          header: active.label,
+          numeric: true,
+          className: "whitespace-nowrap font-semibold text-gold",
+          cell: (e) => fmt(e.value),
+        },
+  ];
+
+  if (accuracy) {
+    columns.push({
+      key: "settled",
+      header: "Settled",
+      numeric: true,
+      className: "whitespace-nowrap",
+      cell: (e) => fmt(e.total ?? 0),
+    });
+  }
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4">
-        <BackButton />
-      </div>
+    <BoardPage width="wide">
+      <BoardStack>
+        <BoardHeader
+          title="The Roll of Honour"
+          kicker="Leaderboards"
+          lede={`The realm's highest standing, ranked by real deeds. ${active.blurb}.`}
+        />
 
-      <h1 className="font-display text-xl font-semibold text-bone">
-        The Roll of Honour
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Leaderboards
-      </p>
-      <p className="mt-3 text-sm text-bone-mut">
-        The realm&apos;s highest standing, ranked by real deeds. {active.blurb}.
-      </p>
+        {/* Four mutually exclusive rankings of the same members, switched in
+            place, which is a SegmentedControl (design system section 3). */}
+        <SegmentedControl
+          label="Ranking"
+          block
+          value={metric}
+          onValueChange={(next) => setMetric(next as MetricKey)}
+          items={METRICS.map((m) => ({ value: m.key, label: m.label }))}
+        />
 
-      {/* Metric tabs */}
-      <div className="mt-5 grid grid-cols-3 gap-1 rounded-xl border border-steel-line bg-void p-1">
-        {METRICS.map((m) => (
-          <button
-            key={m.key}
-            type="button"
-            onClick={() => setMetric(m.key)}
-            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition ${
-              metric === m.key
-                ? "bg-panel-warm text-gold-bright"
-                : "text-bone-faint hover:text-bone-mut"
-            }`}
-          >
-            <Icon name={m.icon} className="h-4 w-4" />
-            {m.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 flex flex-col gap-2">
         {entries === null ? (
-          [0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="glass glass-sm h-16 animate-pulse" />
-          ))
+          <BoardSkeleton rows={8} columns={accuracy ? 6 : 5} />
         ) : error ? (
-          <div className="glass p-8 text-center text-sm text-bone-mut">
-            The roll could not be read right now.
-            <button
-              type="button"
-              onClick={() => void load(metric)}
-              className="mt-3 block w-full text-gold underline"
-            >
-              Try again
-            </button>
-          </div>
+          <Card pad="lg">
+            <EmptyState
+              icon="alert"
+              title="The roll could not be read"
+              body="Something went wrong reaching the standings."
+              action={
+                <Button variant="glass" size="md" onClick={() => void load(metric)}>
+                  Try again
+                </Button>
+              }
+            />
+          </Card>
         ) : entries.length === 0 ? (
-          <div className="glass p-8 text-center text-sm text-bone-mut">
-            No standings yet. Earn {active.label} and claim your place on the
-            roll.
-          </div>
+          <Card pad="lg">
+            {/* The empty owns the whole surface here, which is where the 3D
+                set is earned. The error state above it keeps the flat glyph:
+                a failure is not a moment worth illustrating. */}
+            <EmptyState
+              icon3d="podium"
+              title="No standings yet"
+              body={`Earn ${active.label} and claim your place on the roll.`}
+            />
+          </Card>
         ) : (
-          entries.map((e) => {
-            const name =
-              e.displayName ?? (e.handle ? `@${e.handle}` : "A member");
-            const top3 = e.rank <= 3;
-            return (
-              <Link
-                key={e.id}
-                href={e.handle ? `/u/${e.handle}` : "#"}
-                className={`glass glass-sm flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30 ${
-                  e.isViewer ? "border-gold/40 bg-panel-warm/40" : ""
-                }`}
-              >
-                <span
-                  className={`tnum flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
-                    top3
-                      ? "border border-gold/50 bg-panel-warm text-gold-bright"
-                      : "text-bone-faint"
-                  }`}
-                >
-                  {rankGlyph(e.rank)}
-                </span>
-                {e.avatarUrl ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={e.avatarUrl}
-                    alt=""
-                    className="h-10 w-10 shrink-0 rounded-full border border-steel-line object-cover"
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-void text-bone-mut">
-                    <Icon name="user" className="h-5 w-5" />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="truncate text-sm font-medium text-bone">
-                      {name}
-                    </p>
-                    {e.isVerified && (
+          <Board
+            label={`The realm ranked by ${active.label.toLowerCase()}`}
+            rows={entries}
+            rowKey={(e) => e.id}
+            rowHref={(e) => (e.handle ? `/u/${e.handle}` : null)}
+            rowLabel={(e) => `${memberName(e)}, rank ${e.rank}`}
+            highlight={(e) => e.isViewer}
+            columns={columns}
+            card={(e) => (
+              <BoardCard
+                {...(e.handle ? { href: `/u/${e.handle}` } : {})}
+                highlight={e.isViewer}
+                leading={
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-6 text-center">
+                      <Rank rank={e.rank} />
+                    </span>
+                    <Avatar
+                      author={{
+                        handle: e.handle,
+                        display_name: e.displayName,
+                        avatar_url: e.avatarUrl,
+                        house_slug: e.houseSlug,
+                      }}
+                      size={36}
+                    />
+                  </span>
+                }
+                title={
+                  <span className="flex items-center gap-1.5">
+                    {memberName(e)}
+                    {e.isVerified ? (
                       <Icon name="medal" className="h-3.5 w-3.5 shrink-0 text-gold" />
-                    )}
-                  </div>
-                  <p className="truncate text-[11px] text-bone-faint">
+                    ) : null}
+                  </span>
+                }
+                subtitle={
+                  <>
                     {e.handle ? `@${e.handle}` : ""}
                     {e.tier ? `${e.handle ? " · " : ""}${e.tier}` : ""}
-                  </p>
-                </div>
-                <span className="tnum shrink-0 gold-text text-sm font-semibold">
-                  {fmt(e.value)}
-                </span>
-              </Link>
-            );
-          })
+                  </>
+                }
+                trailing={
+                  accuracy ? (
+                    <>
+                      <span className="block text-sm font-semibold text-gold">
+                        {Math.round((e.hit_rate ?? 0) * 100)}%
+                      </span>
+                      <span className="block text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                        {fmt(e.total ?? 0)} settled
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="block text-sm font-semibold text-gold">
+                        {fmt(e.value)}
+                      </span>
+                      <span className="block text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                        {active.label}
+                      </span>
+                    </>
+                  )
+                }
+              />
+            )}
+          />
         )}
-      </div>
-    </div>
+      </BoardStack>
+    </BoardPage>
   );
 }

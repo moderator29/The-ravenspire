@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -15,6 +18,7 @@ import {
   notifHref,
   type NotifActor,
 } from "@/lib/notification-view";
+import { StreamColumn } from "@/components/stream/stream-shell";
 
 interface Notif {
   id: string;
@@ -105,7 +109,7 @@ export default function RavensPage() {
   const unread = (items ?? []).filter((n) => n.fresh).length;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       <div className="mb-4">
         <BackButton />
       </div>
@@ -118,7 +122,7 @@ export default function RavensPage() {
           </p>
         </div>
         {unread > 0 && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold">
+          <span className="inline-flex items-center gap-1.5 rounded-sm border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
             <span className="tnum">{unread}</span> new
           </span>
@@ -127,18 +131,26 @@ export default function RavensPage() {
 
       <div className="mt-5 flex flex-col gap-2">
         {!authenticated ? (
-          <div className="glass p-8 text-center text-sm text-bone-mut">
-            <Link href="/signin" className="text-gold underline">
-              Enter the realm
-            </Link>{" "}
-            and the ravens will find you.
-          </div>
+          /* The same shape the Bookmarks screen had: the only control a
+             signed out member gets was an underlined word in a sentence. */
+          <Card pad="none">
+            <EmptyState
+              icon3d="notifications"
+              title="No ravens yet"
+              body="Enter the realm and the ravens will find you."
+              action={
+                <Button variant="gold" size="lg" render={<Link href="/signin" />}>
+                  Enter the realm
+                </Button>
+              }
+            />
+          </Card>
         ) : items === null ? (
           [0, 1, 2].map((i) => (
-            <div key={i} className="glass glass-sm h-16 animate-pulse" />
+            <Card key={i} radius="lg" pad="none" className="h-16 animate-pulse" />
           ))
         ) : items.length === 0 ? (
-          <div className="glass p-10 text-center">
+          <Card pad="none" className="p-10 text-center">
             <Icon
               name="raven"
               className="mx-auto h-8 w-8 text-bone-faint"
@@ -149,18 +161,14 @@ export default function RavensPage() {
             <p className="mt-1 text-xs text-bone-faint">
               Post, follow, and duel, and the realm will answer.
             </p>
-          </div>
+          </Card>
         ) : (
           items.map((n) => (
-            <Link
-              key={n.id}
-              href={notifHref(n)}
-              className={`glass glass-sm glass-hover relative flex items-start gap-3 p-3.5 transition ${
+            <Card key={n.id} render={<Link href={notifHref(n)} />} radius="lg" pad="none" interactive className={`relative flex items-start gap-3 p-3.5 transition ${
                 n.fresh
-                  ? "border-gold/30 bg-gold/[0.04]"
+                  ?"border-gold/30 bg-gold/[0.04]"
                   : "opacity-80"
-              }`}
-            >
+              }`}>
               {n.fresh && (
                 <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-gold" />
               )}
@@ -206,10 +214,10 @@ export default function RavensPage() {
               <span className="tnum shrink-0 pt-0.5 text-[11px] text-bone-faint">
                 {timeAgo(n.created_at)}
               </span>
-            </Link>
+            </Card>
           ))
         )}
       </div>
-    </div>
+    </StreamColumn>
   );
 }

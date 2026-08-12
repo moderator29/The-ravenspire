@@ -1,5 +1,7 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
+
 /* The "sequencing" state: a gold double-helix scanning under a sweep line.
    Pure CSS, reduced-motion aware via the global media query in globals.css
    (which zeroes animations), so nothing here needs to special-case it. */
@@ -8,7 +10,7 @@ const RUNGS = Array.from({ length: 14 });
 
 export function Sequencing({ subject }: { subject: string }) {
   return (
-    <div className="glass flex flex-col items-center gap-6 px-6 py-10 text-center">
+    <Card pad="none" className="flex flex-col items-center gap-6 px-6 py-10 text-center">
       <div className="dna-stage" aria-hidden="true">
         {RUNGS.map((_, i) => (
           <div
@@ -60,7 +62,7 @@ export function Sequencing({ subject }: { subject: string }) {
           height: 8px;
           border-radius: 999px;
           flex-shrink: 0;
-          box-shadow: 0 0 8px rgba(200, 162, 76, 0.5);
+          box-shadow: 0 0 8px rgba(217, 176, 64, 0.5);
         }
         .dna-node-a { background: var(--gold-bright); }
         .dna-node-b { background: var(--gold-deep); }
@@ -71,7 +73,7 @@ export function Sequencing({ subject }: { subject: string }) {
           background: linear-gradient(
             90deg,
             var(--gold-bright),
-            rgba(200, 162, 76, 0.25),
+            rgba(217, 176, 64, 0.25),
             var(--gold-deep)
           );
         }
@@ -84,7 +86,7 @@ export function Sequencing({ subject }: { subject: string }) {
           background: linear-gradient(
             180deg,
             transparent,
-            rgba(240, 214, 140, 0.22),
+            rgba(255, 233, 163, 0.22),
             transparent
           );
           animation: dna-scan 1.9s linear infinite;
@@ -98,6 +100,6 @@ export function Sequencing({ subject }: { subject: string }) {
           100% { top: 150px; }
         }
       `}</style>
-    </div>
+    </Card>
   );
 }

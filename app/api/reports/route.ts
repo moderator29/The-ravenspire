@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* Flag a post, comment, or member for the moderators.
    Body: { subject_type, subject_id, reason } */
@@ -8,6 +9,19 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* C4: the moderation queue is read by people, so flooding it is itself an
+     attack. The per-subject dedupe below stops honest double taps; this stops
+     a script flagging a thousand different subjects. */
+  const rl = await rateLimit(profileKey("reports", profile.id), 30, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "You have raised enough flags for one hour.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     subject_type?: string;

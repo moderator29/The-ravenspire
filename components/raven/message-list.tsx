@@ -1,6 +1,9 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { Icon3D } from "@/components/ui/icon-3d";
 import {
   PriceMiniCard,
   WalletMiniCard,
@@ -11,7 +14,7 @@ import type { Msg } from "@/components/raven/types";
 
 /* The Herald speaks in plain prose, but if the model ever slips a little
    markdown in, we strip it on display so a member never reads a literal
-   "**" or "###". Purely cosmetic — the words are untouched. */
+   "**" or "###". Purely cosmetic, the words are untouched. */
 function tidyProse(s: string): string {
   return s
     .replace(/\*\*(.+?)\*\*/g, "$1")
@@ -47,29 +50,35 @@ export function MessageList({
   onSend: (text: string) => void;
 }) {
   if (messages.length === 0) {
+    /* The opening screen of a conversation, not an empty state in a page.
+       The distinction matters: an empty state reports an absence, and this
+       reports readiness. So the Herald itself is the largest thing on the
+       screen, the question is addressed to the member, and the openers are
+       full width rows rather than a wrapped cluster of chips, because a
+       thumb aims at a row and squints at a cluster. */
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-5 px-4 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gold/25 bg-panel-warm">
-          <Icon name="raven" className="h-7 w-7 text-gold" />
-        </div>
-        <div>
-          <p className="font-display text-base font-semibold text-bone">
-            The rookery is quiet
-          </p>
-          <p className="mt-1 text-sm text-bone-mut">
-            Nothing has been asked yet. The Raven waits on its perch.
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
+      <div className="flex h-full flex-col items-center justify-center px-4 py-8">
+        <Icon3D name="herald-ai" size="hero" priority />
+        <h2 className="mt-6 text-center font-display text-xl font-semibold text-bone sm:text-2xl">
+          How can I help today?
+        </h2>
+        <p className="mt-2 max-w-xs text-center text-sm leading-relaxed text-bone-mut">
+          Ask about any token, any wallet, or anything happening in the realm.
+          Every figure is read from real data.
+        </p>
+        <div className="mt-7 flex w-full max-w-sm flex-col gap-2.5">
           {OPENERS.map((o) => (
-            <button
+            <Button
               key={o}
-              type="button"
+              variant="glass"
+              size="lg"
+              block
+              className="justify-start text-left"
               onClick={() => onSend(o)}
-              className="btn-glass rounded-full px-3.5 py-1.5 text-xs text-bone"
             >
-              {o}
-            </button>
+              <Icon name="spark" className="h-4 w-4 shrink-0 text-gold" />
+              <span className="min-w-0 truncate">{o}</span>
+            </Button>
           ))}
         </div>
       </div>
@@ -82,9 +91,13 @@ export function MessageList({
         if (m.role === "user") {
           return (
             <div key={i} className="flex justify-end">
-              <div className="glass-sm max-w-[85%] px-4 py-2.5 text-sm leading-relaxed text-bone">
+              <Card
+                variant="warm"
+                pad="none"
+                className="max-w-[85%] px-4 py-2.5 text-sm leading-relaxed text-bone"
+              >
                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
-              </div>
+              </Card>
             </div>
           );
         }
@@ -93,9 +106,14 @@ export function MessageList({
             <div key={i} className="flex justify-start">
               <div className="flex max-w-[90%] items-start gap-2.5">
                 <RavenAvatar />
-                <div className="glass-sm border border-ember-deep/40 px-4 py-2.5 text-sm leading-relaxed text-bone-mut">
+                <Card
+                  pad="none"
+                  tone="danger"
+                  role="alert"
+                  className="px-4 py-2.5 text-sm leading-relaxed text-bone-mut"
+                >
                   <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                </div>
+                </Card>
               </div>
             </div>
           );
@@ -113,7 +131,7 @@ export function MessageList({
 
                 {/* Browsing surfaced honestly */}
                 {m.browsed && (
-                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-panel-warm px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
+                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-sm border border-gold/30 bg-panel-warm px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
                     <Icon name="search" className="h-3 w-3" />
                     Browsed the web
                   </span>
@@ -121,7 +139,7 @@ export function MessageList({
                 {!m.browsed &&
                   m.browseRequested &&
                   m.browseAvailable === false && (
-                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-steel-line/70 bg-panel px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-bone-faint">
+                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-sm border border-steel-line/70 bg-panel px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-bone-faint">
                       <Icon name="search" className="h-3 w-3" />
                       Browsing unavailable
                     </span>

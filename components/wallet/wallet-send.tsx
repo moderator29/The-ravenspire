@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useSendTransaction } from "@privy-io/react-auth";
 import { formatEther, isAddress, parseEther } from "viem";
 import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 import {
   type ChainMeta,
   shortAddress,
@@ -117,8 +118,11 @@ export function WalletSend({
   if (hash) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-gold/25 bg-panel-warm/60 p-5 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/30 bg-panel">
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-gold/25 bg-panel-warm/60 p-4 text-center">
+          <span
+            aria-hidden
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-gold/30 bg-panel"
+          >
             <Icon name="send" className="h-5 w-5 text-gold" />
           </span>
           <div>
@@ -131,7 +135,7 @@ export function WalletSend({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-steel-line bg-panel/50 p-3">
+        <div className="rounded-lg border border-steel-line bg-panel/50 p-3">
           <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
             Transaction hash
           </p>
@@ -140,26 +144,23 @@ export function WalletSend({
               {shortAddress(hash, 10, 8)}
             </code>
             {explorer ? (
-              <a
-                href={explorer}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-glass inline-flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs"
-              >
-                <Icon name="arrow" className="h-3.5 w-3.5" />
-                View
-              </a>
+              <Button
+                size="sm"
+                className="shrink-0"
+                render={
+                  <a href={explorer} target="_blank" rel="noreferrer">
+                    <Icon name="arrow" className="h-3.5 w-3.5" />
+                    View
+                  </a>
+                }
+              />
             ) : null}
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setHash(null)}
-          className="btn-glass w-full px-5 py-2.5 text-sm"
-        >
+        <Button block size="lg" className="md:h-9 md:text-sm" onClick={() => setHash(null)}>
           Send another
-        </button>
+        </Button>
       </div>
     );
   }
@@ -235,15 +236,18 @@ export function WalletSend({
         ) : null}
       </label>
 
-      <button
-        type="button"
+      <Button
+        variant="gold"
+        size="lg"
+        block
+        className="md:h-9 md:text-sm"
         disabled={!canSend}
+        loading={pending}
         onClick={() => void submit()}
-        className="btn-gold w-full px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <Icon name="send" className="h-4 w-4" />
+        {pending ? null : <Icon name="send" className="h-4 w-4" />}
         {pending ? "Confirm in the window..." : "Review and send"}
-      </button>
+      </Button>
 
       {error ? <p className="text-xs text-ember">{error}</p> : null}
 

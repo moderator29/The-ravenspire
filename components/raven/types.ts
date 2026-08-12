@@ -1,4 +1,8 @@
 import type { Holding, RealmPulse } from "@/components/raven/cards";
+import {
+  RAVEN_LANGUAGES,
+  type RavenLanguage,
+} from "@/lib/ai/raven-languages";
 
 /* ---- Shared Raven chat types (owned surface) ---- */
 
@@ -36,10 +40,16 @@ export type Msg = {
 export type Voice = "default" | "lore" | "normal" | "degen";
 export type Length = "brief" | "normal" | "detailed";
 
+/* The picker reads the same list the prompt guidance acts on, so a language
+   cannot be offered here that the Herald is never told to write in. */
+export type Language = RavenLanguage;
+export const LANGUAGES = RAVEN_LANGUAGES;
+
 export type RavenSettings = {
   voice: Voice;
   browse: boolean;
   length: Length;
+  language: Language;
 };
 
 export const VOICES: { id: Voice; label: string; hint: string }[] = [
@@ -67,5 +77,6 @@ export type Conversation = {
 export const VOICE_KEY = "raven_voice";
 export const BROWSE_KEY = "raven_browse";
 export const LENGTH_KEY = "raven_length";
+export const LANGUAGE_KEY = "raven_language";
 export const CONVOS_KEY = "raven_conversations";
 export const ACTIVE_KEY = "raven_active_conversation";

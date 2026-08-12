@@ -1,15 +1,46 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Room, RoomEvent, Track, type RemoteTrack } from "livekit-client";
+import {
+  Room,
+  RoomEvent,
+  Track,
+  type Participant,
+  type RemoteTrack,
+  type TrackPublication,
+} from "livekit-client";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { cx } from "@/components/ui/cx";
 import { realmFetch } from "@/lib/auth/api";
 
 /* The court's real audio stage (Twitter Spaces style), powered by LiveKit. The
    host and promoted speakers publish their voice; everyone else listens live.
    Non-forgeable join: the token is minted and signed server-side. Honest
-   degradation: if LiveKit is not configured the panel says the stage is warming
-   up rather than pretending to connect. */
+   degradation: if LiveKit is not configured the panel says so plainly rather
+   than pretending to connect.
+
+   Three things the first version got wrong, all of which cost real money or
+   real trust:
+
+   1. The mic was switched on inside the connect path, so a member who refused
+      the browser permission prompt was thrown out of a room they could have
+      listened to perfectly well, under an error that blamed the connection.
+      Connecting and speaking are now separate acts. You join as a listener,
+      and taking the floor is a deliberate second press, which is also the
+      moment the permission prompt makes sense to a human.
+   2. A permission refusal on the mic toggle was swallowed by an empty catch,
+      so the control simply did nothing forever. Every failure now names itself
+      and says what to do about it.
+   3. Unmounting during the connect handshake left the room connected, because
+      the room was only stored in the ref after the await resolved. LiveKit
+      bills by the participant minute, so a member who navigated away mid-join
+      kept burning minutes with no way to stop. The ref is now claimed before
+      the handshake and a generation guard tears down anything that lands after
+      the view is gone. */
 
 type Status = "idle" | "connecting" | "live" | "error" | "unavailable";
 
@@ -20,16 +51,38 @@ interface Speaker {
   canPublish: boolean;
 }
 
+/* getUserMedia failures are the one error class a member can actually fix, so
+   each one gets the sentence that fixes it. */
+function micMessage(err: unknown): string {
+  const name = err instanceof Error ? err.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return "Your browser is blocking the microphone. Allow it for this site in the address bar, then unmute again.";
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return "No microphone was found. Connect one, then unmute again.";
+  }
+  if (name === "NotReadableError" || name === "AbortError") {
+    return "Another app is holding the microphone. Close it, then unmute again.";
+  }
+  return "The microphone would not open. Check your device, then try again.";
+}
+
 export function RoomAudio({ roomId }: { roomId: string }) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
   const [canPublish, setCanPublish] = useState(false);
   const [micOn, setMicOn] = useState(false);
+  const [micBusy, setMicBusy] = useState(false);
+  const [soundBlocked, setSoundBlocked] = useState(false);
   const [people, setPeople] = useState<Speaker[]>([]);
   const [speaking, setSpeaking] = useState<Set<string>>(new Set());
 
   const roomRef = useRef<Room | null>(null);
   const audioBinRef = useRef<HTMLDivElement | null>(null);
+  /* Bumped by every teardown, so a connect that resolves after the member has
+     left cannot adopt a room nobody is watching. */
+  const generationRef = useRef(0);
 
   const snapshot = useCallback((room: Room): Speaker[] => {
     const lp = room.localParticipant;
@@ -53,24 +106,37 @@ export function RoomAudio({ roomId }: { roomId: string }) {
   }, []);
 
   const teardown = useCallback(() => {
+    generationRef.current += 1;
     const room = roomRef.current;
+    roomRef.current = null;
     if (room) {
-      room.disconnect();
-      roomRef.current = null;
+      room.removeAllListeners();
+      void room.disconnect();
     }
     if (audioBinRef.current) audioBinRef.current.innerHTML = "";
     setStatus("idle");
+    setCanPublish(false);
     setMicOn(false);
+    setMicBusy(false);
+    setMicError(null);
+    setSoundBlocked(false);
     setPeople([]);
     setSpeaking(new Set());
   }, []);
 
-  // Leave the stage cleanly when the view unmounts.
+  /* Leave the stage cleanly when the view unmounts, so nobody keeps a seat,
+     and a bill, on a page they have navigated away from. */
   useEffect(() => teardown, [teardown]);
 
   const connect = useCallback(async () => {
+    if (roomRef.current) return;
+    const generation = generationRef.current;
+    const stale = () => generationRef.current !== generation;
+
     setStatus("connecting");
     setError(null);
+    setMicError(null);
+
     const res = await realmFetch<{
       configured?: boolean;
       token?: string;
@@ -79,10 +145,17 @@ export function RoomAudio({ roomId }: { roomId: string }) {
       error?: string;
     }>("/api/rooms/token", { method: "POST", json: { room_id: roomId } });
 
+    if (stale()) return;
+
     if (!res.ok || !res.data?.token || !res.data.url) {
       if (res.data?.configured === false) {
         setStatus("unavailable");
         setError(res.data.error ?? null);
+      } else if (res.status === 401) {
+        /* The route answers "unauthenticated", which is a word for a log, not
+           for a member standing outside a court. */
+        setStatus("error");
+        setError("Enter the realm to take a seat on the audio stage.");
       } else {
         setStatus("error");
         setError(res.data?.error ?? "Could not join the audio stage.");
@@ -94,7 +167,13 @@ export function RoomAudio({ roomId }: { roomId: string }) {
     setCanPublish(publish);
 
     const room = new Room({ adaptiveStream: true, dynacast: true });
+    /* Claimed before the handshake, so an unmount mid-connect has something to
+       disconnect. */
     roomRef.current = room;
+
+    const syncMic = () => {
+      setMicOn(room.localParticipant.isMicrophoneEnabled);
+    };
 
     room
       .on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
@@ -112,139 +191,278 @@ export function RoomAudio({ roomId }: { roomId: string }) {
       })
       .on(RoomEvent.ParticipantConnected, () => setPeople(snapshot(room)))
       .on(RoomEvent.ParticipantDisconnected, () => setPeople(snapshot(room)))
-      .on(RoomEvent.LocalTrackPublished, () => setPeople(snapshot(room)))
+      .on(RoomEvent.LocalTrackPublished, () => {
+        setPeople(snapshot(room));
+        syncMic();
+      })
+      .on(RoomEvent.LocalTrackUnpublished, () => {
+        setPeople(snapshot(room));
+        syncMic();
+      })
+      /* The device can be taken by the OS or another tab, so the button must
+         read the track rather than remember what it last asked for. */
+      .on(RoomEvent.TrackMuted, (_pub: TrackPublication, p: Participant) => {
+        if (p.isLocal) syncMic();
+      })
+      .on(RoomEvent.TrackUnmuted, (_pub: TrackPublication, p: Participant) => {
+        if (p.isLocal) syncMic();
+      })
+      /* Promotion to speaker, if the realm ever grants it while connected. */
+      .on(RoomEvent.ParticipantPermissionsChanged, () => {
+        setCanPublish(room.localParticipant.permissions?.canPublish ?? false);
+        setPeople(snapshot(room));
+      })
+      /* Browsers block autoplay in more cases than a click can cover, and a
+         silent stage that says it is live is the worst outcome here. */
+      .on(RoomEvent.AudioPlaybackStatusChanged, () => {
+        setSoundBlocked(!room.canPlaybackAudio);
+      })
       .on(RoomEvent.Disconnected, () => teardown());
 
     try {
       await room.connect(res.data.url, res.data.token);
-      if (publish) {
-        await room.localParticipant.setMicrophoneEnabled(true);
-        setMicOn(true);
+      if (stale()) {
+        room.removeAllListeners();
+        void room.disconnect();
+        return;
       }
       setPeople(snapshot(room));
+      setSoundBlocked(!room.canPlaybackAudio);
+      syncMic();
       setStatus("live");
     } catch {
-      setError("The audio stage would not connect. Check your mic permission.");
-      setStatus("error");
+      if (stale()) return;
+      /* Teardown resets the panel to idle, so it has to run before the error
+         state is written or the message is wiped by its own cleanup. That
+         ordering bug is why a failed join used to look like nothing happened. */
       teardown();
+      setError(
+        "The audio stage would not connect. Check your connection, then try again."
+      );
+      setStatus("error");
     }
   }, [roomId, snapshot, teardown]);
 
   const toggleMic = useCallback(async () => {
     const room = roomRef.current;
-    if (!room) return;
-    const next = !micOn;
+    if (!room || micBusy) return;
+    const next = !room.localParticipant.isMicrophoneEnabled;
+    setMicBusy(true);
+    setMicError(null);
     try {
       await room.localParticipant.setMicrophoneEnabled(next);
-      setMicOn(next);
-    } catch {
-      /* permission denied or device busy */
+    } catch (err) {
+      setMicError(micMessage(err));
+    } finally {
+      if (roomRef.current) {
+        setMicOn(roomRef.current.localParticipant.isMicrophoneEnabled);
+      }
+      setMicBusy(false);
     }
-  }, [micOn]);
+  }, [micBusy]);
+
+  const startSound = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return;
+    try {
+      await room.startAudio();
+      setSoundBlocked(!room.canPlaybackAudio);
+    } catch {
+      setSoundBlocked(true);
+    }
+  }, []);
+
+  const live = status === "live";
+
+  /* Spoken state, for the members who cannot see the panel change. Kept out of
+     the visual tree so the polite region never wraps the controls themselves,
+     which would re-announce the whole stage on every mic press. */
+  const spokenStatus =
+    status === "connecting"
+      ? "Joining the audio stage."
+      : status === "live"
+        ? canPublish
+          ? micOn
+            ? "You are live on the audio stage with your microphone open."
+            : "You are live on the audio stage with your microphone muted."
+          : "You are listening to the audio stage."
+        : status === "error" || status === "unavailable"
+          ? (error ?? "The audio stage is not open.")
+          : "You have not entered the audio stage.";
 
   return (
-    <div className="glass glass-warm p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon name="signal" className="h-4 w-4 text-gold" />
-          <p className="text-sm font-semibold text-bone">Audio stage</p>
-          {status === "live" && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
-              Live
-            </span>
-          )}
-        </div>
-        {status === "live" && (
-          <button
-            type="button"
+    <Card variant="warm" className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <Icon name="signal" className="h-4 w-4 shrink-0 text-gold" />
+        <p className="text-sm font-semibold text-bone">Audio stage</p>
+        {live ? (
+          <Badge variant="gold" icon="signal">
+            Live
+          </Badge>
+        ) : null}
+        {/* Both states need a way out. A join that hangs on a slow handshake
+            used to leave the member watching a spinner with nothing to press,
+            and abandoning the page was the only escape. */}
+        {live || status === "connecting" ? (
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={teardown}
-            className="text-[11px] text-bone-faint hover:text-ember"
+            className="ml-auto min-h-11 md:min-h-0"
           >
-            Leave
-          </button>
-        )}
+            {live ? "Leave" : "Cancel"}
+          </Button>
+        ) : null}
       </div>
 
-      {status === "idle" && (
-        <button
-          type="button"
-          onClick={() => void connect()}
-          className="btn-gold mt-3 w-full py-2.5 text-sm"
-        >
-          <Icon name="signal" className="h-4 w-4" />
-          Enter the audio stage
-        </button>
-      )}
+      <p role="status" aria-live="polite" className="sr-only">
+        {spokenStatus}
+      </p>
 
-      {status === "connecting" && (
-        <div className="mt-3 flex items-center gap-2 text-sm text-bone-faint">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
-          Joining the stage...
-        </div>
-      )}
-
-      {status === "unavailable" && (
-        <p className="mt-3 text-xs text-bone-mut">
-          {error ?? "The audio stage is warming up and will open soon."}
-        </p>
-      )}
-
-      {status === "error" && (
-        <div className="mt-3">
-          <p className="text-xs text-ember">{error}</p>
-          <button
-            type="button"
+      <div className="flex flex-col gap-3">
+        {status === "idle" ? (
+          <Button
+            variant="gold"
+            size="lg"
+            block
             onClick={() => void connect()}
-            className="mt-2 text-xs text-gold underline"
           >
-            Try again
-          </button>
-        </div>
-      )}
+            <Icon name="signal" className="h-4 w-4" />
+            Enter the audio stage
+          </Button>
+        ) : null}
 
-      {status === "live" && (
-        <>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {people.map((p) => {
-              const isSpeaking = speaking.has(p.identity);
-              return (
-                <div
-                  key={p.identity}
-                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
-                    isSpeaking
-                      ? "border-gold/60 bg-panel-warm text-gold-bright"
-                      : "border-steel-line bg-panel/50 text-bone-mut"
-                  }`}
-                >
-                  <Icon
-                    name={p.canPublish ? "signal" : "user"}
-                    className={`h-3 w-3 ${isSpeaking ? "text-gold" : "text-bone-faint"}`}
-                  />
-                  {p.isLocal ? "You" : p.name}
-                </div>
-              );
-            })}
-          </div>
+        {status === "connecting" ? (
+          <Button variant="gold" size="lg" block loading>
+            Joining the stage
+          </Button>
+        ) : null}
 
-          {canPublish ? (
-            <button
-              type="button"
-              onClick={() => void toggleMic()}
-              className={`mt-3 w-full py-2.5 text-sm ${micOn ? "btn-glass" : "btn-gold"}`}
+        {status === "unavailable" ? (
+          <EmptyState
+            size="sm"
+            icon="info"
+            title="The stage is not open yet"
+            body={
+              error ??
+              "Live voice is not connected for this realm yet. The court still speaks in the chronicle below."
+            }
+            action={
+              <Button size="sm" onClick={() => void connect()}>
+                Check again
+              </Button>
+            }
+          />
+        ) : null}
+
+        {status === "error" ? (
+          <EmptyState
+            size="sm"
+            icon="alert"
+            title="The stage would not open"
+            body={error}
+            action={
+              <Button variant="gold" size="sm" onClick={() => void connect()}>
+                Try again
+              </Button>
+            }
+          />
+        ) : null}
+
+        {live ? (
+          <>
+            <ul
+              aria-label="On the stage"
+              className="flex flex-wrap gap-2"
             >
-              <Icon name={micOn ? "signal" : "eye"} className="h-4 w-4" />
-              {micOn ? "Mute your voice" : "Unmute your voice"}
-            </button>
-          ) : (
-            <p className="mt-3 text-[11px] text-bone-faint">
-              You are listening. The host can invite you up to speak.
-            </p>
-          )}
-        </>
-      )}
+              {people.map((p) => {
+                const isSpeaking = speaking.has(p.identity);
+                const muted = p.isLocal && p.canPublish && !micOn;
+                return (
+                  <li
+                    key={p.identity}
+                    className={cx(
+                      "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs",
+                      "transition-colors duration-fast ease-out-quint",
+                      isSpeaking
+                        ? "border-gold/60 bg-panel-warm text-gold-bright"
+                        : "border-steel-line bg-panel/50 text-bone-mut"
+                    )}
+                  >
+                    <Icon
+                      name={p.canPublish ? "signal" : "user"}
+                      className={cx(
+                        "h-3 w-3",
+                        isSpeaking ? "text-gold" : "text-bone-faint"
+                      )}
+                    />
+                    {p.isLocal ? "You" : p.name}
+                    {muted ? (
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-bone-faint">
+                        Muted
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+
+            {soundBlocked ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-bone-mut">
+                  Your browser is holding the sound back until you ask for it.
+                </p>
+                <Button
+                  variant="gold"
+                  size="lg"
+                  block
+                  onClick={() => void startSound()}
+                >
+                  <Icon name="signal" className="h-4 w-4" />
+                  Turn on the sound
+                </Button>
+              </div>
+            ) : null}
+
+            {canPublish ? (
+              <Button
+                variant={micOn ? "glass" : "gold"}
+                size="lg"
+                block
+                loading={micBusy}
+                onClick={() => void toggleMic()}
+              >
+                {micBusy ? null : (
+                  <Icon
+                    name={micOn ? "close" : "signal"}
+                    className="h-4 w-4"
+                  />
+                )}
+                {micOn ? "Mute your voice" : "Unmute your voice"}
+              </Button>
+            ) : (
+              /* Honest about what this seat can do. Publish rights are read
+                 from the member's seat when the token is minted, so a seat
+                 raised to speaker takes effect on the next join, not this one.
+                 Nothing in the realm raises a seat yet, so this says what is
+                 true rather than promising an invitation that cannot come. */
+              <p className="text-xs text-bone-mut">
+                You are listening. The floor belongs to the host and to seats
+                raised to speaker, and a raised seat takes the floor the next
+                time it enters the stage.
+              </p>
+            )}
+
+            {micError ? (
+              <p role="alert" className="text-xs text-state-danger">
+                {micError}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </div>
 
       <div ref={audioBinRef} aria-hidden className="hidden" />
-    </div>
+    </Card>
   );
 }

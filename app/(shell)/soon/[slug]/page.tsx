@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { notFound } from "next/navigation";
-import { Icon } from "@/components/ui/icon";
+import { Icon3D } from "@/components/ui/icon-3d";
 import { BackButton } from "@/components/shell/back-button";
 import { comingSoonNav, findComingSoon } from "@/lib/nav";
+import { Button } from "@/components/ui/button";
 
 export function generateStaticParams() {
   return comingSoonNav.map((i) => ({ slug: i.slug }));
@@ -22,13 +24,16 @@ export default async function ComingSoonPage({
       <div className="w-full max-w-md self-center">
         <BackButton />
       </div>
-      <div className="glass mt-6 flex w-full max-w-md flex-col items-center p-8">
-        <span className="hairline mb-5 rounded-full bg-panel-warm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-gold">
-          Chapter II
+      <Card pad="none" className="mt-6 flex w-full max-w-md flex-col items-center p-8">
+        {/* "Chapter II" was hardcoded, so all six chapters announced themselves
+            as the second one. Nothing in comingSoonNav carries a chapter
+            number, and inventing one for each would be inventing data. The
+            realm already has a true name for this set: the navigation calls it
+            Chapters ahead, and that is what every one of these pages is. */}
+        <span className="hairline mb-5 rounded-sm bg-panel-warm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-gold">
+          Chapters ahead
         </span>
-        <div className="glass glass-sm flex h-16 w-16 items-center justify-center text-gold">
-          <Icon name={item.icon} className="h-8 w-8" />
-        </div>
+        <Icon3D name={item.icon3d} size="hero" priority />
         <p className="mt-5 text-xs uppercase tracking-[0.3em] text-bone-faint">
           {item.plain} · Coming soon
         </p>
@@ -38,13 +43,13 @@ export default async function ComingSoonPage({
         <p className="mt-4 max-w-sm text-sm leading-relaxed text-bone-mut">
           {item.blurb}
         </p>
-        <Link href="/ravens" className="btn-gold mt-7 px-6 py-2.5 text-sm">
+        <Button variant="gold" size="lg" className="mt-7" render={<Link href="/ravens" />}>
           Notify me
-        </Link>
+        </Button>
         <p className="mt-3 text-[11px] text-bone-faint">
           A raven will find you the day this chapter opens.
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

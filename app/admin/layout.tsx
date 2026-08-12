@@ -5,7 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cx } from "@/components/ui/cx";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 
 const navItems = [
   { href: "/admin", label: "Overview", icon: "home" },
@@ -22,22 +27,37 @@ const navItems = [
 
 type Gate = "checking" | "sealed" | "open";
 
-function SealedChamber() {
+function SealedDoor() {
   return (
     <div className="realm-bg flex min-h-screen items-center justify-center px-4">
-      <div className="glass w-full max-w-md p-8 text-center sm:p-10">
-        <Icon name="lock" className="mx-auto h-8 w-8 text-bone-faint" />
-        <h1 className="gold-text font-display mt-4 text-2xl font-semibold">
-          The council chamber is sealed
-        </h1>
-        <p className="mt-3 text-sm text-bone-mut">
-          Only sworn stewards of the realm may pass this door. If you hold a
-          seat at the council table, sign in and present your seal.
-        </p>
-        <Link href="/signin" className="btn-gold mt-6 inline-flex px-5 py-2 text-sm">
-          Sign in
-        </Link>
-      </div>
+      <Card pad="lg" className="w-full max-w-md">
+        <EmptyState
+          icon="lock"
+          title="The council chamber is sealed"
+          body="Only sworn stewards of the realm may pass this door. If you hold a seat at the council table, sign in and present your seal."
+          action={
+            <Button variant="gold" size="lg" render={<Link href="/signin" />}>
+              Sign in
+            </Button>
+          }
+        />
+      </Card>
+    </div>
+  );
+}
+
+/* Shaped like the chamber door it stands in for, and gated behind 300ms so a
+   fast seal check never flashes a skeleton at the reader. */
+function CheckingDoor() {
+  return (
+    <div className="realm-bg flex min-h-screen items-center justify-center px-4">
+      <Card pad="lg" className="w-full max-w-md">
+        <div className="flex flex-col items-center gap-3">
+          <Skeleton radius="lg" className="h-11 w-11" />
+          <Skeleton radius="sm" className="h-4 w-3/5" />
+          <Skeleton radius="sm" className="h-3 w-4/5" />
+        </div>
+      </Card>
     </div>
   );
 }
@@ -46,6 +66,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { ready, enabled, authenticated } = useRealmAuth();
   const [gate, setGate] = useState<Gate>("checking");
+  const showChecking = useDelayedLoading(gate === "checking", 300);
 
   useEffect(() => {
     if (!ready) return;
@@ -66,31 +87,27 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [ready, enabled, authenticated]);
 
   if (gate === "checking") {
-    return (
-      <div className="realm-bg flex min-h-screen items-center justify-center px-4">
-        <div className="glass w-full max-w-md p-8 text-center">
-          <p className="text-sm text-bone-faint">
-            Checking your seal at the chamber door.
-          </p>
-        </div>
-      </div>
-    );
+    return showChecking ? <CheckingDoor /> : null;
   }
 
-  if (gate === "sealed") return <SealedChamber />;
+  if (gate === "sealed") return <SealedDoor />;
 
   return (
     <div className="realm-bg min-h-screen">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-3 py-4 sm:px-4 sm:py-6 lg:flex-row lg:gap-6">
-        {/* Sidebar on desktop, scroll row on small screens */}
+        {/* Sidebar on desktop, scroll row on small screens. Section 10:
+            different layouts, not one layout scaled. */}
         <aside className="shrink-0 lg:w-60">
-          <div className="glass glass-sm p-3 lg:sticky lg:top-6 lg:p-4">
-            <Link href="/admin" className="block px-2 py-1">
+          <Card pad="sm" className="lg:sticky lg:top-6">
+            <Link href="/admin" className="block rounded-md px-2 py-1">
               <span className="gold-text font-display text-sm font-semibold tracking-[0.22em]">
                 THE RAVENSPIRE ADMIN
               </span>
             </Link>
-            <nav className="mt-3 flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+            <nav
+              aria-label="Council sections"
+              className="scrollbar-none mt-3 flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0"
+            >
               {navItems.map((item) => {
                 const active =
                   item.href === "/admin"
@@ -100,11 +117,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
+                    aria-current={active ? "page" : undefined}
+                    className={cx(
+                      "flex min-h-11 shrink-0 items-center gap-2.5 rounded-md px-3 text-sm lg:min-h-9",
+                      "transition-colors duration-fast ease-out-quint",
                       active
                         ? "bg-panel text-gold"
                         : "text-bone-mut hover:bg-panel hover:text-bone"
-                    }`}
+                    )}
                   >
                     <Icon name={item.icon} className="h-4 w-4 shrink-0" />
                     <span className="whitespace-nowrap">{item.label}</span>
@@ -112,7 +132,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 );
               })}
             </nav>
-          </div>
+          </Card>
         </aside>
 
         <main className="min-w-0 flex-1 pb-8">{children}</main>

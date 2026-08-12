@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { realmFetch } from "@/lib/auth/api";
 import { Icon } from "@/components/ui/icon";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/wallet/copy-button";
 
 interface RefData {
@@ -42,12 +43,18 @@ export function WalletEarn() {
 
   const code = data?.code ?? null;
   const link = code && origin ? `${origin}/?ref=${code}` : null;
+  const showSkeleton = useDelayedLoading(loading, 300);
 
   if (loading) {
+    if (!showSkeleton) return null;
     return (
       <div className="flex flex-col gap-3">
-        <div className="glass-sm h-20 animate-pulse rounded-2xl" />
-        <div className="glass-sm h-24 animate-pulse rounded-2xl" />
+        <div className="grid grid-cols-3 gap-2">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} radius="lg" className="h-16" />
+          ))}
+        </div>
+        <Skeleton radius="lg" className="h-24" />
       </div>
     );
   }
@@ -61,7 +68,7 @@ export function WalletEarn() {
       </p>
 
       {/* Live standings */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2">
         <Stat value={data?.activated ?? 0} label="Raised" accent />
         <Stat value={data?.pending ?? 0} label="Pending" />
         <Stat value={data?.total ?? 0} label="Sent" />
@@ -69,23 +76,19 @@ export function WalletEarn() {
 
       {/* Referral link */}
       {link ? (
-        <div className="rounded-2xl border border-gold/20 bg-panel-warm/50 p-4">
+        <div className="rounded-lg border border-gold/20 bg-panel-warm/50 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
             Your referral link
           </p>
           <div className="mt-2.5 flex flex-col gap-2.5">
-            <code className="glass-sm min-w-0 overflow-x-auto whitespace-nowrap rounded-lg border border-steel-line bg-void px-3 py-2.5 text-xs text-gold-bright">
+            <code className="min-w-0 overflow-x-auto whitespace-nowrap rounded-md border border-steel-line bg-void px-3 py-2 text-xs text-gold-bright">
               {link}
             </code>
-            <CopyButton
-              value={link}
-              label="Copy link"
-              className="btn-gold inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm"
-            />
+            <CopyButton value={link} label="Copy link" variant="gold" block />
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-steel-line bg-panel/40 p-3.5">
+        <div className="rounded-lg border border-steel-line bg-panel/40 p-3">
           <p className="text-sm text-bone-mut">
             Claim your handle first; your referral link carries your name.
           </p>
@@ -112,9 +115,9 @@ function Stat({
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-steel-line bg-void px-3 py-3 text-center">
+    <div className="rounded-lg border border-steel-line bg-void px-3 py-2.5 text-center">
       <p
-        className={`tnum font-display text-2xl font-semibold ${
+        className={`tnum font-display text-xl font-semibold ${
           accent ? "text-gold-bright" : "text-bone"
         }`}
       >

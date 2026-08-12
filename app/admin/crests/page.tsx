@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { crests, CrestRoundel } from "@/components/brand/crests";
 import { realmFetch } from "@/lib/auth/api";
+import { Badge, RarityChip, type Rarity } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { Field, Input, Select } from "@/components/ui/field";
+import { ConfirmDialog } from "@/components/ui/modal";
+import {
+  AdminHeader,
+  AdminNote,
+  AdminStack,
+  TOUCH,
+} from "@/app/admin/ui";
 
 export default function AdminCrestsPage() {
   const liveCount = crests.filter((c) => c.status === "live").length;
@@ -12,29 +23,32 @@ export default function AdminCrestsPage() {
   const [crestSlug, setCrestSlug] = useState(crests[0]?.slug ?? "");
   const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<{ tone: "gold" | "danger"; text: string } | null>(
+    null
+  );
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+
+  const load = useCallback(() => {
+    setStatus("loading");
+    void realmFetch<{ counts: Record<string, number> }>("/api/admin/crests").then(
+      (res) => {
+        if (res.ok && res.data?.counts) {
+          setCounts(res.data.counts);
+          setStatus("ok");
+        } else {
+          setStatus("error");
+        }
+      }
+    );
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void realmFetch<{ counts: Record<string, number> }>(
-      "/api/admin/crests"
-    ).then((res) => {
-      if (cancelled) return;
-      if (res.ok && res.data?.counts) {
-        setCounts(res.data.counts);
-        setStatus("ok");
-      } else {
-        setStatus("error");
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    load();
+  }, [load]);
 
   async function act(action: "grant" | "revoke") {
     if (!handle.trim()) {
-      setNote("Enter a member handle first.");
+      setNote({ tone: "danger", text: "Enter a member handle first." });
       return;
     }
     setBusy(true);
@@ -50,15 +64,16 @@ export default function AdminCrestsPage() {
     });
     if (res.ok && res.data?.ok) {
       if (res.data.counts) setCounts(res.data.counts);
-      setNote(
-        `${action === "grant" ? "Granted" : "Revoked"} for @${
+      setNote({
+        tone: "gold",
+        text: `${action === "grant" ? "Granted" : "Revoked"} for @${
           res.data.member?.handle ?? handle.trim().replace(/^@/, "")
-        }.`
-      );
+        }.`,
+      });
     } else if (res.data?.error === "member_not_found") {
-      setNote("No member with that handle.");
+      setNote({ tone: "danger", text: "No member with that handle." });
     } else {
-      setNote("The change did not take. Try again.");
+      setNote({ tone: "danger", text: "The change did not take. Try again." });
     }
     setBusy(false);
   }
@@ -68,87 +83,83 @@ export default function AdminCrestsPage() {
       ? null
       : Object.values(counts).reduce((sum, n) => sum + n, 0);
 
-  const inputCls =
-    "w-full rounded-xl border border-steel-line bg-panel px-3 py-2 text-sm text-bone outline-none placeholder:text-bone-faint";
+  const selectedCrest = crests.find((c) => c.slug === crestSlug) ?? null;
 
   return (
-    <div>
-      <h1 className="font-display text-xl font-semibold text-bone sm:text-2xl">
-        Crests
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        The honor roll
-      </p>
-      <p className="mt-2 text-xs text-bone-faint">
+    <AdminStack>
+      <AdminHeader title="Crests" kicker="The honor roll" />
+
+      <p className="text-xs text-bone-faint">
         <span className="tnum">{liveCount}</span> of{" "}
         <span className="tnum">{crests.length}</span> crests are live.
-        {totalEarned !== null && (
+        {totalEarned !== null ? (
           <>
             {" "}
             <span className="tnum text-gold">{totalEarned}</span> earned across
             the realm.
           </>
-        )}
+        ) : null}
       </p>
 
-      {status === "error" && (
-        <p className="mt-2 text-xs text-ember">
-          Earned counts could not be read; showing the roll without them.
-        </p>
-      )}
+      {status === "error" ? (
+        <AdminNote>
+          Earned counts could not be read, so the roll is shown without them.
+        </AdminNote>
+      ) : null}
 
-      <div className="glass glass-sm mt-4 p-4 sm:p-5">
-        <p className="font-display text-sm font-semibold text-bone">
-          Grant or revoke a crest
-        </p>
+      <Card pad="sm">
+        <SectionHeader title="Grant or revoke a crest" className="px-0 pt-0" />
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <select
-            value={crestSlug}
-            onChange={(e) => setCrestSlug(e.target.value)}
-            className={inputCls}
-          >
-            {crests.map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <input
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            placeholder="Member handle (e.g. @raven)"
-            className={inputCls}
-          />
+          <Field label="Crest" required>
+            <Select
+              value={crestSlug}
+              onValueChange={(next) => setCrestSlug(next ?? "")}
+              placeholder="Choose a crest"
+              items={crests.map((c) => ({ value: c.slug, label: c.name }))}
+              className="min-h-11 md:min-h-0"
+            />
+          </Field>
+          <Field label="Member handle" required>
+            <Input
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              placeholder="@raven"
+              className="min-h-11 md:min-h-0"
+            />
+          </Field>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="btn-gold px-3 py-1.5 text-xs"
-            disabled={busy}
+          <Button
+            variant="gold"
+            size="md"
+            className={TOUCH}
+            loading={busy}
             onClick={() => void act("grant")}
           >
             Grant
-          </button>
-          <button
-            type="button"
-            className="btn-glass px-3 py-1.5 text-xs"
+          </Button>
+          <Button
+            variant="danger"
+            size="md"
+            className={TOUCH}
             disabled={busy}
-            onClick={() => void act("revoke")}
+            onClick={() => setConfirmRevoke(true)}
           >
             Revoke
-          </button>
+          </Button>
         </div>
-        {note && <p className="mt-2 text-xs text-bone-mut">{note}</p>}
-      </div>
+        {note ? (
+          <div className="mt-2">
+            <AdminNote tone={note.tone}>{note.text}</AdminNote>
+          </div>
+        ) : null}
+      </Card>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {crests.map((c) => {
           const earned = counts?.[c.slug] ?? 0;
           return (
-            <div
-              key={c.slug}
-              className={`rarity-${c.rarity} rarity-frame glass glass-sm p-4 sm:p-5`}
-            >
+            <Card key={c.slug} pad="sm">
               <div className="flex items-start gap-4">
                 <CrestRoundel
                   icon={c.icon}
@@ -161,16 +172,10 @@ export default function AdminCrestsPage() {
                   </p>
                   <p className="text-xs text-bone-faint">{c.plain}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    <span className={`rarity-${c.rarity} rarity-chip`}>
-                      {c.rarity}
-                    </span>
-                    <span
-                      className={`rounded-full border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${
-                        c.status === "live" ? "text-gold" : "text-bone-faint"
-                      }`}
-                    >
+                    <RarityChip rarity={c.rarity as Rarity} />
+                    <Badge variant={c.status === "live" ? "gold" : "default"}>
                       {c.status}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
               </div>
@@ -183,10 +188,27 @@ export default function AdminCrestsPage() {
                   {earned === 1 ? "citizen earned" : "citizens earned"}
                 </span>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={confirmRevoke}
+        onOpenChange={setConfirmRevoke}
+        title="Revoke this crest?"
+        description={`${selectedCrest?.name ?? "This crest"} is taken off ${
+          handle.trim() ? `@${handle.trim().replace(/^@/, "")}` : "the member"
+        }. It disappears from their Keep and from the honor roll, and only granting it again puts it back.`}
+        confirmLabel="Revoke it"
+        cancelLabel="Leave it earned"
+        tone="danger"
+        pending={busy}
+        onConfirm={() => {
+          setConfirmRevoke(false);
+          void act("revoke");
+        }}
+      />
+    </AdminStack>
   );
 }

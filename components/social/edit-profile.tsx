@@ -1,8 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { Icon } from "@/components/ui/icon";
+import { AdaptiveDialog } from "@/components/ui/sheet";
 import { realmFetch } from "@/lib/auth/api";
 import { fetchProfile } from "@/lib/social/queries";
+
+/* Editing a Keep, on the AdaptiveDialog: a bottom sheet on a phone, a centred
+   modal above 768px. The hand rolled overlay it replaces had no role, no focus
+   trap, no focus restore and no background scroll lock.
+
+   Every control is a Field, so the label is associated, the helper text is
+   referenced by aria-describedby and the error is announced rather than merely
+   printed in red under the form. */
 
 type LinkRow = { label: string; url: string };
 
@@ -11,6 +23,15 @@ const EMPTY_LINKS: LinkRow[] = [
   { label: "", url: "" },
   { label: "", url: "" },
 ];
+
+/* A file picker is a label wrapping an input. Keeping the input focusable and
+   showing the ring on the label keeps it reachable from the keyboard, which the
+   previous `hidden` input was not. */
+const PICKER_FOCUS =
+  "cursor-pointer has-[input:focus-visible]:outline has-[input:focus-visible]:outline-2 " +
+  "has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-[color:var(--state-focus-ring)]";
+
+const PORTRAIT_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 
 export function EditProfile({
   open,
@@ -31,7 +52,8 @@ export function EditProfile({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* Prefill from the caller's current profile each time the sheet opens. */
+  /* Prefill from the caller's current profile each time the sheet opens.
+     Still gated on `open`, so a closed editor costs nothing. */
   useEffect(() => {
     if (!open) return;
     setError(null);
@@ -115,79 +137,76 @@ export function EditProfile({
     onSaved();
   };
 
-  if (!open) return null;
-
-  const fieldClass =
-    "w-full rounded-lg border border-steel-line bg-void px-3 py-2 text-sm text-bone placeholder-bone-faint outline-none focus:border-gold/40";
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
-      <button
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
-      <div className="glass relative flex max-h-[85vh] w-full max-w-md flex-col overflow-y-auto p-5">
-        <h2 className="font-display text-lg font-semibold text-bone">
-          Edit Profile
-        </h2>
+    <AdaptiveDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title="Edit profile"
+      description="How the realm sees you."
+      footer={
+        <>
+          <Button variant="ghost" size="lg" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="gold"
+            size="lg"
+            onClick={save}
+            loading={saving}
+            disabled={saving || uploading !== null}
+          >
+            {saving ? "Sealing" : "Save"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Field
+          label="Username"
+          description="3 to 20 characters, a-z 0-9 _. Shown as @handle, unique in the realm."
+        >
+          <Input
+            value={handle}
+            onChange={(e) =>
+              setHandle(
+                e.target.value
+                  .toLowerCase()
+                  .replace(/[^a-z0-9_]/g, "")
+                  .slice(0, 20)
+              )
+            }
+            placeholder="your_handle"
+          />
+        </Field>
 
-        <label className="mt-4 block text-xs font-semibold text-bone-faint">
-          Username
-          <div className="mt-1 flex items-center gap-1 rounded-lg border border-steel-line bg-void px-3 focus-within:border-gold/40">
-            <span className="text-bone-faint">@</span>
-            <input
-              value={handle}
-              onChange={(e) =>
-                setHandle(
-                  e.target.value
-                    .toLowerCase()
-                    .replace(/[^a-z0-9_]/g, "")
-                    .slice(0, 20)
-                )
-              }
-              placeholder="your_handle"
-              className="min-w-0 flex-1 bg-transparent py-2 text-sm text-bone placeholder-bone-faint outline-none"
-            />
-          </div>
-          <span className="mt-1 block text-[10px] text-bone-faint">
-            3 to 20 characters, a-z 0-9 _. Must be unique in the realm.
-          </span>
-        </label>
-
-        <label className="mt-3 block text-xs font-semibold text-bone-faint">
-          Display name
-          <input
+        <Field label="Display name">
+          <Input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value.slice(0, 40))}
             placeholder="Your name in the realm"
-            className={`mt-1 ${fieldClass}`}
           />
-        </label>
+        </Field>
 
-        <label className="mt-3 block text-xs font-semibold text-bone-faint">
-          Bio
-          <textarea
+        <Field label="Bio" description={`${bio.length} of 280 characters used.`}>
+          <Textarea
             value={bio}
             onChange={(e) => setBio(e.target.value.slice(0, 280))}
             placeholder="A few words carved above your gate"
-            rows={3}
-            className={`mt-1 resize-none ${fieldClass}`}
           />
-          <span className="tnum mt-1 block text-right text-[10px] text-bone-faint">
-            {bio.length}/280
-          </span>
-        </label>
+        </Field>
 
-        <div className="mt-1">
-          <p className="text-xs font-semibold text-bone-faint">
-            Links (up to 3, https only)
-          </p>
-          <div className="mt-1 flex flex-col gap-1.5">
+        <Field
+          label="Links"
+          description="Up to three, https only. Each needs a label."
+        >
+          <div className="flex flex-col gap-1.5">
             {links.map((l, i) => (
               <div key={i} className="flex min-w-0 gap-1.5">
-                <input
+                <Input
                   value={l.label}
+                  aria-label={`Link ${i + 1} label`}
                   onChange={(e) =>
                     setLinks((prev) =>
                       prev.map((row, j) =>
@@ -198,10 +217,11 @@ export function EditProfile({
                     )
                   }
                   placeholder="Label"
-                  className={`w-1/3 min-w-0 ${fieldClass}`}
+                  className="w-1/3 min-w-0"
                 />
-                <input
+                <Input
                   value={l.url}
+                  aria-label={`Link ${i + 1} address`}
                   onChange={(e) =>
                     setLinks((prev) =>
                       prev.map((row, j) =>
@@ -212,105 +232,116 @@ export function EditProfile({
                     )
                   }
                   placeholder="https://"
-                  className={`flex-1 min-w-0 ${fieldClass}`}
+                  className="min-w-0 flex-1"
                 />
               </div>
             ))}
           </div>
-        </div>
+        </Field>
 
-        <div className="mt-4 flex items-center gap-3">
+        <div className="flex items-center gap-3">
           {avatarUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={avatarUrl}
-              alt="Avatar preview"
+              alt="Your portrait as it will appear"
               className="h-14 w-14 shrink-0 rounded-full border border-steel-line object-cover"
             />
           ) : (
-            <div className="h-14 w-14 shrink-0 rounded-full border border-steel-line bg-void" />
+            <div
+              aria-hidden
+              className="h-14 w-14 shrink-0 rounded-full border border-steel-line bg-void"
+            />
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-bone-faint">Avatar</p>
-            <div className="mt-1 flex items-center gap-2">
-              <label className="btn-glass cursor-pointer px-3 py-1.5 text-xs text-bone-mut">
-                {uploading === "avatar" ? "Uploading..." : "Upload"}
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-bone-mut">
+              Portrait
+            </p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <Button
+                variant="glass"
+                size="md"
+                render={<label className={PICKER_FOCUS} />}
+                className="max-md:h-11 text-bone-mut"
+              >
+                <Icon name="image" className="h-3.5 w-3.5" />
+                {uploading === "avatar" ? "Uploading" : "Upload"}
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
+                  accept={PORTRAIT_ACCEPT}
+                  className="sr-only"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) void upload(f, "avatar");
                     e.target.value = "";
                   }}
                 />
-              </label>
+              </Button>
               {avatarUrl && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="md"
                   onClick={() => setAvatarUrl("")}
-                  className="text-[11px] text-bone-faint hover:text-ember"
+                  className="max-md:h-11"
                 >
                   Remove
-                </button>
+                </Button>
               )}
             </div>
           </div>
         </div>
 
-        <div className="mt-4">
-          <p className="text-xs font-semibold text-bone-faint">Banner</p>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-bone-mut">
+            Banner
+          </p>
           {bannerUrl && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={bannerUrl}
-              alt="Banner preview"
-              className="mt-1 h-20 w-full rounded-lg border border-steel-line object-cover"
+              alt="Your banner as it will appear"
+              className="mt-1.5 h-20 w-full rounded-lg border border-steel-line object-cover"
             />
           )}
           <div className="mt-1.5 flex items-center gap-2">
-            <label className="btn-glass cursor-pointer px-3 py-1.5 text-xs text-bone-mut">
-              {uploading === "banner" ? "Uploading..." : "Upload"}
+            <Button
+              variant="glass"
+              size="md"
+              render={<label className={PICKER_FOCUS} />}
+              className="max-md:h-11 text-bone-mut"
+            >
+              <Icon name="image" className="h-3.5 w-3.5" />
+              {uploading === "banner" ? "Uploading" : "Upload"}
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
+                accept={PORTRAIT_ACCEPT}
+                className="sr-only"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) void upload(f, "banner");
                   e.target.value = "";
                 }}
               />
-            </label>
+            </Button>
             {bannerUrl && (
-              <button
+              <Button
+                variant="ghost"
+                size="md"
                 onClick={() => setBannerUrl("")}
-                className="text-[11px] text-bone-faint hover:text-ember"
+                className="max-md:h-11"
               >
                 Remove
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
-        {error && <p className="mt-3 text-xs text-ember-deep">{error}</p>}
-
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="btn-glass px-4 py-2 text-xs text-bone-mut"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={save}
-            disabled={saving || uploading !== null}
-            className="btn-gold px-5 py-2 text-xs disabled:opacity-60"
-          >
-            {saving ? "Sealing..." : "Save"}
-          </button>
-        </div>
+        {error && (
+          <p role="alert" className="text-xs text-state-danger">
+            {error}
+          </p>
+        )}
       </div>
-    </div>
+    </AdaptiveDialog>
   );
 }

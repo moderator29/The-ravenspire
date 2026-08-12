@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { Icon } from "@/components/ui/icon";
+import { Icon3D } from "@/components/ui/icon-3d";
 import { BackButton } from "@/components/shell/back-button";
+import { Button } from "@/components/ui/button";
 
 interface MeProfile {
   handle: string | null;
@@ -75,42 +78,46 @@ export default function BannersPage() {
       </p>
 
       {!ready || loading ? (
-        <div className="glass mt-5 h-48 animate-pulse" />
+        <Card pad="none" className="mt-5 h-48 animate-pulse" />
       ) : !authenticated || !me?.handle ? (
-        <div className="glass mt-5 p-8 text-center">
-          <Icon name="flag" className="mx-auto h-7 w-7 text-gold" />
+        <Card pad="none" className="mt-5 p-8 text-center">
+          <Icon3D name="alliance" size="lg" className="mx-auto" />
           <p className="mx-auto mt-3 max-w-sm text-sm text-bone-mut">
             {!authenticated
               ? "Every citizen carries a banner with their name on it. Enter the realm to claim yours."
               : "Claim your handle first; your banner link carries your name."}
           </p>
-          <Link
-            href={!authenticated ? "/signin" : "/keep"}
-            className="btn-gold mt-5 px-5 py-2.5 text-sm"
+          <Button
+            variant="gold"
+            size="lg"
+            className="mt-5"
+            render={<Link href={!authenticated ? "/signin" : "/keep"} />}
           >
             {!authenticated ? "Enter the realm" : "Finish your Keep"}
-          </Link>
-        </div>
+          </Button>
+        </Card>
       ) : (
         <>
           {/* Banner link */}
-          <div className="glass-warm glass mt-5 p-6">
+          <Card variant="warm" pad="none" className="mt-5 p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-bone-faint">
               Your banner
             </p>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <code className="glass-sm min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-xl border border-steel-line bg-void px-4 py-3 text-xs text-gold-bright">
+              <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-steel-line bg-void px-4 py-3 text-xs text-gold-bright">
                 {link}
               </code>
-              <button
+              <Button
+                variant="gold"
+                size="lg"
+                className="shrink-0"
                 onClick={copy}
-                className="btn-gold shrink-0 px-5 py-2.5 text-sm"
               >
                 <Icon name="banner" className="h-4 w-4" />
                 {copied ? "Copied" : "Copy link"}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
 
           {/* How it works */}
           <h2 className="mt-8 font-display text-base font-semibold text-bone">
@@ -118,7 +125,7 @@ export default function BannersPage() {
           </h2>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {steps.map((s, i) => (
-              <div key={s.title} className="glass glass-sm p-4">
+              <Card key={s.title} radius="lg" pad="none" className="p-4">
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-steel-line bg-panel">
                     <Icon name={s.icon} className="h-4 w-4 text-gold" />
@@ -133,12 +140,12 @@ export default function BannersPage() {
                 <p className="mt-1.5 text-xs leading-relaxed text-bone-mut">
                   {s.text}
                 </p>
-              </div>
+              </Card>
             ))}
           </div>
 
           {/* Rewards note */}
-          <div className="glass glass-sm mt-4 p-5">
+          <Card radius="lg" pad="none" className="mt-4 p-5">
             <p className="text-sm text-bone-mut">
               <span className="font-semibold text-bone">
                 What you earn, plainly:
@@ -148,7 +155,7 @@ export default function BannersPage() {
               alone. No promises of profit, just a fair cut of the standing you
               helped build.
             </p>
-          </div>
+          </Card>
         </>
       )}
     </div>

@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 
 type Host = {
   handle: string | null;
@@ -35,19 +37,16 @@ type Court = {
 function CourtCard({ c }: { c: Court }) {
   const hostName = c.host?.display_name ?? c.host?.handle ?? "Unknown herald";
   return (
-    <Link
-      href={`/rookery/${c.id}`}
-      className="glass glass-hover group block p-4"
-    >
+    <Card render={<Link href={`/rookery/${c.id}`} />} pad="none" interactive className="group block p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           {c.status === "live" ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-ember/40 bg-ember/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-ember">
+            <span className="inline-flex items-center gap-1.5 rounded-sm border border-ember/40 bg-ember/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-ember">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ember" />
               Live
             </span>
           ) : (
-            <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+            <span className="inline-flex items-center rounded-sm border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
               Upcoming
             </span>
           )}
@@ -76,7 +75,7 @@ function CourtCard({ c }: { c: Court }) {
               <span className="inline-flex items-center gap-1.5 text-xs text-bone-mut">
                 <span
                   className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: c.house.color ?? "#C8A24C" }}
+                  style={{ backgroundColor: c.house.color ?? "#D9B040" }}
                 />
                 {c.house.name}
               </span>
@@ -88,13 +87,16 @@ function CourtCard({ c }: { c: Court }) {
             <span className="tnum text-bone">{c.participants}</span>{" "}
             {c.participants === 1 ? "soul" : "souls"}
           </p>
-          <span className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs transition group-hover:text-gold">
+          {/* A span, not a Button: the whole row is already the link, and a
+              nested interactive element inside a link is invalid and traps a
+              second tab stop. This is the affordance, drawn to match. */}
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-gold/25 bg-void/60 px-3 py-1.5 text-xs font-semibold text-bone transition-colors duration-fast group-hover:border-gold/45 group-hover:text-gold">
             Enter
             <Icon name="arrow" className="h-3.5 w-3.5" />
           </span>
         </div>
       </div>
-    </Link>
+    </Card>
   );
 }
 
@@ -179,7 +181,7 @@ export default function RookeryPage() {
       </div>
 
       {ready && authenticated && (
-        <div className="glass gold-metal mt-5 p-4">
+        <Card pad="none" className="gold-metal mt-5 p-4">
           <p className="font-display text-sm font-semibold text-bone">
             Hold a court
           </p>
@@ -194,7 +196,7 @@ export default function RookeryPage() {
             }}
             maxLength={80}
             placeholder="Name the matter before the court"
-            className="mt-3 w-full rounded-lg border border-steel-line bg-panel px-3 py-2.5 text-sm text-bone placeholder:text-bone-faint focus:outline-none"
+            className="mt-3 w-full rounded-lg border border-steel-line bg-panel px-3 py-2.5 text-sm text-bone placeholder:text-bone-faint"
           />
 
           {houses.length > 0 && (
@@ -210,7 +212,7 @@ export default function RookeryPage() {
                       key={h.slug}
                       type="button"
                       onClick={() => setHouseSlug(on ? null : h.slug)}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                      className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs transition ${
                         on
                           ? "border-gold/50 bg-gold/10 text-bone"
                           : "border-steel-line bg-panel text-bone-mut hover:text-bone"
@@ -218,7 +220,7 @@ export default function RookeryPage() {
                     >
                       <span
                         className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: h.color ?? "#C8A24C" }}
+                        style={{ backgroundColor: h.color ?? "#D9B040" }}
                       />
                       {h.name.replace(/^House\s+/i, "")}
                     </button>
@@ -229,30 +231,38 @@ export default function RookeryPage() {
           )}
 
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <button
+            <Button
+              variant="gold"
+              size="lg"
+              className="flex-1"
+              loading={opening === "open"}
+              disabled={opening !== null || !title.trim()}
               onClick={() => void open("open")}
-              disabled={opening !== null || !title.trim()}
-              className="btn-gold flex-1 px-4 py-2.5 text-sm disabled:opacity-50"
             >
-              <Icon name="signal" className="h-4 w-4" />
+              {opening !== "open" && <Icon name="signal" className="h-4 w-4" />}
               {opening === "open" ? "Raising..." : "Open now"}
-            </button>
-            <button
-              onClick={() => void open("schedule")}
+            </Button>
+            <Button
+              variant="glass"
+              size="lg"
+              className="flex-1"
+              loading={opening === "schedule"}
               disabled={opening !== null || !title.trim()}
-              className="btn-glass flex-1 px-4 py-2.5 text-sm disabled:opacity-50"
+              onClick={() => void open("schedule")}
             >
-              <Icon name="scroll" className="h-4 w-4" />
+              {opening !== "schedule" && (
+                <Icon name="scroll" className="h-4 w-4" />
+              )}
               {opening === "schedule" ? "Announcing..." : "Announce upcoming"}
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {error && (
-        <div className="glass glass-sm mt-3 border-ember/40 p-3 text-sm text-ember">
+        <Card radius="lg" pad="none" tone="ember" className="mt-3 p-3 text-sm text-ember">
           {error}
-        </div>
+        </Card>
       )}
 
       {/* Live */}
@@ -266,10 +276,10 @@ export default function RookeryPage() {
         <div className="mt-3 flex flex-col gap-2">
           {courts === null ? (
             [0, 1].map((i) => (
-              <div key={i} className="glass h-24 animate-pulse" />
+              <Card key={i} pad="none" className="h-24 animate-pulse" />
             ))
           ) : live.length === 0 ? (
-            <div className="glass p-8 text-center">
+            <Card pad="none" className="p-8 text-center">
               <Icon name="signal" className="mx-auto h-8 w-8 text-gold" />
               <p className="mt-3 font-display text-lg font-semibold text-bone">
                 No courts in session
@@ -278,7 +288,7 @@ export default function RookeryPage() {
                 The hall stands ready and the benches are empty. Open a court and
                 the realm will see your banner raised here.
               </p>
-            </div>
+            </Card>
           ) : (
             live.map((c) => <CourtCard key={c.id} c={c} />)
           )}
@@ -299,14 +309,14 @@ export default function RookeryPage() {
         </div>
       )}
 
-      <div className="glass glass-sm mt-6 flex items-start gap-3 p-4">
+      <Card radius="lg" pad="none" className="mt-6 flex items-start gap-3 p-4">
         <Icon name="orb" className="mt-0.5 h-4 w-4 shrink-0 text-bone-faint" />
         <p className="text-xs leading-relaxed text-bone-mut">
           A court gathers the realm in real time: a living roster, reactions, and
           an open floor. Live voice arrives when the court&apos;s speaking stones
           (the audio provider) are set in place.
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

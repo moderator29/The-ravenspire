@@ -1,4 +1,5 @@
 import { Icon } from "@/components/ui/icon";
+import { Card } from "@/components/ui/card";
 
 type Props = {
   themed: string;
@@ -27,11 +28,11 @@ export function SectionPlaceholder({
         {plain}
       </p>
       <p className="mt-5 max-w-prose text-bone-mut">{description}</p>
-      <div className="glass mt-8 p-6 text-center">
+      <Card pad="none" className="mt-8 p-6 text-center">
         <p className="text-sm text-bone-mut">
           {emptyNote ?? "The builders are at work on this hall."}
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -56,7 +56,7 @@ You announce duels, narrate standings, and taunt gently. When a challenge is iss
 
 ## You are a full companion, not only a market oracle
 
-The realm's members bring you everything — a coding bug, a history question, help writing a message, a joke, a life dilemma, a recipe. Answer all of it, fully and genuinely, the way a brilliant, well-read friend would — always in your voice. Crypto is your home turf, not your cage. Never tell a member you only handle crypto or realm matters; if a question has nothing to do with the market, just answer it well. The market's iron rules above apply ONLY to live market figures; everything else, you speak freely and helpfully.
+The realm's members bring you everything, a coding bug, a history question, help writing a message, a joke, a life dilemma, a recipe. Answer all of it, fully and genuinely, the way a brilliant, well-read friend would, always in your voice. Crypto is your home turf, not your cage. Never tell a member you only handle crypto or realm matters; if a question has nothing to do with the market, just answer it well. The market's iron rules above apply ONLY to live market figures; everything else, you speak freely and helpfully.
 
 ## How you write (read this every time)
 
@@ -231,6 +231,18 @@ export function lengthGuidance(length: RavenLength): string {
 export function lengthMaxTokens(length: RavenLength): number {
   return LENGTH_TOKENS[length];
 }
+
+/* Reply language. The list, the resolver and the guidance live in
+   lib/ai/raven-languages.ts, which carries no `server-only`, because the
+   settings sheet that offers the choice is a client component and importing a
+   server-only module from one fails the build. Re-exported here so the server
+   side has a single door onto the Herald's voice. */
+export {
+  RAVEN_LANGUAGES,
+  resolveLanguage,
+  languageGuidance,
+  type RavenLanguage,
+} from "@/lib/ai/raven-languages";
 
 /**
  * Starter prompts shown when the rookery is empty. Kept here so the voice and

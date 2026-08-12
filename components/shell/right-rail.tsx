@@ -5,10 +5,40 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { createClient } from "@/lib/supabase/client";
 import { houses } from "@/lib/data/houses";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/social/avatar";
 import { FollowButton } from "@/components/social/follow-button";
 import { fetchViewer, fetchFollowingSet } from "@/lib/social/profile-queries";
 import { fetchTopPeople, type PersonHit } from "@/lib/social/explore-queries";
+
+/* A promise that never settles is not caught by a `catch`.
+ *
+ * Both cards below already fall to an honest empty state when a fetch rejects.
+ * Neither had anything to say about a fetch that simply never answers, and that
+ * is not a hypothetical: a request that hangs on a dead connection or a stalled
+ * socket resolves nothing, rejects nothing, and leaves a skeleton pulsing for
+ * as long as the member stays on the page. Measured on a build with no realm
+ * reachable, four seconds after the network had gone quiet: three grey bars in
+ * "Who to follow" and three more in "What the realm watches", on every screen
+ * in the product, forever.
+ *
+ * A skeleton is a claim that something is arriving. This puts a deadline on the
+ * claim. Six seconds is well past any honest load and well short of the point
+ * where a member has decided the product is broken. */
+const SETTLE_MS = 6000;
+
+/* Rejects rather than resolving a stand in, so a hang lands in the same
+   `catch` a failure already lands in. One path to the empty state, not two. */
+function withDeadline<T>(work: Promise<T>): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("deadline")), SETTLE_MS)
+    ),
+  ]);
+}
 
 interface HouseRow {
   slug: string;
@@ -26,56 +56,78 @@ export function RightRail() {
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
 
   /* Who to follow: the realm's most renowned, with the viewer's real
-     follow-state batched so every button loads truthfully in one query. */
+     follow-state batched so every button loads truthfully in one query.
+
+     The catch is the load bearing part. A rejected fetch used to leave `people`
+     null forever, and null is what draws the skeleton, so a member on a flaky
+     connection got three grey bars pulsing on every screen in the realm for as
+     long as they stayed. A skeleton is a claim that something is arriving. When
+     nothing is arriving that claim is false, and both of these cards already
+     have an honest empty state to fall to. */
   useEffect(() => {
-    void fetchViewer().then((v) => {
-      setViewerId(v?.id ?? null);
-      void fetchTopPeople(v?.id).then((list) => {
-        const top = list.slice(0, 4);
+    void (async () => {
+      try {
+        const viewer = await withDeadline(fetchViewer());
+        setViewerId(viewer?.id ?? null);
+        const top = (await withDeadline(fetchTopPeople(viewer?.id))).slice(0, 4);
         setPeople(top);
-        if (v?.id && top.length > 0) {
-          void fetchFollowingSet(
-            v.id,
-            top.map((p) => p.id)
-          ).then(setFollowingSet);
+        if (viewer?.id && top.length > 0) {
+          setFollowingSet(
+            await fetchFollowingSet(
+              viewer.id,
+              top.map((p) => p.id)
+            )
+          );
         }
-      });
-    });
+      } catch {
+        /* No suggestions rather than a promise of suggestions. */
+        setPeople([]);
+      }
+    })();
   }, []);
 
   useEffect(() => {
     const db = createClient();
     void (async () => {
-      const [{ data: posts }, { data: houseRows }, { data: season }] =
-        await Promise.all([
-          db
-            .from("posts")
-            .select("cashtags")
-            .eq("deleted", false)
-            .order("created_at", { ascending: false })
-            .limit(200),
-          db.from("houses").select("slug, name, glory").order("glory", {
-            ascending: false,
-          }),
-          db.from("seasons").select("ends_at").eq("id", 1).maybeSingle(),
-        ]);
+      try {
+        const [{ data: posts }, { data: houseRows }, { data: season }] =
+          await withDeadline(
+            Promise.all([
+              db
+                .from("posts")
+                .select("cashtags")
+                .eq("deleted", false)
+                .order("created_at", { ascending: false })
+                .limit(200),
+              db.from("houses").select("slug, name, glory").order("glory", {
+                ascending: false,
+              }),
+              db.from("seasons").select("ends_at").eq("id", 1).maybeSingle(),
+            ])
+          );
 
-      const counts = new Map<string, number>();
-      for (const p of posts ?? [])
-        for (const t of (p.cashtags as string[]) ?? [])
-          counts.set(t, (counts.get(t) ?? 0) + 1);
-      setTags(
-        [...counts.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 6)
-          .map(([tag, count]) => ({ tag, count }))
-      );
-      if (houseRows?.length) setLead(houseRows[0] as HouseRow);
-      if (season?.ends_at) {
-        const ms = new Date(season.ends_at).getTime() - Date.now();
-        setDays(Math.max(0, Math.ceil(ms / 86_400_000)));
+        const counts = new Map<string, number>();
+        for (const p of posts ?? [])
+          for (const t of (p.cashtags as string[]) ?? [])
+            counts.set(t, (counts.get(t) ?? 0) + 1);
+        setTags(
+          [...counts.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6)
+            .map(([tag, count]) => ({ tag, count }))
+        );
+        if (houseRows?.length) setLead(houseRows[0] as HouseRow);
+        if (season?.ends_at) {
+          const ms = new Date(season.ends_at).getTime() - Date.now();
+          setDays(Math.max(0, Math.ceil(ms / 86_400_000)));
+        }
+      } catch {
+        /* Fall through to the empty state below rather than pulse forever. */
+      } finally {
+        /* Settled either way: `ready` means the realm has answered, not that
+           the answer was good news. */
+        setReady(true);
       }
-      setReady(true);
     })();
   }, []);
 
@@ -83,7 +135,7 @@ export function RightRail() {
 
   return (
     <aside className="hidden w-80 shrink-0 flex-col gap-4 px-4 py-6 xl:flex">
-      <div className="glass p-4">
+      <Card pad="md">
         <div className="flex items-center gap-2">
           <Icon name="raven" className="h-5 w-5 text-gold" />
           <h2 className="font-display text-base font-semibold tracking-wide text-bone">
@@ -97,17 +149,20 @@ export function RightRail() {
           Ask anything. Settle a debate, read a token, roast a friend kindly.
           Real data only, realm voice always.
         </p>
-        <Link
-          href="/raven"
-          className="btn-glass mt-3 block w-full px-3 py-2 text-center text-sm text-bone-mut"
+        <Button
+          variant="glass"
+          size="md"
+          block
+          className="mt-3"
+          render={<Link href="/raven" />}
         >
           Summon the Raven
-        </Link>
-      </div>
+        </Button>
+      </Card>
 
       {/* Who to follow */}
       {(people === null || people.length > 0) && (
-        <div className="glass p-4">
+        <Card pad="md">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-base font-semibold tracking-wide text-bone">
               Who to follow
@@ -122,7 +177,7 @@ export function RightRail() {
           <div className="mt-3 flex flex-col gap-2">
             {people === null
               ? [0, 1, 2].map((i) => (
-                  <div key={i} className="h-10 animate-pulse rounded-lg bg-panel" />
+                  <Skeleton key={i} className="h-10 w-full" />
                 ))
               : people.map((p) => (
                   <div key={p.id} className="flex items-center gap-2.5">
@@ -148,11 +203,11 @@ export function RightRail() {
                   </div>
                 ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* The Season */}
-      <div className="glass p-4">
+      <Card pad="md">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-base font-semibold tracking-wide text-bone">
             The Season
@@ -169,9 +224,9 @@ export function RightRail() {
             <div
               className="flex h-9 w-9 items-center justify-center rounded-lg"
               style={{
-                background: `linear-gradient(160deg, ${leadMeta?.color ?? "#C8A24C"}26, #101017)`,
-                border: `1px solid ${leadMeta?.color ?? "#C8A24C"}55`,
-                color: leadMeta?.color ?? "#C8A24C",
+                background: `linear-gradient(160deg, ${leadMeta?.color ?? "#D9B040"}26, #101017)`,
+                border: `1px solid ${leadMeta?.color ?? "#D9B040"}55`,
+                color: leadMeta?.color ?? "#D9B040",
               }}
             >
               <Icon name="crown" className="h-5 w-5" />
@@ -196,17 +251,17 @@ export function RightRail() {
         >
           Enter Claim the Throne
         </Link>
-      </div>
+      </Card>
 
       {/* Trending cashtags */}
-      <div className="glass p-4">
+      <Card pad="md">
         <h2 className="font-display text-base font-semibold tracking-wide text-bone">
           What the realm watches
         </h2>
         {!ready ? (
           <div className="mt-3 space-y-2">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-6 animate-pulse rounded bg-panel" />
+              <Skeleton key={i} className="h-6 w-full" />
             ))}
           </div>
         ) : tags.length ? (
@@ -229,7 +284,7 @@ export function RightRail() {
             No cashtags in the wind yet. Seal a Call and start the talk.
           </p>
         )}
-      </div>
+      </Card>
     </aside>
   );
 }

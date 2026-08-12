@@ -15,17 +15,9 @@ export async function POST(req: Request) {
     post_id: body.post_id,
     viewer_id: profile.id,
   });
-  if (!error) {
-    const { data: post } = await db
-      .from("posts")
-      .select("view_count")
-      .eq("id", body.post_id)
-      .single();
-    if (post)
-      await db
-        .from("posts")
-        .update({ view_count: post.view_count + 1 })
-        .eq("id", body.post_id);
-  }
+  /* B6: atomic. Views arrive in bursts from many readers at once, which is
+     exactly the shape that lost increments under the old read-then-write. */
+  if (!error)
+    await db.rpc("bump_post_counts", { p_post_id: body.post_id, p_views: 1 });
   return json({ ok: true, counted: !error });
 }

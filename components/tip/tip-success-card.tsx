@@ -1,6 +1,8 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { explorerTxUrl, resolveChain } from "@/components/tip/chain";
 
@@ -41,11 +43,17 @@ export function TipSuccessCard({
   const sparks = Array.from({ length: 8 });
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="glass glass-warm relative w-full max-w-md overflow-hidden p-7 text-center"
+    <Card
+      variant="warm"
+      pad="none"
+      render={
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        />
+      }
+      className="relative w-full max-w-md overflow-hidden p-7 text-center"
     >
       {/* Radiant gold wash behind the coin. */}
       <div
@@ -53,7 +61,7 @@ export function TipSuccessCard({
         className="pointer-events-none absolute inset-0 opacity-70"
         style={{
           background:
-            "radial-gradient(120% 90% at 50% 0%, rgba(240,214,140,0.18), rgba(200,162,76,0.05) 42%, transparent 70%)",
+            "radial-gradient(120% 90% at 50% 0%, rgba(255, 233, 163,0.18), rgba(217, 176, 64,0.05) 42%, transparent 70%)",
         }}
       />
       {!reduce && (
@@ -94,7 +102,7 @@ export function TipSuccessCard({
             variants={coinVariants}
             initial="hidden"
             animate="show"
-            className="gold-metal flex h-20 w-20 items-center justify-center rounded-full shadow-[inset_0_2px_4px_rgba(255,244,214,0.6),inset_0_-4px_8px_rgba(90,66,20,0.5),0_10px_30px_rgba(200,162,76,0.35)]"
+            className="gold-metal flex h-20 w-20 items-center justify-center rounded-full shadow-[inset_0_2px_4px_rgba(255,244,214,0.6),inset_0_-4px_8px_rgba(90,66,20,0.5),0_10px_30px_rgba(217,176,64,0.35)]"
           >
             <Icon name="coin" className="h-9 w-9 text-[#171204]" />
           </motion.div>
@@ -116,23 +124,22 @@ export function TipSuccessCard({
         </p>
 
         <div className="mt-6 flex w-full items-center gap-2">
-          <a
-            href={txUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-glass flex-1 px-4 py-2 text-xs text-gold transition hover:text-gold-bright"
+          <Button
+            variant="glass"
+            size="md"
+            className="flex-1 text-gold"
+            render={
+              <a href={txUrl} target="_blank" rel="noopener noreferrer" />
+            }
           >
             <Icon name="scroll" className="h-4 w-4" />
             View on {chain.name}
-          </a>
-          <button
-            onClick={onClose}
-            className="btn-gold flex-1 px-4 py-2 text-xs"
-          >
+          </Button>
+          <Button variant="gold" size="md" className="flex-1" onClick={onClose}>
             Done
-          </button>
+          </Button>
         </div>
       </div>
-    </motion.div>
+    </Card>
   );
 }

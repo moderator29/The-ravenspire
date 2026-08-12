@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 
@@ -41,20 +42,21 @@ export function TopUpButton({
 
   return (
     <div>
-      <button
-        type="button"
+      <Button
+        variant="gold"
+        size="lg"
+        block
+        loading={loading}
         onClick={() => void open()}
-        disabled={loading}
-        className="btn-gold inline-flex w-full items-center justify-center gap-1.5 py-2.5 text-sm disabled:opacity-60"
       >
-        {loading ? (
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#171204]/40 border-t-[#171204]" />
-        ) : (
-          <Icon name="wallet" className="h-4 w-4" />
-        )}
+        {!loading && <Icon name="wallet" className="h-4 w-4" />}
         Top up with card
-      </button>
-      {error && <p className="mt-1.5 text-xs text-ember">{error}</p>}
+      </Button>
+      {error && (
+        <p role="alert" className="mt-1.5 text-xs text-state-warning">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { motion, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 
@@ -19,17 +20,17 @@ const steps = [
   {
     icon: "home",
     title: "Live in the realm",
-    body: "Post, banter, duel with wit and swear to a House. Fun comes first, and no token is ever needed to belong.",
+    body: "Post, argue, swear to a House and find your people. No token is ever needed to belong.",
   },
   {
-    icon: "crown",
-    title: "Play the games",
-    body: "Claim the Throne with your House each Season, then take the field yourself in The War for the whole realm.",
+    icon: "orb",
+    title: "Make your Calls",
+    body: "Seal a public claim and let it settle against real data. Renown for reading it right, and a Season Rating that carries the risk.",
   },
   {
     icon: "medal",
-    title: "Earn and claim",
-    body: "Real deeds earn points that convert to $RSP at Season's end, claimed straight to the wallet only you control.",
+    title: "Earn your standing",
+    body: "Real deeds earn points on the server against verified events. Balances show as points, and they convert to $RSP at the token generation event.",
   },
 ];
 
@@ -44,13 +45,7 @@ const rise: Variants = {
 
 export function HowItWorks() {
   return (
-    <motion.section
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass p-7 sm:p-9"
-    >
+    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="p-7 sm:p-9">
       <motion.div
         variants={rise}
         className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold"
@@ -88,7 +83,7 @@ export function HowItWorks() {
               <span
                 aria-hidden="true"
                 className="absolute inset-0 rounded-full opacity-40 blur-md"
-                style={{ background: "radial-gradient(circle, rgba(200,162,76,0.5), transparent 70%)" }}
+                style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.5), transparent 70%)" }}
               />
               <span className="relative font-display text-sm font-semibold text-gold">
                 {i + 1}
@@ -110,12 +105,12 @@ export function HowItWorks() {
       <motion.div variants={rise}>
         <Link
           href="/signin"
-          className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
+          className="mt-7 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
         >
           Start at the gate
           <Icon name="arrow" className="h-4 w-4" />
         </Link>
       </motion.div>
-    </motion.section>
+    </Card>
   );
 }

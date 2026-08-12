@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
+import { Input } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/button";
 import { BackButton } from "@/components/shell/back-button";
 import { realmFetch } from "@/lib/auth/api";
+import { StreamColumn } from "@/components/stream/stream-shell";
 
 /* Global search: members, cashtags and posts from anywhere in the realm. Real
    data only, live as you type, with honest empty states. */
@@ -40,7 +44,29 @@ interface Results {
   cashtags: CashtagResult[];
 }
 
+/* useSearchParams() opts a component out of static rendering, so Next requires
+   it to sit under a Suspense boundary. Without one the production build fails
+   while prerendering this route, which is exactly what it was doing. The
+   boundary lives here rather than in the shell layout so only the search body
+   waits on the URL, not the whole page frame. */
 export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchFallback />}>
+      <SearchBody />
+    </Suspense>
+  );
+}
+
+function SearchFallback() {
+  return (
+    <StreamColumn className="px-4 py-6">
+      <BackButton />
+      <Card pad="none" className="mt-4 h-12 animate-pulse" />
+    </StreamColumn>
+  );
+}
+
+function SearchBody() {
   /* Seed the query from the URL so deep links like /search?q=$NAKA (from the
      right rail's trending cashtags) land pre-searched. */
   const params = useSearchParams();
@@ -79,7 +105,7 @@ export default function SearchPage() {
     results.cashtags.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       <div className="mb-4">
         <BackButton />
       </div>
@@ -89,25 +115,45 @@ export default function SearchPage() {
         Members, cashtags, posts
       </p>
 
-      <label className="mt-4 flex items-center gap-2 rounded-2xl border border-steel-line bg-void px-3.5 py-3 focus-within:border-gold/40">
-        <Icon name="search" className="h-4 w-4 shrink-0 text-bone-faint" />
-        <input
+      {/* Three things were wrong with this field and all three came from it
+          being hand written rather than the primitive.
+
+          It sat at `--radius-2xl`, which is 26px, on a 49px box. That rung is
+          for modals, sheets and the nav shell; at this height it reads as the
+          capsule the design rules exist to keep off controls. Inputs are
+          `--radius-md`.
+
+          The input itself carried no height at all, so it rendered at 23px
+          inside a 49px label. The row was hittable, which is why no audit
+          flagged it, but the 44px floor was coming from the parent's padding
+          by accident rather than from the control by design.
+
+          And the clear control drew its X by rotating the `plus` glyph forty
+          five degrees, which is the exact thing the icon set grew a `close`
+          glyph to stop. */}
+      <label className="relative mt-4 block">
+        <span className="sr-only">Search the realm</span>
+        <Icon
+          name="search"
+          aria-hidden
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-faint"
+        />
+        <Input
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the realm"
           spellCheck={false}
-          className="min-w-0 flex-1 bg-transparent text-sm text-bone placeholder-bone-faint outline-none"
+          className="h-11 pl-10 pr-11"
         />
         {query && (
-          <button
-            type="button"
+          <IconButton
+            icon="close"
+            label="Clear search"
+            size="sm"
             onClick={() => setQuery("")}
-            aria-label="Clear"
-            className="text-bone-faint hover:text-bone-mut"
-          >
-            <Icon name="plus" className="h-4 w-4 rotate-45" />
-          </button>
+            className="absolute right-1.5 top-1/2 -translate-y-1/2"
+          />
         )}
       </label>
 
@@ -122,20 +168,16 @@ export default function SearchPage() {
             Searching the realm...
           </div>
         ) : empty ? (
-          <div className="glass p-8 text-center text-sm text-bone-mut">
+          <Card pad="none" className="p-8 text-center text-sm text-bone-mut">
             Nothing found for &ldquo;{query.trim()}&rdquo;.
-          </div>
+          </Card>
         ) : (
           results && (
             <div className="flex flex-col gap-6">
               {results.cashtags.length > 0 && (
                 <Section label="Cashtags">
                   {results.cashtags.map((c) => (
-                    <Link
-                      key={c.tag}
-                      href={`/coin/${encodeURIComponent(c.tag)}?sym=${encodeURIComponent(c.tag)}`}
-                      className="glass glass-sm flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30"
-                    >
+                    <Card key={c.tag} render={<Link href={`/coin/${encodeURIComponent(c.tag)}?sym=${encodeURIComponent(c.tag)}`} />} radius="lg" pad="none" className="flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-panel-warm text-sm font-semibold text-gold">
                         $
                       </span>
@@ -149,7 +191,7 @@ export default function SearchPage() {
                         </p>
                       </div>
                       <Icon name="arrow" className="h-4 w-4 shrink-0 text-bone-faint" />
-                    </Link>
+                    </Card>
                   ))}
                 </Section>
               )}
@@ -160,11 +202,7 @@ export default function SearchPage() {
                     const name =
                       u.displayName ?? (u.handle ? `@${u.handle}` : "A member");
                     return (
-                      <Link
-                        key={u.id}
-                        href={u.handle ? `/u/${u.handle}` : "#"}
-                        className="glass glass-sm flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30"
-                      >
+                      <Card key={u.id} render={<Link href={u.handle ? `/u/${u.handle}` : "#"} />} radius="lg" pad="none" className="flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30">
                         {u.avatarUrl ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
@@ -193,7 +231,7 @@ export default function SearchPage() {
                             </p>
                           )}
                         </div>
-                      </Link>
+                      </Card>
                     );
                   })}
                 </Section>
@@ -206,11 +244,7 @@ export default function SearchPage() {
                       p.author.displayName ??
                       (p.author.handle ? `@${p.author.handle}` : "A member");
                     return (
-                      <Link
-                        key={p.id}
-                        href={`/post/${p.id}`}
-                        className="glass glass-sm flex flex-col gap-1.5 px-3.5 py-3 transition hover:border-gold/30"
-                      >
+                      <Card key={p.id} render={<Link href={`/post/${p.id}`} />} radius="lg" pad="none" className="flex flex-col gap-1.5 px-3.5 py-3 transition hover:border-gold/30">
                         <div className="flex items-center gap-2">
                           {p.author.avatarUrl ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
@@ -229,7 +263,7 @@ export default function SearchPage() {
                           </span>
                         </div>
                         <p className="line-clamp-2 text-sm text-bone">{p.body}</p>
-                      </Link>
+                      </Card>
                     );
                   })}
                 </Section>
@@ -238,7 +272,7 @@ export default function SearchPage() {
           )
         )}
       </div>
-    </div>
+    </StreamColumn>
   );
 }
 

@@ -2,8 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import { realmFetch } from "@/lib/auth/api";
-import { Icon } from "@/components/ui/icon";
 import { houses } from "@/lib/data/houses";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field, Input } from "@/components/ui/field";
+import { ConfirmDialog } from "@/components/ui/modal";
+import { useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  AdminError,
+  AdminHeader,
+  AdminNote,
+  AdminStack,
+  Board,
+  BoardCard,
+  BoardSkeleton,
+  SealedChamber,
+  TOUCH,
+} from "@/app/admin/ui";
 
 interface UserRow {
   id: string;
@@ -50,6 +67,10 @@ const NEEDS_CONFIRM: Set<Action> = new Set([
   "revoke_admin",
 ]);
 
+/* Banning and revoking a seat are the destructive half, so their confirmation
+   is toned danger. Granting a seat is equally serious but not a removal. */
+const DANGER_ACTIONS: Set<Action> = new Set(["ban_user", "revoke_admin"]);
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [status, setStatus] = useState<"loading" | "ok" | "sealed" | "error">(
@@ -62,6 +83,7 @@ export default function AdminUsersPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showSkeleton = useDelayedLoading(status === "loading", 300);
 
   function load(q: string) {
     setStatus("loading");
@@ -136,199 +158,226 @@ export default function AdminUsersPage() {
     }
   }
 
-  if (status === "sealed") {
-    return (
-      <div className="glass p-8 text-center">
-        <Icon name="lock" className="mx-auto h-6 w-6 text-bone-faint" />
-        <p className="gold-text font-display mt-3 text-xl font-semibold">
-          The council chamber is sealed
-        </p>
-      </div>
-    );
-  }
+  if (status === "sealed") return <SealedChamber />;
+
+  const rowActions = (u: UserRow, size: "sm" | "md") => (
+    <>
+      <Button
+        variant="glass"
+        size={size}
+        className={size === "md" ? TOUCH : undefined}
+        disabled={busyId === u.id}
+        onClick={() =>
+          request(
+            u,
+            u.is_verified ? "unverify_user" : "verify_user",
+            u.is_verified ? "Unverify" : "Verify"
+          )
+        }
+      >
+        {u.is_verified ? "Unverify" : "Verify"}
+      </Button>
+      <Button
+        variant={u.is_banned ? "glass" : "danger"}
+        size={size}
+        className={size === "md" ? TOUCH : undefined}
+        disabled={busyId === u.id}
+        onClick={() =>
+          request(
+            u,
+            u.is_banned ? "unban_user" : "ban_user",
+            u.is_banned ? "Unban" : "Ban"
+          )
+        }
+      >
+        {u.is_banned ? "Unban" : "Ban"}
+      </Button>
+      <Button
+        variant="glass"
+        size={size}
+        className={size === "md" ? TOUCH : undefined}
+        disabled={busyId === u.id}
+        onClick={() =>
+          request(
+            u,
+            u.is_admin ? "revoke_admin" : "grant_admin",
+            u.is_admin ? "Revoke seat" : "Grant seat"
+          )
+        }
+      >
+        {u.is_admin ? "Revoke seat" : "Grant seat"}
+      </Button>
+    </>
+  );
+
+  const marks = (u: UserRow) => (
+    <>
+      {u.is_admin ? <Badge variant="gold">Steward</Badge> : null}
+      {u.is_verified ? <Badge variant="gold">Verified</Badge> : null}
+      {u.is_banned ? <Badge variant="danger">Banned</Badge> : null}
+    </>
+  );
 
   return (
-    <div>
-      <h1 className="font-display text-xl font-semibold text-bone sm:text-2xl">
-        Users
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Search, verify, and ban members of the realm
-      </p>
+    <AdminStack>
+      <AdminHeader
+        title="Users"
+        kicker="Search, verify, and ban members of the realm"
+      />
 
-      <div className="mt-4 flex items-center gap-2 rounded-xl border border-steel-line bg-panel px-3 py-2 sm:max-w-sm">
-        <Icon name="search" className="h-4 w-4 shrink-0 text-bone-faint" />
-        <input
-          value={query}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search by handle or name"
-          className="w-full bg-transparent text-sm text-bone outline-none placeholder:text-bone-faint"
+      <Card pad="sm">
+        <Field label="Search the roll" className="sm:max-w-sm">
+          <Input
+            value={query}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Handle or name"
+            className="min-h-11 md:min-h-0"
+          />
+        </Field>
+      </Card>
+
+      {note ? <AdminNote>{note}</AdminNote> : null}
+
+      {showSkeleton ? (
+        <BoardSkeleton rows={8} columns={6} />
+      ) : status === "loading" ? null : status === "error" ? (
+        <AdminError
+          title="The census could not be read"
+          body="The roll of members did not come back. Try reading it again."
+          onRetry={() => load(query.trim())}
         />
-      </div>
+      ) : users.length === 0 ? (
+        <Card pad="lg">
+          <EmptyState
+            icon="user"
+            title={query ? "No members match that search" : "No one has entered the realm yet"}
+            body={
+              query
+                ? "Nothing on the roll matches those letters. Clear the search to see everyone."
+                : "The roll fills as members swear their first oath. Nothing is hidden here."
+            }
+            action={
+              query ? (
+                <Button
+                  variant="glass"
+                  size="md"
+                  className={TOUCH}
+                  onClick={() => {
+                    setQuery("");
+                    load("");
+                  }}
+                >
+                  Clear the search
+                </Button>
+              ) : undefined
+            }
+          />
+        </Card>
+      ) : (
+        <Board
+          label="Members of the realm"
+          rows={users}
+          rowKey={(u) => u.id}
+          columns={[
+            {
+              key: "handle",
+              header: "Handle",
+              className: "whitespace-nowrap font-semibold text-bone",
+              cell: (u) => (
+                <span className="flex items-center gap-1.5">
+                  {u.handle ? `@${u.handle}` : "unclaimed"}
+                  {marks(u)}
+                </span>
+              ),
+            },
+            {
+              key: "name",
+              header: "Name",
+              className: "whitespace-nowrap",
+              cell: (u) => u.display_name?.trim() || "Nameless",
+            },
+            {
+              key: "tier",
+              header: "Tier",
+              className: "whitespace-nowrap capitalize",
+              cell: (u) => u.tier,
+            },
+            {
+              key: "renown",
+              header: "Renown",
+              numeric: true,
+              className: "whitespace-nowrap text-gold",
+              cell: (u) => u.renown.toLocaleString(),
+            },
+            {
+              key: "house",
+              header: "House",
+              className: "whitespace-nowrap",
+              cell: (u) => houseName(u.house_slug),
+            },
+            {
+              key: "actions",
+              header: "Actions",
+              className: "whitespace-nowrap",
+              cell: (u) => (
+                <span className="flex flex-wrap gap-1.5">
+                  {rowActions(u, "sm")}
+                </span>
+              ),
+            },
+          ]}
+          card={(u) => (
+            <BoardCard
+              title={u.handle ? `@${u.handle}` : "unclaimed"}
+              subtitle={u.display_name?.trim() || "Nameless"}
+              badges={marks(u)}
+              stats={[
+                { label: "Tier", value: <span className="capitalize">{u.tier}</span> },
+                { label: "Renown", value: u.renown.toLocaleString() },
+                { label: "House", value: houseName(u.house_slug) },
+              ]}
+              actions={rowActions(u, "md")}
+            />
+          )}
+        />
+      )}
 
-      {note && <p className="mt-3 text-xs text-ember">{note}</p>}
-
-      <div className="glass mt-4 overflow-x-auto">
-        {status === "loading" ? (
-          <div className="h-48 animate-pulse" />
-        ) : status === "error" ? (
-          <p className="p-6 text-sm text-bone-mut">
-            The census could not be read. Try again shortly.
-          </p>
-        ) : users.length === 0 ? (
-          <div className="flex items-center gap-3 p-6">
-            <Icon name="user" className="h-5 w-5 text-bone-faint" />
-            <p className="text-sm text-bone-mut">
-              {query ? "No members match that search." : "No one has entered the realm yet."}
-            </p>
-          </div>
-        ) : (
-          <table className="w-full min-w-[52rem] text-left text-sm">
-            <thead>
-              <tr className="border-b border-steel-line text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                <th className="px-4 py-3 font-medium">Handle</th>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Tier</th>
-                <th className="px-4 py-3 font-medium">Renown</th>
-                <th className="px-4 py-3 font-medium">House</th>
-                <th className="px-4 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="border-b border-steel-line last:border-b-0">
-                  <td className="whitespace-nowrap px-4 py-3 font-semibold text-bone">
-                    {u.handle ? `@${u.handle}` : "unclaimed"}
-                    <span className="ml-2 inline-flex gap-1 align-middle">
-                      {u.is_admin && (
-                        <span className="rounded-full border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-gold">
-                          Steward
-                        </span>
-                      )}
-                      {u.is_verified && (
-                        <span className="rounded-full border border-steel-line bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-gold">
-                          Verified
-                        </span>
-                      )}
-                      {u.is_banned && (
-                        <span className="rounded-full border border-ember/40 bg-panel px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ember">
-                          Banned
-                        </span>
-                      )}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-bone-mut">
-                    {u.display_name?.trim() || "Nameless"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 capitalize text-bone-mut">
-                    {u.tier}
-                  </td>
-                  <td className="tnum whitespace-nowrap px-4 py-3 text-gold">
-                    {u.renown.toLocaleString()}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-bone-mut">
-                    {houseName(u.house_slug)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      <button
-                        type="button"
-                        className="btn-glass px-2.5 py-1 text-xs"
-                        disabled={busyId === u.id}
-                        onClick={() =>
-                          request(
-                            u,
-                            u.is_verified ? "unverify_user" : "verify_user",
-                            u.is_verified ? "Unverify" : "Verify"
-                          )
-                        }
-                      >
-                        {u.is_verified ? "Unverify" : "Verify"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-glass px-2.5 py-1 text-xs"
-                        disabled={busyId === u.id}
-                        onClick={() =>
-                          request(
-                            u,
-                            u.is_banned ? "unban_user" : "ban_user",
-                            u.is_banned ? "Unban" : "Ban"
-                          )
-                        }
-                      >
-                        {u.is_banned ? "Unban" : "Ban"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-glass px-2.5 py-1 text-xs"
-                        disabled={busyId === u.id}
-                        onClick={() =>
-                          request(
-                            u,
-                            u.is_admin ? "revoke_admin" : "grant_admin",
-                            u.is_admin ? "Revoke seat" : "Grant seat"
-                          )
-                        }
-                      >
-                        {u.is_admin ? "Revoke seat" : "Grant seat"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {nextCursor && status === "ok" && (
-        <div className="mt-4 flex justify-center">
-          <button
-            type="button"
-            className="btn-glass px-4 py-2 text-sm"
-            disabled={loadingMore}
+      {nextCursor && status === "ok" ? (
+        <div className="flex justify-center">
+          <Button
+            variant="glass"
+            size="md"
+            className={TOUCH}
+            loading={loadingMore}
             onClick={() => void loadMore()}
           >
             {loadingMore ? "Summoning" : "Load more"}
-          </button>
+          </Button>
         </div>
-      )}
+      ) : null}
 
-      {pending && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="glass w-full max-w-sm p-6">
-            <p className="font-display text-lg font-semibold text-bone">
-              {pending.label}?
-            </p>
-            <p className="mt-2 text-sm text-bone-mut">
-              You are about to <span className="lowercase">{pending.label}</span>{" "}
-              <span className="font-semibold text-bone">{pending.who}</span>. This
-              action is recorded in the audit log.
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                className="btn-glass px-4 py-2 text-sm"
-                onClick={() => setPending(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-gold px-4 py-2 text-sm"
-                onClick={() => {
-                  const p = pending;
-                  setPending(null);
-                  void run(p.id, p.action);
-                }}
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(next) => {
+          if (!next) setPending(null);
+        }}
+        title={pending ? `${pending.label}?` : ""}
+        description={
+          pending
+            ? `You are about to ${pending.label.toLowerCase()} ${pending.who}. This action is recorded in the audit log.`
+            : undefined
+        }
+        confirmLabel={pending?.label ?? "Confirm"}
+        cancelLabel="Keep as it is"
+        tone={pending && DANGER_ACTIONS.has(pending.action) ? "danger" : "gold"}
+        pending={pending !== null && busyId === pending.id}
+        onConfirm={() => {
+          const p = pending;
+          if (!p) return;
+          setPending(null);
+          void run(p.id, p.action);
+        }}
+      />
+    </AdminStack>
   );
 }

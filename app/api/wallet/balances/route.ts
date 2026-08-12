@@ -1,4 +1,5 @@
-import { json } from "@/lib/auth/server";
+import { requireProfile, json } from "@/lib/auth/server";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { EVM_CHAINS, type EvmChain } from "@/components/wallet/chains";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
 import { formatUnits } from "viem";
@@ -120,8 +121,20 @@ async function fetchChain(
 }
 
 export async function GET(req: Request) {
+  /* C5: one call here fans out to all seven chains on the paid GoldRush quota,
+     for whatever address is named. Members only, and metered. */
+  const profile = await requireProfile(req);
+  if (!profile) return json({ error: "unauthenticated" }, 401);
+
   const key = process.env.GOLDRUSH_API_KEY;
   if (!key) return json({ configured: false, tokens: [], totalUsd: 0 });
+
+  const rl = await rateLimit(profileKey("balances", profile.id), 200, 3600);
+  if (!rl.ok)
+    return json(
+      { configured: true, tokens: [], totalUsd: 0, error: "rate_limited", retryAfter: rl.retryAfter },
+      429
+    );
 
   const address = new URL(req.url).searchParams.get("address");
   if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {

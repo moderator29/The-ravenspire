@@ -2,12 +2,32 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Avatar } from "@/components/social/avatar";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
+import { Menu, MenuItem } from "@/components/ui/menu";
+import {
+  CallForm,
+  EMPTY_CALL_DRAFT,
+  callDraftReady,
+  callPayload,
+  draftSentence,
+  type CallDraft,
+} from "@/components/calls/call-form";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import type { Post } from "@/lib/social/types";
-import Link from "next/link";
+
+/* The composer.
+
+   Stream density, so every control in the toolbar clears 44px and nothing here
+   shrinks on a wider screen. The one deliberate exception to "prefer the
+   primitives" is the body textarea: it is a transparent field inside a card,
+   not a bordered control, because a raven is written into the card rather than
+   into a box drawn on top of it. */
 
 /* Who a raven is sent to. Order sets the menu; the first is the default. */
 const AUDIENCES = [
@@ -38,9 +58,7 @@ export function Composer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callOpen, setCallOpen] = useState(false);
-  const [callToken, setCallToken] = useState("");
-  const [callStance, setCallStance] = useState<"up" | "down">("up");
-  const [callTimeframe, setCallTimeframe] = useState("24h");
+  const [callDraft, setCallDraft] = useState<CallDraft>(EMPTY_CALL_DRAFT);
   /* Each attachment carries a local blob `preview` for instant, reliable
      on-screen display and the persisted public `url` used when the raven is
      sent. Previewing the blob (not the fresh remote URL) means the thumbnail
@@ -50,7 +68,6 @@ export function Composer({
   const [pollOpen, setPollOpen] = useState(false);
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
   const [visibility, setVisibility] = useState<Audience>("public");
-  const [audienceOpen, setAudienceOpen] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
 
   const suggest = async () => {
@@ -110,14 +127,19 @@ export function Composer({
 
   if (!authenticated) {
     return (
-      <div className="glass glass-sm flex items-center gap-3 p-4">
-        <p className="text-sm text-bone-mut">
+      <Card className="flex flex-wrap items-center gap-3">
+        <p className="min-w-0 flex-1 text-sm text-bone-mut">
           The Ravenry is open to read. To send a raven, enter the realm.
         </p>
-        <Link href="/signin" className="btn-gold ml-auto shrink-0 px-4 py-1.5 text-xs">
+        <Button
+          variant="gold"
+          size="lg"
+          render={<Link href="/signin" />}
+          className="shrink-0"
+        >
           Sign in
-        </Link>
-      </div>
+        </Button>
+      </Card>
     );
   }
 
@@ -126,12 +148,15 @@ export function Composer({
     setBusy(true);
     setError(null);
     const payload: Record<string, unknown> = { body };
-    if (callOpen && callToken.trim()) {
-      payload.call = {
-        token: callToken.trim(),
-        stance: callStance,
-        timeframe: callTimeframe,
-      };
+    if (callOpen) {
+      const call = callPayload(callDraft);
+      if (call) {
+        payload.call = call;
+        /* A raven needs words and a Call is a claim, so a Call sealed without
+           any is sent as the claim itself rather than being refused by the
+           server for being empty. */
+        if (!body.trim()) payload.body = draftSentence(callDraft);
+      }
     }
     if (images.length)
       payload.media = images.map((img) => ({ url: img.url, type: "image" }));
@@ -152,7 +177,7 @@ export function Composer({
     }
     setBody("");
     setCallOpen(false);
-    setCallToken("");
+    setCallDraft(EMPTY_CALL_DRAFT);
     for (const img of images) {
       previewUrls.current.delete(img.preview);
       URL.revokeObjectURL(img.preview);
@@ -161,7 +186,6 @@ export function Composer({
     setPollOpen(false);
     setPollOptions(["", ""]);
     setVisibility("public");
-    setAudienceOpen(false);
     if (page) {
       if (onDone) onDone();
       else router.push("/home");
@@ -170,34 +194,43 @@ export function Composer({
     onPosted?.(res.data?.post);
   };
 
+  /* A Call being drafted but not yet complete is the one case where an
+     otherwise sendable raven has to wait: sealing it half stated would post a
+     raven and silently drop the Call. */
+  const callIncomplete = callOpen && !callDraftReady(callDraft);
   const sendDisabled =
     busy ||
     uploading ||
-    (!body.trim() && !callToken.trim() && images.length === 0);
+    callIncomplete ||
+    (!body.trim() && !callOpen && images.length === 0);
+
+  const audience = AUDIENCES.find((a) => a.value === visibility);
 
   return (
-    <div className={page ? "flex min-h-[calc(100dvh-3.5rem)] flex-col" : "glass glass-sm p-4"}>
+    <div className={page ? "flex min-h-[calc(100dvh-3.5rem)] flex-col" : "p-4"}>
       {page && (
-        <div className="glass sticky top-0 z-30 flex items-center justify-between gap-3 px-3 py-2.5">
-          <button
-            type="button"
+        <div className="sticky top-0 z-sticky flex items-center justify-between gap-3 border-b border-steel-line bg-void/95 px-3 py-2.5 backdrop-blur-[14px]">
+          <Button
+            variant="glass"
+            size="md"
             onClick={() => router.push("/home")}
-            aria-label="Close"
-            className="btn-glass group px-3.5 py-1.5 text-xs font-semibold tracking-wide text-bone-mut hover:text-bone"
+            className="group"
           >
             <Icon
               name="arrow"
-              className="h-3.5 w-3.5 rotate-180 transition-transform duration-200 group-hover:-translate-x-0.5"
+              className="h-3.5 w-3.5 rotate-180 transition-transform duration-fast ease-out-quint group-hover:-translate-x-0.5"
             />
             Close
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="gold"
+            size="md"
             onClick={send}
+            loading={busy}
             disabled={sendDisabled}
-            className="btn-gold px-5 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? "Flying..." : "Send raven"}
-          </button>
+            {busy ? "Flying" : "Send raven"}
+          </Button>
         </div>
       )}
       <div className={page ? "flex flex-1 gap-3 px-4 py-4" : "flex gap-3"}>
@@ -215,61 +248,20 @@ export function Composer({
             value={body}
             onChange={(e) => setBody(e.target.value.slice(0, 1000))}
             placeholder="Send a raven..."
+            aria-label="Your raven"
             autoFocus={page}
             rows={page ? undefined : body.length > 80 ? 4 : 2}
             className={
               page
-                ? "min-h-[28vh] w-full flex-1 resize-none bg-transparent text-lg leading-relaxed text-bone placeholder-bone-faint outline-none"
-                : "w-full resize-none bg-transparent text-[15px] text-bone placeholder-bone-faint outline-none"
+                ? "min-h-[28vh] w-full flex-1 resize-none bg-transparent text-lg leading-relaxed text-bone placeholder-bone-faint"
+                : "w-full resize-none bg-transparent text-[15px] text-bone placeholder-bone-faint"
             }
           />
+
           {callOpen && (
-            <div className="glass-sm mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-gold/25 bg-panel-warm p-2.5">
-              <Icon name="target" className="h-4 w-4 text-gold" />
-              <input
-                value={callToken}
-                onChange={(e) => setCallToken(e.target.value.slice(0, 12))}
-                placeholder="TOKEN"
-                className="w-24 rounded-lg bg-void px-2 py-1 text-xs uppercase text-bone outline-none"
-              />
-              <div className="flex overflow-hidden rounded-lg border border-steel-line">
-                {(["up", "down"] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setCallStance(s)}
-                    className={`px-2.5 py-1 text-xs font-semibold ${
-                      callStance === s
-                        ? s === "up"
-                          ? "bg-gold/20 text-gold-bright"
-                          : "bg-ember-deep/25 text-ember"
-                        : "text-bone-faint"
-                    }`}
-                  >
-                    {s === "up" ? "Rises" : "Falls"}
-                  </button>
-                ))}
-              </div>
-              <div className="flex overflow-hidden rounded-lg border border-steel-line">
-                {["24h", "7d", "30d"].map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setCallTimeframe(t)}
-                    className={`px-2 py-1 text-xs ${
-                      callTimeframe === t
-                        ? "bg-panel text-bone"
-                        : "text-bone-faint"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <p className="w-full text-[10px] text-bone-faint">
-                A Call seals the live price now and the realm judges the verdict
-                later. Real data only.
-              </p>
-            </div>
+            <CallForm draft={callDraft} onChange={setCallDraft} />
           )}
+
           {images.length > 0 && (
             <div className="mt-2 flex gap-2 overflow-x-auto">
               {images.map((img, i) => (
@@ -280,61 +272,72 @@ export function Composer({
                     alt="Attached image preview"
                     className="h-20 w-20 rounded-xl border border-steel-line object-cover"
                   />
-                  <button
+                  <IconButton
+                    icon="close"
+                    label="Remove image"
+                    variant="glass"
+                    size="sm"
                     onClick={() => removeImage(i)}
-                    aria-label="Remove image"
-                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-steel-line bg-void text-[10px] text-bone-mut"
-                  >
-                    x
-                  </button>
+                    className="absolute -right-1.5 -top-1.5 h-6 w-6"
+                  />
                 </div>
               ))}
             </div>
           )}
 
           {pollOpen && (
-            <div className="glass-sm mt-2 flex flex-col gap-1.5 rounded-xl border border-gold/25 bg-panel p-2.5">
+            <Card variant="inset" pad="sm" className="mt-2 flex flex-col gap-1.5">
               {pollOptions.map((opt, i) => (
-                <input
-                  key={i}
-                  value={opt}
-                  onChange={(e) =>
-                    setPollOptions((prev) =>
-                      prev.map((p, j) => (j === i ? e.target.value.slice(0, 60) : p))
-                    )
-                  }
-                  placeholder={`Choice ${i + 1}`}
-                  className="rounded-lg bg-void px-2.5 py-1.5 text-xs text-bone outline-none"
-                />
+                <Field key={i} label={`Choice ${i + 1}`} className="gap-1">
+                  <Input
+                    value={opt}
+                    onChange={(e) =>
+                      setPollOptions((prev) =>
+                        prev.map((p, j) =>
+                          j === i ? e.target.value.slice(0, 60) : p
+                        )
+                      )
+                    }
+                    placeholder={`Choice ${i + 1}`}
+                  />
+                </Field>
               ))}
               {pollOptions.length < 4 && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setPollOptions((prev) => [...prev, ""])}
-                  className="self-start text-[11px] text-gold hover:text-gold-bright"
+                  className="self-start text-gold hover:text-gold-bright"
                 >
                   Add a choice
-                </button>
+                </Button>
               )}
-            </div>
+            </Card>
           )}
 
-          {error && <p className="mt-2 text-xs text-ember-deep">{error}</p>}
+          {error && (
+            <p role="alert" className="mt-2 text-xs text-state-danger">
+              {error}
+            </p>
+          )}
+
           <div
             className={
               page
-                ? "sticky bottom-0 z-10 mt-2 flex flex-wrap items-center gap-1 border-t border-steel-line bg-void/95 py-2 backdrop-blur"
-                : "mt-2 flex items-center gap-1"
+                ? "sticky bottom-0 z-sticky mt-2 flex flex-wrap items-center gap-1 border-t border-steel-line bg-void/95 py-2 backdrop-blur-[14px]"
+                : "mt-2 flex flex-wrap items-center gap-1"
             }
           >
-            <label
-              className={`flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
-                uploading
-                  ? "text-gold"
-                  : "text-bone-faint hover:bg-panel hover:text-bone-mut"
-              }`}
+            <Button
+              variant="ghost"
+              size="lg"
+              render={<label className="cursor-pointer" />}
+              pad="sm"
+              className={uploading ? "text-gold" : "text-bone-faint"}
             >
-              <Icon name="image" className="h-4 w-4" />
-              {uploading ? "Attaching..." : ""}
+              <Icon name="image" className="h-5 w-5" />
+              <span className="sr-only">Attach an image</span>
+              {uploading ? <span className="text-xs">Attaching</span> : null}
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
@@ -345,114 +348,85 @@ export function Composer({
                   e.target.value = "";
                 }}
               />
-            </label>
-            <button
+            </Button>
+
+            <IconButton
+              icon="poll"
+              label="Add a poll"
+              size="lg"
+              aria-pressed={pollOpen}
               onClick={() => setPollOpen((v) => !v)}
-              aria-label="Add a poll"
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
-                pollOpen
-                  ? "bg-gold/15 text-gold"
-                  : "text-bone-faint hover:bg-panel hover:text-bone-mut"
-              }`}
-            >
-              <Icon name="poll" className="h-4 w-4" />
-            </button>
-            <button
+              className={pollOpen ? "bg-gold/15 text-gold" : "text-bone-faint"}
+            />
+
+            <Button
+              variant="ghost"
+              size="lg"
               onClick={() => void suggest()}
               disabled={suggesting}
               aria-label="Let the Herald draft a raven"
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition disabled:cursor-wait ${
-                suggesting
-                  ? "bg-gold/15 text-gold"
-                  : "text-bone-faint hover:bg-panel hover:text-bone-mut"
-              }`}
+              pad="sm"
+              className={suggesting ? "bg-gold/15 text-gold" : "text-bone-faint"}
             >
-              <Icon
-                name="raven"
-                className={`h-4 w-4 ${suggesting ? "animate-pulse" : ""}`}
-              />
-              {suggesting && <span className="text-[11px]">Drafting...</span>}
-            </button>
-            <button
+              <Icon name="raven" className="h-5 w-5" />
+              {suggesting && <span className="text-xs">Drafting</span>}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="lg"
+              aria-pressed={callOpen}
               onClick={() => setCallOpen((v) => !v)}
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
-                callOpen
-                  ? "bg-gold/15 text-gold"
-                  : "text-bone-faint hover:bg-panel hover:text-bone-mut"
-              }`}
+              pad="sm"
+              className={`text-xs ${callOpen ? "bg-gold/15 text-gold" : "text-bone-faint"}`}
             >
-              <Icon name="target" className="h-4 w-4" />
+              <Icon name="target" className="h-5 w-5" />
               Make a Call
-            </button>
-            <div className="relative ml-auto">
-              <button
-                onClick={() => setAudienceOpen((v) => !v)}
-                aria-label="Choose who can see this raven"
-                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
-                  audienceOpen || visibility !== "public"
-                    ? "bg-gold/15 text-gold"
-                    : "text-bone-faint hover:bg-panel hover:text-bone-mut"
-                }`}
-              >
-                <Icon
-                  name={
-                    AUDIENCES.find((a) => a.value === visibility)?.icon ?? "eye"
-                  }
-                  className="h-4 w-4"
-                />
-                <span className="hidden sm:inline">
-                  {AUDIENCES.find((a) => a.value === visibility)?.label}
-                </span>
-              </button>
-              {audienceOpen && (
-                <>
-                  <button
-                    aria-hidden
-                    tabIndex={-1}
-                    onClick={() => setAudienceOpen(false)}
-                    className="fixed inset-0 z-20 cursor-default"
-                  />
-                  <div
-                    className={`glass glass-sm absolute right-0 z-30 w-52 p-1 ${
-                      page ? "bottom-10" : "top-9"
-                    }`}
-                  >
-                    <p className="px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
-                      Who can see this
-                    </p>
-                    {AUDIENCES.map((a) => (
-                      <button
-                        key={a.value}
-                        onClick={() => {
-                          setVisibility(a.value);
-                          setAudienceOpen(false);
-                        }}
-                        className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition hover:bg-panel ${
-                          visibility === a.value ? "text-gold" : "text-bone-mut"
-                        }`}
-                      >
-                        <Icon name={a.icon} className="h-3.5 w-3.5 shrink-0" />
-                        {a.label}
-                        {visibility === a.value && (
-                          <span className="ml-auto text-gold">·</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            <span className="text-[11px] text-bone-faint">
+            </Button>
+
+            <Menu
+              side={page ? "top" : "bottom"}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  aria-label="Choose who can see this raven"
+                  pad="sm"
+                  className={`ml-auto text-xs ${
+                    visibility === "public" ? "text-bone-faint" : "text-gold"
+                  }`}
+                >
+                  <Icon name={audience?.icon ?? "eye"} className="h-5 w-5" />
+                  <span className="hidden sm:inline">{audience?.label}</span>
+                </Button>
+              }
+            >
+              {AUDIENCES.map((a) => (
+                <MenuItem
+                  key={a.value}
+                  icon={a.icon}
+                  onClick={() => setVisibility(a.value)}
+                  className={visibility === a.value ? "text-gold" : undefined}
+                >
+                  {a.label}
+                </MenuItem>
+              ))}
+            </Menu>
+
+            <span className="tnum text-[11px] text-bone-faint">
               {body.length > 0 && `${body.length}/1000`}
             </span>
+
             {!page && (
-              <button
+              <Button
+                variant="gold"
+                size="md"
                 onClick={send}
+                loading={busy}
                 disabled={sendDisabled}
-                className="btn-gold px-4 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {busy ? "Flying..." : "Post"}
-              </button>
+                {busy ? "Flying" : "Post"}
+              </Button>
             )}
           </div>
         </div>

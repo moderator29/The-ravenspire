@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/icon";
+import { Card as CardShell } from "@/components/ui/card";
+import { IconButton } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { WatchItem } from "@/components/wallet/wallet-prefs";
 
 /* A lightweight watchlist. Members track any token by symbol or address; price
@@ -70,15 +73,15 @@ export function WalletWatchlist({
   };
 
   return (
-    <section className="glass p-5 sm:p-6">
-      <div className="flex items-center gap-2.5">
-        <Icon name="eye" className="h-4 w-4 text-gold" />
-        <h2 className="font-display text-base font-semibold text-bone">
+    <CardShell pad="none" render={<section />} className="p-4 md:p-3">
+      <div className="flex items-center gap-2">
+        <Icon name="eye" aria-hidden className="h-4 w-4 text-gold" />
+        <h2 className="font-display text-sm font-semibold text-bone">
           Watchlist
         </h2>
       </div>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-3 flex gap-2 md:mt-2">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -87,25 +90,29 @@ export function WalletWatchlist({
           }}
           spellCheck={false}
           autoComplete="off"
+          aria-label="Track a token by symbol or address"
           placeholder="Track a token by symbol or address"
-          className="w-full rounded-xl border border-steel-line bg-panel/60 px-3 py-2.5 text-sm text-bone outline-none placeholder:text-bone-faint focus:border-gold"
+          className="h-11 w-full rounded-md border border-steel-line bg-panel/60 px-3 text-sm text-bone transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px]"
         />
-        <button
-          type="button"
+        <IconButton
+          icon="plus"
+          label="Track this token"
+          variant="glass"
           onClick={() => void add()}
           disabled={adding || query.trim() === ""}
-          className="btn-glass inline-flex shrink-0 items-center gap-1.5 px-3 text-sm disabled:opacity-50"
-        >
-          <Icon name="plus" className="h-4 w-4" />
-        </button>
+        />
       </div>
       {note ? <p className="mt-2 text-xs text-ember">{note}</p> : null}
 
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-2 flex flex-col gap-2 md:gap-1">
         {watch.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-steel-line bg-panel/25 p-4 text-center text-xs text-bone-faint">
-            Add a token above to track its price and 24h move.
-          </p>
+          <EmptyState
+            size="sm"
+            bordered
+            icon="eye"
+            title="Nothing tracked yet"
+            body="Add a token above to track its price and 24h move."
+          />
         ) : (
           watch.map((item) => {
             const card = cards[item.query];
@@ -113,13 +120,13 @@ export function WalletWatchlist({
             return (
               <div
                 key={item.query}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3"
+                className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-steel-line bg-panel/40 p-2.5 md:min-h-9 md:p-2"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-bone">
+                  <p className="truncate text-sm font-medium text-bone md:text-[13px]">
                     {card?.symbol ?? item.label}
                   </p>
-                  <p className="truncate text-xs text-bone-faint">
+                  <p className="truncate text-xs text-bone-faint md:text-[11px]">
                     {isLoading
                       ? "Reading market..."
                       : card?.name ?? "No market found"}
@@ -127,7 +134,7 @@ export function WalletWatchlist({
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <div className="text-right">
-                    <p className="tnum text-sm font-semibold text-bone">
+                    <p className="tnum text-sm font-semibold text-bone md:text-[13px]">
                       {card?.priceUsd != null
                         ? `$${card.priceUsd.toLocaleString(undefined, {
                             maximumFractionDigits: card.priceUsd < 1 ? 6 : 2,
@@ -136,30 +143,33 @@ export function WalletWatchlist({
                     </p>
                     {card?.change24h != null ? (
                       <p
-                        className={`tnum text-xs ${
-                          card.change24h >= 0 ? "text-gold" : "text-ember"
-                        }`}
+                        className="tnum text-xs md:text-[11px]"
+                        style={{
+                          color:
+                            card.change24h >= 0
+                              ? "var(--chart-up)"
+                              : "var(--chart-down)",
+                        }}
                       >
                         {card.change24h >= 0 ? "+" : ""}
                         {card.change24h.toFixed(2)}%
                       </p>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
+                  <IconButton
+                    icon="close"
+                    label={`Remove ${item.label}`}
+                    size="sm"
+                    variant="glass"
                     onClick={() => onToggleWatch(item)}
-                    aria-label={`Remove ${item.label}`}
-                    className="btn-glass inline-flex h-8 w-8 items-center justify-center p-0"
-                  >
-                    <Icon name="plus" className="h-4 w-4 rotate-45" />
-                  </button>
+                  />
                 </div>
               </div>
             );
           })
         )}
       </div>
-    </section>
+    </CardShell>
   );
 }
 

@@ -1,6 +1,9 @@
 "use client";
 
 import { Icon } from "@/components/ui/icon";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { TxRecord } from "@/components/wallet/wallet-prefs";
 import {
   shortAddress,
@@ -31,56 +34,59 @@ export function WalletHistory({
     : null;
 
   return (
-    <section className="glass p-5 sm:p-6">
-      <div className="flex items-center gap-2.5">
-        <Icon name="scroll" className="h-4 w-4 text-gold" />
-        <h2 className="font-display text-base font-semibold text-bone">
+    <Card pad="none" render={<section />} className="p-4 md:p-3">
+      <div className="flex items-center gap-2">
+        <Icon name="scroll" aria-hidden className="h-4 w-4 text-gold" />
+        <h2 className="font-display text-sm font-semibold text-bone">
           Transaction history
         </h2>
       </div>
 
       {rows.length === 0 ? (
-        <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-steel-line bg-panel/25 p-6 text-center">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-steel-line bg-panel/60">
-            <Icon name="scroll" className="h-5 w-5 text-bone-faint" />
-          </span>
-          <p className="text-sm font-medium text-bone-mut">No transfers yet</p>
-          <p className="max-w-xs text-xs text-bone-faint">
-            Transfers you send from the Vault appear here with their hash. Full
-            on-chain history lives on the explorer.
-          </p>
-          {addrExplorer ? (
-            <a
-              href={addrExplorer}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-glass mt-1 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs"
-            >
-              <Icon name="arrow" className="h-3.5 w-3.5" />
-              Open explorer
-            </a>
-          ) : null}
-        </div>
+        <EmptyState
+          size="sm"
+          bordered
+          className="mt-3 md:mt-2"
+          icon="scroll"
+          title="No transfers yet"
+          body="Transfers you send from the Vault appear here with their hash. Full on-chain history lives on the explorer."
+          action={
+            addrExplorer ? (
+              <Button
+                size="sm"
+                render={
+                  <a href={addrExplorer} target="_blank" rel="noreferrer">
+                    <Icon name="arrow" className="h-3.5 w-3.5" />
+                    Open explorer
+                  </a>
+                }
+              />
+            ) : undefined
+          }
+        />
       ) : (
         <>
-          <div className="mt-4 flex flex-col gap-2">
+          <div className="mt-3 flex flex-col gap-2 md:mt-2 md:gap-1">
             {rows.map((tx) => {
               const chain = evmChainById(tx.chainId);
               const explorer = txExplorerUrlFor(tx.chainId, tx.hash);
               return (
                 <div
                   key={tx.hash}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3"
+                  className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-steel-line bg-panel/40 p-2.5 md:min-h-9 md:p-2"
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/25 bg-panel-warm">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      aria-hidden
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-panel-warm"
+                    >
                       <Icon name="send" className="h-4 w-4 text-gold" />
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-bone">
-                        Sent {tx.amount} {tx.symbol}
+                      <p className="truncate text-sm font-medium text-bone md:text-[13px]">
+                        Sent <span className="tnum">{tx.amount}</span> {tx.symbol}
                       </p>
-                      <p className="truncate text-xs text-bone-faint">
+                      <p className="truncate text-xs text-bone-faint md:text-[11px]">
                         To {shortAddress(tx.to, 6, 4)} on{" "}
                         {chain?.name ?? `chain ${tx.chainId}`} ·{" "}
                         {formatWhen(tx.at)}
@@ -88,34 +94,36 @@ export function WalletHistory({
                     </div>
                   </div>
                   {explorer ? (
-                    <a
-                      href={explorer}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="View transaction"
-                      className="btn-glass inline-flex h-8 w-8 shrink-0 items-center justify-center p-0"
-                    >
-                      <Icon name="arrow" className="h-3.5 w-3.5" />
-                    </a>
+                    <IconButton
+                      icon="arrow"
+                      label="View transaction"
+                      size="sm"
+                      variant="glass"
+                      render={
+                        <a href={explorer} target="_blank" rel="noreferrer" />
+                      }
+                    />
                   ) : null}
                 </div>
               );
             })}
           </div>
           {addrExplorer ? (
-            <a
-              href={addrExplorer}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-glass mt-3 inline-flex w-full items-center justify-center gap-1.5 px-3.5 py-2 text-xs"
-            >
-              <Icon name="search" className="h-3.5 w-3.5" />
-              Open full history on explorer
-            </a>
+            <Button
+              block
+              size="sm"
+              className="mt-2"
+              render={
+                <a href={addrExplorer} target="_blank" rel="noreferrer">
+                  <Icon name="search" className="h-3.5 w-3.5" />
+                  Open full history on explorer
+                </a>
+              }
+            />
           ) : null}
         </>
       )}
-    </section>
+    </Card>
   );
 }
 
