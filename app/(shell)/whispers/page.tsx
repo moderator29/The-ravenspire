@@ -407,7 +407,11 @@ export default function WhispersPage() {
       {active?.other?.handle ? (
         <Link
           href={`/u/${active.other.handle}`}
-          className="group flex min-w-0 flex-1 items-center gap-3"
+          /* The one way out of a thread and into the Keep it belongs to, and
+             it measured 36px tall on a phone: the row is padded to clear the
+             floor but the control inside it was not. The floor belongs to the
+             control. */
+          className="group flex min-w-0 flex-1 items-center gap-3 touch:min-h-11"
         >
           <OtherAvatar other={active.other} className="h-8 w-8 text-xs" />
           <div className="min-w-0 flex-1">
@@ -839,9 +843,17 @@ export default function WhispersPage() {
                     />
                   }
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-full)] border border-steel-line bg-panel font-display text-sm text-gold">
-                    {(p.display_name ?? p.handle ?? "?").slice(0, 1).toUpperCase()}
-                  </span>
+                  {/* The same portrait the corridor and the thread draw,
+                      rather than a fourth hand rolled copy of it. */}
+                  <OtherAvatar
+                    other={{
+                      id: p.id,
+                      handle: p.handle,
+                      display_name: p.display_name,
+                      avatar_url: null,
+                    }}
+                    className="h-9 w-9 text-sm"
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-bone">
                       {p.display_name ?? p.handle}
