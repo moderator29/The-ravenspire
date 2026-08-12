@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Per agent build output, see next.config.ts
 .next-*
+
+# Managed worktrees for background subagents (ephemeral, never committed)
+.claude/worktrees/
