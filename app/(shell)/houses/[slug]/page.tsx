@@ -5,10 +5,17 @@ import Link from "next/link";
 import { BackButton } from "@/components/shell/back-button";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Card, SectionHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Meter } from "@/components/ui/meter";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  Board,
+  BoardCard,
+  BoardStack,
+  type BoardColumn,
+} from "@/components/board/board-shell";
 import { Avatar } from "@/components/social/avatar";
 import { PostCard } from "@/components/social/post-card";
 import { fetchFeed } from "@/lib/social/queries";
@@ -16,7 +23,6 @@ import type { Post } from "@/lib/social/types";
 import { houseBySlug, houseIcon } from "@/lib/data/houses";
 import { roleMeta } from "@/lib/houses/roles";
 import type {
-  BoardEntry,
   HouseHall,
   MemberIdentityView,
   RosterEntryView,
@@ -302,69 +308,95 @@ function ContributorBoard({ hall }: { hall: HouseHall | null }) {
   const cut = board.findIndex((b) => !b.counts);
 
   return (
-    <Card pad="none">
-      <div className="flex items-center gap-2 px-4 pt-4 sm:px-5">
-        <Icon name="medal" className="h-4 w-4 shrink-0 text-gold" />
-        <h2 className="font-display text-base font-semibold text-bone">
-          Carrying the House
-        </h2>
-        <span className="ml-auto text-[11px] uppercase tracking-[0.18em] text-bone-faint">
-          Top {topN} count
-        </span>
-      </div>
-      <ol className="flex flex-col px-4 py-3 sm:px-5">
-        {board.map((entry, i) => (
-          <li key={entry.profile_id}>
-            {i === cut && cut > 0 ? (
-              <div className="my-2 flex items-center gap-2">
-                <span className="h-px flex-1 bg-steel-line" />
-                <span className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
-                  Below the cut
+    <BoardStack>
+      <SectionHeader
+        title="Carrying the House"
+        hint={`Top ${topN} count toward the season score`}
+      />
+      <Board
+        label="Members ranked by what they have contributed this season"
+        rows={board}
+        rowKey={(entry) => entry.profile_id}
+        rowHref={(entry) =>
+          entry.member?.handle ? `/u/${entry.member.handle}` : null
+        }
+        rowLabel={(entry) => `${memberName(entry.member)}, rank ${entry.rank}`}
+        muted={(entry) => !entry.counts}
+        /* The cut line is the whole point of this board: it is where a member
+           stops counting toward the House score. It survives into the card
+           list rather than being a desktop only rule. */
+        divider={(_entry, i) =>
+          cut > 0 && i === cut ? "Below the cut" : null
+        }
+        columns={[
+          {
+            key: "rank",
+            header: "#",
+            className: "w-10 whitespace-nowrap",
+            cell: (entry) => (
+              <span className="tnum text-bone-faint">{entry.rank}</span>
+            ),
+          },
+          {
+            key: "member",
+            header: "Member",
+            cell: (entry) => (
+              <span className="flex items-center gap-2.5">
+                <MemberAvatar member={entry.member} size={26} />
+                <span className="truncate font-medium text-bone">
+                  {memberName(entry.member)}
                 </span>
-                <span className="h-px flex-1 bg-steel-line" />
-              </div>
-            ) : null}
-            <BoardRow entry={entry} top={top} />
-          </li>
-        ))}
-      </ol>
-    </Card>
-  );
-}
-
-function BoardRow({ entry, top }: { entry: BoardEntry; top: number }) {
-  const role = roleMeta(entry.role);
-  return (
-    <div
-      className={`flex items-center gap-3 border-t border-steel-line py-2.5 first:border-t-0 ${
-        entry.counts ? "" : "opacity-60"
-      }`}
-    >
-      <span className="tnum w-5 shrink-0 text-center text-xs text-bone-faint">
-        {entry.rank}
-      </span>
-      <MemberLink member={entry.member} size={30} role={entry.role} />
-      <div className="min-w-0 flex-1">
-        <MemberName member={entry.member} />
-        {entry.role !== "sworn" ? (
-          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-gold">
-            <Icon name={role.icon} className="h-3 w-3" />
-            {role.title}
-          </p>
-        ) : null}
-        <div className="bar-track mt-1.5 h-1 w-full">
-          <div
-            className="bar-gold h-full"
-            style={{
-              width: `${Math.max(2, (Math.max(0, entry.contribution) / top) * 100)}%`,
-            }}
-          />
-        </div>
-      </div>
-      <span className="tnum shrink-0 text-sm font-semibold text-gold">
-        {entry.contribution.toLocaleString()}
-      </span>
-    </div>
+              </span>
+            ),
+          },
+          {
+            key: "title",
+            header: "Title",
+            className: "whitespace-nowrap",
+            cell: (entry) => <RoleLabel role={entry.role} />,
+          },
+          {
+            key: "share",
+            header: "Share",
+            className: "w-28",
+            cell: (entry) => (
+              <Meter value={entry.contribution} max={top} size="xs" />
+            ),
+          },
+          {
+            key: "contribution",
+            header: "Contributed",
+            numeric: true,
+            className: "whitespace-nowrap font-semibold text-gold",
+            cell: (entry) => entry.contribution.toLocaleString(),
+          },
+        ]}
+        card={(entry) => (
+          <BoardCard
+            {...(entry.member?.handle
+              ? { href: `/u/${entry.member.handle}` }
+              : {})}
+            leading={
+              <span className="flex items-center gap-2.5">
+                <span className="tnum w-5 text-center text-xs text-bone-faint">
+                  {entry.rank}
+                </span>
+                <MemberAvatar member={entry.member} size={32} />
+              </span>
+            }
+            title={memberName(entry.member)}
+            subtitle={<RoleLabel role={entry.role} />}
+            trailing={
+              <span className="block text-sm font-semibold text-gold">
+                {entry.contribution.toLocaleString()}
+              </span>
+            }
+          >
+            <Meter value={entry.contribution} max={top} size="xs" className="mt-2.5" />
+          </BoardCard>
+        )}
+      />
+    </BoardStack>
   );
 }
 
@@ -390,149 +422,166 @@ function Roster({ hall }: { hall: HouseHall | null }) {
     );
 
   return (
-    <div className="flex flex-col gap-3">
+    <BoardStack>
       {titled.length > 0 ? (
-        <Card pad="none">
-          <div className="flex items-center gap-2 px-4 pt-4 sm:px-5">
-            <Icon name="crown" className="h-4 w-4 shrink-0 text-gold" />
-            <h2 className="font-display text-base font-semibold text-bone">
-              Leadership
-            </h2>
-            <span className="ml-auto text-[11px] uppercase tracking-[0.18em] text-bone-faint">
-              Computed each season
-            </span>
-          </div>
-          <p className="px-4 pt-1.5 text-xs text-bone-mut sm:px-5">
+        <>
+          <SectionHeader title="Leadership" hint="Computed each season" />
+          <p className="-mt-1 px-1 text-xs text-bone-mut">
             No elections. Every title is earned by what a member actually did
             this season, and all six rotate when the season turns.
           </p>
-          <ul className="flex flex-col px-4 py-3 sm:px-5">
-            {titled.map((entry) => (
-              <li key={entry.profile_id}>
-                <RosterRow entry={entry} showEarnedBy />
-              </li>
-            ))}
-          </ul>
-        </Card>
+          <Board
+            label="Members holding a title this season"
+            rows={titled}
+            rowKey={(entry) => entry.profile_id}
+            rowHref={(entry) =>
+              entry.member?.handle ? `/u/${entry.member.handle}` : null
+            }
+            rowLabel={(entry) =>
+              `${memberName(entry.member)}, ${roleMeta(entry.role).title}`
+            }
+            columns={[
+              MEMBER_COLUMN,
+              {
+                key: "title",
+                header: "Title",
+                className: "whitespace-nowrap",
+                cell: (entry) => <RoleLabel role={entry.role} />,
+              },
+              {
+                key: "earned",
+                header: "Earned by",
+                cell: (entry) => roleMeta(entry.role).earnedBy,
+              },
+              CONTRIBUTION_COLUMN,
+            ]}
+            card={(entry) => (
+              <BoardCard
+                {...(entry.member?.handle
+                  ? { href: `/u/${entry.member.handle}` }
+                  : {})}
+                leading={<MemberAvatar member={entry.member} size={34} />}
+                title={memberName(entry.member)}
+                subtitle={<RoleLabel role={entry.role} />}
+                trailing={<Contribution value={entry.contribution} />}
+                stats={[
+                  { label: "Earned by", value: roleMeta(entry.role).earnedBy },
+                ]}
+              />
+            )}
+          />
+        </>
       ) : null}
 
-      <Card pad="none">
-        <div className="flex items-center gap-2 px-4 pt-4 sm:px-5">
-          <Icon name="shield" className="h-4 w-4 shrink-0 text-gold" />
-          <h2 className="font-display text-base font-semibold text-bone">
-            Sworn
-          </h2>
-          <span className="tnum ml-auto text-[11px] text-bone-faint">
-            {sworn.length}
-          </span>
-        </div>
-        {sworn.length === 0 ? (
+      <SectionHeader title="Sworn" hint={`${sworn.length}`} />
+      {sworn.length === 0 ? (
+        <Card>
           <EmptyState
             size="sm"
             title="Every member holds a title"
             body="A small House where everyone is carrying something."
           />
-        ) : (
-          <ul className="flex flex-col px-4 py-3 sm:px-5">
-            {sworn.map((entry) => (
-              <li key={entry.profile_id}>
-                <RosterRow entry={entry} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <Board
+          label="Members sworn to this House"
+          rows={sworn}
+          rowKey={(entry) => entry.profile_id}
+          rowHref={(entry) =>
+            entry.member?.handle ? `/u/${entry.member.handle}` : null
+          }
+          rowLabel={(entry) => memberName(entry.member)}
+          columns={[
+            MEMBER_COLUMN,
+            {
+              key: "sworn",
+              header: "Sworn",
+              className: "whitespace-nowrap",
+              cell: (entry) => swornOn(entry),
+            },
+            {
+              key: "season",
+              header: "Season",
+              numeric: true,
+              className: "whitespace-nowrap",
+              cell: (entry) => entry.season_id ?? "",
+            },
+            CONTRIBUTION_COLUMN,
+          ]}
+          card={(entry) => (
+            <BoardCard
+              {...(entry.member?.handle
+                ? { href: `/u/${entry.member.handle}` }
+                : {})}
+              leading={<MemberAvatar member={entry.member} size={34} />}
+              title={memberName(entry.member)}
+              subtitle={`Sworn ${swornOn(entry)}${
+                entry.season_id ? ` · Season ${entry.season_id}` : ""
+              }`}
+              trailing={<Contribution value={entry.contribution} />}
+            />
+          )}
+        />
+      )}
 
       {past.length > 0 ? (
-        <Card pad="none">
-          <div className="flex items-center gap-2 px-4 pt-4 sm:px-5">
-            <Icon name="scroll" className="h-4 w-4 shrink-0 text-gold" />
-            <h2 className="font-display text-base font-semibold text-bone">
-              Once of this House
-            </h2>
-          </div>
-          <p className="px-4 pt-1.5 text-xs text-bone-mut sm:px-5">
+        <>
+          <SectionHeader title="Once of this House" />
+          <p className="-mt-1 px-1 text-xs text-bone-mut">
             They swore elsewhere, and everything they contributed here stayed
             here. It never follows a member out.
           </p>
-          <ul className="flex flex-col px-4 py-3 sm:px-5">
-            {past.map((entry) => (
-              <li
-                key={`${entry.profile_id}-${entry.left_at}`}
-                className="flex items-center gap-3 border-t border-steel-line py-2.5 first:border-t-0"
-              >
-                <MemberLink member={entry.member} size={28} />
-                <div className="min-w-0 flex-1">
-                  <MemberName member={entry.member} />
-                  <p className="mt-0.5 text-[11px] text-bone-faint">
-                    {entry.span}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
+          <Board
+            label="Members who once swore to this House"
+            rows={past}
+            rowKey={(entry) => `${entry.profile_id}-${entry.left_at}`}
+            rowHref={(entry) =>
+              entry.member?.handle ? `/u/${entry.member.handle}` : null
+            }
+            rowLabel={(entry) => memberName(entry.member)}
+            columns={[
+              MEMBER_COLUMN,
+              {
+                key: "span",
+                header: "Held the banner",
+                className: "whitespace-nowrap",
+                cell: (entry) => entry.span,
+              },
+            ]}
+            card={(entry) => (
+              <BoardCard
+                {...(entry.member?.handle
+                  ? { href: `/u/${entry.member.handle}` }
+                  : {})}
+                leading={<MemberAvatar member={entry.member} size={32} />}
+                title={memberName(entry.member)}
+                subtitle={entry.span}
+              />
+            )}
+          />
+        </>
       ) : null}
-    </div>
+    </BoardStack>
   );
 }
 
-function RosterRow({
-  entry,
-  showEarnedBy,
-}: {
-  entry: RosterEntryView;
-  showEarnedBy?: boolean;
-}) {
-  const role = roleMeta(entry.role);
-  return (
-    <div className="flex items-center gap-3 border-t border-steel-line py-2.5 first:border-t-0">
-      <MemberLink member={entry.member} size={32} role={entry.role} />
-      <div className="min-w-0 flex-1">
-        <MemberName member={entry.member} />
-        {entry.role !== "sworn" ? (
-          <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-gold">
-            <Icon name={role.icon} className="h-3 w-3" />
-            {role.title}
-            {showEarnedBy ? (
-              <span className="font-normal text-bone-faint">
-                {" · "}
-                {role.earnedBy}
-              </span>
-            ) : null}
-          </p>
-        ) : (
-          <p className="mt-0.5 text-[11px] text-bone-faint">
-            Sworn{" "}
-            {new Date(entry.sworn_at).toLocaleDateString(undefined, {
-              month: "short",
-              year: "numeric",
-            })}
-            {entry.season_id ? ` · Season ${entry.season_id}` : ""}
-          </p>
-        )}
-      </div>
-      <span className="tnum shrink-0 text-xs text-bone-mut">
-        {entry.contribution > 0 ? (
-          <b className="text-gold">{entry.contribution.toLocaleString()}</b>
-        ) : (
-          <span className="text-bone-faint">no contribution yet</span>
-        )}
-      </span>
-    </div>
-  );
+/* ------------------------------------------------------------------
+   The pieces every roster board shares
+   ------------------------------------------------------------------ */
+
+function memberName(member: MemberIdentityView | null): string {
+  if (!member?.handle) return "A member of the realm";
+  return member.display_name ?? `@${member.handle}`;
 }
 
-function MemberLink({
+function MemberAvatar({
   member,
   size,
-  role,
 }: {
   member: MemberIdentityView | null;
   size: number;
-  role?: string;
 }) {
-  const avatar = (
+  return (
     <Avatar
       author={{
         handle: member?.handle ?? null,
@@ -543,32 +592,57 @@ function MemberLink({
       size={size}
     />
   );
-  if (!member?.handle) return avatar;
+}
+
+function RoleLabel({ role }: { role: string }) {
+  if (role === "sworn") return <span className="text-bone-faint">Sworn</span>;
+  const meta = roleMeta(role);
   return (
-    <Link
-      href={`/u/${member.handle}`}
-      aria-label={`${member.display_name ?? member.handle}${
-        role && role !== "sworn" ? `, ${roleMeta(role).title}` : ""
-      }`}
-      className="shrink-0"
-    >
-      {avatar}
-    </Link>
+    <span className="flex items-center gap-1 font-semibold text-gold">
+      <Icon name={meta.icon} className="h-3 w-3 shrink-0" />
+      {meta.title}
+    </span>
   );
 }
 
-function MemberName({ member }: { member: MemberIdentityView | null }) {
-  if (!member?.handle)
-    return <p className="truncate text-sm text-bone-mut">A member of the realm</p>;
-  return (
-    <Link
-      href={`/u/${member.handle}`}
-      className="block truncate text-sm font-semibold text-bone hover:text-gold"
-    >
-      {member.display_name ?? `@${member.handle}`}
-    </Link>
-  );
+function Contribution({ value }: { value: number }) {
+  if (value > 0)
+    return (
+      <span className="tnum font-semibold text-gold">
+        {value.toLocaleString()}
+      </span>
+    );
+  return <span className="text-bone-faint">none yet</span>;
 }
+
+function swornOn(entry: RosterEntryView): string {
+  return new Date(entry.sworn_at).toLocaleDateString(undefined, {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/* The identity cell, identical on every roster board. */
+const MEMBER_COLUMN: BoardColumn<{ member: MemberIdentityView | null }> = {
+  key: "member",
+  header: "Member",
+  cell: (entry) => (
+    <span className="flex items-center gap-2.5">
+      <MemberAvatar member={entry.member} size={26} />
+      <span className="truncate font-medium text-bone">
+        {memberName(entry.member)}
+      </span>
+    </span>
+  ),
+};
+
+const CONTRIBUTION_COLUMN: BoardColumn<{ contribution: number }> = {
+  key: "contribution",
+  header: "Contributed",
+  numeric: true,
+  className: "whitespace-nowrap",
+  cell: (entry) => <Contribution value={entry.contribution} />,
+};
 
 /* ------------------------------------------------------------------
    The hall feed

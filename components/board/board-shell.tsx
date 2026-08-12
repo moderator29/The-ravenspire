@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { cx } from "@/components/ui/cx";
@@ -152,6 +152,21 @@ export interface BoardColumn<T> {
   className?: string;
 }
 
+/* A caption on a hairline, drawn across the whole board. The one thing a
+   Board is allowed to interrupt itself with, because a cut line carries
+   meaning that no column can. */
+export function BoardRule({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="h-px flex-1 bg-steel-line" />
+      <span className="text-[10px] uppercase tracking-[0.2em] text-bone-faint">
+        {children}
+      </span>
+      <span className="h-px flex-1 bg-steel-line" />
+    </div>
+  );
+}
+
 export function Board<T>({
   label,
   columns,
@@ -160,6 +175,8 @@ export function Board<T>({
   rowHref,
   rowLabel,
   highlight,
+  divider,
+  muted,
   card,
 }: {
   /* Names the board for screen readers. */
@@ -178,6 +195,14 @@ export function Board<T>({
   /* Marks the viewer's own row. One treatment, applied here, so "this is you"
      never gets re-derived per board. */
   highlight?: (row: T) => boolean;
+  /* A rule drawn across the board immediately above this row, naming what
+     changes at it: the cut line on a contributor board, a tier break, a
+     season boundary. Return null everywhere it does not apply. It spans the
+     table and repeats in the card list, so the meaning survives the layout
+     change instead of being a desktop only flourish. */
+  divider?: (row: T, index: number) => ReactNode | null;
+  /* Dims a row that is still real but no longer counts. */
+  muted?: (row: T) => boolean;
   /* The card list rendered below `md`, where a wide table would have to
      scroll sideways. Section 10 forbids that. */
   card: (row: T) => ReactNode;
@@ -204,38 +229,49 @@ export function Board<T>({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {rows.map((row, index) => {
               const href = rowHref?.(row) ?? null;
               const mine = highlight?.(row) ?? false;
+              const rule = divider?.(row, index) ?? null;
+              const key = rowKey(row);
               return (
-                <tr
-                  key={rowKey(row)}
-                  className={cx(
-                    "border-b border-steel-line transition-colors duration-fast ease-out-quint last:border-b-0 hover:bg-panel/60",
-                    href && "relative",
-                    mine && "bg-panel-warm/40"
-                  )}
-                >
-                  {columns.map((c, i) => (
-                    <td
-                      key={c.key}
-                      className={cx(
-                        "h-9 px-3 py-2 align-middle text-bone-mut",
-                        c.numeric && "tnum text-right",
-                        c.className
-                      )}
-                    >
-                      {i === 0 && href ? (
-                        <Link
-                          href={href}
-                          aria-label={rowLabel?.(row)}
-                          className="absolute inset-0"
-                        />
-                      ) : null}
-                      {c.cell(row)}
-                    </td>
-                  ))}
-                </tr>
+                <Fragment key={key}>
+                  {rule ? (
+                    <tr>
+                      <td colSpan={columns.length} className="px-3 pb-1 pt-3">
+                        <BoardRule>{rule}</BoardRule>
+                      </td>
+                    </tr>
+                  ) : null}
+                  <tr
+                    className={cx(
+                      "border-b border-steel-line transition-colors duration-fast ease-out-quint last:border-b-0 hover:bg-panel/60",
+                      href && "relative",
+                      mine && "bg-panel-warm/40",
+                      muted?.(row) && "opacity-60"
+                    )}
+                  >
+                    {columns.map((c, i) => (
+                      <td
+                        key={c.key}
+                        className={cx(
+                          "h-9 px-3 py-2 align-middle text-bone-mut",
+                          c.numeric && "tnum text-right",
+                          c.className
+                        )}
+                      >
+                        {i === 0 && href ? (
+                          <Link
+                            href={href}
+                            aria-label={rowLabel?.(row)}
+                            className="absolute inset-0"
+                          />
+                        ) : null}
+                        {c.cell(row)}
+                      </td>
+                    ))}
+                  </tr>
+                </Fragment>
               );
             })}
           </tbody>
@@ -246,9 +282,19 @@ export function Board<T>({
         aria-label={label}
         className="flex flex-col gap-2 md:hidden"
       >
-        {rows.map((row) => (
-          <li key={rowKey(row)}>{card(row)}</li>
-        ))}
+        {rows.map((row, index) => {
+          const rule = divider?.(row, index) ?? null;
+          return (
+            <Fragment key={rowKey(row)}>
+              {rule ? (
+                <li className="pt-1.5">
+                  <BoardRule>{rule}</BoardRule>
+                </li>
+              ) : null}
+              <li className={cx(muted?.(row) && "opacity-60")}>{card(row)}</li>
+            </Fragment>
+          );
+        })}
       </ul>
     </>
   );
