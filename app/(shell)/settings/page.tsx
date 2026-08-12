@@ -330,15 +330,21 @@ export default function SettingsPage() {
               <OathSection locked={locked} />
 
               {/* ------------------------------------------------- Wallet */}
-              <SectionHeader title="Wallet" hint="Keys and coin" />
-              <div className="flex items-center justify-end px-1">
-                <Link
-                  href="/wallet"
-                  className="text-xs text-gold underline underline-offset-2"
-                >
-                  Full view
-                </Link>
-              </div>
+              <SectionHeader
+                title="Wallet"
+                hint="Keys and coin"
+                action={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    render={<Link href="/wallet" />}
+                    className="text-gold hover:text-gold-bright"
+                  >
+                    Full view
+                    <Icon name="arrow" className="h-3.5 w-3.5" />
+                  </Button>
+                }
+              />
               <WalletSection />
               <p className="px-1 text-xs text-bone-faint">
                 Your wallet is non-custodial. The Ravenspire never holds your keys and
