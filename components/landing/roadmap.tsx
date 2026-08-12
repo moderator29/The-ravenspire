@@ -280,13 +280,22 @@ export function Roadmap() {
 
         <AnimatePresence initial={false}>
           {expanded && (
+            /* Opacity and a transform, never height. A height animation is
+               the one thing the motion law names outright, and it earns the
+               ban here: this block holds six phase nodes with a spine behind
+               them, so every frame of an auto height tween relaid out the
+               whole timeline. The reveal reads the same and costs the
+               compositor nothing. */
             <motion.div
               key="rest"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              className="flex flex-col gap-5 overflow-hidden"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{
+                duration: 0.22,
+                ease: [0.23, 1, 0.32, 1],
+              }}
+              className="flex flex-col gap-5"
             >
               {rest.map((p) => (
                 <PhaseNode key={p.tag} p={p} />

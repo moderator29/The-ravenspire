@@ -35,6 +35,17 @@ const slices: Slice[] = [
 const R = 52;
 const C = 2 * Math.PI * R;
 
+/* A hairline of page ground between wedges.
+
+   Four of the seven slices are rungs of the same forged gold, which is correct
+   for the brand and illegible as a chart: Liquidity, Presale and Ecosystem run
+   to sixty three percent of the ring and, drawn edge to edge, they read as one
+   continuous gold arc with no boundary anywhere in it. The legend carried the
+   whole reading and the donut carried none of it. Separating the wedges costs
+   nothing, changes no colour, and is what makes the ring a chart rather than a
+   gradient. */
+const WEDGE_GAP = 2.5;
+
 const rise: Variants = {
   hidden: { opacity: 0, y: 24 },
   show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" } },
@@ -70,7 +81,7 @@ function Donut() {
               stroke={s.color}
               strokeWidth="13"
               strokeLinecap="butt"
-              strokeDasharray={`${len} ${C}`}
+              strokeDasharray={`${Math.max(len - WEDGE_GAP, 1)} ${C}`}
               transform={`rotate(${startDeg} 60 60)`}
               initial={{ strokeDashoffset: reduce ? 0 : len }}
               whileInView={{ strokeDashoffset: 0 }}
@@ -175,12 +186,19 @@ export function Tokenomics() {
                     {s.pct}%
                   </span>
                 </div>
+                {/* The bar's length is a width; its animation is a scale.
+
+                    It used to tween `width` from 0, which is a layout property
+                    and the one kind of animation the motion law rules out. Set
+                    the final width in CSS and grow a transform into it from the
+                    leading edge: the bar reads identically and the whole fill
+                    runs on the compositor. */}
                 <div className="bar-track mt-1.5 h-1.5 w-full">
                   <motion.div
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: s.color }}
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${s.pct * 4}%` }}
+                    className="h-full origin-left rounded-full"
+                    style={{ backgroundColor: s.color, width: `${s.pct * 4}%` }}
+                    initial={{ scaleX: 0 }}
+                    whileInView={{ scaleX: 1 }}
                     viewport={{ once: true, margin: "-40px" }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
                   />
