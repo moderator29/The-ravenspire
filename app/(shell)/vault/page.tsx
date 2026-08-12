@@ -3,86 +3,73 @@
 import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { Icon } from "@/components/ui/icon";
-import { BackButton } from "@/components/shell/back-button";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  ConsoleHeader,
+  ConsolePage,
+} from "@/components/console/console-shell";
 import { WalletSection } from "@/components/wallet/wallet-section";
+
+/* The Vault: a Console. Compact above md, zero ornament, and every panel
+   inside it on the shared Card chassis. */
 
 export default function VaultPage() {
   const { ready, enabled, authenticated, signInX, signInEmail } =
     useRealmAuth();
 
-  return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4">
-        <BackButton />
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full border border-gold/25 bg-panel-warm">
-          <Icon name="wallet" className="h-5 w-5 text-gold" />
-        </span>
-        <div>
-          <h1 className="font-display text-xl font-semibold text-bone">
-            The Vault
-          </h1>
-          <p className="mt-0.5 text-[11px] uppercase tracking-[0.26em] text-bone-faint">
-            Non-custodial, keys and coin
-          </p>
-        </div>
-      </div>
+  const showSkeleton = useDelayedLoading(!ready, 300);
 
-      <div className="mt-5">
+  return (
+    <ConsolePage width="data">
+      <ConsoleHeader title="The Vault" kicker="Non-custodial, keys and coin" />
+
+      <div className="mt-4 md:mt-3">
         {!ready ? (
-          <div className="flex flex-col gap-4">
-            <div className="glass h-52 animate-pulse" />
-            <div className="glass h-24 animate-pulse" />
-            <div className="glass h-32 animate-pulse" />
-          </div>
-        ) : !authenticated ? (
-          <div className="glass relative overflow-hidden p-8 text-center sm:p-10">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-steel-line bg-panel">
-              <Icon name="wallet" className="h-6 w-6 text-gold" />
+          showSkeleton ? (
+            <div className="flex flex-col gap-4 md:gap-3">
+              <Skeleton radius="xl" className="h-40 md:h-32" />
+              <Skeleton radius="xl" className="h-20 md:h-16" />
+              <Skeleton radius="xl" className="h-28 md:h-24" />
             </div>
-            <h2 className="gold-text font-display mt-5 text-2xl font-semibold">
-              The Vault awaits its keeper
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-sm text-bone-mut">
-              Enter the realm and a non-custodial wallet is forged for you on
-              the spot. Your keys, your coin, your vault. No one else holds a
-              copy.
-            </p>
-            {enabled ? (
-              <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={signInX}
-                  className="btn-gold inline-flex items-center gap-2 px-5 py-2.5 text-sm"
-                >
-                  <Icon name="xlogo" className="h-4 w-4" />
-                  Enter with X
-                </button>
-                <button
-                  type="button"
-                  onClick={signInEmail}
-                  className="btn-glass inline-flex items-center gap-2 px-5 py-2.5 text-sm"
-                >
-                  <Icon name="mail" className="h-4 w-4" />
-                  Enter with email
-                </button>
-              </div>
-            ) : (
-              <p className="mt-6 text-xs text-bone-faint">
-                The Gatehouse is not mounted in this environment, so sign-in is
-                resting.{" "}
-                <Link href="/signin" className="text-gold underline">
-                  The gate
-                </Link>{" "}
-                will open once it is.
-              </p>
-            )}
-          </div>
+          ) : null
+        ) : !authenticated ? (
+          <Card pad="none">
+            <EmptyState
+              icon3d="vault"
+              title="The Vault awaits its keeper"
+              body="Enter the realm and a non-custodial wallet is forged for you on the spot. Your keys, your coin, your vault. No one else holds a copy."
+              action={
+                enabled ? (
+                  <div className="flex flex-col items-center gap-2 sm:flex-row">
+                    <Button variant="gold" size="lg" onClick={signInX}>
+                      <Icon name="xlogo" className="h-4 w-4" />
+                      Enter with X
+                    </Button>
+                    <Button size="lg" onClick={signInEmail}>
+                      <Icon name="mail" className="h-4 w-4" />
+                      Enter with email
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-bone-faint">
+                    The Gatehouse is not mounted in this environment, so sign-in
+                    is resting.{" "}
+                    <Link href="/signin" className="text-gold underline">
+                      The gate
+                    </Link>{" "}
+                    will open once it is.
+                  </p>
+                )
+              }
+            />
+          </Card>
         ) : (
           <WalletSection />
         )}
       </div>
-    </div>
+    </ConsolePage>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
-import { LandingIcon } from "@/components/landing/icons";
+import { IconButton } from "@/components/ui/button";
 
 /*
   A horizontal, swipeable scroll rail. Native overflow-x-auto with scroll-snap
@@ -70,24 +70,26 @@ export function ScrollRail({
       />
 
       {/* Arrow affordances, desktop only (touch users swipe) */}
-      <button
-        type="button"
-        onClick={() => nudge(-1)}
-        aria-label={`Scroll ${ariaLabel} left`}
+      {/* Rounded rectangles, not circles. A carousel arrow is one of the few
+          places a circle still feels native, but the realm's controls are
+          rectangles and a lone pair of discs on the landing page is exactly
+          the inconsistency a first time visitor notices. */}
+      <IconButton
+        icon="chevron-left"
+        label={`Scroll ${ariaLabel} left`}
+        variant="glass"
         disabled={atStart}
-        className="absolute -left-3 top-1/2 z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gold/25 bg-void/80 text-gold backdrop-blur transition hover:border-gold/50 hover:text-gold-bright disabled:pointer-events-none disabled:opacity-0 sm:flex"
-      >
-        <LandingIcon name="chevronLeft" className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        onClick={() => nudge(1)}
-        aria-label={`Scroll ${ariaLabel} right`}
+        onClick={() => nudge(-1)}
+        className="absolute -left-3 top-1/2 z-20 hidden -translate-y-1/2 text-gold backdrop-blur disabled:pointer-events-none disabled:opacity-0 sm:inline-flex"
+      />
+      <IconButton
+        icon="chevron-right"
+        label={`Scroll ${ariaLabel} right`}
+        variant="glass"
         disabled={atEnd}
-        className="absolute -right-3 top-1/2 z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gold/25 bg-void/80 text-gold backdrop-blur transition hover:border-gold/50 hover:text-gold-bright disabled:pointer-events-none disabled:opacity-0 sm:flex"
-      >
-        <LandingIcon name="chevronRight" className="h-4 w-4" />
-      </button>
+        onClick={() => nudge(1)}
+        className="absolute -right-3 top-1/2 z-20 hidden -translate-y-1/2 text-gold backdrop-blur disabled:pointer-events-none disabled:opacity-0 sm:inline-flex"
+      />
 
       <div
         ref={ref}

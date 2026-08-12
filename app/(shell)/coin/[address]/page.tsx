@@ -3,6 +3,17 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
+import { cx } from "@/components/ui/cx";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SegmentedControl } from "@/components/ui/tabs";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  ConsolePage,
+  CONSOLE_META,
+  CONSOLE_PAD,
+} from "@/components/console/console-shell";
 import { BackButton } from "@/components/shell/back-button";
 import { WatchBadge } from "@/components/tools/watch-badge";
 import { TokenLogo } from "@/components/coin/token-logo";
@@ -67,12 +78,16 @@ function formatPrice(n: number | null): string {
   return `$${n.toPrecision(3)}`;
 }
 
+/* Direction reads from the chart tokens, so up and down are the same two hues
+   everywhere in the product. Gold up, ember down, never green. */
 function ChangeText({ value }: { value: number | null }) {
   if (value === null || !Number.isFinite(value))
     return <span className="text-bone-faint">n/a</span>;
   const up = value >= 0;
   return (
-    <span className={up ? "text-gold-bright" : "text-ember-deep"}>
+    <span
+      style={{ color: up ? "var(--chart-up)" : "var(--chart-down)" }}
+    >
       {up ? "+" : ""}
       {value.toFixed(2)}%
     </span>
@@ -190,39 +205,44 @@ export default function CoinPage({
         )
       : null;
 
+  const showSkeleton = useDelayedLoading(status === "loading", 300);
+
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4">
+    <ConsolePage width="data">
+      <div className="mb-4 md:mb-3">
         <BackButton href="/scrying" />
       </div>
 
-      {status === "loading" && (
-        <div className="flex flex-col gap-3">
-          <div className="glass h-24 animate-pulse" />
-          <div className="glass h-40 animate-pulse" />
-          <div className="glass h-32 animate-pulse" />
-        </div>
-      )}
+      {status === "loading" && showSkeleton && <CoinSkeleton />}
 
       {status === "notfound" && (
-        <div className="glass p-8 text-center text-sm text-bone-mut">
-          The glass could not find a trustworthy market for this token. It may
-          be too thinly traded to read, or the address is not one the markets
-          recognise.
-        </div>
+        <Card pad="none">
+          <EmptyState
+            icon="search"
+            size="sm"
+            title="No market found"
+            body="The glass could not find a trustworthy market for this token. It may be too thinly traded to read, or the address is not one the markets recognise."
+          />
+        </Card>
       )}
 
       {status === "error" && (
-        <div className="glass p-8 text-center text-sm text-bone-mut">
-          The glass clouded over and this coin could not be read right now.
-        </div>
+        <Card pad="none">
+          <EmptyState
+            icon="alert"
+            size="sm"
+            title="The glass clouded over"
+            body="This coin could not be read right now."
+          />
+        </Card>
       )}
 
       {status === "ready" && coin && (
         <>
-          {/* Identity */}
-          <div className="glass flex items-center gap-3.5 p-4">
-            <TokenLogo src={coin.logo} symbol={coin.symbol} size={52} />
+          {/* Identity. The hero band stays comfortable: it is the Dossier half
+              of this page, and the panels below it are the Console half. */}
+          <Card className="flex items-center gap-3">
+            <TokenLogo src={coin.logo} symbol={coin.symbol} size={44} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h1 className="truncate font-display text-xl font-semibold text-bone">
@@ -235,7 +255,7 @@ export default function CoinPage({
               <p className="truncate text-xs text-bone-mut">{coin.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 {coin.chainLabel && (
-                  <span className="inline-block rounded-full border border-steel-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                  <span className="inline-block rounded-sm border border-steel-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
                     {coin.chainLabel}
                   </span>
                 )}
@@ -247,26 +267,26 @@ export default function CoinPage({
                       window.setTimeout(() => setCopiedAddr(false), 1600);
                     });
                   }}
-                  className="inline-flex items-center gap-1 rounded-full border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition hover:border-gold/40 hover:text-gold"
+                  className="inline-flex items-center gap-1 rounded-sm border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition-colors duration-fast hover:border-gold/40 hover:text-gold"
                 >
                   <Icon name={copiedAddr ? "shield" : "share"} className="h-3 w-3" />
                   {copiedAddr
                     ? "Copied"
-                    : `${coin.address.slice(0, 6)}…${coin.address.slice(-4)}`}
+                    : `${coin.address.slice(0, 6)}...${coin.address.slice(-4)}`}
                 </button>
               </div>
             </div>
             <WatchStar id={coin.address} symbol={coin.symbol} />
-          </div>
+          </Card>
 
           {/* Price + chart */}
-          <div className="glass mt-3 p-4">
+          <Card pad="none" className={cx("mt-3 md:mt-2", CONSOLE_PAD)}>
             <div className="flex items-end justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
                   Price
                 </p>
-                <p className="tnum mt-1 font-display text-2xl font-semibold text-bone">
+                <p className="tnum mt-1 font-display text-2xl font-semibold text-bone md:text-xl">
                   {formatPrice(scrub ? scrub.c : coin.priceUsd)}
                 </p>
               </div>
@@ -274,7 +294,7 @@ export default function CoinPage({
                 <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
                   {scrub ? "At point" : "24h"}
                 </p>
-                <p className="tnum mt-1 text-lg font-semibold">
+                <p className="tnum mt-1 text-lg font-semibold md:text-base">
                   <ChangeText
                     value={
                       scrub && chart && chart.points[0]?.c
@@ -287,29 +307,27 @@ export default function CoinPage({
               </div>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-3 md:mt-2">
               {chart ? (
                 <>
-                  {/* Line / candle toggle — candles only when real OHLC exists
-                      (never on an implied line). */}
+                  {/* Line / candle toggle, candles only when real OHLC exists
+                      (never on an implied line). Two exclusive views of the
+                      same data, so a Segmented control rather than a capsule
+                      track of hand rolled buttons. */}
                   {!chart.implied && chart.points.some((p) => p.o != null) && (
                     <div className="mb-2 flex justify-end">
-                      <div className="inline-flex items-center gap-0.5 rounded-full border border-steel-line/70 bg-void/50 p-0.5">
-                        {(["line", "candle"] as const).map((m) => (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => setChartMode(m)}
-                            className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize transition ${
-                              chartMode === m
-                                ? "bg-gold/15 text-gold"
-                                : "text-bone-faint hover:text-bone-mut"
-                            }`}
-                          >
-                            {m}
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentedControl
+                        label="Chart style"
+                        size="sm"
+                        items={[
+                          { value: "line", label: "Line" },
+                          { value: "candle", label: "Candle" },
+                        ]}
+                        value={chartMode}
+                        onValueChange={(v) =>
+                          setChartMode(v as "line" | "candle")
+                        }
+                      />
                     </div>
                   )}
                   <InteractiveChart
@@ -332,7 +350,7 @@ export default function CoinPage({
             </div>
 
             {/* Timeframe changes */}
-            <div className="mt-4 grid grid-cols-4 gap-2 border-t border-steel-line pt-3">
+            <div className="mt-3 grid grid-cols-4 gap-2 border-t border-steel-line pt-3 md:mt-2 md:pt-2">
               {(
                 [
                   ["5m", coin.change.m5],
@@ -351,7 +369,7 @@ export default function CoinPage({
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
 
           {/* Transactions (24h): real buys vs sells */}
           {coin.txns24h &&
@@ -359,8 +377,8 @@ export default function CoinPage({
               <TxnsBar buys={coin.txns24h.buys} sells={coin.txns24h.sells} />
             )}
 
-          {/* Market data */}
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          {/* Market data. Four figures side by side once there is room. */}
+          <div className="mt-3 grid grid-cols-2 gap-2 md:mt-2 md:grid-cols-4 md:gap-1.5">
             <Stat
               label={coin.marketCapIsFdv ? "Market cap (FDV)" : "Market cap"}
               value={coin.marketCap !== null ? formatUsd(coin.marketCap) : "n/a"}
@@ -419,51 +437,68 @@ export default function CoinPage({
               }}
             />
           ) : (
-            <div className="glass-warm mt-3 flex items-start gap-3 p-4">
+            <Card
+              variant="warm"
+              pad="none"
+              className={cx("mt-3 flex items-start gap-2.5 md:mt-2", CONSOLE_PAD)}
+            >
               <Icon
                 name="shield"
+                aria-hidden
                 className="mt-0.5 h-4 w-4 shrink-0 text-bone-faint"
               />
-              <p className="text-xs text-bone-mut">
+              <p className={cx("text-bone-mut", CONSOLE_META)}>
                 In-app trading is EVM only. This token is not on a chain the
                 realm trades, so buy and sell are not offered here.
               </p>
-            </div>
+            </Card>
           )}
 
           {/* Secondary external actions */}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2 md:mt-2">
             {coin.dexUrl && (
-              <a
-                href={coin.dexUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-glass inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs text-bone-mut hover:text-bone"
-              >
-                <Icon name="signal" className="h-3.5 w-3.5" />
-                {coin.dexId ? `View on ${coin.dexId}` : "View on DEX"}
-                <Icon name="arrow" className="h-3.5 w-3.5" />
-              </a>
+              <Button
+                size="sm"
+                render={
+                  <a href={coin.dexUrl} target="_blank" rel="noopener noreferrer">
+                    <Icon name="signal" className="h-3.5 w-3.5" />
+                    {coin.dexId ? `View on ${coin.dexId}` : "View on DEX"}
+                    <Icon name="arrow" className="h-3.5 w-3.5" />
+                  </a>
+                }
+              />
             )}
             {coin.explorerUrl && (
-              <a
-                href={coin.explorerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-glass inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs text-bone-mut hover:text-bone"
-              >
-                <Icon name="search" className="h-3.5 w-3.5" />
-                Explorer
-                <Icon name="arrow" className="h-3.5 w-3.5" />
-              </a>
+              <Button
+                size="sm"
+                render={
+                  <a
+                    href={coin.explorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Icon name="search" className="h-3.5 w-3.5" />
+                    Explorer
+                    <Icon name="arrow" className="h-3.5 w-3.5" />
+                  </a>
+                }
+              />
             )}
           </div>
 
           {/* Honest empty state */}
-          <div className="glass-warm mt-4 flex items-start gap-3 p-4">
-            <Icon name="scroll" className="mt-0.5 h-4 w-4 shrink-0 text-bone-faint" />
+          <Card
+            variant="warm"
+            pad="none"
+            className={cx("mt-3 flex items-start gap-2.5 md:mt-2", CONSOLE_PAD)}
+          >
+            <Icon
+              name="scroll"
+              aria-hidden
+              className="mt-0.5 h-4 w-4 shrink-0 text-bone-faint"
+            />
             <div>
-              <p className="text-xs font-medium text-bone-mut">
+              <p className={cx("font-medium text-bone-mut", CONSOLE_META)}>
                 Holders and transaction history
               </p>
               <p className="mt-1 text-[11px] text-bone-faint">
@@ -474,13 +509,40 @@ export default function CoinPage({
                 the explorer.
               </p>
             </div>
-          </div>
+          </Card>
 
-          <p className="mt-3 text-center text-[10px] text-bone-faint">
+          <p className="mt-3 text-center text-[10px] text-bone-faint md:mt-2">
             Market data via DexScreener. A watchlist star is kept on this device.
           </p>
         </>
       )}
+    </ConsolePage>
+  );
+}
+
+/* Shaped like the panels it stands in for: identity band, chart card, figures. */
+function CoinSkeleton() {
+  return (
+    <div className="flex flex-col gap-3 md:gap-2">
+      <div className="flex items-center gap-3 rounded-xl border border-gold/16 bg-void/60 p-4">
+        <Skeleton radius="full" className="h-11 w-11 shrink-0" />
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <Skeleton radius="sm" className="h-3.5 w-24" />
+          <Skeleton radius="sm" className="h-2.5 w-40" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 rounded-xl border border-gold/16 bg-void/60 p-4 md:p-3">
+        <div className="flex items-end justify-between">
+          <Skeleton radius="sm" className="h-6 w-28" />
+          <Skeleton radius="sm" className="h-5 w-16" />
+        </div>
+        <Skeleton radius="lg" className="h-32 w-full" />
+      </div>
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-1.5">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} radius="lg" className="h-14" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -499,8 +561,12 @@ function RiskBanner({
   const young = ageDays !== null && ageDays < 7;
 
   return (
-    <div className="mt-4 flex items-start gap-3 rounded-2xl border border-ember-deep/40 bg-panel p-4">
-      <Icon name="shield" className="mt-0.5 h-4 w-4 shrink-0 text-ember" />
+    <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-ember-deep/40 bg-panel p-4 md:mt-2 md:p-3">
+      <Icon
+        name="shield"
+        aria-hidden
+        className="mt-0.5 h-4 w-4 shrink-0 text-ember"
+      />
       <div>
         <p className="text-xs font-semibold text-bone">
           Unverified coin. Trade with caution.
@@ -521,38 +587,46 @@ function RiskBanner({
   );
 }
 
-/* Real 24h buys vs sells, a proportional bar (gold buys, ember sells). */
+/* Real 24h buys vs sells, a proportional bar on the chart direction tokens. */
 function TxnsBar({ buys, sells }: { buys: number; sells: number }) {
   const total = buys + sells || 1;
   const buyPct = (buys / total) * 100;
   return (
-    <div className="glass mt-3 p-4">
+    <Card pad="none" className={cx("mt-3 md:mt-2", CONSOLE_PAD)}>
       <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
         Transactions (24h)
       </p>
-      <div className="mt-2 flex items-center justify-between text-sm font-semibold">
-        <span className="tnum text-gold-bright">
+      <div className="mt-1.5 flex items-center justify-between text-sm font-semibold md:text-[13px]">
+        <span className="tnum" style={{ color: "var(--chart-up)" }}>
           {buys.toLocaleString("en-US")} buys
         </span>
-        <span className="tnum text-ember-deep">
+        <span className="tnum" style={{ color: "var(--chart-down)" }}>
           {sells.toLocaleString("en-US")} sells
         </span>
       </div>
-      <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-void">
-        <div className="h-full bg-gold-bright" style={{ width: `${buyPct}%` }} />
-        <div className="h-full flex-1 bg-ember-deep" />
+      <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-sm bg-void">
+        <div
+          className="h-full"
+          style={{ width: `${buyPct}%`, background: "var(--chart-up)" }}
+        />
+        <div
+          className="h-full flex-1"
+          style={{ background: "var(--chart-down)" }}
+        />
       </div>
-    </div>
+    </Card>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="glass glass-sm p-3.5">
+    <Card radius="lg" pad="none" className="p-3 md:p-2.5">
       <p className="text-[10px] uppercase tracking-[0.16em] text-bone-faint">
         {label}
       </p>
-      <p className="tnum mt-1 text-sm font-semibold text-bone">{value}</p>
-    </div>
+      <p className="tnum mt-1 text-sm font-semibold text-bone md:mt-0.5 md:text-[13px]">
+        {value}
+      </p>
+    </Card>
   );
 }

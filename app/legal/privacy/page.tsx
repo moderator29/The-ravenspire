@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icon3D } from "@/components/ui/icon-3d";
+import { Card } from "@/components/ui/card";
+import { AtAGlance, type GlancePoint } from "@/components/legal/at-a-glance";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "How The Ravenspire collects, uses, and protects your information across a non-custodial SocialFi realm. Your keys and funds are always your own.",
+    "How The Ravenspire collects, uses, and protects your information across a non-custodial competitive realm. Your keys and funds are always your own.",
 };
 
 const EFFECTIVE_DATE = "July 19, 2026";
@@ -15,6 +18,29 @@ type Section = {
   body: string[];
   list?: string[];
 };
+
+/* Each point is a fair summary of the section it links to, and says nothing
+   those sections do not say. Checked against sections 2, 4 and 7. */
+const glance: GlancePoint[] = [
+  {
+    icon: "guard",
+    title: "We never hold your keys",
+    body: "Your wallet is yours. We cannot move, freeze or recover your assets, and we never see your seed phrase.",
+    href: "#non-custodial",
+  },
+  {
+    icon: "chronicle",
+    title: "A small, stated surface",
+    body: "We collect what the realm needs to run and keep itself safe, section 3 lists all of it, and we do not sell any of it.",
+    href: "#how-we-use",
+  },
+  {
+    icon: "oath-scroll",
+    title: "The choices stay yours",
+    body: "Export your keys at any time, update your account details, and ask us to delete your account record.",
+    href: "#your-choices",
+  },
+];
 
 const sections: Section[] = [
   {
@@ -111,12 +137,14 @@ export default function PrivacyPolicyPage() {
       <div className="relative mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm font-medium text-bone-mut transition hover:text-gold"
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-bone-mut transition hover:text-gold"
         >
           Back to the realm
         </Link>
 
         <header className="mt-8">
+          {/* Privacy is the realm guarding what is yours, which is what this icon says without a sentence of copy. */}
+          <Icon3D name="guard" size="xl" className="mb-5" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold">
             The realm keeps its word
           </p>
@@ -128,7 +156,14 @@ export default function PrivacyPolicyPage() {
           </p>
         </header>
 
-        <article className="glass mt-8 p-7 sm:p-10">
+        <AtAGlance points={glance} />
+
+        <Card
+          render={<article />}
+          radius="xl"
+          pad="none"
+          className="mt-8 p-7 sm:p-10"
+        >
           <div className="flex flex-col gap-8">
             {sections.map((s) => (
               <section key={s.id} id={s.id} className="scroll-mt-8">
@@ -164,7 +199,7 @@ export default function PrivacyPolicyPage() {
               </section>
             ))}
           </div>
-        </article>
+        </Card>
 
         <footer className="mt-8 flex flex-col items-center gap-2 pb-6 text-center">
           <p className="text-xs uppercase tracking-[0.26em] text-bone-faint">

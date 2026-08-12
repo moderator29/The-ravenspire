@@ -6,8 +6,11 @@ import {
   resolveLength,
   lengthGuidance,
   lengthMaxTokens,
+  resolveLanguage,
+  languageGuidance,
   type RavenVoice,
   type RavenLength,
+  type RavenLanguage,
 } from "@/lib/ai/raven-voice";
 
 const key = process.env.ANTHROPIC_API_KEY;
@@ -34,7 +37,7 @@ export type RavenResult = {
   browseRequested: boolean;
   /* True when the web tool was actually offered and the call succeeded (so the
      model COULD browse, whether or not it chose to). Only false when browsing
-     genuinely failed and we fell back — that is the only time we tell the
+     genuinely failed and we fell back, that is the only time we tell the
      member browsing was unavailable. */
   browseAvailable: boolean;
   sources: RavenSource[];
@@ -44,6 +47,7 @@ export type AskRavenOptions = {
   voice?: RavenVoice | string;
   browse?: boolean;
   length?: RavenLength | string;
+  language?: RavenLanguage | string;
 };
 
 function buildSystem(context: string | undefined, opts: AskRavenOptions): string {
@@ -55,7 +59,7 @@ function buildSystem(context: string | undefined, opts: AskRavenOptions): string
 
   if (opts.browse) {
     parts.push(
-      `## Live browsing is ON\n\nYou have a real web_search tool this turn, and the member turned it on deliberately. USE IT — actually call web_search — for anything that touches current or fast-moving facts: news, prices or figures you were not handed in context, dates, standings, live events, "latest", "today", "now", or any claim you are not fully certain of. Prefer searching over guessing. Run more than one search if the question has parts. Weave what you find into your own voice, state findings plainly, and make clear when something is fresh from the web. Do not paste raw links into the prose; the interface lists your sources beside the reply.`
+      `## Live browsing is ON\n\nYou have a real web_search tool this turn, and the member turned it on deliberately. USE IT, actually call web_search, for anything that touches current or fast-moving facts: news, prices or figures you were not handed in context, dates, standings, live events, "latest", "today", "now", or any claim you are not fully certain of. Prefer searching over guessing. Run more than one search if the question has parts. Weave what you find into your own voice, state findings plainly, and make clear when something is fresh from the web. Do not paste raw links into the prose; the interface lists your sources beside the reply.`
     );
   }
 
@@ -64,6 +68,13 @@ function buildSystem(context: string | undefined, opts: AskRavenOptions): string
       `## Live realm context (real, verified, safe to state)\nThe lines below were fetched from live sources moments ago. Cite these figures freely and name them only once. Do NOT invent any number that is absent here.\n\n${context}`
     );
   }
+
+  /* Last, deliberately. The realm context above is written in English and the
+     voice prompt is a wall of English, so a language instruction placed before
+     either of them competes with several thousand words pulling the other way.
+     Placed last it is the final thing read, and it is also directly beside the
+     figures it tells the Herald not to convert. */
+  parts.push(`## Language\n\n${languageGuidance(resolveLanguage(opts.language))}`);
 
   return parts.join("\n\n");
 }

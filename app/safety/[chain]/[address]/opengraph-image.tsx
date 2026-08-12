@@ -45,7 +45,7 @@ export default async function Image({
   const serif = "ui-serif, Georgia, 'Times New Roman', Times, serif";
 
   const score = report?.score ?? null;
-  const gold = "#C8A24C";
+  const gold = "#D9B040";
   const ember = "#C6633B";
   const emberDeep = "#B23B2E";
   const verdictColor =
@@ -71,7 +71,7 @@ export default async function Image({
           justifyContent: "space-between",
           background: "#07070A",
           backgroundImage:
-            "radial-gradient(circle at 80% 10%, rgba(200,162,76,0.18), rgba(7,7,10,0) 55%)",
+            "radial-gradient(circle at 80% 10%, rgba(217, 176, 64,0.18), rgba(7,7,10,0) 55%)",
           padding: 72,
         }}
       >
@@ -144,7 +144,7 @@ export default async function Image({
         <div style={{ display: "flex", alignItems: "flex-end", gap: 60 }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ color: verdictColor, fontSize: 96, fontWeight: 700 }}>
-              {score === null ? "—" : score}
+              {score === null ? "·" : score}
               {score === null ? "" : "/100"}
             </span>
             <span style={{ color: "#8C877B", fontSize: 26, letterSpacing: 4 }}>

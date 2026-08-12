@@ -3,7 +3,14 @@ import { requireProfile, getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { maybeRavenReplyToComment } from "@/lib/ai/mention";
+import { screenAndFlag } from "@/lib/moderation/screen";
 import { createNotification, notifyMentions } from "@/lib/notifications";
+import {
+  ANON_VIEWER,
+  canViewPost,
+  resolveViewer,
+} from "@/lib/social/feed-server";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 const COMMENT_SELECT =
   "id, post_id, parent_id, body, like_count, created_at, author_id, author:profiles!comments_author_id_fkey (handle, display_name, avatar_url, house_slug, tier, is_agent)";
@@ -20,6 +27,16 @@ export async function GET(req: Request) {
   const postId = new URL(req.url).searchParams.get("post_id");
   if (!postId) return json({ error: "bad request" }, 400);
 
+  /* C1: a thread inherits its raven's audience. This route reads with the
+     service role, so it has to make that decision itself; without it, the
+     comments on a "Followers only" raven were readable by anyone who knew the
+     raven's id. Not admitted reads as an empty thread, never as a hint that
+     the raven exists. */
+  const viewer = await getProfile(req);
+  const feedViewer = viewer ? await resolveViewer(db, viewer) : ANON_VIEWER;
+  if (!(await canViewPost(db, feedViewer, postId)))
+    return json({ comments: [] });
+
   const { data: rows } = await db
     .from("comments")
     .select(COMMENT_SELECT)
@@ -34,7 +51,6 @@ export async function GET(req: Request) {
   }[];
 
   /* Fold in the reader's own likes and bookmarks when we know who they are. */
-  const viewer = await getProfile(req);
   let liked = new Set<string>();
   let bookmarked = new Set<string>();
   if (viewer && comments.length) {
@@ -75,6 +91,16 @@ export async function POST(req: Request) {
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
+  /* C4: replies are cheap for a script and expensive for the realm (each one
+     writes a comment, a notification fan-out, a points award and can wake the
+     Herald). Keyed on the account, not the IP. */
+  const rl = await rateLimit(profileKey("comments", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      { error: "You have said plenty for one hour. Return shortly.", retryAfter: rl.retryAfter },
+      429
+    );
+
   const body = (await req.json().catch(() => null)) as {
     post_id?: string;
     parent_id?: string;
@@ -86,10 +112,15 @@ export async function POST(req: Request) {
 
   const { data: post } = await db
     .from("posts")
-    .select("id, author_id, reply_count")
+    .select("id, author_id")
     .eq("id", body.post_id)
     .single();
   if (!post) return json({ error: "That raven is gone" }, 404);
+
+  /* C1: you cannot reply into a raven you were never admitted to. */
+  const feedViewer = await resolveViewer(db, profile);
+  if (!(await canViewPost(db, feedViewer, post.id)))
+    return json({ error: "That raven is gone" }, 404);
 
   /* If this is a reply, learn who wrote the parent: a reply to one of the
      Raven's own comments should pull the Herald back into the thread even
@@ -124,10 +155,8 @@ export async function POST(req: Request) {
     .single();
   if (error || !comment) return json({ error: "Could not reply" }, 500);
 
-  await db
-    .from("posts")
-    .update({ reply_count: post.reply_count + 1 })
-    .eq("id", post.id);
+  /* B6: atomic, so two replies landing together cannot lose a count. */
+  await db.rpc("bump_post_counts", { p_post_id: post.id, p_replies: 1 });
 
   /* Ring the people this reply concerns, each at most once: the raven's author,
      the parent comment's author (when replying inside a thread), and anyone
@@ -160,14 +189,26 @@ export async function POST(req: Request) {
     excludeIds: notified,
   });
 
+  /* Replying is unlimited and reciprocal, so it draws on the daily social
+     allowance (V2 section 9.5, rule 4). Two accounts commenting on each other
+     forever used to mint unbounded Renown. */
   await award(db, profile.id, {
     points: 2,
     glory: 1,
     reason: "replied",
     ref: comment.id,
+    category: "social",
   });
 
   after(async () => {
+    /* The same free screen the Ravenry runs over a raven. It never blocks and
+       never hides, it only raises a flag a moderator reads. */
+    await screenAndFlag(db, {
+      subjectType: "comment",
+      subjectId: comment.id,
+      authorId: profile.id,
+      text,
+    });
     await maybeRavenReplyToComment(db, {
       postId: post.id,
       commentId: comment.id,

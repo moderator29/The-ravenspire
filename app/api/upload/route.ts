@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED: Record<string, string> = {
@@ -16,6 +17,18 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* C4: storage is the one resource here that never shrinks. 60 images an hour
+     is far above any real composing session and far below a filled bucket. */
+  const rl = await rateLimit(profileKey("upload", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "The shelf is full for now. Try again within the hour.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
+import { Card } from "@/components/ui/card";
 import { TokenIcon } from "@/components/ledger/token-icon";
 import {
   usd,
@@ -13,37 +14,34 @@ function ChangePill({ position }: { position: Position }) {
   const p = position.change24h;
   const flat = !Number.isFinite(p) || Math.abs(p) < 0.005;
   const up = p >= 0;
+  /* Direction from the chart tokens: gold up, ember down, never green. */
   const tone = flat
-    ? "text-bone-faint"
-    : up
-      ? "text-gold-bright"
-      : "text-ember";
+    ? undefined
+    : { color: up ? "var(--chart-up)" : "var(--chart-down)" };
   return (
-    <div className="text-right">
-      <div className={`tnum text-sm ${tone}`}>{usd(position.quoteUsd)}</div>
-      <div className={`tnum text-[11px] ${tone}`}>
-        {flat ? "0.00%" : pct(p)}
-      </div>
+    <div className={flat ? "text-right text-bone-faint" : "text-right"} style={tone}>
+      <div className="tnum text-sm md:text-[13px]">{usd(position.quoteUsd)}</div>
+      <div className="tnum text-[11px]">{flat ? "0.00%" : pct(p)}</div>
     </div>
   );
 }
 
 function Row({ position }: { position: Position }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-3">
+    <div className="flex min-h-11 items-center gap-3 px-3 py-2.5 md:min-h-9 md:py-1.5">
       <div className="relative shrink-0">
-        <TokenIcon logo={position.logo} symbol={position.symbol} />
+        <TokenIcon logo={position.logo} symbol={position.symbol} size={28} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate font-medium text-bone">
+          <span className="truncate text-sm font-medium text-bone md:text-[13px]">
             {position.symbol}
           </span>
-          <span className="shrink-0 rounded-full border border-steel-line bg-panel px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-bone-faint">
+          <span className="shrink-0 rounded-sm border border-steel-line bg-panel px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-bone-faint">
             {position.chainShort}
           </span>
         </div>
-        <div className="truncate text-xs text-bone-faint">
+        <div className="truncate text-xs text-bone-faint md:text-[11px]">
           {position.balanceDisplay} {position.symbol}
           <span className="mx-1 text-steel-line">/</span>
           {position.name}
@@ -65,8 +63,8 @@ export function Positions({
   const dustTotal = dust.reduce((s, t) => s + t.quoteUsd, 0);
 
   return (
-    <section className="glass overflow-hidden">
-      <div className="flex items-center justify-between border-b border-steel-line px-4 py-3">
+    <Card pad="none" render={<section />} className="overflow-hidden">
+      <div className="flex items-center justify-between border-b border-steel-line px-4 py-2.5 md:px-3 md:py-2">
         <h2 className="text-xs uppercase tracking-[0.26em] text-bone-faint">
           Positions
         </h2>
@@ -86,9 +84,9 @@ export function Positions({
           <button
             type="button"
             onClick={() => setShowDust((v) => !v)}
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+            className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2.5 text-left md:min-h-9 md:px-3 md:py-2"
           >
-            <span className="text-sm text-bone-mut">
+            <span className="text-sm text-bone-mut md:text-[13px]">
               {showDust ? "Hide" : "Show"} dust ({dust.length})
               <span className="ml-1.5 text-xs text-bone-faint">
                 under {usd(1)} each
@@ -100,7 +98,8 @@ export function Positions({
               </span>
               <Icon
                 name="arrow"
-                className={`h-4 w-4 text-bone-faint transition-transform ${
+                aria-hidden
+                className={`h-4 w-4 text-bone-faint transition-transform duration-fast ${
                   showDust ? "-rotate-90" : "rotate-90"
                 }`}
               />
@@ -115,6 +114,6 @@ export function Positions({
           )}
         </div>
       )}
-    </section>
+    </Card>
   );
 }

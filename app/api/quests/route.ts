@@ -1,6 +1,8 @@
+import { after } from "next/server";
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
+import { emit } from "@/lib/realm/events";
 import { quests, type Quest } from "@/lib/game/quests";
 import { computeBounds, verifyQuest } from "@/lib/game/quest-verify";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -110,10 +112,41 @@ export async function POST(req: Request) {
   });
   if (error) return json({ error: "Already completed for this period" }, 409);
 
-  await award(db, profile.id, {
+  const granted = await award(db, profile.id, {
     points: quest.points,
     glory: quest.glory,
     reason: `quest_${quest.slug}`,
+    category: "social",
   });
-  return json({ ok: true, glory: quest.glory, points: quest.points });
+
+  /* Quests stop being a private checklist and become a strip the realm can see.
+     Subject is the quest and its period together, so a weekly quest completed
+     in two different weeks is two events while a retried request is one. */
+  after(async () => {
+    await emit(db, {
+      kind: "quest.completed",
+      actorId: profile.id,
+      subjectType: "quest",
+      subjectId: `${quest.slug}:${period}`,
+      houseSlug: profile.house_slug,
+      payload: {
+        v: 1,
+        quest_slug: quest.slug,
+        name: quest.name,
+        cadence: quest.cadence,
+        period,
+        points: granted.points,
+        glory: granted.glory,
+      },
+    });
+  });
+
+  /* Report what was actually granted, not what the quest is worth, so a member
+     who has spent the day's social allowance is told the truth. */
+  return json({
+    ok: true,
+    glory: granted.glory,
+    points: granted.points,
+    capped: granted.capped,
+  });
 }

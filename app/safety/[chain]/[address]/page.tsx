@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { fetchGoPlus, fetchHoneypot, buildReport } from "@/lib/tools/goplus";
@@ -11,7 +13,7 @@ import {
   type CheckGroup,
 } from "@/lib/tools/watch-types";
 
-/* SHAREABLE WATCH REPORT — a public, read-only safety verdict for a token,
+/* SHAREABLE WATCH REPORT, a public, read-only safety verdict for a token,
    drawn from the same live GoPlus + honeypot.is reads the in-app Watch uses.
    It lives OUTSIDE the (shell) group on purpose so a shared link opens for
    anyone, member or not, and carries an OG card (opengraph-image.tsx) for a
@@ -87,7 +89,7 @@ export async function generateMetadata({
   const report = await readReport(chain, address);
   const title = `Safety report · ${short} · The Ravenspire`;
   const description = report
-    ? `${report.headline} — Defenses score ${report.score}/100 on ${chainLabel}. Read the full on-chain safety check on The Ravenspire.`
+    ? `${report.headline}, Defenses score ${report.score}/100 on ${chainLabel}. Read the full on-chain safety check on The Ravenspire.`
     : `On-chain token safety report on ${chainLabel}, read through The Ravenspire's Watch.`;
   return {
     title,
@@ -123,7 +125,7 @@ export default async function SafetyReportPage({
               The Ravenspire
             </span>
           </Link>
-          <span className="rounded-full border border-gold/30 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/80">
+          <span className="rounded-sm border border-gold/30 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/80">
             The Watch
           </span>
         </div>
@@ -138,9 +140,9 @@ export default async function SafetyReportPage({
         </p>
 
         {!report ? (
-          <div className="glass mt-6 p-8 text-center text-sm text-bone-mut">
+          <Card pad="none" className="mt-6 p-8 text-center text-sm text-bone-mut">
             <Icon name="search" className="mx-auto mb-3 h-6 w-6 text-bone-faint" />
-            The Watch could not read a verdict for this contract yet — it may be
+            The Watch could not read a verdict for this contract yet, it may be
             too new to have been analysed, or the wall was unreachable.
             <Link
               href={`/watch?address=${address}&chain=${chain}`}
@@ -148,10 +150,10 @@ export default async function SafetyReportPage({
             >
               Try a live scan in The Watch
             </Link>
-          </div>
+          </Card>
         ) : (
           <>
-            <div className="glass mt-6 p-6 text-center">
+            <Card pad="none" className="mt-6 p-6 text-center">
               <p
                 className={`tnum font-display text-5xl font-semibold ${scoreColor}`}
               >
@@ -165,13 +167,13 @@ export default async function SafetyReportPage({
               >
                 {report.headline}
               </p>
-            </div>
+            </Card>
 
             {GROUPS.map((g) => {
               const rows = report.checks.filter((c) => c.group === g.id);
               if (rows.length === 0) return null;
               return (
-                <div key={g.id} className="glass mt-3 p-2">
+                <Card key={g.id} pad="none" className="mt-3 p-2">
                   <p className="px-3 pb-1 pt-2 text-[11px] uppercase tracking-[0.2em] text-bone-faint">
                     {g.label}
                   </p>
@@ -195,11 +197,11 @@ export default async function SafetyReportPage({
                       </div>
                     ))}
                   </div>
-                </div>
+                </Card>
               );
             })}
 
-            <div className="glass glass-sm mt-3 flex items-center justify-between px-4 py-3 text-sm">
+            <Card radius="lg" pad="none" className="mt-3 flex items-center justify-between px-4 py-3 text-sm">
               <span className="text-bone-mut">
                 Trade taxes
                 {report.raw.taxSource === "simulation" && (
@@ -210,44 +212,53 @@ export default async function SafetyReportPage({
                 Buy {report.raw.buyTax.toFixed(1)}% / Sell{" "}
                 {report.raw.sellTax.toFixed(1)}%
               </span>
-            </div>
+            </Card>
 
             {report.explorer && (
-              <a
-                href={report.explorer}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-glass mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm"
+              <Button
+                variant="glass"
+                size="md"
+                className="mt-3"
+                render={
+                  <a
+                    href={report.explorer}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
               >
                 <Icon name="arrow" className="h-4 w-4" />
                 Verify on the block explorer
-              </a>
+              </Button>
             )}
           </>
         )}
 
         {/* Calls to enter the realm */}
-        <div className="glass mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <Card pad="lg" className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-display text-base font-semibold text-bone">
               Read any token before you trade it
             </p>
             <p className="mt-0.5 text-sm text-bone-mut">
-              The Watch reads live on-chain defenses — free, non-custodial.
+              The Watch reads live on-chain defenses, free, non-custodial.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <Link
-              href={`/watch?address=${address}&chain=${chain}`}
-              className="btn-glass px-4 py-2 text-sm"
+            <Button
+              variant="glass"
+              size="md"
+              render={
+                <Link href={`/watch?address=${address}&chain=${chain}`} />
+              }
             >
               Open The Watch
-            </Link>
-            <Link href="/" className="btn-gold px-4 py-2 text-sm">
+            </Button>
+            <Button variant="gold" size="md" render={<Link href="/" />}>
               Enter the realm
-            </Link>
+            </Button>
           </div>
-        </div>
+        </Card>
 
         <p className="mt-6 text-center text-[11px] text-bone-faint">
           Safety data via GoPlus &amp; honeypot.is, read live and cached briefly.

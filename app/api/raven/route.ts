@@ -7,11 +7,14 @@ import {
   suggestFollowUps,
 } from "@/lib/ai/raven-voice";
 import type { RealmPulse } from "@/components/raven/cards";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
-/* Per-instance rate limit: the Raven's mind costs real coin. */
-const usage = new Map<string, { count: number; windowStart: number }>();
-const WINDOW_MS = 3600_000;
-const MAX_PER_WINDOW = 20;
+/* The Raven's mind costs real coin, so it is metered per account per hour.
+   This used to be a module-level Map, which is per-lambda, wiped on every cold
+   start and never pruned: under serverless it multiplied the ceiling by the
+   number of live instances instead of holding it. The limit now lives in
+   Postgres (lib/rate-limit.ts), so it holds across instances. */
+const RAVEN_PER_HOUR = 20;
 
 type WalletHolding = { symbol: string; balance: number | null; quoteUsd: number | null };
 type WalletCard = { address: string; totalUsd: number | null; holdings: WalletHolding[] };
@@ -130,28 +133,36 @@ export async function POST(req: Request) {
       401
     );
 
-  const now = Date.now();
-  const u = usage.get(profile.id);
-  if (!u || now - u.windowStart > WINDOW_MS) {
-    usage.set(profile.id, { count: 1, windowStart: now });
-  } else if (u.count >= MAX_PER_WINDOW) {
+  const rl = await rateLimit(
+    profileKey("raven", profile.id),
+    RAVEN_PER_HOUR,
+    3600
+  );
+  if (!rl.ok)
     return json(
-      { error: "The Raven grows hoarse. Return within the hour." },
+      {
+        error: "The Raven grows hoarse. Return within the hour.",
+        retryAfter: rl.retryAfter,
+      },
       429
     );
-  } else {
-    u.count += 1;
-  }
 
   const body = (await req.json().catch(() => null)) as {
     messages?: { role: "user" | "assistant"; content: string }[];
     voice?: string;
     browse?: boolean;
     length?: string;
+    language?: string;
   } | null;
   const voice = typeof body?.voice === "string" ? body.voice : undefined;
   const browse = body?.browse === true;
   const length = typeof body?.length === "string" ? body.length : undefined;
+  /* Unvalidated on purpose at this layer. `resolveLanguage` downstream falls
+     back to "auto" for anything it does not recognise, so an unknown string
+     cannot reach the prompt. Validating twice would mean two lists to keep in
+     step, and the one that matters is the one beside the guidance text. */
+  const language =
+    typeof body?.language === "string" ? body.language : undefined;
   const messages = (body?.messages ?? [])
     .filter(
       (m) =>
@@ -198,7 +209,7 @@ export async function POST(req: Request) {
   const result = await askRaven(
     messages,
     contexts.length ? contexts.join("\n") : undefined,
-    { voice, browse, length }
+    { voice, browse, length, language }
   );
   if (!result)
     return json({ error: "The Raven is preoccupied. Try again shortly." }, 502);

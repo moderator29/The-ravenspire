@@ -1,9 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
+import { AdaptiveDialog } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, Input } from "@/components/ui/field";
+import { SegmentedControl } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { useVaultPrefs } from "@/components/wallet/wallet-prefs";
@@ -424,14 +428,14 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
 
   if (!tradable) {
     return (
-      <div className="glass-warm mt-3 flex items-start gap-3 p-4">
+      <Card variant="warm" pad="md" className="mt-3 flex items-start gap-3">
         <Icon name="shield" className="mt-0.5 h-4 w-4 shrink-0 text-bone-faint" />
         <p className="text-xs text-bone-mut">
           In-app trading needs this token&apos;s decimals and a live price, which
           could not be read right now, so we will not guess an amount. Use the
           DEX link above to trade it for the moment.
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -456,7 +460,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
     (side === "buy" ? buyRaw > 0n && !needsTopUp : sellRaw > 0n);
 
   return (
-    <div className="glass mt-3 p-4">
+    <Card pad="md" className="mt-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icon name="coin" className="h-4 w-4 text-gold" />
@@ -464,34 +468,29 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             Trade {coin.symbol}
           </h2>
         </div>
-        <span className="inline-flex items-center rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+        <span className="inline-flex items-center rounded-sm border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
           Beta
         </span>
       </div>
 
-      {/* Buy / Sell tabs */}
-      <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl border border-steel-line bg-void p-1">
-        {(["buy", "sell"] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => {
-              setSide(s);
-              setQuote(null);
-              setQuoteError(null);
-            }}
-            className={`rounded-lg py-2 text-sm font-semibold capitalize transition ${
-              side === s
-                ? s === "buy"
-                  ? "bg-panel-warm text-gold-bright"
-                  : "bg-panel text-ember"
-                : "text-bone-faint hover:text-bone-mut"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
+      {/* Buy and sell are two mutually exclusive modes, which is exactly what
+          SegmentedControl models. The hand rolled version also lost the arrow
+          key handling and the roving tabindex that come with it. */}
+      <SegmentedControl
+        label="Trade side"
+        block
+        className="mt-3"
+        value={side}
+        onValueChange={(next) => {
+          setSide(next as "buy" | "sell");
+          setQuote(null);
+          setQuoteError(null);
+        }}
+        items={[
+          { value: "buy", label: "Buy" },
+          { value: "sell", label: "Sell" },
+        ]}
+      />
 
       {/* Amount controls */}
       {side === "buy" ? (
@@ -500,42 +499,42 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             {USD_PRESETS.map((p) => {
               const active = usdChoice === p;
               return (
-                <button
+                <Button
                   key={p}
-                  type="button"
+                  size="lg"
+                  variant={active ? "glass" : "ghost"}
+                  aria-pressed={active}
+                  tone={active ? "gold" : "steel"}
+                  className={active ? "tnum text-gold-bright" : "tnum"}
                   onClick={() => {
                     setUsdChoice(p);
                     setCustomUsd("");
                   }}
-                  className={`tnum rounded-xl border px-2 py-2.5 text-center text-sm transition ${
-                    active
-                      ? "border-gold/60 bg-panel-warm text-gold-bright"
-                      : "border-steel-line bg-void text-bone-mut hover:border-gold/40"
-                  }`}
                 >
                   ${p}
-                </button>
+                </Button>
               );
             })}
           </div>
-          <label className="mt-2.5 flex items-center gap-2 rounded-xl border border-steel-line bg-void px-3 py-2.5 focus-within:border-gold/40">
-            <span className="text-xs text-bone-faint">Custom</span>
-            <span className="text-sm text-bone-mut">$</span>
-            <input
-              inputMode="decimal"
-              value={customUsd}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                  setCustomUsd(v);
-                  setUsdChoice(null);
-                }
-              }}
-              placeholder="0"
-              className="tnum min-w-0 flex-1 bg-transparent text-right text-sm text-bone placeholder-bone-faint outline-none"
-            />
-            <span className="text-xs font-semibold text-bone-mut">USD</span>
-          </label>
+          <Field label="Custom amount in USD" className="mt-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-bone-mut">$</span>
+              <Input
+                inputMode="decimal"
+                value={customUsd}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                    setCustomUsd(v);
+                    setUsdChoice(null);
+                  }
+                }}
+                placeholder="0"
+                className="tnum flex-1 text-right"
+              />
+              <span className="text-xs font-semibold text-bone-mut">USD</span>
+            </div>
+          </Field>
         </>
       ) : (
         <>
@@ -543,18 +542,17 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             {SELL_PCTS.map((p) => {
               const active = sellPct === p;
               return (
-                <button
+                <Button
                   key={p}
-                  type="button"
+                  size="lg"
+                  variant={active ? "glass" : "ghost"}
+                  tone={active ? "ember" : "steel"}
+                  aria-pressed={active}
+                  className={active ? "tnum text-ember-deep" : "tnum"}
                   onClick={() => setSellPct(p)}
-                  className={`tnum rounded-xl border px-2 py-2.5 text-center text-sm transition ${
-                    active
-                      ? "border-ember/60 bg-panel text-ember"
-                      : "border-steel-line bg-void text-bone-mut hover:border-ember/40"
-                  }`}
                 >
                   {p === 100 ? "Max" : `${p}%`}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -567,7 +565,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
       )}
 
       {/* Quote readout */}
-      <div className="mt-3 rounded-xl border border-steel-line bg-void/60 p-3.5">
+      <Card variant="inset" pad="none" className="mt-3 p-3.5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-bone-faint">You pay</span>
           <span className="tnum text-bone">
@@ -591,12 +589,14 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
           </span>
         </div>
         {quoteError && (
-          <p className="mt-2 text-xs text-ember">{quoteError}</p>
+          <p role="alert" className="mt-2 text-xs text-state-warning">
+            {quoteError}
+          </p>
         )}
-      </div>
+      </Card>
 
       {needsTopUp && chain && walletAddress && (
-        <div className="glass-warm mt-3 flex flex-col gap-2 p-3.5">
+        <Card variant="warm" pad="none" className="mt-3 flex flex-col gap-2 p-3.5">
           <p className="text-xs text-bone-mut">
             To buy {coin.symbol} you need more {chain.native} on {chain.name}.
             Add it with a card in a tap.
@@ -606,17 +606,17 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             walletAddress={walletAddress}
             amountUsd={usdAmount > 0 ? usdAmount : undefined}
           />
-        </div>
+        </Card>
       )}
 
       {/* Primary action */}
-      <button
-        type="button"
+      <Button
+        variant={side === "buy" ? "gold" : "glass"}
+        size="lg"
+        block
+        className={side === "buy" ? "mt-3" : "mt-3 text-ember-deep"}
         disabled={!canReview}
         onClick={() => setPhase("confirm")}
-        className={`mt-3 w-full py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
-          side === "buy" ? "btn-gold" : "btn-glass text-ember"
-        }`}
       >
         {side === "buy" ? (
           <>
@@ -629,10 +629,10 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             Sell {coin.symbol}
           </>
         )}
-      </button>
+      </Button>
 
       {!walletAddress && (
-        <p className="mt-2 text-center text-xs text-ember">
+        <p className="mt-2 text-center text-xs text-state-warning">
           No embedded wallet is ready to trade yet.
         </p>
       )}
@@ -645,17 +645,21 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
       </p>
 
       {/* Confirm / progress / success overlay */}
-      {mounted &&
-        phase !== "idle" &&
-        chain &&
-        createPortal(
-          <div className="fixed inset-0 z-[100] flex items-stretch justify-center sm:items-center sm:p-4">
-            <button
-              aria-label="Close"
-              onClick={reset}
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            />
-            <div className="glass glass-warm relative flex h-full w-full flex-col overflow-y-auto p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] sm:h-auto sm:max-w-md sm:pt-6">
+      {mounted && phase !== "idle" && chain && (
+        <AdaptiveDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) reset();
+          }}
+          size="md"
+          title={
+            phase === "success"
+              ? `${side === "buy" ? "Bought" : "Sold"} ${coin.symbol}`
+              : `${side === "buy" ? "Buy" : "Sell"} ${coin.symbol}`
+          }
+          description={phase === "success" ? undefined : "Preview"}
+        >
+          <div>
               {phase === "success" ? (
                 <TradeSuccess
                   side={side}
@@ -668,25 +672,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                 />
               ) : (
                 <>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
-                        {side === "buy" ? "Buy" : "Sell"} · Preview
-                      </p>
-                      <h3 className="mt-1 font-display text-lg font-semibold text-bone">
-                        {side === "buy" ? "Buy" : "Sell"} {coin.symbol}
-                      </h3>
-                    </div>
-                    <button
-                      aria-label="Close"
-                      onClick={reset}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-bone-faint transition hover:bg-panel hover:text-bone-mut"
-                    >
-                      <Icon name="plus" className="h-4 w-4 rotate-45" />
-                    </button>
-                  </div>
-
-                  <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-steel-line bg-void/60 p-4">
+                  <div className="flex flex-col gap-2.5 rounded-xl border border-steel-line bg-void/60 p-4">
                     <Row label="You pay" value={payText} />
                     <Row label="You receive" value={receiveText} strong />
                     {quote?.minBuyAmount && (
@@ -715,34 +701,30 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                   </div>
 
                   {approvalHash && (
-                    <div className="mt-3 rounded-xl border border-gold/25 bg-panel-warm/50 p-3 text-xs text-bone-mut">
+                    <div className="mt-3 rounded-lg border border-gold/25 bg-panel-warm/50 p-3 text-xs text-bone-mut">
                       Approval sent. Once it confirms (about 15 seconds), confirm
                       the swap below.
                     </div>
                   )}
 
                   {execError && (
-                    <p className="mt-3 text-xs text-ember">{execError}</p>
+                    <p role="alert" className="mt-3 text-xs text-state-warning">
+                      {execError}
+                    </p>
                   )}
 
-                  <button
-                    type="button"
-                    disabled={phase === "swapping" || phase === "approving"}
+                  <Button
+                    variant={side === "buy" ? "gold" : "glass"}
+                    size="lg"
+                    block
+                    className={side === "buy" ? "mt-4" : "mt-4 text-ember-deep"}
+                    loading={phase === "swapping" || phase === "approving"}
                     onClick={() => void execute()}
-                    className={`mt-4 w-full py-3 text-sm disabled:opacity-60 ${
-                      side === "buy" ? "btn-gold" : "btn-glass text-ember"
-                    }`}
                   >
                     {phase === "approving" ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
-                        Approving...
-                      </>
+                      "Approving..."
                     ) : phase === "swapping" ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#171204]/40 border-t-[#171204]" />
-                        Confirm in your wallet...
-                      </>
+                      "Confirm in your wallet..."
                     ) : approvalHash ? (
                       <>
                         <Icon name="coin" className="h-4 w-4" />
@@ -754,7 +736,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                         Confirm {side}
                       </>
                     )}
-                  </button>
+                  </Button>
 
                   <p className="mt-3 text-center text-[11px] text-bone-faint">
                     Signed by your own wallet. Non-custodial. You can cancel in
@@ -762,14 +744,13 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                   </p>
                 </>
               )}
-            </div>
-          </div>,
-          document.body
-        )}
+          </div>
+        </AdaptiveDialog>
+      )}
 
       {/* The Raven's read + risk banners are rendered by the coin page around
           this panel to keep the trade controls tight. */}
-    </div>
+    </Card>
   );
 }
 
@@ -832,7 +813,7 @@ function TradeSuccess({
         </p>
       </div>
       {hash && (
-        <div className="w-full rounded-2xl border border-steel-line bg-panel/50 p-3">
+        <Card variant="inset" pad="none" className="w-full p-3">
           <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
             Transaction
           </p>
@@ -841,22 +822,23 @@ function TradeSuccess({
               {shortAddress(hash, 10, 8)}
             </code>
             {explorer && (
-              <a
-                href={explorer}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+              <Button
+                size="sm"
+                variant="glass"
+                render={
+                  <a href={explorer} target="_blank" rel="noreferrer" />
+                }
               >
                 <Icon name="arrow" className="h-3.5 w-3.5" />
                 View
-              </a>
+              </Button>
             )}
           </div>
-        </div>
+        </Card>
       )}
-      <button onClick={onClose} className="btn-gold w-full py-2.5 text-sm">
+      <Button variant="gold" size="lg" block onClick={onClose}>
         Done
-      </button>
+      </Button>
     </div>
   );
 }

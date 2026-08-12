@@ -1,8 +1,13 @@
 import type { ReactNode } from "react";
-import { Icon } from "@/components/ui/icon";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
 
-/* Shared card shell for the wallet cards, matching the settings page chrome:
-   glass surface, gold icon, display title, and a faint uppercase caption. */
+/* Shared shell for the wallet cards.
+
+   This used to re-derive the `.glass` chassis by hand at a 24px radius that
+   predates the radius scale. It is now the Card primitive with its header and
+   body parts, so every wallet surface shares the one chassis in the product
+   and the Vault's compact density comes from the same place as everywhere
+   else. */
 export function WalletCard({
   icon,
   title,
@@ -17,19 +22,21 @@ export function WalletCard({
   warm?: boolean;
 }) {
   return (
-    <section className={`glass p-5 sm:p-6 ${warm ? "glass-warm" : ""}`}>
-      <div className="flex items-center gap-2.5">
-        <Icon name={icon} className="h-4 w-4 text-gold" />
-        <h2 className="font-display text-base font-semibold text-bone">
-          {title}
-        </h2>
-        {caption ? (
-          <span className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-            {caption}
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-4">{children}</div>
-    </section>
+    <Card
+      variant={warm ? "warm" : "default"}
+      pad="none"
+      render={<section />}
+      className="pb-4 md:pb-3"
+    >
+      <CardHeader
+        icon={icon}
+        title={title}
+        hint={caption}
+        className="px-4 pt-4 sm:px-4 sm:pt-4 md:px-3 md:pt-3"
+      />
+      <CardBody className="px-4 py-3 sm:px-4 sm:py-3 md:px-3 md:py-2.5">
+        {children}
+      </CardBody>
+    </Card>
   );
 }

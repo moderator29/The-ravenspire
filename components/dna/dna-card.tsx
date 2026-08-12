@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { shareOrCopy } from "@/lib/share";
 import type { DnaResult } from "@/components/dna/types";
@@ -25,7 +27,7 @@ export function DnaCard({ result }: { result: DnaResult }) {
   }
 
   return (
-    <div className="glass overflow-hidden">
+    <Card pad="none" className="overflow-hidden">
       {/* Header band */}
       <div className="relative border-b border-gold/15 px-5 py-6 sm:px-7">
         <div
@@ -33,7 +35,7 @@ export function DnaCard({ result }: { result: DnaResult }) {
           className="pointer-events-none absolute inset-0 opacity-70"
           style={{
             background:
-              "radial-gradient(ellipse 60% 80% at 15% -10%, rgba(200,162,76,0.14), transparent 60%)",
+              "radial-gradient(ellipse 60% 80% at 15% -10%, rgba(217, 176, 64,0.14), transparent 60%)",
           }}
         />
         <div className="relative flex items-start gap-3">
@@ -61,7 +63,7 @@ export function DnaCard({ result }: { result: DnaResult }) {
           {result.traits.map((t) => (
             <span
               key={t}
-              className="rounded-full border border-gold/25 bg-panel-warm px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-bone"
+              className="rounded-sm border border-gold/25 bg-panel-warm px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-bone"
             >
               {t}
             </span>
@@ -76,7 +78,7 @@ export function DnaCard({ result }: { result: DnaResult }) {
         </p>
 
         {result.sparse && (
-          <div className="glass-warm mt-4 flex items-start gap-2.5 p-3">
+          <Card variant="warm" pad="none" className="mt-4 flex items-start gap-2.5 p-3">
             <Icon
               name="eye"
               className="mt-0.5 h-4 w-4 shrink-0 text-bone-faint"
@@ -85,7 +87,7 @@ export function DnaCard({ result }: { result: DnaResult }) {
               The sources came back thin for this one, so the read stays honest:
               a quiet or fresh profile, nothing invented to fill the gap.
             </p>
-          </div>
+          </Card>
         )}
       </div>
 
@@ -108,15 +110,11 @@ export function DnaCard({ result }: { result: DnaResult }) {
         <p className="text-[11px] text-bone-faint">
           Read from real {isWallet ? "on-chain" : "platform"} data.
         </p>
-        <button
-          type="button"
-          onClick={() => void share()}
-          className="btn-glass rounded-full px-4 py-2 text-xs font-medium text-bone"
-        >
+        <Button variant="glass" size="sm" onClick={() => void share()}>
           <Icon name="share" className="h-4 w-4 text-gold" />
           {copied ? "Copied" : "Share"}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }

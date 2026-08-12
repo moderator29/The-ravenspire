@@ -1,7 +1,9 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
-import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { Card } from "@/components/ui/card";
+import { LandingIcon } from "@/components/landing/icons";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { ScrollRail } from "@/components/landing/scroll-rail";
 
 /*
@@ -17,7 +19,7 @@ const rise: Variants = {
 };
 
 type Pillar = {
-  icon: LandingIconName;
+  icon: Icon3DName;
   kicker: string;
   title: string;
   body: string;
@@ -25,19 +27,19 @@ type Pillar = {
 
 const pillars: Pillar[] = [
   {
-    icon: "mission",
+    icon: "accuracy",
     kicker: "Mission",
     title: "Make the on-chain world a place worth living in",
     body: "Give people a home where the social life comes first and the serious crypto tools sit quietly beneath it, honest, non-custodial, and genuinely fun to open every day.",
   },
   {
-    icon: "vision",
+    icon: "scrying",
     kicker: "Vision",
     title: "A realm where reputation is the real currency",
-    body: "A world of Houses, champions and Seasons where standing is earned in the open, never bought, and every wallet, Call and victory is proven against real data.",
+    body: "A world of Houses, champions and Seasons where standing is earned in the open, never bought, and every wallet, Call and victory is proven against real data. Renown you earn is permanent and can never be taken back.",
   },
   {
-    icon: "history",
+    icon: "chronicle",
     kicker: "History",
     title: "Built by people tired of soulless dashboards",
     body: "The Ravenspire began as a rebellion against cold terminals and empty hype. We set out to wrap real portfolio, safety and market tools in a living story people actually enjoy.",
@@ -56,7 +58,7 @@ export function RealmIntro() {
     >
       {/* Introduction */}
       <motion.div variants={rise} className="mx-auto max-w-3xl text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-void/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
+        <span className="inline-flex items-center gap-2 rounded-sm border border-gold/20 bg-void/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
           <LandingIcon name="layers" className="h-4 w-4" />
           What is The Ravenspire
         </span>
@@ -65,12 +67,13 @@ export function RealmIntro() {
           <span className="gold-text">real crypto beneath it</span>
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-relaxed text-bone-mut sm:text-base">
-          The Ravenspire is a non-custodial SocialFi platform dressed as a medieval
-          realm. You post, banter and duel with wit, swear to a House and play
-          for the Throne, while a full suite of portfolio, safety and market
-          tools works underneath, reading only real on-chain data. A wallet is
-          minted to you on sign-up and the keys are yours alone. We never hold
-          your funds, and everything of worth is earned, never bought.
+          The Ravenspire is a competitive realm where communities earn reputation
+          through participation. You post, you argue, you swear to a House and
+          you make Calls the realm keeps a record of, while a full suite of
+          portfolio, safety and market tools works underneath, reading only real
+          on-chain data. A wallet is minted to you on sign-up and the keys are
+          yours alone. We never hold your funds, and everything of worth is
+          earned, never bought.
         </p>
       </motion.div>
 
@@ -78,14 +81,9 @@ export function RealmIntro() {
       <motion.div variants={rise} className="mt-10">
         <ScrollRail ariaLabel="Mission, vision and history">
           {pillars.map((p) => (
-            <article
-              key={p.kicker}
-              className="glass glass-hover snap-start shrink-0 w-[82vw] max-w-[360px] p-6 sm:w-[360px]"
-            >
+            <Card key={p.kicker} render={<article />} pad="none" interactive className="snap-start shrink-0 w-[82vw] max-w-[360px] p-6 sm:w-[360px]">
               <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/25 bg-void text-gold">
-                  <LandingIcon name={p.icon} className="h-5 w-5" />
-                </span>
+                <Icon3D name={p.icon} size="md" />
                 <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
                   {p.kicker}
                 </span>
@@ -96,7 +94,7 @@ export function RealmIntro() {
               <p className="mt-2.5 text-[13px] leading-relaxed text-bone-mut">
                 {p.body}
               </p>
-            </article>
+            </Card>
           ))}
         </ScrollRail>
       </motion.div>

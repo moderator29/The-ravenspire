@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { motion, type Variants } from "framer-motion";
-import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { LandingIcon } from "@/components/landing/icons";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { ScrollRail } from "@/components/landing/scroll-rail";
 
 /*
@@ -17,29 +19,29 @@ const rise: Variants = {
 };
 
 type Vow = {
-  icon: LandingIconName;
+  icon: Icon3DName;
   title: string;
   body: string;
 };
 
 const vows: Vow[] = [
   {
-    icon: "shieldKey",
+    icon: "vault",
     title: "Your keys, always",
     body: "A wallet is minted to you the moment you enter. The keys are yours from the first second and exportable any time.",
   },
   {
-    icon: "lock",
+    icon: "guard",
     title: "We never hold funds",
     body: "The platform takes no custody. We cannot move, freeze or spend what is in your vault, and every action is signed by you.",
   },
   {
-    icon: "badge",
+    icon: "trophy",
     title: "Earned, never bought",
     body: "No pay to win, no bought standing. Renown and crests come from showing up and being good, in the open.",
   },
   {
-    icon: "eye",
+    icon: "scales",
     title: "Real data only",
     body: "Every figure is read from the chain or the markets. If a number is not in front of us, we say so rather than invent it.",
   },
@@ -71,20 +73,15 @@ export function NonCustodial() {
       <motion.div variants={rise} className="mt-7">
         <ScrollRail ariaLabel="Non-custodial promises">
           {vows.map((v) => (
-            <article
-              key={v.title}
-              className="glass snap-start shrink-0 w-[72vw] max-w-[300px] p-5 sm:w-[280px]"
-            >
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/25 bg-void text-gold">
-                <LandingIcon name={v.icon} className="h-5 w-5" />
-              </span>
+            <Card key={v.title} render={<article />} pad="none" className="snap-start shrink-0 w-[72vw] max-w-[300px] p-5 sm:w-[280px]">
+              <Icon3D name={v.icon} size="md" />
               <h3 className="mt-4 font-display text-base font-semibold text-bone">
                 {v.title}
               </h3>
               <p className="mt-2 text-[13px] leading-relaxed text-bone-mut">
                 {v.body}
               </p>
-            </article>
+            </Card>
           ))}
         </ScrollRail>
       </motion.div>
@@ -92,7 +89,7 @@ export function NonCustodial() {
       <motion.div variants={rise}>
         <Link
           href="/vault"
-          className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
+          className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold transition hover:text-gold-bright"
         >
           Open your Vault
           <LandingIcon name="arrowRight" className="h-4 w-4" />

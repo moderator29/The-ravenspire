@@ -4,7 +4,9 @@ import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { maybeRavenReplyToPost } from "@/lib/ai/mention";
 import { notifyMentions, notifyFollowers } from "@/lib/notifications";
-import { lookupToken } from "@/lib/data/tokens";
+import { emit } from "@/lib/realm/events";
+import { screenAndFlag } from "@/lib/moderation/screen";
+import { prepareCall, type CallInput } from "@/lib/calls/create";
 
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
@@ -19,7 +21,7 @@ export async function POST(req: Request) {
     kind?: string;
     media?: { url: string; type: string }[];
     poll?: { options: string[] };
-    call?: { token: string; stance: "up" | "down"; timeframe: string };
+    call?: CallInput;
     visibility?: string;
   } | null;
   if (!body) return json({ error: "bad request" }, 400);
@@ -77,27 +79,24 @@ export async function POST(req: Request) {
 
   let kind = body.kind === "poll" ? "poll" : "raven";
   let call: Record<string, unknown> | null = null;
-  if (body.call?.token && body.call.stance) {
+  /* A Call is now a claim with a category and a resolver, not only a price bet.
+     Everything that decides what a Call is worth happens on the server in
+     prepareCall: the sealed entry price, the frozen difficulty baseline pi_0,
+     the confidence band, and the ceiling on how many Calls a member may have
+     running at once. A client that sends only { token, stance, timeframe },
+     which is every client shipping today, still seals exactly the Call it
+     always did. */
+  const wantsCall =
+    !!body.call &&
+    (!!body.call.token ||
+      !!body.call.claim ||
+      body.call.resolver === "internal" ||
+      body.call.category === "realm");
+  if (wantsCall) {
+    const draft = await prepareCall(db, profile.id, body.call as CallInput);
+    if (!draft.ok) return json({ error: draft.error }, draft.status);
     kind = "call";
-    /* A Call locks the REAL entry price at creation; the verdict is
-       settled later against real data. No price, no Call. */
-    const card = await lookupToken(body.call.token);
-    if (!card || card.priceUsd === null)
-      return json(
-        { error: "No live price found for that token, the Call cannot be sealed" },
-        400
-      );
-    call = {
-      token: card.symbol,
-      address: card.address,
-      chain: card.chain,
-      stance: body.call.stance,
-      timeframe: ["24h", "7d", "30d"].includes(body.call.timeframe)
-        ? body.call.timeframe
-        : "24h",
-      entry_price: card.priceUsd,
-      verdict: "open",
-    };
+    call = draft.call as unknown as Record<string, unknown>;
   }
 
   const poll =
@@ -129,11 +128,16 @@ export async function POST(req: Request) {
     .single();
   if (error || !post) return json({ error: "Could not send the raven" }, 500);
 
+  /* Authoring is a social action, so it draws on the daily social allowance
+     (V2 section 9.5, rule 4). What a Call is actually worth is not decided
+     here: it is decided when the Call resolves and is scored against the
+     difficulty it was frozen with. */
   await award(db, profile.id, {
     points: kind === "call" ? 8 : 5,
     glory: 2,
     reason: kind === "call" ? "sealed_a_call" : "sent_a_raven",
     ref: post.id,
+    category: "social",
   });
 
   /* Raise Your Banners: a referral activates on real activity, the
@@ -174,6 +178,17 @@ export async function POST(req: Request) {
   }
 
   after(async () => {
+    /* The free spam and abuse screen (V2 section 10). It never blocks and never
+       hides: the raven is already published, and a heuristic that cannot read
+       intent only ever raises a flag for a moderator. */
+    await screenAndFlag(db, {
+      subjectType: "post",
+      subjectId: post.id,
+      authorId: profile.id,
+      text,
+      mentions: mentions.length,
+      cashtags: cashtags.length,
+    });
     await maybeRavenReplyToPost(db, post.id, text, profile.handle, profile.id);
     /* Tell anyone named in the raven that they were mentioned. */
     await notifyMentions(db, {
@@ -183,15 +198,51 @@ export async function POST(req: Request) {
       body: text.slice(0, 140),
     });
     /* Follow alert: a Call from someone you follow. */
-    if (kind === "call" && body.call?.token && body.call.stance) {
-      const tf = ["24h", "7d", "30d"].includes(body.call.timeframe ?? "")
-        ? body.call.timeframe
-        : "the window";
+    if (kind === "call" && call) {
+      const sealed = call as {
+        token?: string;
+        stance?: string;
+        timeframe?: string;
+        category?: string;
+        resolver?: string;
+        confidence?: number;
+        threshold?: number;
+        pi_0?: number;
+        entry_price?: number;
+        claim?: unknown;
+      };
+      const tf = sealed.timeframe ?? "the window";
+      const subject = sealed.token ? `$${sealed.token}` : "the realm";
       await notifyFollowers(db, {
         actorId: profile.id,
         kind: "follow_call",
-        body: `called $${body.call.token.toUpperCase()} ${body.call.stance} over ${tf}`,
+        body: `called ${subject} ${sealed.stance ?? "up"} over ${tf}`,
         ref: post.id,
+      });
+
+      /* The Ravenry learns a Call was sealed. The payload carries everything a
+         Call card needs so the feed never has to go back for it, including the
+         frozen baseline that says how hard this Call actually is. */
+      await emit(db, {
+        kind: "call.sealed",
+        actorId: profile.id,
+        subjectType: "post",
+        subjectId: post.id,
+        houseSlug: profile.house_slug,
+        audience: visibility === "public" ? "realm" : "followers",
+        payload: {
+          v: 1,
+          token: sealed.token ?? null,
+          stance: sealed.stance ?? null,
+          timeframe: tf,
+          category: sealed.category ?? "markets",
+          resolver: sealed.resolver ?? "price",
+          confidence: sealed.confidence ?? null,
+          threshold: sealed.threshold ?? 0,
+          pi_0: sealed.pi_0 ?? null,
+          entry_price: sealed.entry_price ?? null,
+          claim: sealed.claim ?? null,
+        },
       });
     }
   });

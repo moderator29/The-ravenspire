@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import { PriceChart } from "@/components/coin/price-chart";
 import { realmFetch } from "@/lib/auth/api";
 
@@ -24,7 +25,7 @@ function Delta({ pct, usd }: { pct: number | null; usd: number | null }) {
   if (pct === null) return <span className="text-bone-faint">n/a</span>;
   const up = pct >= 0;
   return (
-    <span className={up ? "text-gold-bright" : "text-ember-deep"}>
+    <span style={{ color: up ? "var(--chart-up)" : "var(--chart-down)" }}>
       {up ? "+" : ""}
       {pct.toFixed(2)}%
       {usd !== null && (
@@ -62,16 +63,14 @@ export function TrendCard({ address }: { address: string }) {
   const up = (trend.change30dPct ?? 0) >= 0;
 
   return (
-    <div className="glass p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-          Portfolio value · 30 days
-        </p>
-      </div>
-      <div className="mt-3">
+    <Card pad="none" className="p-4 md:p-3">
+      <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
+        Portfolio value · 30 days
+      </p>
+      <div className="mt-2.5 md:mt-2">
         <PriceChart points={points} up={up} height={96} />
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-steel-line pt-3 text-sm">
+      <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-steel-line pt-2.5 text-sm md:mt-2 md:pt-2 md:text-[13px]">
         <div>
           <p className="text-[10px] uppercase tracking-[0.16em] text-bone-faint">
             7 day
@@ -89,6 +88,6 @@ export function TrendCard({ address }: { address: string }) {
           </p>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
@@ -13,7 +14,7 @@ import { RavenMark } from "@/components/brand/raven-mark";
 const realmLinks = [
   { href: "/home", label: "The Ravenry" },
   { href: "/houses", label: "Houses" },
-  { href: "/throne", label: "The Season" },
+  { href: "/calls", label: "Calls" },
   { href: "/war", label: "The War" },
   { href: "/renown", label: "Crests & Renown" },
 ];
@@ -38,23 +39,35 @@ const socials = [
 
 export function SiteFooter() {
   return (
-    <motion.footer
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6 }}
-      className="glass mt-6 p-8 sm:p-10"
-    >
-      <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+    <Card render={<motion.footer initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.6 }} />} pad="none" className="mt-6 p-8 sm:p-10">
+      {/* The brand column is wider than a link column, because it holds the
+          wordmark and the link columns hold single words.
+
+          On an even four track grid it did not fit. Measured at 1440: a 200px
+          track holding 228px of content, so "THE RAVENSPIRE" ran 28px into the
+          next column and butted straight against "THE REALM" with no gap at
+          all. The previous fix here swapped a wrap for an overlap by adding
+          `whitespace-nowrap` without giving the name anywhere to go. A
+          wordmark is a single object; the track has to be sized for it. */}
+      <div className="grid grid-cols-2 gap-8 sm:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="col-span-2 sm:col-span-1">
-          <div className="flex items-center gap-2.5">
-            <RavenMark className="h-9 w-9" />
-            <span className="gold-text font-display text-lg font-semibold tracking-[0.1em]">
+          {/* The brand name broke across two lines here, in a 158px column of a
+              four column grid. The header and the hero both hold it on one
+              line; only the footer did not, which is the one place nobody
+              scrolls to while designing.
+
+              `whitespace-nowrap` on the name and `min-w-0` on the row, so the
+              name keeps its line and the row shrinks around it rather than
+              forcing the grid wider. A wordmark is a single object, not a
+              sentence. */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <RavenMark className="h-9 w-9 shrink-0" />
+            <span className="gold-text whitespace-nowrap font-display text-lg font-semibold tracking-[0.1em]">
               THE RAVENSPIRE
             </span>
           </div>
           <p className="mt-3 max-w-xs text-xs leading-relaxed text-bone-mut">
-            See every chain. Fear no rug. Rule your realm. Non-custodial by
+            Make the call. Earn your name. Rule your realm. Non-custodial by
             design, your keys always exportable.
           </p>
           <div className="mt-4 flex items-center gap-2">
@@ -63,7 +76,7 @@ export function SiteFooter() {
                 key={s.label}
                 href={s.href}
                 aria-label={s.label}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-steel-line bg-panel text-bone-mut transition hover:border-gold/40 hover:text-gold"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-steel-line bg-panel text-bone-mut transition hover:border-gold/40 hover:text-gold"
               >
                 <Icon name={s.icon} className="h-4 w-4" />
               </Link>
@@ -84,7 +97,7 @@ export function SiteFooter() {
           &copy; {new Date().getFullYear()} The Ravenspire
         </p>
       </div>
-    </motion.footer>
+    </Card>
   );
 }
 
@@ -100,12 +113,15 @@ function FooterCol({
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
         {title}
       </p>
-      <ul className="mt-3 flex flex-col gap-2">
+            {/* No gap between rows. Each link is its own 44px target, so the rows
+          already sit apart by their own height, and a gap on top of that
+          stretches a four link column past a phone screen for no gain. */}
+      <ul className="mt-1 flex flex-col">
         {links.map((l) => (
           <li key={l.href}>
             <Link
               href={l.href}
-              className="text-xs text-bone-mut transition hover:text-bone"
+              className="flex min-h-11 items-center text-xs text-bone-mut transition hover:text-bone"
             >
               {l.label}
             </Link>

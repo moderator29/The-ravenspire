@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
 import type { CustomToken } from "@/components/wallet/wallet-prefs";
 import { evmChainById } from "@/components/wallet/chains";
+import { realmFetch } from "@/lib/auth/api";
 
 interface BalancesResponse {
   configured: boolean;
@@ -50,13 +51,13 @@ export function useWalletTokens(
     setError(null);
     void (async () => {
       try {
-        const res = await fetch(
+        const res = await realmFetch<BalancesResponse>(
           `/api/wallet/balances?address=${address}`,
           { cache: "no-store" }
         );
-        const body = (await res.json()) as BalancesResponse;
+        const body = res.data ?? { configured: true, error: "unreachable" };
         if (cancelled) return;
-        setConfigured(body.configured);
+        setConfigured(body.configured ?? true);
         if (!res.ok || body.error) {
           setError(body.error ?? "unreachable");
           setTokens([]);

@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/social/avatar";
 import { FollowButton } from "@/components/social/follow-button";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { fetchViewer, fetchFollowingSet } from "@/lib/social/profile-queries";
 import { fetchTopPeople, type PersonHit } from "@/lib/social/explore-queries";
 
-/* A compact "who to follow" card — the realm's most renowned, with inline
+/* A compact "who to follow" card, the realm's most renowned, with inline
    Follow. Dropped into empty feed states so a quiet timeline immediately points
    a member at people worth following. Follow-state is batched so every button
    loads truthfully with one query. */
@@ -17,37 +20,55 @@ export function WhoToFollow({ limit = 4 }: { limit?: number }) {
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    void fetchViewer().then((v) => {
-      setViewerId(v?.id ?? null);
-      void fetchTopPeople(v?.id).then((list) => {
-        const top = list.slice(0, limit);
+    void (async () => {
+      try {
+        const viewer = await fetchViewer();
+        setViewerId(viewer?.id ?? null);
+        const top = (await fetchTopPeople(viewer?.id)).slice(0, limit);
         setPeople(top);
-        if (v?.id && top.length > 0) {
-          void fetchFollowingSet(
-            v.id,
-            top.map((p) => p.id)
-          ).then(setFollowingSet);
+        if (viewer?.id && top.length > 0) {
+          setFollowingSet(
+            await fetchFollowingSet(
+              viewer.id,
+              top.map((p) => p.id)
+            )
+          );
         }
-      });
-    });
+      } catch {
+        /* An empty list, which removes the card entirely by the guard below.
+           This one sits inside an empty feed state, so a card promising
+           suggestions that never arrive is the second disappointment on a
+           screen that already had nothing on it. */
+        setPeople([]);
+      }
+    })();
   }, [limit]);
 
   if (people !== null && people.length === 0) return null;
 
   return (
-    <div className="glass glass-sm p-4 text-left">
-      <div className="flex items-center justify-between">
+    <Card className="text-left">
+      <div className="flex items-center justify-between gap-3">
         <h3 className="font-display text-sm font-semibold text-bone">
           People to follow
         </h3>
-        <Link href="/explore" className="text-xs text-gold hover:text-gold-bright">
+        <Button variant="ghost" size="sm" render={<Link href="/explore" />} className="text-gold">
           More
-        </Link>
+        </Button>
       </div>
       <div className="mt-3 flex flex-col gap-2">
         {people === null
           ? [0, 1, 2].map((i) => (
-              <div key={i} className="h-10 animate-pulse rounded-lg bg-panel" />
+              /* Shaped like the row it stands in for: avatar, two lines, a
+                 Follow control on the right. */
+              <div key={i} className="flex items-center gap-2.5" aria-hidden>
+                <Skeleton radius="full" className="h-9 w-9 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <Skeleton radius="sm" className="h-3 w-28" />
+                  <Skeleton radius="sm" className="mt-1.5 h-2.5 w-20" />
+                </div>
+                <Skeleton radius="md" className="h-9 w-20 shrink-0" />
+              </div>
             ))
           : people.map((p) => (
               <div key={p.id} className="flex items-center gap-2.5">
@@ -73,6 +94,6 @@ export function WhoToFollow({ limit = 4 }: { limit?: number }) {
               </div>
             ))}
       </div>
-    </div>
+    </Card>
   );
 }

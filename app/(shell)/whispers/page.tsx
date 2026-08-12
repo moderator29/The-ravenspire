@@ -5,8 +5,30 @@ import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { createClient } from "@/lib/supabase/client";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cx } from "@/components/ui/cx";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
+import { Modal } from "@/components/ui/modal";
+import { AdaptiveDialog, useIsMobile } from "@/components/ui/sheet";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  StreamColumn,
+  StreamEmpty,
+  StreamList,
+} from "@/components/stream/stream-shell";
 import { timeAgo } from "@/lib/social/types";
+
+/* Whispers, as the Stream archetype: one 640px column, comfortable density, a
+   constant gap with variable card heights. It was a 5xl two pane corridor,
+   which is a Console shape wearing a Stream's content, and the desktop half of
+   it had no way back out of an open thread at all.
+
+   The thread is the same conversation at both widths but not the same layout:
+   a full screen surface under `md`, where a phone should give a conversation
+   the whole screen, and a panel in the column above it. */
 
 interface ConvoOther {
   id: string;
@@ -45,7 +67,9 @@ function convoName(c: Convo): string {
 }
 
 /* The recipient's portrait: their real avatar when they have one, otherwise
-   the initial on the house-panel disc used everywhere else in the corridor. */
+   the initial on the house-panel disc used everywhere else in the corridor.
+   A circle here is correct: avatars are the one shape exempt from the
+   rounded rectangle rule. */
 function OtherAvatar({
   other,
   className,
@@ -62,13 +86,20 @@ function OtherAvatar({
       <img
         src={other.avatar_url}
         alt=""
-        className={`shrink-0 rounded-full border border-steel-line object-cover ${className}`}
+        className={cx(
+          "shrink-0 rounded-[var(--radius-full)] border border-steel-line object-cover",
+          className
+        )}
       />
     );
   }
   return (
     <span
-      className={`flex shrink-0 items-center justify-center rounded-full border border-steel-line bg-panel font-display text-gold ${className}`}
+      className={cx(
+        "flex shrink-0 items-center justify-center rounded-[var(--radius-full)]",
+        "border border-steel-line bg-panel font-display text-gold",
+        className
+      )}
     >
       {letter}
     </span>
@@ -82,6 +113,7 @@ function byTime(a: Message, b: Message): number {
 export default function WhispersPage() {
   const { ready, authenticated } = useRealmAuth();
   const supabase = useMemo(() => createClient(), []);
+  const isMobile = useIsMobile();
 
   const [convos, setConvos] = useState<Convo[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -105,8 +137,15 @@ export default function WhispersPage() {
   const [composeErr, setComposeErr] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLInputElement | null>(null);
   const activeIdRef = useRef<string | null>(null);
-  activeIdRef.current = activeId;
+  /* Mirrors the open thread for the realtime handler, which must be able to
+     drop a payload that lands after the member has moved on. Written in an
+     effect rather than during render: a ref touched in the render body is a
+     React correctness error, and this one was. */
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
 
   const loadConvos = useCallback(async () => {
     const res = await realmFetch<{ me: string; conversations: Convo[] }>(
@@ -211,7 +250,7 @@ export default function WhispersPage() {
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [msgs, activeId]);
+  }, [msgs, activeId, isMobile]);
 
   /* Profile search for a new whisper */
   useEffect(() => {
@@ -237,6 +276,13 @@ export default function WhispersPage() {
     }, 250);
     return () => clearTimeout(timer);
   }, [supabase, query]);
+
+  const showCorridorSkeleton = useDelayedLoading(
+    !ready || (authenticated && convos === null),
+    300
+  );
+  const showThreadSkeleton = useDelayedLoading(msgs === null, 300);
+  const showHitsSkeleton = useDelayedLoading(searching && hits === null, 300);
 
   function openThread(id: string) {
     setActiveId(id);
@@ -342,11 +388,321 @@ export default function WhispersPage() {
   }
 
   const active = convos?.find((c) => c.id === activeId) ?? null;
-  const canSend = (body.trim().length > 0 || Boolean(pendingImage)) && !uploading;
+  const canSend =
+    (body.trim().length > 0 || Boolean(pendingImage)) && !uploading;
+
+  /* ── The open thread ──────────────────────────────────────────────────── */
+
+  const threadHeader = (
+    <div className="flex items-center gap-3 border-b border-steel-line px-3 py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] md:pt-2.5">
+      {/* 44px under md, dense above it. There is no arrow-left glyph in the
+          set, so the one arrow is turned around. */}
+      <IconButton
+        icon="arrow"
+        label="Back to whispers"
+        size="lg"
+        onClick={closeThread}
+        className="shrink-0 md:h-9 md:w-9 [&_svg]:rotate-180"
+      />
+      {active?.other?.handle ? (
+        <Link
+          href={`/u/${active.other.handle}`}
+          /* The one way out of a thread and into the Keep it belongs to, and
+             it measured 36px tall on a phone: the row is padded to clear the
+             floor but the control inside it was not. The floor belongs to the
+             control. */
+          className="group flex min-w-0 flex-1 items-center gap-3 touch:min-h-11"
+        >
+          <OtherAvatar other={active.other} className="h-8 w-8 text-xs" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-bone group-hover:text-gold">
+              {convoName(active)}
+            </p>
+            <p className="truncate text-xs text-bone-faint">
+              @{active.other.handle}
+            </p>
+          </div>
+        </Link>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <OtherAvatar other={active?.other ?? null} className="h-8 w-8 text-xs" />
+          <p className="truncate text-sm font-semibold text-bone">
+            {active ? convoName(active) : "Whisper"}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  const threadBody = (
+    <div
+      ref={scrollRef}
+      className="flex-1 overflow-y-auto px-3 py-3"
+      aria-live="polite"
+    >
+      {msgs === null ? (
+        showThreadSkeleton ? (
+          <div className="flex flex-col gap-2">
+            <Skeleton radius="xl" className="h-10 w-3/5" />
+            <Skeleton radius="xl" className="ml-auto h-10 w-1/2" />
+            <Skeleton radius="xl" className="h-10 w-2/5" />
+          </div>
+        ) : null
+      ) : msgs.length === 0 ? (
+        <EmptyState
+          size="sm"
+          icon="send"
+          title="No words yet"
+          body="Nothing has passed between you two. Say the first thing."
+          action={
+            <Button size="sm" onClick={() => composerRef.current?.focus()}>
+              Speak first
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {msgs.map((m) => {
+            const mine = meId !== null && m.sender_id === meId;
+            return (
+              <div
+                key={m.id}
+                className={cx(
+                  "flex max-w-[86%] items-end gap-2",
+                  mine ? "flex-row-reverse self-end" : "self-start",
+                  m.pending && "opacity-70"
+                )}
+              >
+                {!mine && (
+                  <OtherAvatar
+                    other={active?.other ?? null}
+                    className="h-6 w-6 text-[10px]"
+                  />
+                )}
+                <div
+                  className={cx(
+                    "flex min-w-0 flex-col",
+                    mine ? "items-end" : "items-start"
+                  )}
+                >
+                  <Card
+                    variant={mine ? "warm" : "default"}
+                    pad="none"
+                    className={cx(
+                      "overflow-hidden",
+                      mine ? "rounded-br-sm" : "rounded-bl-sm",
+                      m.image_url && !m.body ? "p-1" : "px-3.5 py-2"
+                    )}
+                  >
+                    {m.image_url && (
+                      <Button
+                        variant="ghost"
+                        size="lg"
+                        aria-label="Open image full size"
+                        onClick={() => setLightbox(m.image_url)}
+                        className={cx(
+                          "group h-auto max-w-[16rem] overflow-hidden px-0!",
+                          m.body && "mb-2"
+                        )}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={m.image_url}
+                          alt="Whispered image"
+                          loading="lazy"
+                          className="max-h-64 w-full object-cover transition-[filter] duration-fast ease-out-quint group-hover:brightness-110"
+                        />
+                      </Button>
+                    )}
+                    {m.body && (
+                      <p className="whitespace-pre-wrap break-words text-sm text-bone">
+                        {m.body}
+                      </p>
+                    )}
+                  </Card>
+                  <span className="tnum mt-0.5 px-1 text-[10px] text-bone-faint">
+                    {m.pending ? "Sending" : timeAgo(m.created_at)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const threadFooter = (
+    <>
+      {sendErr && (
+        <p
+          role="alert"
+          className="flex items-center gap-2 border-t border-steel-line px-3 pt-2 text-xs text-state-danger"
+        >
+          <Icon name="alert" className="h-3.5 w-3.5 shrink-0" />
+          {sendErr}
+        </p>
+      )}
+
+      {pendingImage && (
+        <div className="flex items-center gap-3 border-t border-steel-line px-3 pt-2.5">
+          <span className="relative inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={pendingImage}
+              alt="Attachment preview"
+              className="h-16 w-16 rounded-md border border-steel-line object-cover"
+            />
+            <IconButton
+              icon="close"
+              label="Remove image"
+              size="sm"
+              shape="circle"
+              variant="glass"
+              onClick={() => setPendingImage(null)}
+              className="absolute -right-2 -top-2 h-6 w-6"
+            />
+          </span>
+          <span className="text-xs text-bone-faint">Ready to send</span>
+        </div>
+      )}
+
+      <form
+        onSubmit={(e) => void send(e)}
+        className="flex items-center gap-2 border-t border-steel-line px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] md:pb-2.5"
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={(e) => void pickImage(e)}
+        />
+        {/* A Button rather than an IconButton, because the upload needs the
+            spinner and only Button carries one. */}
+        <Button
+          variant="ghost"
+          size="lg"
+          aria-label="Attach image"
+          loading={uploading}
+          disabled={Boolean(pendingImage)}
+          onClick={() => fileRef.current?.click()}
+          className="w-11 shrink-0 px-0!"
+        >
+          {uploading ? null : <Icon name="image" className="h-5 w-5" />}
+        </Button>
+        <Field className="min-w-0 flex-1">
+          <Input
+            ref={composerRef}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            aria-label="Whisper"
+            placeholder="Speak softly"
+            className="min-h-11"
+          />
+        </Field>
+        <IconButton
+          type="submit"
+          icon="send"
+          label="Send whisper"
+          variant="gold"
+          size="lg"
+          disabled={sending || !canSend}
+        />
+      </form>
+    </>
+  );
+
+  /* ── The corridor ─────────────────────────────────────────────────────── */
+
+  /* Shaped like a conversation row, not like a grey slab: portrait, name,
+     handle. */
+  const corridorSkeleton = (
+    <StreamList>
+      {[0, 1, 2].map((i) => (
+        <Card key={i} pad="sm" className="flex items-center gap-3">
+          <Skeleton radius="full" className="h-10 w-10 shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <Skeleton radius="sm" className="h-3.5 w-2/5" />
+            <Skeleton radius="sm" className="h-3 w-1/4" />
+          </div>
+        </Card>
+      ))}
+    </StreamList>
+  );
+
+  const corridor =
+    convos === null ? (
+      showCorridorSkeleton ? (
+        corridorSkeleton
+      ) : null
+    ) : convos.length === 0 ? (
+      <StreamEmpty
+        icon="whispers"
+        title="No whispers yet"
+        body="Find a Keep at the Crossroads and speak. Whispers travel only between two citizens."
+        action={
+          <Button variant="gold" render={<Link href="/explore" />}>
+            To the Crossroads
+          </Button>
+        }
+      />
+    ) : (
+      <StreamList>
+        {convos.map((c) => (
+          <Card
+            key={c.id}
+            interactive
+            pad="sm"
+            className="flex w-full items-center gap-3 text-left"
+            render={
+              <button type="button" onClick={() => openThread(c.id)} />
+            }
+          >
+            {/* The Stream's accent rail, earned: it marks the threads still
+                waiting on you, and nothing else. */}
+            {c.unread > 0 && (
+              <span
+                aria-hidden
+                className="absolute inset-y-3 left-0 w-[2px] rounded-[var(--radius-full)] bg-gold"
+              />
+            )}
+            <OtherAvatar other={c.other} className="h-10 w-10 text-sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-bone">
+                {convoName(c)}
+              </span>
+              {c.other?.handle && (
+                <span className="block truncate text-xs text-bone-faint">
+                  @{c.other.handle}
+                </span>
+              )}
+            </span>
+            <span className="flex shrink-0 flex-col items-end gap-1.5">
+              {c.last_message_at && (
+                <span className="tnum text-[11px] text-bone-faint">
+                  {timeAgo(c.last_message_at)}
+                </span>
+              )}
+              {c.unread > 0 && (
+                <span
+                  className="h-2 w-2 rounded-[var(--radius-full)] bg-gold"
+                  aria-label={`${c.unread} unread`}
+                />
+              )}
+            </span>
+          </Card>
+        ))}
+      </StreamList>
+    );
+
+  /* ── The page ─────────────────────────────────────────────────────────── */
+
+  const threadOpen = Boolean(activeId);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className={activeId ? "hidden md:block" : ""}>
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
+      {!threadOpen && (
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="font-display text-xl font-semibold text-bone">
@@ -357,407 +713,188 @@ export default function WhispersPage() {
             </p>
           </div>
           {ready && authenticated && (
-            <button
-              type="button"
+            <Button
+              className="min-h-11 md:min-h-9"
               onClick={() => {
-                setComposeOpen((v) => !v);
+                setComposeOpen(true);
                 setComposeErr(null);
               }}
-              className="btn-glass flex items-center gap-2 px-3.5 py-2 text-sm"
             >
               <Icon name="plus" className="h-4 w-4" />
               New whisper
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      )}
 
       {!ready ? (
-        <div className="glass mt-5 h-48 animate-pulse" />
+        showCorridorSkeleton ? (
+          <div className="mt-5">{corridorSkeleton}</div>
+        ) : null
       ) : !authenticated ? (
-        <div className="glass mt-5 p-8 text-center">
-          <Icon name="mail" className="mx-auto h-7 w-7 text-gold" />
-          <p className="mt-3 text-sm text-bone-mut">
-            Whispers travel only between citizens of the realm.
-          </p>
-          <Link href="/signin" className="btn-gold mt-5 px-5 py-2.5 text-sm">
-            Enter the realm
-          </Link>
+        <div className="mt-5">
+          <StreamEmpty
+            icon="whispers"
+            title="Whispers travel only between citizens"
+            body="Enter the realm to open a private line to another Keep."
+            action={
+              <Button variant="gold" render={<Link href="/signin" />}>
+                Enter the realm
+              </Button>
+            }
+          />
         </div>
+      ) : threadOpen ? (
+        isMobile ? (
+          /* A phone gives the conversation the whole screen. */
+          <div className="fixed inset-0 z-modal flex flex-col overflow-hidden bg-obsidian">
+            {threadHeader}
+            {threadBody}
+            {threadFooter}
+          </div>
+        ) : (
+          <Card
+            pad="none"
+            className="mt-4 flex h-[calc(100dvh-13rem)] min-h-[24rem] flex-col overflow-hidden"
+          >
+            {threadHeader}
+            {threadBody}
+            {threadFooter}
+          </Card>
+        )
       ) : (
-        <>
-          {/* New whisper search */}
-          {composeOpen && !activeId && (
-            <div className="glass mt-4 p-3">
-              <div className="flex items-center gap-3 rounded-xl border border-steel-line bg-panel px-3.5 py-2.5">
-                <Icon
-                  name="search"
-                  className="h-4 w-4 shrink-0 text-bone-faint"
-                />
-                <input
-                  autoFocus
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search citizens by handle"
-                  className="w-full bg-transparent text-sm text-bone placeholder:text-bone-faint focus:outline-none"
-                />
-              </div>
-              {composeErr && (
-                <p className="mt-2 text-xs text-ember">{composeErr}</p>
-              )}
-              <div className="mt-2 flex flex-col gap-1.5">
-                {searching && hits === null ? (
-                  [0, 1].map((i) => (
-                    <div
-                      key={i}
-                      className="glass-sm glass h-12 animate-pulse"
-                    />
-                  ))
-                ) : hits && hits.length === 0 ? (
-                  <p className="px-1 py-3 text-center text-sm text-bone-mut">
-                    No citizen answers to that handle.
-                  </p>
-                ) : (
-                  (hits ?? []).map((p) => (
+        <div className="mt-4">{corridor}</div>
+      )}
+
+      {/* New whisper. A sheet on a phone, a modal above it, portalled either
+          way, so it can never be clipped by the column it opened from. */}
+      <AdaptiveDialog
+        open={composeOpen}
+        onOpenChange={(next) => {
+          setComposeOpen(next);
+          if (!next) {
+            setQuery("");
+            setHits(null);
+            setComposeErr(null);
+          }
+        }}
+        title="New whisper"
+        description="Search citizens by handle."
+      >
+        <div className="flex flex-col gap-3">
+          <Field>
+            <Input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search citizens by handle"
+              placeholder="Search citizens by handle"
+              className="min-h-11"
+            />
+          </Field>
+
+          {composeErr && (
+            <p
+              role="alert"
+              className="flex items-center gap-2 text-xs text-state-danger"
+            >
+              <Icon name="alert" className="h-3.5 w-3.5 shrink-0" />
+              {composeErr}
+            </p>
+          )}
+
+          <div className="flex flex-col gap-2">
+            {searching && hits === null ? (
+              showHitsSkeleton ? (
+                [0, 1].map((i) => (
+                  <Card key={i} pad="sm" className="flex items-center gap-3">
+                    <Skeleton radius="full" className="h-9 w-9 shrink-0" />
+                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                      <Skeleton radius="sm" className="h-3.5 w-2/5" />
+                      <Skeleton radius="sm" className="h-3 w-1/4" />
+                    </div>
+                  </Card>
+                ))
+              ) : null
+            ) : hits && hits.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon="search"
+                title="No citizen answers to that handle"
+                body="Check the spelling, or find them at the Crossroads."
+                action={
+                  <Button size="sm" render={<Link href="/explore" />}>
+                    To the Crossroads
+                  </Button>
+                }
+              />
+            ) : (
+              (hits ?? []).map((p) => (
+                <Card
+                  key={p.id}
+                  interactive
+                  pad="sm"
+                  className="flex w-full items-center gap-3 text-left"
+                  render={
                     <button
-                      key={p.id}
                       type="button"
                       disabled={starting !== null}
                       onClick={() => void startWhisper(p)}
-                      className="glass glass-sm glass-hover flex w-full items-center gap-3 p-2.5 text-left disabled:opacity-60"
-                    >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-steel-line bg-panel font-display text-sm text-gold">
-                        {(p.display_name ?? p.handle ?? "?")
-                          .slice(0, 1)
-                          .toUpperCase()}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-bone">
-                          {p.display_name ?? p.handle}
-                        </span>
-                        <span className="block truncate text-xs text-bone-faint">
-                          @{p.handle}
-                        </span>
-                      </span>
-                      {starting === p.id ? (
-                        <span className="shrink-0 text-xs text-bone-faint">
-                          Opening
-                        </span>
-                      ) : (
-                        <Icon
-                          name="send"
-                          className="h-4 w-4 shrink-0 text-gold"
-                        />
-                      )}
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-4 md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-4">
-            {/* Conversation list */}
-            <div
-              className={`${
-                activeId ? "hidden md:flex" : "flex"
-              } flex-col gap-2`}
-            >
-              {convos === null ? (
-                [0, 1, 2].map((i) => (
-                  <div key={i} className="glass glass-sm h-16 animate-pulse" />
-                ))
-              ) : convos.length === 0 ? (
-                <div className="glass p-8 text-center">
-                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-steel-line bg-panel">
-                    <Icon name="send" className="h-5 w-5 text-gold" />
-                  </span>
-                  <p className="mt-3 text-sm text-bone-mut">
-                    No whispers yet. Find a Keep at the Crossroads and speak.
-                  </p>
-                  <Link
-                    href="/explore"
-                    className="btn-glass mt-4 inline-flex px-4 py-2 text-sm"
-                  >
-                    To the Crossroads
-                  </Link>
-                </div>
-              ) : (
-                convos.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => openThread(c.id)}
-                    className={`${
-                      c.id === activeId ? "glass glass-warm" : "glass glass-sm"
-                    } glass-hover flex w-full items-center gap-3 p-3 text-left`}
-                  >
-                    <OtherAvatar
-                      other={c.other}
-                      className="h-10 w-10 text-sm"
                     />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-bone">
-                        {convoName(c)}
-                      </span>
-                      {c.other?.handle && (
-                        <span className="block truncate text-xs text-bone-faint">
-                          @{c.other.handle}
-                        </span>
-                      )}
-                    </span>
-                    <span className="flex shrink-0 flex-col items-end gap-1.5">
-                      {c.last_message_at && (
-                        <span className="tnum text-[11px] text-bone-faint">
-                          {timeAgo(c.last_message_at)}
-                        </span>
-                      )}
-                      {c.unread > 0 && (
-                        <span
-                          className="h-2 w-2 rounded-full bg-gold"
-                          aria-label={`${c.unread} unread`}
-                        />
-                      )}
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-
-            {/* Thread */}
-            {activeId ? (
-              <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-obsidian md:static md:z-auto md:h-[calc(100dvh-13rem)] md:min-h-[24rem] md:rounded-[24px] md:border md:border-gold/15 md:bg-panel/40 md:backdrop-blur-xl">
-                <div className="flex items-center gap-3 border-b border-steel-line px-3 py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] md:pt-2.5">
-                  <button
-                    type="button"
-                    onClick={closeThread}
-                    aria-label="Back to whispers"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-steel-line bg-panel text-bone-mut md:hidden"
-                  >
-                    <Icon name="arrow" className="h-4 w-4 rotate-180" />
-                  </button>
-                  {active?.other?.handle ? (
-                    <Link
-                      href={`/u/${active.other.handle}`}
-                      className="group flex min-w-0 flex-1 items-center gap-3"
-                    >
-                      <OtherAvatar
-                        other={active.other}
-                        className="h-8 w-8 text-xs"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-bone group-hover:text-gold">
-                          {convoName(active)}
-                        </p>
-                        <p className="truncate text-xs text-bone-faint">
-                          @{active.other.handle}
-                        </p>
-                      </div>
-                    </Link>
-                  ) : (
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <OtherAvatar
-                        other={active?.other ?? null}
-                        className="h-8 w-8 text-xs"
-                      />
-                      <p className="truncate text-sm font-semibold text-bone">
-                        {active ? convoName(active) : "Whisper"}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  ref={scrollRef}
-                  className="flex-1 overflow-y-auto px-3 py-3"
+                  }
                 >
-                  {msgs === null ? (
-                    <div className="flex flex-col gap-2">
-                      <div className="glass-sm glass h-10 w-3/5 animate-pulse" />
-                      <div className="glass-sm glass ml-auto h-10 w-1/2 animate-pulse" />
-                      <div className="glass-sm glass h-10 w-2/5 animate-pulse" />
-                    </div>
-                  ) : msgs.length === 0 ? (
-                    <p className="py-10 text-center text-sm text-bone-mut">
-                      No words yet. Speak first.
-                    </p>
+                  {/* The same portrait the corridor and the thread draw,
+                      rather than a fourth hand rolled copy of it. */}
+                  <OtherAvatar
+                    other={{
+                      id: p.id,
+                      handle: p.handle,
+                      display_name: p.display_name,
+                      avatar_url: null,
+                    }}
+                    className="h-9 w-9 text-sm"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-bone">
+                      {p.display_name ?? p.handle}
+                    </span>
+                    <span className="block truncate text-xs text-bone-faint">
+                      @{p.handle}
+                    </span>
+                  </span>
+                  {starting === p.id ? (
+                    <span className="shrink-0 text-xs text-bone-faint">
+                      Opening
+                    </span>
                   ) : (
-                    <div className="flex flex-col gap-2">
-                      {msgs.map((m) => {
-                        const mine = meId !== null && m.sender_id === meId;
-                        return (
-                          <div
-                            key={m.id}
-                            className={`flex max-w-[86%] items-end gap-2 ${
-                              mine ? "flex-row-reverse self-end" : "self-start"
-                            } ${m.pending ? "opacity-70" : ""}`}
-                          >
-                            {!mine && (
-                              <OtherAvatar
-                                other={active?.other ?? null}
-                                className="h-6 w-6 text-[10px]"
-                              />
-                            )}
-                            <div
-                              className={`flex min-w-0 flex-col ${
-                                mine ? "items-end" : "items-start"
-                              }`}
-                            >
-                            <div
-                              className={`${
-                                mine
-                                  ? "glass glass-warm rounded-br-sm"
-                                  : "glass glass-sm rounded-bl-sm"
-                              } overflow-hidden rounded-2xl ${
-                                m.image_url && !m.body
-                                  ? "p-1"
-                                  : "px-3.5 py-2"
-                              }`}
-                            >
-                              {m.image_url && (
-                                <button
-                                  type="button"
-                                  onClick={() => setLightbox(m.image_url)}
-                                  className={`group block overflow-hidden rounded-xl border border-steel-line/60 ${
-                                    m.body ? "mb-2" : ""
-                                  }`}
-                                  aria-label="Open image full size"
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={m.image_url}
-                                    alt="Whispered image"
-                                    loading="lazy"
-                                    className="max-h-64 w-full max-w-[16rem] object-cover transition duration-200 group-hover:brightness-110"
-                                  />
-                                </button>
-                              )}
-                              {m.body && (
-                                <p className="whitespace-pre-wrap break-words text-sm text-bone">
-                                  {m.body}
-                                </p>
-                              )}
-                            </div>
-                            <span className="tnum mt-0.5 px-1 text-[10px] text-bone-faint">
-                              {m.pending ? "Sending" : timeAgo(m.created_at)}
-                            </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <Icon name="send" className="h-4 w-4 shrink-0 text-gold" />
                   )}
-                </div>
-
-                {sendErr && (
-                  <p className="border-t border-steel-line px-3 pt-2 text-xs text-ember">
-                    {sendErr}
-                  </p>
-                )}
-
-                {pendingImage && (
-                  <div className="flex items-center gap-3 border-t border-steel-line px-3 pt-2.5">
-                    <span className="relative inline-block">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={pendingImage}
-                        alt="Attachment preview"
-                        className="h-16 w-16 rounded-lg border border-steel-line object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setPendingImage(null)}
-                        aria-label="Remove image"
-                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-steel-line bg-panel text-bone-mut"
-                      >
-                        <Icon name="plus" className="h-3 w-3 rotate-45" />
-                      </button>
-                    </span>
-                    <span className="text-xs text-bone-faint">
-                      Ready to send
-                    </span>
-                  </div>
-                )}
-
-                <form
-                  onSubmit={(e) => void send(e)}
-                  className="flex items-center gap-2 border-t border-steel-line px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] md:pb-2.5"
-                >
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    className="hidden"
-                    onChange={(e) => void pickImage(e)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploading || Boolean(pendingImage)}
-                    aria-label="Attach image"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-steel-line bg-panel text-bone-mut transition hover:text-gold disabled:opacity-50"
-                  >
-                    {uploading ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-steel-line border-t-gold" />
-                    ) : (
-                      <Icon name="image" className="h-4 w-4" />
-                    )}
-                  </button>
-                  <input
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    placeholder="Speak softly"
-                    className="w-full rounded-xl border border-steel-line bg-panel px-3.5 py-2.5 text-sm text-bone placeholder:text-bone-faint focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={sending || !canSend}
-                    aria-label="Send whisper"
-                    className="btn-gold flex h-10 w-10 shrink-0 items-center justify-center disabled:opacity-50"
-                  >
-                    <Icon name="send" className="h-4 w-4" />
-                  </button>
-                </form>
-              </div>
-            ) : (
-              <div className="hidden h-[calc(100dvh-13rem)] min-h-[24rem] md:block">
-                <div className="glass flex h-full flex-col items-center justify-center p-8 text-center">
-                  <Icon name="mail" className="h-7 w-7 text-bone-faint" />
-                  <p className="mt-3 text-sm text-bone-mut">
-                    Choose a whisper from the corridor, or begin a new one.
-                  </p>
-                </div>
-              </div>
+                </Card>
+              ))
             )}
           </div>
-        </>
-      )}
+        </div>
+      </AdaptiveDialog>
 
-      {/* Full-size image */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-          onClick={() => setLightbox(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <button
-            type="button"
-            onClick={() => setLightbox(null)}
-            aria-label="Close image"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-steel-line bg-panel text-bone-mut"
-          >
-            <Icon name="plus" className="h-5 w-5 rotate-45" />
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* Full size image. A real dialog now: focus trapped, Escape closes, and
+          portalled to the body rather than layered inside the column. */}
+      <Modal
+        open={Boolean(lightbox)}
+        onOpenChange={(next) => {
+          if (!next) setLightbox(null);
+        }}
+        title="Whispered image"
+        size="lg"
+      >
+        {lightbox && (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={lightbox}
             alt="Whispered image"
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[88vh] max-w-full rounded-2xl border border-steel-line object-contain shadow-2xl"
+            className="mx-auto max-h-[70dvh] w-auto max-w-full rounded-lg border border-steel-line object-contain"
           />
-        </div>
-      )}
-    </div>
+        )}
+      </Modal>
+    </StreamColumn>
   );
 }

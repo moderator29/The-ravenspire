@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { txExplorerUrlFor } from "@/components/wallet/chains";
@@ -92,7 +95,7 @@ export function RealmTrades() {
         <h2 className="font-display text-lg font-semibold text-bone">
           The realm is trading
         </h2>
-        <span className="inline-flex items-center rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+        <span className="inline-flex items-center rounded-sm border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
           Beta
         </span>
       </div>
@@ -103,13 +106,15 @@ export function RealmTrades() {
       <div className="mt-4 flex flex-col gap-2">
         {trades === null ? (
           [0, 1, 2].map((i) => (
-            <div key={i} className="glass glass-sm h-14 animate-pulse" />
+            <Skeleton key={i} className="h-14 w-full" />
           ))
         ) : trades.length === 0 ? (
-          <div className="glass p-6 text-center text-sm text-bone-mut">
-            No trades in the realm yet. Make the first move through the Scrying
-            Glass or The Swap.
-          </div>
+          <EmptyState
+            icon3d="market"
+            bordered
+            title="No trades in the realm yet"
+            body="Make the first move through the Scrying Glass or The Swap."
+          />
         ) : (
           trades.map((t) => {
             const name =
@@ -118,9 +123,10 @@ export function RealmTrades() {
             const explorer = txExplorerUrlFor(t.chainId, t.txHash);
             const up = t.kind === "buy";
             return (
-              <div
+              <Card
                 key={t.id}
-                className="glass glass-sm flex items-center gap-3 px-3.5 py-3"
+                pad="none"
+                className="flex items-center gap-3 px-3.5 py-3"
               >
                 {t.trader.avatarUrl ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
@@ -179,7 +185,7 @@ export function RealmTrades() {
                     <Icon name="arrow" className="h-4 w-4" />
                   </a>
                 )}
-              </div>
+              </Card>
             );
           })
         )}

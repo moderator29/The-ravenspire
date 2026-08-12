@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { motion, MotionConfig } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -46,7 +48,7 @@ export default function SignInPage() {
           aria-hidden="true"
           style={{
             background:
-              "radial-gradient(ellipse 60% 70% at 50% 0%, rgba(200,162,76,0.14), transparent 70%)",
+              "radial-gradient(ellipse 60% 70% at 50% 0%, rgba(217, 176, 64,0.14), transparent 70%)",
           }}
         />
         <div
@@ -56,26 +58,33 @@ export default function SignInPage() {
         />
 
         {/* Back to the landing */}
-        <Link
-          href="/"
-          className="absolute left-4 top-4 z-20 inline-flex items-center gap-1.5 rounded-xl border border-gold/20 bg-void/60 px-3 py-2 text-[12px] font-medium text-bone-mut backdrop-blur transition hover:border-gold/40 hover:text-bone sm:left-6 sm:top-6"
+        <Button
+          variant="glass"
+          size="md"
+          className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
+          render={<Link href="/" />}
         >
           <LandingIcon name="chevronLeft" className="h-4 w-4" />
           Back to the realm
-        </Link>
+        </Button>
 
-        <motion.div
-          initial={{ opacity: 0, y: 18, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6 }}
-          className="glass relative z-10 grid w-full max-w-4xl overflow-hidden md:grid-cols-2"
+        <Card
+          pad="none"
+          render={
+            <motion.div
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.6 }}
+            />
+          }
+          className="relative z-10 grid w-full max-w-4xl overflow-hidden md:grid-cols-2"
         >
           {/* Left: ambient brand + assurances */}
           <div className="relative hidden flex-col justify-between border-r border-steel-line/60 bg-void/40 p-8 md:flex">
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-30 blur-3xl"
-              style={{ background: "radial-gradient(circle, rgba(200,162,76,0.22), transparent 70%)" }}
+              style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.22), transparent 70%)" }}
             />
             <div className="relative">
               <div className="flex items-center gap-2.5">
@@ -97,7 +106,7 @@ export default function SignInPage() {
             <ul className="relative mt-8 flex flex-col gap-4">
               {assurances.map((a) => (
                 <li key={a.title} className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gold/25 bg-void text-gold">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-gold/25 bg-void text-gold">
                     <LandingIcon name={a.icon} className="h-[18px] w-[18px]" />
                   </span>
                   <div className="min-w-0">
@@ -136,38 +145,44 @@ export default function SignInPage() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <button
-                onClick={signInX}
+              <Button
+                variant="glass"
+                size="lg"
+                block
                 disabled={!enabled}
-                className="btn-glass w-full px-4 py-3.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={signInX}
               >
                 <LandingIcon name="xlogo" className="h-4 w-4" />
                 Continue with X
-              </button>
-              <button
-                onClick={signInEmail}
+              </Button>
+              <Button
+                variant="glass"
+                size="lg"
+                block
                 disabled={!enabled}
-                className="btn-glass w-full px-4 py-3.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={signInEmail}
               >
                 <LandingIcon name="mail" className="h-[18px] w-[18px]" />
                 Continue with Email
-              </button>
+              </Button>
               <div className="my-1 flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-bone-faint">
                 <span className="h-px flex-1 bg-steel-line" />
                 or
                 <span className="h-px flex-1 bg-steel-line" />
               </div>
-              <button
-                onClick={connectWallet}
+              <Button
+                variant="gold"
+                size="lg"
+                block
                 disabled={!enabled}
-                className="btn-gold w-full px-4 py-3.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={connectWallet}
               >
                 <LandingIcon name="wallet" className="h-[18px] w-[18px]" />
                 Connect Wallet
-              </button>
+              </Button>
             </div>
 
-            <div className="mt-6 flex items-start gap-2.5 rounded-2xl border border-gold/15 bg-void/50 px-4 py-3">
+            <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-gold/15 bg-void/50 px-4 py-3">
               <LandingIcon name="shieldKey" className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
               <p className="text-[12px] leading-relaxed text-bone-mut">
                 A non-custodial wallet is created for you. You keep your keys, we
@@ -188,18 +203,18 @@ export default function SignInPage() {
             </p>
 
             {ready && !enabled && (
-              <p className="mt-3 text-center text-[11px] text-bone-faint">
+              <p role="status" className="mt-3 text-center text-[11px] text-bone-faint">
                 The Gatehouse keys are not configured in this environment. Auth
                 goes live on the hosted realm.
               </p>
             )}
             {authenticated && (
-              <p className="mt-3 text-center text-[11px] text-gold">
+              <p role="status" className="mt-3 text-center text-[11px] text-gold">
                 You are already through the gate. Redirecting you into the realm.
               </p>
             )}
           </div>
-        </motion.div>
+        </Card>
       </main>
     </MotionConfig>
   );

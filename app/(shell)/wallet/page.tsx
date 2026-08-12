@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { Icon } from "@/components/ui/icon";
 import { WalletSection } from "@/components/wallet/wallet-section";
+import { Button } from "@/components/ui/button";
 
 export default function WalletPage() {
   const { ready, enabled, authenticated, signInX, signInEmail } =
@@ -28,12 +30,12 @@ export default function WalletPage() {
       <div className="mt-5">
         {!ready ? (
           <div className="flex flex-col gap-4">
-            <div className="glass h-52 animate-pulse" />
-            <div className="glass h-28 animate-pulse" />
-            <div className="glass h-32 animate-pulse" />
+            <Card pad="none" className="h-52 animate-pulse" />
+            <Card pad="none" className="h-28 animate-pulse" />
+            <Card pad="none" className="h-32 animate-pulse" />
           </div>
         ) : !authenticated ? (
-          <div className="glass relative overflow-hidden p-8 text-center sm:p-10">
+          <Card pad="none" className="relative overflow-hidden p-8 text-center sm:p-10">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-steel-line bg-panel">
               <Icon name="wallet" className="h-6 w-6 text-gold" />
             </div>
@@ -46,22 +48,14 @@ export default function WalletPage() {
             </p>
             {enabled ? (
               <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={signInX}
-                  className="btn-gold inline-flex items-center gap-2 px-5 py-2.5 text-sm"
-                >
+                <Button variant="gold" size="lg" onClick={signInX}>
                   <Icon name="xlogo" className="h-4 w-4" />
                   Enter with X
-                </button>
-                <button
-                  type="button"
-                  onClick={signInEmail}
-                  className="btn-glass inline-flex items-center gap-2 px-5 py-2.5 text-sm"
-                >
+                </Button>
+                <Button variant="glass" size="lg" onClick={signInEmail}>
                   <Icon name="mail" className="h-4 w-4" />
                   Enter with email
-                </button>
+                </Button>
               </div>
             ) : (
               <p className="mt-6 text-xs text-bone-faint">
@@ -70,7 +64,7 @@ export default function WalletPage() {
                 will show it once it is.
               </p>
             )}
-          </div>
+          </Card>
         ) : (
           <WalletSection />
         )}

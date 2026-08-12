@@ -1,4 +1,5 @@
-import { json } from "@/lib/auth/server";
+import { requireProfile, json } from "@/lib/auth/server";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* The Watch reads a wallet's open ERC-20 approvals so a member can see exactly
    who can still move their tokens, and revoke with one tap. Real data via
@@ -44,6 +45,18 @@ export interface ApprovalRow {
 }
 
 export async function GET(req: Request) {
+  /* C5: this spends GoldRush credits on whatever address the caller names, and
+     it was open to anyone. Members only, and metered, so a member cannot walk
+     a list of addresses through it either. */
+  const profile = await requireProfile(req);
+  if (!profile) return json({ error: "unauthenticated" }, 401);
+  const rl = await rateLimit(profileKey("approvals", profile.id), 120, 3600);
+  if (!rl.ok)
+    return json(
+      { configured: true, approvals: [], error: "rate_limited", retryAfter: rl.retryAfter },
+      429
+    );
+
   const url = new URL(req.url);
   const address = (url.searchParams.get("address") ?? "").toLowerCase();
   const chain = url.searchParams.get("chain") ?? "1";

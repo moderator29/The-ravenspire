@@ -60,16 +60,9 @@ export async function POST(req: Request) {
   await db
     .from("house_members")
     .upsert({ profile_id: profile.id, house_slug: house });
-  const { data: h } = await db
-    .from("houses")
-    .select("member_count")
-    .eq("slug", house)
-    .single();
-  if (h)
-    await db
-      .from("houses")
-      .update({ member_count: h.member_count + 1 })
-      .eq("slug", house);
+  /* B6: atomic. Onboarding is the one moment every new member passes through
+     at once, so a lost increment here shows up directly on the House roster. */
+  await db.rpc("bump_house_members", { p_slug: house, p_delta: 1 });
 
   /* Referral: capture who sent this wanderer (referred_by). The JOIN itself
      now COUNTS immediately (joined = true) so the referrer's banner reflects

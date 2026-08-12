@@ -63,7 +63,7 @@ export function Providers({ children }: { children: ReactNode }) {
       config={{
         appearance: {
           theme: "#0C0C11",
-          accentColor: "#C8A24C",
+          accentColor: "#D9B040",
           landingHeader: "Enter the Realm",
           showWalletLoginFirst: false,
         },

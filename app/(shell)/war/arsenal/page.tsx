@@ -1,108 +1,176 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
+import { RarityChip } from "@/components/ui/badge";
+import { Icon } from "@/components/ui/icon";
+import { Chip, ChipRail } from "@/components/console/console-shell";
+import {
+  ArtTile,
+  Board,
+  WarHeader,
+  WarPage as WarFrame,
+  WAR_BODY,
+  WAR_META,
+  WAR_ROW,
+} from "@/components/war/war-chrome";
 import { legendaryWeapons } from "@/lib/game/arsenal";
 import { gearCatalog } from "@/lib/game/gear";
-import { Icon } from "@/components/ui/icon";
-import { BackButton } from "@/components/shell/back-button";
+
+/* The Arsenal.
+
+   Archetype: Board. Thirty one weapons and fifty pieces of gear, and the only
+   thing a reader can do with them is compare, so both are dense rows with
+   hairline dividers rather than the two image grids this used to be.
+
+   Honest framing, and it matters: nothing in here is owned, equipped or
+   forged. There is no inventory table behind it and no API that grants a
+   weapon. This is the realm's catalog, and the page now says exactly that
+   instead of implying a loadout screen that does not exist. */
+
+const slots = [
+  "all",
+  "helm",
+  "armor",
+  "shield",
+  "cloak",
+  "gloves",
+  "boots",
+  "belt",
+  "necklace",
+  "ring",
+  "banner",
+  "consumable",
+  "material",
+] as const;
+
+type Slot = (typeof slots)[number];
 
 export default function ArsenalPage() {
+  const [slot, setSlot] = useState<Slot>("all");
+
+  const gear = useMemo(
+    () =>
+      slot === "all"
+        ? gearCatalog
+        : gearCatalog.filter((g) => g.slot === slot),
+    [slot]
+  );
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <div className="mb-4">
-        <BackButton href="/war" />
-      </div>
-      <h1 className="gold-text font-display text-3xl font-semibold">
-        The Arsenal
-      </h1>
-      <p className="mt-1 text-sm text-bone-mut">
-        Legendary weapons of the realm. Every blade here has a story, and most
-        of the stories end badly for someone else.
-      </p>
+    <WarFrame width="board">
+      <WarHeader
+        title="The Arsenal"
+        kicker={`${legendaryWeapons.length} weapons, ${gearCatalog.length} pieces of gear`}
+        backHref="/war"
+      />
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {legendaryWeapons.map((w) => (
-          <div
-            key={w.slug}
-            className={`rarity-${w.rarity} rarity-frame glass-warm overflow-hidden`}
-          >
-            {w.art ? (
-              <div className="relative aspect-square w-full overflow-hidden">
-                <img
-                  src={w.art}
-                  alt={w.name}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="flex aspect-square w-full items-center justify-center bg-void">
-                <Icon name="swords" className="h-10 w-10 text-bone-faint" />
-              </div>
-            )}
-            <div className="p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-display text-base font-semibold text-bone">
-                  {w.name}
-                </span>
-                <span className={`rarity-${w.rarity} rarity-chip capitalize`}>
-                  {w.rarity}
-                </span>
-              </div>
-              <div className="mt-0.5 text-xs capitalize text-bone-faint">
-                {w.class}
-              </div>
-              <p className="mt-2 text-sm text-bone-mut">{w.effect}</p>
-              <p className="mt-2 text-xs italic leading-relaxed text-bone-faint">
-                {w.lore}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <h2 className="mt-10 font-display text-lg font-semibold text-bone">
-        Gear of the realm
-      </h2>
-      <p className="mt-1 text-sm text-bone-mut">
-        Every slot a champion can fill, from crown to boot.
-      </p>
-      <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-        {gearCatalog.map((g) => (
-          <div
-            key={g.slug}
-            className={`rarity-${g.rarity} rarity-frame glass-sm overflow-hidden rounded-2xl bg-panel`}
-            title={g.effect}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={g.art}
-              alt={g.name}
-              loading="lazy"
-              className="aspect-square w-full object-cover"
-            />
-            <div className="p-2">
-              <p className="truncate font-display text-xs font-semibold text-bone">
-                {g.name}
-              </p>
-              <p className="text-[9px] uppercase tracking-wider text-bone-faint">
-                {g.slot}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="glass-warm mt-8 flex items-start gap-3 p-5">
-        <Icon name="flame" className="mt-0.5 h-5 w-5 shrink-0 text-ember" />
-        <div>
-          <div className="font-display text-sm font-semibold text-bone">
-            The Forge sleeps, for now
-          </div>
-          <p className="mt-1 text-sm text-bone-mut">
-            Forging opens as the game deepens. When the coals are lit, you will
-            hammer these legends into something all your own.
+      <Card variant="warm" pad="sm">
+        <div className="flex items-start gap-3">
+          <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+          <p className="text-sm text-bone-mut">
+            This is the realm&apos;s catalog, not your pack. Nothing here can be
+            owned, equipped or forged yet, so no numbers on this page are yours.
+            When the coals are lit, that changes.
           </p>
         </div>
-      </div>
-    </div>
+      </Card>
+
+      <SectionHeader
+        title="Legendary weapons"
+        hint={`${legendaryWeapons.length} blades`}
+      />
+      <Board label="Legendary weapons">
+        {legendaryWeapons.map((weapon) => (
+          <li key={weapon.slug} className={`${WAR_ROW} items-start py-2.5`}>
+            <ArtTile src={weapon.art} alt={weapon.name} icon="swords" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className={`font-semibold text-bone ${WAR_BODY}`}>
+                  {weapon.name}
+                </p>
+                <RarityChip rarity={weapon.rarity} />
+                <span
+                  className={`capitalize text-bone-faint ${WAR_META}`}
+                >
+                  {weapon.class}
+                </span>
+              </div>
+              <p className={`mt-0.5 text-bone-mut ${WAR_META}`}>
+                {weapon.effect}
+              </p>
+              <p className={`mt-0.5 italic text-bone-faint ${WAR_META}`}>
+                {weapon.lore}
+              </p>
+            </div>
+          </li>
+        ))}
+      </Board>
+
+      <SectionHeader title="Gear of the realm" hint="Crown to boot" />
+      {/* Thirteen slots need 899px of rail. Measured on a mouse, the box is
+          728px at 1024 and 824px at 1440, so 171px and 75px of the rail, out
+          to "material" at x=1178.7 against a right edge of 1012, sat past a
+          track that hides its own scrollbar. A drag rail is the right answer
+          for a thumb and the wrong one for a pointer, so above `md` the chips
+          wrap instead.
+
+          `overflow-visible` goes with the wrap, and it is not tidying. A box
+          with `overflow-x: auto` computes `overflow-y: auto` too, and the rail
+          has no vertical padding, so it clipped the 2px focus ring at its own
+          top and bottom edge. Sampled at 1440 on the focused first chip: the
+          two rows above the chip read rgb(6,6,9), the page, where the ring
+          should be, and rgb(249,227,159) once the box stops scrolling. Rule 12
+          asks for a visible ring, and two wrapped rows have an inner edge for
+          it to be cut on as well as an outer one. */}
+      <ChipRail label="Gear slot filter" className="md:flex-wrap md:overflow-visible">
+        {slots.map((s) => (
+          <Chip key={s} active={slot === s} onClick={() => setSlot(s)}>
+            <span className="capitalize">{s}</span>
+          </Chip>
+        ))}
+      </ChipRail>
+
+      {gear.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon3d="guard"
+            title="Nothing in that slot yet"
+            body="The armourers have not filled this rack. Widen the filter to see the whole catalog."
+            action={
+              <Button variant="glass" size="md" onClick={() => setSlot("all")}>
+                Show all gear
+              </Button>
+            }
+          />
+        </Card>
+      ) : (
+        <Board label="Gear catalog">
+          {gear.map((item) => (
+            <li key={item.slug} className={WAR_ROW}>
+              <ArtTile src={item.art} alt={item.name} icon="shield" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className={`truncate font-semibold text-bone ${WAR_BODY}`}>
+                    {item.name}
+                  </p>
+                  <RarityChip rarity={item.rarity} />
+                </div>
+                <p className={`truncate text-bone-mut ${WAR_META}`}>
+                  {item.effect}
+                </p>
+              </div>
+              <span
+                className={`hidden w-24 shrink-0 text-right capitalize text-bone-faint sm:block ${WAR_META}`}
+              >
+                {item.slot}
+              </span>
+            </li>
+          ))}
+        </Board>
+      )}
+    </WarFrame>
   );
 }

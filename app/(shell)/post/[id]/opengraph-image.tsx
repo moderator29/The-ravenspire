@@ -12,6 +12,8 @@ export const contentType = "image/png";
 
 interface PostRow {
   body: string | null;
+  deleted: boolean | null;
+  visibility: string | null;
   like_count: number | null;
   reply_count: number | null;
   repost_count: number | null;
@@ -19,6 +21,46 @@ interface PostRow {
     display_name: string | null;
     handle: string | null;
   } | null;
+}
+
+/* The realm's own glyphs, inlined.
+ *
+ * This band used to be three text characters standing in for icons, a heart, a
+ * recycle arrow and a quotation mark, which is rule 2's "no emoji as icons"
+ * written into the one surface most likely to be seen by someone who has never
+ * opened the product. Satori cannot render the Icon component, since that
+ * resolves CSS custom properties and a font Satori is not given, but it renders
+ * inline SVG perfectly well, so the paths here are the same ones
+ * components/ui/icon.tsx draws for heart, repost and reply.
+ *
+ * Copied rather than imported on purpose: Icon's paths are JSX built for the
+ * browser runtime, and an OpenGraph image is generated in a different renderer
+ * with no shared stroke or sizing context. Two lines of duplication beats
+ * reaching across that boundary. */
+function OgIcon({
+  path,
+  color = "#B9B4A8",
+  lead = 0,
+}: {
+  path: string;
+  color?: string;
+  lead?: number;
+}) {
+  return (
+    <svg
+      width="30"
+      height="30"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ marginLeft: lead, marginRight: 10 }}
+    >
+      <path d={path} />
+    </svg>
+  );
 }
 
 export default async function Image({
@@ -34,11 +76,15 @@ export default async function Image({
       const { data } = await db
         .from("posts")
         .select(
-          "body, like_count, reply_count, repost_count, author:profiles!posts_author_id_fkey (display_name, handle)"
+          "body, deleted, visibility, like_count, reply_count, repost_count, author:profiles!posts_author_id_fkey (display_name, handle)"
         )
         .eq("id", id)
         .maybeSingle();
-      post = (data as unknown as PostRow) ?? null;
+      const row = (data as unknown as PostRow) ?? null;
+      /* C1: a share card is read by anyone holding the link, so only a public
+         raven may unfurl. A restricted or removed raven falls back to the
+         house card rather than leaking its words into a preview. */
+      post = row && !row.deleted && row.visibility === "public" ? row : null;
     }
   } catch {
     post = null;
@@ -66,7 +112,7 @@ export default async function Image({
           justifyContent: "space-between",
           background: "#07070A",
           backgroundImage:
-            "radial-gradient(circle at 20% 0%, rgba(200,162,76,0.16), rgba(7,7,10,0) 55%)",
+            "radial-gradient(circle at 20% 0%, rgba(217, 176, 64,0.16), rgba(7,7,10,0) 55%)",
           padding: 72,
         }}
       >
@@ -76,7 +122,7 @@ export default async function Image({
             style={{
               display: "flex",
               alignItems: "center",
-              color: "#C8A24C",
+              color: "#D9B040",
               fontSize: 26,
               letterSpacing: 8,
               fontFamily: serif,
@@ -91,7 +137,7 @@ export default async function Image({
                 width: 52,
                 height: 52,
                 borderRadius: 14,
-                border: "4px solid #C8A24C",
+                border: "4px solid #D9B040",
                 marginRight: 20,
                 fontSize: 36,
               }}
@@ -137,11 +183,17 @@ export default async function Image({
             fontSize: 30,
           }}
         >
-          <span style={{ color: "#C8A24C", marginRight: 10 }}>♥</span>
+          <OgIcon path="M12 20s-7-4.5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.5-9 9-9 9z" color="#D9B040" />
           {likes}
-          <span style={{ margin: "0 10px 0 40px" }}>↺</span>
+          <OgIcon
+            path="M4 9l3-3m0 0l3 3M7 6v9a3 3 0 0 0 3 3h2m8-3l-3 3m0 0l-3-3m3 3V9a3 3 0 0 0-3-3h-2"
+            lead={40}
+          />
           {reposts}
-          <span style={{ margin: "0 10px 0 40px" }}>❝</span>
+          <OgIcon
+            path="M9 17l-5-5 5-5m-5 5h9a6 6 0 0 1 6 6v2"
+            lead={40}
+          />
           {replies}
         </div>
       </div>

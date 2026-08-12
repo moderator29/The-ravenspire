@@ -5,9 +5,24 @@ import Link from "next/link";
 import { PostCard } from "@/components/social/post-card";
 import { EarningsSection } from "@/components/profile/earnings-section";
 import { Avatar } from "@/components/social/avatar";
+import { OathHistory } from "@/components/social/oath-history";
 import { CrestRoundel, findCrest } from "@/components/brand/crests";
+import { Badge } from "@/components/ui/badge";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
-import { OverflowMenu } from "@/components/ui/overflow-menu";
+import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
+import { StreamList } from "@/components/stream/stream-shell";
+import {
+  DossierBanner,
+  DossierHeader,
+  DossierHero,
+  DossierIdentity,
+  DossierPage,
+  DossierTabPanel,
+  DossierTabs,
+} from "@/components/dossier/dossier-shell";
 import {
   fetchFollowCounts,
   fetchProfilePosts,
@@ -25,20 +40,62 @@ import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { shareOrCopy } from "@/lib/share";
 
+/* A Keep, on the Dossier archetype.
+
+   Hero band, then tabs, then panels, always in that order. The hero is the one
+   place in a Dossier that may carry any weight at all: here that is the banner
+   and the member's crests. Everything below it is Ledger, flat and quiet.
+
+   The tab strip is the underline pattern rather than a chip rail, because these
+   are sections of one subject with counts, which is the rule in section 3.
+
+   All of that is now the Dossier shell rather than this file's own reading of
+   it: the frame, the banner band, the identity block that overlaps it, and the
+   tab strip with its counts. This file describes the subject; the shell
+   decides what a Dossier looks like. */
+
+/* A file picker is a label wrapping a hidden input, which is invisible to the
+   keyboard unless the input stays focusable and the label shows the ring on its
+   behalf. This belongs in a FilePicker primitive the next time components/ui is
+   opened; until then it is one string rather than four hand rolled variants. */
+const PICKER_FOCUS =
+  "cursor-pointer has-[input:focus-visible]:outline has-[input:focus-visible]:outline-2 " +
+  "has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-[color:var(--state-focus-ring)]";
+
+export type ProfileTab = "posts" | "calls" | "media";
+
 export function ProfileView({
   profile,
   own = false,
+  back = false,
   onEdit,
+  tab: controlledTab,
+  onTabChange,
 }: {
   profile: PublicProfile;
   own?: boolean;
+  /* House rule 16. A Keep reached from a raven, a board or a roster is
+     navigated into and needs a way back; the member's own Keep is a dock
+     destination and does not. */
+  back?: boolean;
   onEdit?: () => void;
+  /* Optionally controlled, so a route that carries the panel in its URL can
+     drive it. The member's own Keep does, because the dock's contextual strip
+     links `?tab=calls` and `?tab=media` and something has to answer those.
+     A public /u/handle passes neither and keeps its own state. */
+  tab?: ProfileTab;
+  onTabChange?: (next: ProfileTab) => void;
 }) {
   const { authenticated } = useRealmAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [crestSlugs, setCrestSlugs] = useState<string[]>([]);
   const [counts, setCounts] = useState({ followers: 0, following: 0 });
-  const [tab, setTab] = useState<"posts" | "calls" | "media">("posts");
+  const [internalTab, setInternalTab] = useState<ProfileTab>("posts");
+  const tab = controlledTab ?? internalTab;
+  const setTab = (next: ProfileTab) => {
+    setInternalTab(next);
+    onTabChange?.(next);
+  };
   const [following, setFollowing] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [viewerId, setViewerId] = useState<string | null>(null);
@@ -93,7 +150,6 @@ export function ProfileView({
     void realmFetch<{ blocked?: string[] }>("/api/blocks").then((res) => {
       if (res.data?.blocked?.includes(profile.id)) setIsBlocked(true);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, own, profile.id]);
 
   /* Resolve the viewer and their real follow relationship to this Keep so
@@ -122,18 +178,35 @@ export function ProfileView({
     };
   }, [authenticated, profile.id]);
 
+  /* Both of the writes on this Keep flipped optimistically and kept the new
+     state when the server refused, so a follow that never happened read as a
+     follow, and the follower tally moved with it. FollowButton, which is the
+     same verb on the same route, has rolled back since it was written; these
+     two never did. */
+  const [writeError, setWriteError] = useState<string | null>(null);
+  const refuse = (message: string) => {
+    setWriteError(message);
+    window.setTimeout(() => setWriteError(null), 2600);
+  };
+
   const toggleBlock = async () => {
     if (!authenticated) {
       window.location.href = "/signin";
       return;
     }
     const on = !isBlocked;
+    const wasFollowing = following;
     setIsBlocked(on);
     if (on) setFollowing(false);
-    await realmFetch("/api/blocks", {
+    const res = await realmFetch("/api/blocks", {
       method: "POST",
       json: { profile_id: profile.id, on },
     });
+    if (!res.ok) {
+      setIsBlocked(!on);
+      if (on) setFollowing(wasFollowing);
+      refuse("The realm would not change that. Try again.");
+    }
   };
 
   useEffect(() => {
@@ -154,11 +227,10 @@ export function ProfileView({
   const callsWon = callPosts.filter((p) => p.call?.verdict === "hit").length;
   const callsLost = callPosts.filter((p) => p.call?.verdict === "miss").length;
   const settledCalls = callsWon + callsLost;
-  /* Hit-rate on settled calls only — an honest track record, blank until at
+  /* Hit-rate on settled calls only, an honest track record, blank until at
      least a few calls have resolved so a lone lucky call can't read as 100%. */
   const hitRate =
     settledCalls >= 3 ? Math.round((callsWon / settledCalls) * 100) : null;
-  const shown = tab === "calls" ? callPosts : posts;
   const mediaTiles = posts.flatMap((p) =>
     (p.media ?? [])
       .filter((m) => m.type === "image" && m.url)
@@ -173,17 +245,32 @@ export function ProfileView({
     const on = !following;
     setFollowing(on);
     setCounts((c) => ({ ...c, followers: c.followers + (on ? 1 : -1) }));
-    await realmFetch("/api/social", {
+    const res = await realmFetch("/api/social", {
       method: "POST",
       json: { action: "follow", subject_id: profile.id, on },
     });
+    if (!res.ok) {
+      setFollowing(!on);
+      setCounts((c) => ({ ...c, followers: c.followers - (on ? 1 : -1) }));
+      refuse(
+        on ? "That follow did not reach the realm." : "That could not be undone."
+      );
+    }
+  };
+
+  const shareProfile = () => {
+    const url = `${window.location.origin}/u/${profile.handle}`;
+    const who = profile.display_name ?? `@${profile.handle}`;
+    void shareOrCopy(url, `${who} on The Ravenspire`);
   };
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      {/* Banner */}
-      <div
-        className="glass relative h-32 overflow-hidden sm:h-40"
+    <DossierPage>
+      {back ? <DossierHeader /> : null}
+
+      {/* Hero band. The one place in a Dossier that may carry any weight. */}
+      <DossierHero>
+      <DossierBanner
         style={
           displayProfile.banner_url
             ? {
@@ -192,18 +279,23 @@ export function ProfileView({
                 backgroundPosition: "center",
               }
             : {
-                background: `radial-gradient(ellipse 70% 90% at 30% 0%, ${house?.color ?? "#C8A24C"}1e, transparent), linear-gradient(180deg, #101017, #0C0C11)`,
+                background: `radial-gradient(ellipse 70% 90% at 30% 0%, ${house?.color ?? "#D9B040"}1e, transparent), linear-gradient(180deg, #101017, #0C0C11)`,
               }
         }
       >
         {isOwn && (
-          <label className="btn-glass absolute right-3 top-3 flex cursor-pointer items-center gap-1.5 px-3 py-1.5 text-[11px] text-bone-mut">
+          <Button
+            variant="glass"
+            size="md"
+            render={<label className={PICKER_FOCUS} />}
+            className="absolute right-3 top-3 text-xs text-bone-mut"
+          >
             <Icon name="image" className="h-3.5 w-3.5" />
-            {uploading === "banner" ? "Uploading..." : "Change banner"}
+            {uploading === "banner" ? "Uploading" : "Change banner"}
             <input
               type="file"
               accept={portraitAccept}
-              className="hidden"
+              className="sr-only"
               disabled={uploading !== null}
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -211,26 +303,33 @@ export function ProfileView({
                 e.target.value = "";
               }}
             />
-          </label>
+          </Button>
         )}
-      </div>
-      <div className="relative z-20 -mt-8 px-4">
-        <div className="flex items-end justify-between">
+      </DossierBanner>
+
+      <DossierIdentity>
+        <div className="flex items-end justify-between gap-3">
           {isOwn ? (
-            <label className="group relative inline-flex cursor-pointer">
+            <label
+              className={`group relative inline-flex ${PICKER_FOCUS} rounded-[var(--radius-full)]`}
+            >
               <Avatar author={displayProfile} size={76} />
-              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition group-hover:opacity-100">
+              <span
+                aria-hidden
+                className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-full)] bg-obsidian/60 opacity-0 transition-opacity duration-fast ease-out-quint group-hover:opacity-100"
+              >
                 <Icon name="image" className="h-5 w-5 text-bone" />
               </span>
               {uploading === "avatar" && (
-                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 text-[9px] font-semibold uppercase tracking-wider text-bone">
-                  ...
+                <span className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-full)] bg-obsidian/70 text-[9px] font-semibold uppercase tracking-wider text-bone">
+                  Sealing
                 </span>
               )}
+              <span className="sr-only">Change your portrait</span>
               <input
                 type="file"
                 accept={portraitAccept}
-                className="hidden"
+                className="sr-only"
                 disabled={uploading !== null}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -242,119 +341,117 @@ export function ProfileView({
           ) : (
             <Avatar author={displayProfile} size={76} />
           )}
+
           {isOwn ? (
             onEdit ? (
-              <button
-                onClick={onEdit}
-                className="btn-gold flex items-center gap-1.5 px-4 py-1.5 text-xs"
-              >
+              <Button variant="gold" size="lg" onClick={onEdit}>
                 <Icon name="sliders" className="h-3.5 w-3.5" />
                 Edit profile
-              </button>
+              </Button>
             ) : (
-              <span className="btn-glass px-4 py-1.5 text-xs text-bone-mut">
-                This is your Keep
-              </span>
+              <Badge variant="gold">This is your Keep</Badge>
             )
           ) : (
-            /* Follow always renders so blocking never shifts it. The overflow
-               menu is anchored to the dots button alone (its own relative box),
-               so opening it never moves the Follow button or the surrounding
-               header. Block lives only inside this menu, never loose. */
+            /* Follow always renders so blocking never shifts it. The menu is
+               anchored to its own trigger and portals, so opening it never
+               moves the Follow button or the surrounding header. Block lives
+               only inside this menu, never loose. */
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant={following ? "glass" : "gold"}
+                size="lg"
                 onClick={toggleFollow}
-                className={`px-5 py-1.5 text-xs ${following ? "btn-glass text-bone-mut" : "btn-gold"}`}
+                aria-pressed={following}
+                className={following ? "text-bone-mut" : ""}
               >
                 {following ? "Following" : "Follow"}
-              </button>
-              <OverflowMenu
-                ariaLabel="More"
-                buttonClassName="btn-glass flex h-8 w-8 items-center justify-center text-bone-mut"
+              </Button>
+              <Menu
+                trigger={
+                  <IconButton
+                    icon="dots"
+                    label="More"
+                    variant="glass"
+                    size="lg"
+                  />
+                }
               >
-                {(close) => (
-                  <>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        const url = `${window.location.origin}/u/${profile.handle}`;
-                        const who = profile.display_name ?? `@${profile.handle}`;
-                        void shareOrCopy(url, `${who} on The Ravenspire`);
-                        close();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                    >
-                      <Icon name="share" className="h-3.5 w-3.5 shrink-0" />
-                      Share profile
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        close();
-                        void realmFetch("/api/mutes", {
-                          method: "POST",
-                          json: { muted_id: profile.id },
-                        });
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                    >
-                      <Icon name="bell" className="h-3.5 w-3.5 shrink-0" />
-                      Mute
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        close();
-                        void toggleBlock();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                    >
-                      <Icon name="shield" className="h-3.5 w-3.5 shrink-0" />
-                      {isBlocked ? "Unblock" : "Block"}
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        close();
-                        void realmFetch("/api/reports", {
-                          method: "POST",
-                          json: {
-                            subject_type: "profile",
-                            subject_id: profile.id,
-                            reason: "member_flag",
-                          },
-                        });
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
-                    >
-                      <Icon name="flag" className="h-3.5 w-3.5 shrink-0" />
-                      Report
-                    </button>
-                  </>
-                )}
-              </OverflowMenu>
+                <MenuItem icon="share" onClick={shareProfile}>
+                  Share profile
+                </MenuItem>
+                <MenuItem
+                  icon="bell"
+                  onClick={() => {
+                    void realmFetch("/api/mutes", {
+                      method: "POST",
+                      json: { muted_id: profile.id },
+                    });
+                  }}
+                >
+                  Mute
+                </MenuItem>
+                <MenuItem icon="shield" onClick={() => void toggleBlock()}>
+                  {isBlocked ? "Unblock" : "Block"}
+                </MenuItem>
+                <MenuSeparator />
+                <MenuItem
+                  icon="flag"
+                  tone="danger"
+                  onClick={() => {
+                    void realmFetch("/api/reports", {
+                      method: "POST",
+                      json: {
+                        subject_type: "profile",
+                        subject_id: profile.id,
+                        reason: "member_flag",
+                      },
+                    });
+                  }}
+                >
+                  Report
+                </MenuItem>
+              </Menu>
             </div>
           )}
         </div>
 
         {isOwn && portraitError && (
-          <p className="mt-2 text-xs text-ember-deep">{portraitError}</p>
+          <p role="alert" className="mt-2 text-xs text-state-danger">
+            {portraitError}
+          </p>
+        )}
+
+        {writeError && (
+          <p
+            role="status"
+            className="mt-2 flex items-center gap-1.5 text-xs text-state-danger"
+          >
+            <Icon name="alert" className="h-3.5 w-3.5 shrink-0" />
+            {writeError}
+          </p>
         )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <h1 className="font-display text-xl font-semibold text-bone">
             {profile.display_name ?? profile.handle}
           </h1>
+          {/* Hand written this was a 24x24 anchor with a `title` doing the work
+              of an accessible name. IconButton carries both: the name, and the
+              44px floor on a finger that no call site has to remember. */}
           {profile.x_handle && (
-            <a
-              href={`https://x.com/${profile.x_handle}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`@${profile.x_handle} on X`}
-              className="flex h-6 w-6 items-center justify-center rounded-md border border-steel-line bg-void text-bone-mut transition hover:border-gold/40 hover:text-bone"
-            >
-              <Icon name="xlogo" className="h-4 w-4" />
-            </a>
+            <IconButton
+              icon="xlogo"
+              label={`@${profile.x_handle} on X`}
+              variant="glass"
+              size="sm"
+              render={
+                <a
+                  href={`https://x.com/${profile.x_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              }
+            />
           )}
           {crestSlugs.slice(0, 4).map((slug) => {
             const def = findCrest(slug);
@@ -364,11 +461,7 @@ export function ProfileView({
               </span>
             ) : null;
           })}
-          {profile.is_agent && (
-            <span className="rounded-full border border-gold/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gold">
-              Herald of the realm
-            </span>
-          )}
+          {profile.is_agent && <Badge variant="gold">Herald of the realm</Badge>}
         </div>
         <p className="text-sm text-bone-faint">@{profile.handle}</p>
 
@@ -384,26 +477,39 @@ export function ProfileView({
               .filter((l) => l.url?.startsWith("https://"))
               .slice(0, 3)
               .map((l) => (
-                <a
+                <Button
                   key={l.url}
-                  href={l.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="glass-sm flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 text-xs text-bone-mut hover:text-bone"
+                  variant="glass"
+                  size="sm"
+                  render={
+                    <a href={l.url} target="_blank" rel="noopener noreferrer" />
+                  }
+                  className="max-w-full max-md:h-11 font-medium text-bone-mut"
                 >
                   <Icon name="compass" className="h-3 w-3 shrink-0 text-gold" />
                   <span className="truncate">{l.label || l.url}</span>
-                </a>
+                </Button>
               ))}
           </div>
         )}
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-bone-faint">
+        {/* The House is the one navigable fact in this row and it was dressed
+            exactly like the two beside it: a 108x16 flex link that neither
+            looked like a control nor could be hit like one. As a chip off the
+            Button scale it reads as the affordance it is and clears 44px on a
+            finger; the facts around it stay text, which is what they are. */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-bone-faint">
           {house && (
-            <span className="flex items-center gap-1.5">
-              <Icon name="banner" className="h-3.5 w-3.5" />
+            <Button
+              variant="glass"
+              size="sm"
+              pad="sm"
+              render={<Link href={`/houses/${house.slug}`} />}
+              className="font-medium text-bone-mut"
+            >
+              <Icon name="banner" className="h-3.5 w-3.5 text-gold" />
               {house.name}
-            </span>
+            </Button>
           )}
           <span className="flex items-center gap-1.5">
             <Icon name="medal" className="h-3.5 w-3.5" />
@@ -423,7 +529,11 @@ export function ProfileView({
           )}
         </div>
 
-        <div className="tnum mt-3 flex gap-5 text-sm">
+        {/* The public oath record. Renders only once there is more than one
+            oath to show, since a single oath is what the banner above says. */}
+        <OathHistory profileId={profile.id} />
+
+        <div className="tnum mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
           <span>
             <b className="text-bone">{counts.followers}</b>{" "}
             <span className="text-bone-faint">Followers</span>
@@ -437,12 +547,10 @@ export function ProfileView({
             <span className="text-bone-faint">Calls won</span>
           </span>
           {hitRate !== null && (
-            <span
-              title={`${callsWon} of ${settledCalls} settled calls hit`}
-              className="inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold/5 px-2 py-0.5 text-xs font-semibold text-gold"
-            >
-              <Icon name="target" className="h-3 w-3" />
-              {hitRate}% hit rate
+            <span title={`${callsWon} of ${settledCalls} settled calls hit`}>
+              <Badge variant="gold" icon="target">
+                {hitRate}% hit rate
+              </Badge>
             </span>
           )}
         </div>
@@ -478,70 +586,138 @@ export function ProfileView({
             </p>
           </div>
         )}
-      </div>
 
-      {/* Earnings + balance: sits between the identity header and the content
-          tabs. Its own privacy gate lives server-side in /api/profile/earnings,
-          which respects the member's PnL and public-positions toggles. */}
-      <EarningsSection
-        profileId={profile.id}
-        handle={profile.handle}
-        own={isOwn}
-      />
+        {/* Earnings and balance close the hero band: this is the member's
+            standing, the same readout as Renown and Calls won above it, and its
+            privacy gate lives server side in /api/profile/earnings, which
+            respects the PnL and public-positions toggles. */}
+        <EarningsSection
+          profileId={profile.id}
+          handle={profile.handle}
+          own={isOwn}
+        />
+      </DossierIdentity>
+      </DossierHero>
 
-      <div className="mt-5 flex gap-1.5">
-        {(["posts", "calls", "media"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold capitalize ${
-              tab === t ? "btn-gold" : "btn-glass text-bone-mut"
-            }`}
-          >
-            {t === "posts" ? "Ravens" : t === "calls" ? "Calls" : "Media"}
-          </button>
-        ))}
-      </div>
+      {/* Tabs, then panels. Sections of one subject with counts, which is the
+          underline pattern by section 3. */}
+      <DossierTabs
+        value={tab}
+        onValueChange={(v) => setTab(v as ProfileTab)}
+        tabs={[
+          { value: "posts", label: "Ravens", count: posts.length },
+          { value: "calls", label: "Calls", count: callPosts.length },
+          { value: "media", label: "Media", count: mediaTiles.length },
+        ]}
+      >
+        <DossierTabPanel value="posts">
+          <PostPanel
+            posts={posts}
+            empty={
+              <EmptyState
+                icon3d="raven"
+                title={isOwn ? "Your Keep awaits its first raven" : "No ravens yet"}
+                body={
+                  isOwn
+                    ? "Send one and it lands here for good."
+                    : "This Keep has sent no word to the realm."
+                }
+                action={
+                  isOwn ? (
+                    <Button variant="gold" size="lg" render={<Link href="/compose" />}>
+                      Send a raven
+                    </Button>
+                  ) : undefined
+                }
+              />
+            }
+          />
+        </DossierTabPanel>
 
-      {tab === "media" ? (
-        mediaTiles.length === 0 ? (
-          <div className="glass mt-3 p-8 text-center text-sm text-bone-mut">
-            No images from this Keep yet.
-          </div>
-        ) : (
-          <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {mediaTiles.map((m) => (
-              <Link
-                key={m.key}
-                href={`/post/${m.postId}`}
-                className="glass-sm block aspect-square overflow-hidden"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={m.url}
-                  alt=""
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
-              </Link>
-            ))}
-          </div>
-        )
-      ) : (
-        <div className="mt-3 flex flex-col gap-3">
-          {shown.length === 0 ? (
-            <div className="glass p-8 text-center text-sm text-bone-mut">
-              {tab === "calls"
-                ? "No Calls sealed yet."
-                : isOwn
-                  ? "Your Keep awaits its first raven."
-                  : "No ravens from this Keep yet."}
-            </div>
+        <DossierTabPanel value="calls">
+          <PostPanel
+            posts={callPosts}
+            empty={
+              <EmptyState
+                icon3d="call-orb"
+                title="No Calls sealed yet"
+                body={
+                  isOwn
+                    ? "A Call seals a live price and lets the market judge it."
+                    : "This Keep has staked nothing on a price yet."
+                }
+                action={
+                  isOwn ? (
+                    <Button variant="gold" size="lg" render={<Link href="/compose" />}>
+                      Seal a Call
+                    </Button>
+                  ) : undefined
+                }
+              />
+            }
+          />
+        </DossierTabPanel>
+
+        <DossierTabPanel value="media">
+          {mediaTiles.length === 0 ? (
+            <Card pad="none">
+              <EmptyState
+                icon3d="media"
+                title="No images from this Keep yet"
+                body={
+                  isOwn
+                    ? "Ravens carrying an image or a video collect here."
+                    : "Nothing this member has sent carried a picture."
+                }
+                action={
+                  isOwn ? (
+                    <Button variant="gold" size="lg" render={<Link href="/compose" />}>
+                      Send a raven
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </Card>
           ) : (
-            shown.map((p) => <PostCard key={p.id} post={p} />)
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {mediaTiles.map((m) => (
+                <Link
+                  key={m.key}
+                  href={`/post/${m.postId}`}
+                  className="block aspect-square overflow-hidden rounded-lg border border-steel-line"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={m.url}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                </Link>
+              ))}
+            </div>
           )}
-        </div>
-      )}
-    </div>
+        </DossierTabPanel>
+      </DossierTabs>
+    </DossierPage>
+  );
+}
+
+/* A panel holding a stream of ravens. Same fixed gap as the Ravenry, so a Keep
+   and the feed read as the same product. */
+function PostPanel({
+  posts,
+  empty,
+}: {
+  posts: Post[];
+  empty: React.ReactNode;
+}) {
+  if (posts.length === 0) return <Card pad="none">{empty}</Card>;
+  return (
+    <StreamList>
+      {posts.map((p) => (
+        <PostCard key={p.id} post={p} />
+      ))}
+    </StreamList>
   );
 }

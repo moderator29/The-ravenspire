@@ -74,6 +74,26 @@ async function roomExists(db: Db, id: string): Promise<boolean> {
   return Boolean(data);
 }
 
+/* B8: speaking in a court requires a seat in it. Joining is what puts a member
+   on the roster (POST /api/rooms with action "join", or hosting), and the
+   roster is what the room view shows and what the host moderates. Without this
+   check any member could post into any court, including one they had never
+   opened, and their words would broadcast to everyone watching. Being seated
+   is checked at send time rather than trusted from the client. */
+async function isSeated(
+  db: Db,
+  roomId: string,
+  profileId: string
+): Promise<boolean> {
+  const { data } = await db
+    .from("room_participants")
+    .select("profile_id")
+    .eq("room_id", roomId)
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 export async function GET(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
@@ -140,7 +160,7 @@ export async function POST(req: Request) {
 
   const { data: room } = await db
     .from("rooms")
-    .select("id, status")
+    .select("id, host_id, status")
     .eq("id", body.room)
     .maybeSingle();
   if (!room) return json({ error: "No such court." }, 404);
@@ -166,6 +186,18 @@ export async function POST(req: Request) {
   if (!text) return json({ error: "bad request" }, 400);
   if (text.length > 500)
     return json({ error: "Too many words for one breath." }, 400);
+
+  /* B8: speaking requires a seat. The room view already hides the composer
+     from anyone who has not joined, but that was the only thing enforcing it,
+     so any member could post into any court by calling this route directly.
+     The host always holds the floor, even before their roster row lands. The
+     ephemeral reaction path above stays open to any member watching, which is
+     what the reaction rail already offers a spectator. */
+  const seated =
+    room.host_id === profile.id ||
+    (await isSeated(db, room.id as string, profile.id));
+  if (!seated)
+    return json({ error: "Enter the court before you speak in it." }, 403);
 
   const { data: created, error } = await db
     .from("room_messages")

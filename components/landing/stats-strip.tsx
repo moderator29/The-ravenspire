@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Card } from "@/components/ui/card";
 import {
   motion,
   useInView,
@@ -25,12 +26,17 @@ type Stat = {
   label: string;
 };
 
+/* Every figure here is counted from the code, not rounded for effect.
+   Champions from lib/game/champions, Houses and the top-N rule from
+   lib/data/houses, Crests from components/brand/crests, tools from the
+   landing rail, ladders from the leaderboards route. "Games at launch" used
+   to read 2 and counted Claim the Throne, which is not a game you can play. */
 const stats: Stat[] = [
-  { icon: "user", value: 60, label: "Champions to muster" },
+  { icon: "user", value: 62, label: "Champions to muster" },
   { icon: "banner", value: 6, label: "Houses to swear to" },
-  { icon: "medal", value: 10, label: "Crests to earn" },
-  { icon: "sliders", value: 5, label: "Serious tools" },
-  { icon: "crown", value: 2, label: "Games at launch" },
+  { icon: "medal", value: 10, label: "Crests designed" },
+  { icon: "sliders", value: 8, label: "Serious tools" },
+  { icon: "crown", value: 4, label: "Ladders on the Roll of Honour" },
   { icon: "shield", value: 100, suffix: "%", label: "Your keys, always" },
 ];
 
@@ -69,18 +75,12 @@ function Counter({ value, suffix }: { value: number; suffix?: string }) {
 
 export function StatsStrip() {
   return (
-    <motion.section
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass relative overflow-hidden p-7 sm:p-9"
-    >
+    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
       {/* Soft gold aura, gently pulsing behind the numbers */}
       <motion.div
         aria-hidden="true"
         className="pointer-events-none absolute -top-24 left-1/2 h-56 w-[36rem] max-w-full -translate-x-1/2 rounded-full opacity-30 blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(200,162,76,0.35), transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.35), transparent 70%)" }}
         animate={{ opacity: [0.2, 0.4, 0.2] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -105,6 +105,6 @@ export function StatsStrip() {
           </motion.div>
         ))}
       </div>
-    </motion.section>
+    </Card>
   );
 }

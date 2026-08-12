@@ -3,12 +3,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
+import { cx } from "@/components/ui/cx";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SegmentedControl } from "@/components/ui/tabs";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import {
+  Chip,
+  ChipRail,
+  ConsoleHeader,
+  ConsolePage,
+  ConsoleToolbar,
+  CONSOLE_META,
+} from "@/components/console/console-shell";
 import { WatchBadge } from "@/components/tools/watch-badge";
-import { BackButton } from "@/components/shell/back-button";
 import { TokenLogo } from "@/components/coin/token-logo";
 import { WatchStar } from "@/components/coin/watch-star";
 import { RealmTrades } from "@/components/trade/realm-trades";
 import { TRADE_CHAINS } from "@/lib/trade/config";
+import { realmFetch } from "@/lib/auth/api";
+
+/* The Scrying Glass: a Console. The lens switcher and the chain filter sit on
+   one toolbar rail that collapses into a Sheet below md, and the coin roll is
+   a compact board above md. Zero ornament, gold for up and ember for down. */
 
 interface ScryCoin {
   symbol: string;
@@ -82,15 +101,15 @@ const PAGE = 20;
 function CoinMark({ t }: { t: ScryCoin }) {
   return (
     <span className="relative inline-flex shrink-0">
-      <TokenLogo src={t.logo} symbol={t.symbol} size={40} />
+      <TokenLogo src={t.logo} symbol={t.symbol} size={32} />
       {t.chainLogo && (
-        <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center overflow-hidden rounded-full border border-obsidian bg-obsidian">
+        <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center overflow-hidden rounded-[var(--radius-full)] border border-obsidian bg-obsidian">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={t.chainLogo}
             alt={t.chainName}
-            width={16}
-            height={16}
+            width={14}
+            height={14}
             loading="lazy"
             decoding="async"
             referrerPolicy="no-referrer"
@@ -109,7 +128,7 @@ function Socials({ t }: { t: ScryCoin }) {
   if (t.telegram) links.push({ href: t.telegram, icon: "send", label: "Telegram" });
   if (links.length === 0) return null;
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       {links.map((l) => (
         <a
           key={l.icon}
@@ -118,7 +137,7 @@ function Socials({ t }: { t: ScryCoin }) {
           rel="noopener noreferrer nofollow"
           onClick={(e) => e.stopPropagation()}
           aria-label={`${t.symbol} ${l.label}`}
-          className="flex h-6 w-6 items-center justify-center rounded-full text-bone-faint transition hover:bg-panel hover:text-gold"
+          className="flex h-6 w-6 items-center justify-center rounded-sm text-bone-faint transition-colors duration-fast hover:bg-panel hover:text-gold"
         >
           <Icon name={l.icon} className="h-3.5 w-3.5" />
         </a>
@@ -128,10 +147,11 @@ function Socials({ t }: { t: ScryCoin }) {
 }
 
 /* A tiny real-trend spark drawn from the coin's reconstructed 24h price path.
-   Green when it closes up over the window, ember when down. Pure SVG, no lib. */
+   Gold when it closes up over the window, ember when down: the chart direction
+   tokens, never green. Pure SVG, no lib. */
 function Sparkline({ points, up }: { points: number[]; up: boolean }) {
   const w = 56;
-  const h = 22;
+  const h = 20;
   const min = Math.min(...points);
   const max = Math.max(...points);
   const span = max - min || 1;
@@ -143,19 +163,18 @@ function Sparkline({ points, up }: { points: number[]; up: boolean }) {
       return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(" ");
-  const stroke = up ? "var(--gold-bright, #f0d68c)" : "#c65f4a";
   return (
     <svg
       width={w}
       height={h}
       viewBox={`0 0 ${w} ${h}`}
-      className="shrink-0"
+      className="hidden shrink-0 sm:block"
       aria-hidden
     >
       <path
         d={d}
         fill="none"
-        stroke={stroke}
+        stroke={up ? "var(--chart-up)" : "var(--chart-down)"}
         strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -174,8 +193,11 @@ export default function ScryingPage() {
   const load = useCallback(async () => {
     setError(false);
     try {
-      const res = await fetch("/api/scrying");
-      const body = (await res.json()) as ScryResponse;
+      /* Carries the member's token when there is one, so a signed-in reader is
+         metered on their account rather than sharing an address bucket with
+         everyone behind the same network. */
+      const res = await realmFetch<ScryResponse>("/api/scrying");
+      const body = res.data ?? { heating: [], trending: [], top: [] };
       if (body.error) {
         setError(true);
         setData({ heating: [], trending: [], top: [] });
@@ -217,128 +239,119 @@ export default function ScryingPage() {
     return TRADE_CHAINS.filter((c) => present.has(c.id));
   }, [data, tab]);
 
+  const showSkeleton = useDelayedLoading(coins === null, 300);
+  const lens = TABS.find((t) => t.key === tab);
+  const chainSummary =
+    chainFilter === null
+      ? "All chains"
+      : (TRADE_CHAINS.find((c) => c.id === chainFilter)?.name ?? "All chains");
+
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4">
-        <BackButton />
-      </div>
-      <div className="flex items-center gap-2.5">
-        <h1 className="font-display text-xl font-semibold text-bone">
-          The Scrying Glass
-        </h1>
-        <span className="inline-flex items-center rounded-full border border-gold/40 bg-panel-warm/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
-          Beta
-        </span>
-      </div>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Live altcoin discovery
-      </p>
-      <p className="mt-3 text-sm text-bone-mut">
-        Active, tradable EVM coins under $100M market cap — no stablecoins, no
+    <ConsolePage width="data">
+      <ConsoleHeader
+        title="The Scrying Glass"
+        kicker="Live altcoin discovery"
+        badge={<Badge variant="beta">Beta</Badge>}
+        actions={
+          <Button
+            size="sm"
+            render={
+              <Link href="/swap">
+                <Icon name="repost" className="h-3.5 w-3.5 text-gold" />
+                Open The Swap
+              </Link>
+            }
+          />
+        }
+      />
+
+      <p className="mt-3 text-sm text-bone-mut md:mt-2 md:text-[13px]">
+        Active, tradable EVM coins under $100M market cap, no stablecoins, no
         majors. Tap any coin to read it, chart it and swap it in-app,
         non-custodially.
       </p>
 
-      <Link
-        href="/swap"
-        className="btn-glass mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs text-gold"
-      >
-        <Icon name="repost" className="h-3.5 w-3.5" />
-        Open The Swap
-        <Icon name="arrow" className="h-3.5 w-3.5" />
-      </Link>
-
-      {/* Category tabs */}
-      <div
-        role="tablist"
-        aria-label="Discovery lenses"
-        className="mt-4 grid grid-cols-3 gap-1.5 rounded-2xl border border-steel-line/70 bg-void/50 p-1"
-      >
-        {TABS.map((t) => {
-          const active = t.key === tab;
-          return (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={active}
-              onClick={() => setTab(t.key)}
-              className={`rounded-xl px-2 py-2 text-center transition ${
-                active
-                  ? "bg-gold/15 text-gold-bright"
-                  : "text-bone-mut hover:text-bone"
-              }`}
-            >
-              <span className="block text-xs font-semibold">{t.label}</span>
-            </button>
-          );
-        })}
+      {/* The lens switcher and the chain filter, on one rail. Three exclusive
+          views of the same data is a Segmented control; a growing set of chain
+          filters is a chip rail. */}
+      <div className="mt-3 flex flex-col gap-2 md:mt-2">
+        <ConsoleToolbar
+          label="Lens and chain"
+          summary={`${lens?.label} · ${chainSummary}`}
+          className="md:justify-between"
+        >
+          <SegmentedControl
+            label="Discovery lens"
+            size="sm"
+            items={TABS.map((t) => ({ value: t.key, label: t.label }))}
+            value={tab}
+            onValueChange={(v) => setTab(v as Tab)}
+            className="w-full md:w-auto"
+            block
+          />
+          {availableChains.length > 1 && (
+            <ChipRail label="Chain filter">
+              <Chip
+                active={chainFilter === null}
+                onClick={() => setChainFilter(null)}
+              >
+                All chains
+              </Chip>
+              {availableChains.map((c) => (
+                <Chip
+                  key={c.id}
+                  active={chainFilter === c.id}
+                  onClick={() => setChainFilter(c.id)}
+                >
+                  {c.name}
+                </Chip>
+              ))}
+            </ChipRail>
+          )}
+        </ConsoleToolbar>
+        <p className={cx("text-bone-faint", CONSOLE_META)}>{lens?.blurb}</p>
       </div>
-      <p className="mt-2 text-center text-[11px] text-bone-faint">
-        {TABS.find((t) => t.key === tab)?.blurb}
-      </p>
 
-      {/* Chain filter — only chains present in the current lens are shown. */}
-      {availableChains.length > 1 && (
-        <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <button
-            type="button"
-            onClick={() => setChainFilter(null)}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-              chainFilter === null
-                ? "border-gold/60 bg-panel-warm text-gold-bright"
-                : "border-steel-line bg-void text-bone-mut hover:border-gold/40"
-            }`}
-          >
-            All chains
-          </button>
-          {availableChains.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setChainFilter(c.id)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                chainFilter === c.id
-                  ? "border-gold/60 bg-panel-warm text-gold-bright"
-                  : "border-steel-line bg-void text-bone-mut hover:border-gold/40"
-              }`}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-3 flex flex-col gap-2 md:mt-2 md:gap-1">
         {coins === null ? (
-          [0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="glass glass-sm h-16 animate-pulse" />
-          ))
+          showSkeleton ? (
+            <CoinRowSkeleton />
+          ) : null
         ) : error ? (
-          <div className="glass p-8 text-center text-sm text-bone-mut">
-            The glass clouded over and no coins could be read.
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="mt-3 block w-full text-gold underline"
-            >
-              Look again
-            </button>
-          </div>
+          <Card pad="none">
+            <EmptyState
+              icon="eye"
+              size="sm"
+              title="The glass clouded over"
+              body="No coins could be read just now."
+              action={
+                <Button size="sm" onClick={() => void load()}>
+                  Look again
+                </Button>
+              }
+            />
+          </Card>
         ) : coins.length === 0 ? (
-          <div className="glass p-8 text-center text-sm text-bone-mut">
-            The glass is quiet here right now. Try another lens.
-          </div>
+          <Card pad="none">
+            <EmptyState
+              icon="search"
+              size="sm"
+              title="Quiet in this lens"
+              body="Nothing is moving here right now. Try another lens or another chain."
+            />
+          </Card>
         ) : (
           <>
             {coins.slice(0, shown).map((t, i) => {
               const up = (t.change24h ?? 0) >= 0;
               const cap = t.marketCap ?? t.fdv;
               return (
-                <div
+                <Card radius="lg"
                   key={`${t.chainId}-${t.address}-${i}`}
-                  className="glass glass-sm flex items-center gap-3 px-3.5 py-3"
+                  pad="none"
+                  className="flex min-h-11 items-center gap-2.5 px-3 py-2.5 md:min-h-9 md:py-1.5"
                 >
-                  <span className="tnum w-5 shrink-0 text-center text-xs text-bone-faint">
+                  <span className="tnum w-5 shrink-0 text-center text-[11px] text-bone-faint">
                     {i + 1}
                   </span>
                   <CoinMark t={t} />
@@ -349,10 +362,10 @@ export default function ScryingPage() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate text-sm font-semibold text-bone">
+                        <p className="truncate text-sm font-semibold text-bone md:text-[13px]">
                           {t.symbol}
                         </p>
-                        <span className="shrink-0 rounded-full border border-steel-line/70 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-bone-faint">
+                        <span className="shrink-0 rounded-sm border border-steel-line/70 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-bone-faint">
                           {t.chainShort}
                         </span>
                         {t.watchChain && (
@@ -368,7 +381,7 @@ export default function ScryingPage() {
                           <span className="tnum">MC {formatUsd(cap)}</span>
                         ) : null}
                         {t.volume24h ? (
-                          <span className="ml-1.5 tnum">
+                          <span className="tnum ml-1.5">
                             Vol {formatUsd(t.volume24h)}
                           </span>
                         ) : null}
@@ -378,12 +391,17 @@ export default function ScryingPage() {
                       <Sparkline points={t.spark} up={up} />
                     )}
                     <div className="shrink-0 text-right">
-                      <p className="tnum text-sm text-bone">
+                      <p className="tnum text-sm text-bone md:text-[13px]">
                         {formatPrice(t.priceUsd)}
                       </p>
                       {t.change24h !== null && (
                         <p
-                          className={`tnum text-[11px] font-medium ${up ? "text-gold-bright" : "text-ember-deep"}`}
+                          className="tnum text-[11px] font-medium"
+                          style={{
+                            color: up
+                              ? "var(--chart-up)"
+                              : "var(--chart-down)",
+                          }}
                         >
                           {up ? "+" : ""}
                           {t.change24h.toFixed(1)}%
@@ -391,31 +409,57 @@ export default function ScryingPage() {
                       )}
                     </div>
                   </Link>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
+                  <div className="flex shrink-0 flex-col items-end gap-0.5">
                     <WatchStar id={t.address} symbol={t.symbol} />
                     <Socials t={t} />
                   </div>
-                </div>
+                </Card>
               );
             })}
             {coins.length > shown && (
-              <button
-                type="button"
+              <Button
+                block
+                size="md"
+                className="mt-1"
                 onClick={() => setShown((s) => s + PAGE)}
-                className="btn-glass mt-1 w-full py-2.5 text-sm text-bone-mut"
               >
                 Show more coins
-              </button>
+              </Button>
             )}
-            <p className="mt-1 text-center text-[11px] text-bone-faint">
-              {coins.length} coins live. Market data via GeckoTerminal &amp;
-              DexScreener, refreshed every 60 seconds.
+            <p className={cx("mt-1 text-center text-bone-faint", CONSOLE_META)}>
+              <span className="tnum">{coins.length}</span> coins live. Market
+              data via GeckoTerminal and DexScreener, refreshed every 60 seconds.
             </p>
           </>
         )}
       </div>
 
       <RealmTrades />
+    </ConsolePage>
+  );
+}
+
+/* Shaped like the coin rows it stands in for. */
+function CoinRowSkeleton() {
+  return (
+    <div className="flex flex-col gap-2 md:gap-1">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <div
+          key={i}
+          className="flex min-h-11 items-center gap-2.5 rounded-lg border border-gold/16 bg-void/60 px-3 py-2.5 md:min-h-9 md:py-1.5"
+        >
+          <Skeleton radius="sm" className="h-2 w-3 shrink-0" />
+          <Skeleton radius="full" className="h-8 w-8 shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <Skeleton radius="sm" className="h-2.5 w-20" />
+            <Skeleton radius="sm" className="h-2 w-32" />
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <Skeleton radius="sm" className="h-2.5 w-14" />
+            <Skeleton radius="sm" className="h-2 w-10" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

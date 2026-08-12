@@ -1,7 +1,10 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
-import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { Card } from "@/components/ui/card";
+import { LandingIcon } from "@/components/landing/icons";
+import { Icon3D } from "@/components/ui/icon-3d";
+import { icon3dFor } from "@/lib/nav";
 
 /*
   Two forward-looking teasers built to stoke presale hype. Each is clearly
@@ -13,24 +16,39 @@ type Teaser = {
   eyebrow: string;
   title: string;
   body: string;
-  icon: LandingIconName;
+  /* The chapter's own route in comingSoonNav, which is where its 3D identity
+     is declared. Kept as an href rather than an icon name so the teaser and
+     the chapter page cannot drift apart. */
+  href: string;
   points: string[];
 };
 
+/* Both teasers must name a chapter that actually exists in comingSoonNav.
+
+   They previously did not. One was billed as "The Oracle", which is the name
+   of a live tool (the account scanner at /scanner), attached to a prediction
+   market that is really called Prophecies. The other described the Mint as a
+   creator monetization vault with subscriptions and gated courts, a feature
+   that appears nowhere in the roadmap, the navigation or the codebase. Both
+   now match their entry in lib/nav.ts. */
 const teasers: Teaser[] = [
   {
-    eyebrow: "The Oracle",
-    title: "A prediction market for the realm",
-    body: "Stake your read on the questions that matter, from token moves to House standings, and let the crowd's wisdom settle on-chain. Sharp calls earn $RSP, reputation and a seat at the high table.",
-    icon: "eye",
-    points: ["On-chain, transparent resolution", "Reputation-weighted odds", "Earn $RSP for sharp reads"],
+    eyebrow: "Prophecies",
+    title: "Prediction markets for the realm",
+    body: "Call the market. Win the realm. Take a position on the questions that matter, from token moves to House standings, and let resolution settle in the open where anyone can check it.",
+    href: "/soon/prophecies",
+    points: [
+      "Transparent, checkable resolution",
+      "Built on the Calls engine already running",
+      "Call the market, win the realm",
+    ],
   },
   {
     eyebrow: "The Mint",
-    title: "A creator monetization vault",
-    body: "Turn your ravens, courts and Calls into a living treasury. Followers back the creators they trust, tips and subscriptions flow to a vault you alone control, and every coin is yours to withdraw.",
-    icon: "wallet",
-    points: ["Non-custodial creator vaults", "Tips, subs and gated courts", "Withdraw to your own keys"],
+    title: "Trading across every chain",
+    body: "Trade any token across chains, shielded from MEV, and gasless. The Swap already trades non-custodially on a single chain today; the Mint is what it becomes when the routing crosses chains.",
+    href: "/soon/mint",
+    points: ["Any token, any chain", "Shielded from MEV", "Gasless, and still non-custodial"],
   },
 ];
 
@@ -63,33 +81,28 @@ export function ComingSoonTeasers() {
         variants={rise}
         className="mt-3 font-display text-2xl font-semibold text-bone sm:text-3xl"
       >
-        Two more surfaces, forging now
+        Two chapters on the horizon
       </motion.h2>
       <motion.p
         variants={rise}
         className="mt-3 max-w-prose text-[15px] leading-relaxed text-bone-mut"
       >
-        The realm keeps building. These two arrive after launch, each designed to
-        put more of the upside in the hands of the people who play.
+        The realm keeps building. Neither is built yet. Both are chapters on the
+        map, shown here so you can see where the realm is going rather than
+        discover it later.
       </motion.p>
 
       <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2">
         {teasers.map((t) => (
-          <motion.article
-            key={t.eyebrow}
-            variants={rise}
-            className="glass glass-hover relative overflow-hidden p-6 sm:p-7"
-          >
+          <Card key={t.eyebrow} render={<motion.article variants={rise} />} pad="none" interactive className="relative overflow-hidden p-6 sm:p-7">
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full opacity-25 blur-3xl"
-              style={{ background: "radial-gradient(circle, rgba(200,162,76,0.4), transparent 70%)" }}
+              style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.4), transparent 70%)" }}
             />
             <div className="flex items-center justify-between gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold/30 bg-void">
-                <LandingIcon name={t.icon} className="h-5 w-5 text-gold" />
-              </span>
-              <span className="inline-flex items-center rounded-full border border-gold/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gold/80">
+              <Icon3D name={icon3dFor(t.href) ?? "portal"} size="lg" />
+              <span className="inline-flex items-center rounded-sm border border-gold/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gold/80">
                 Coming soon
               </span>
             </div>
@@ -112,7 +125,7 @@ export function ComingSoonTeasers() {
                 </li>
               ))}
             </ul>
-          </motion.article>
+          </Card>
         ))}
       </div>
     </motion.section>

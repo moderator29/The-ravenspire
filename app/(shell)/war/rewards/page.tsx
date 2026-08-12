@@ -2,11 +2,48 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, SectionHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Icon } from "@/components/ui/icon";
+import { useDelayedLoading } from "@/components/ui/skeleton";
+import { Ceremony } from "@/components/realm/ceremony";
+import {
+  ArtTile,
+  Board,
+  BoardSkeleton,
+  StatBar,
+  StatStrip,
+  StatStripSkeleton,
+  WarHeader,
+  WarPage as WarFrame,
+  WAR_BODY,
+  WAR_META,
+  WAR_ROW,
+} from "@/components/war/war-chrome";
+import { champions } from "@/lib/game/champions";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
-import { champions } from "@/lib/game/champions";
-import { Icon } from "@/components/ui/icon";
-import { BackButton } from "@/components/shell/back-button";
+
+/* Tribute, chests and mastery.
+
+   Archetype: Console. Dense figures and the controls that act on them, in the
+   same view, which is the definition in section 2. Compact density above `md`,
+   44px touch targets below it.
+
+   One Forge moment, and it is the chest. Section 2 names chest opening in the
+   Ceremony list by hand, and it is the only thing on this page where the realm
+   gives you something you did not already know you had.
+
+   What is gone: a six rung "War Pass" ladder with hardcoded Glory thresholds
+   and a line promising the rewards were "honored automatically". Nothing on
+   the server knows about those tiers, so every rung of it was invented. The
+   panel that replaces it says the pass has not opened, which is true.
+
+   Every number on this page is read from /api/war/rewards state. Gold, Glory,
+   chests and mastery all settle server side; the upgrade price is mirrored
+   here only so the button can name it, and the server is what enforces it. */
 
 interface WarState {
   unlocked_champions: string[];
@@ -19,48 +56,48 @@ interface WarState {
   mastery: Record<string, number>;
 }
 
-const PASS_TIERS = [
-  { at: 0, label: "Recruit's purse", desc: "60 gold" },
-  { at: 200, label: "Relic chest", desc: "A chest from the vaults" },
-  { at: 500, label: "Squire's purse", desc: "150 gold" },
-  { at: 900, label: "Relic chest", desc: "Another chest, heavier" },
-  { at: 1400, label: "Knight's purse", desc: "300 gold" },
-  { at: 2000, label: "Champion's favor", desc: "A summon token's worth of fortune" },
-];
+const MASTERY_CAP = 10;
+const UPGRADE_BASE_COST = 120;
+const UPGRADE_STEP = 60;
 
 export default function RewardsPage() {
   const { ready, authenticated } = useRealmAuth();
   const [state, setState] = useState<WarState | null>(null);
+  const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
   const [chestResult, setChestResult] = useState<{
     gold: number;
     unlocked: string | null;
   } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [selected, setSelected] = useState<string>("aeron-the-black");
+  const showSkeleton = useDelayedLoading(loading);
 
   const load = useCallback(async () => {
     const res = await realmFetch<{ state: WarState }>("/api/war/battle");
-    if (res.data?.state) {
-      setState(res.data.state);
-      const first = res.data.state.unlocked_champions[0];
-      if (first) setSelected((s) => (res.data!.state.unlocked_champions.includes(s) ? s : first));
-    }
+    if (res.data?.state) setState(res.data.state);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    if (ready && authenticated) void load();
+    if (!ready) return;
+    if (!authenticated) {
+      setLoading(false);
+      return;
+    }
+    void load();
   }, [ready, authenticated, load]);
 
-  const act = async (json: Record<string, unknown>) => {
-    if (busy) return null;
-    setBusy(true);
+  /* `key` names the control that is working, so only the button that was
+     pressed shows a spinner instead of every button on the page. */
+  const act = async (key: string, json: Record<string, unknown>) => {
+    if (pending) return null;
+    setPending(key);
     setMsg(null);
     const res = await realmFetch<{ error?: string } & Record<string, unknown>>(
       "/api/war/rewards",
       { method: "POST", json }
     );
-    setBusy(false);
+    setPending(null);
     if (!res.ok) {
       setMsg((res.data?.error as string) ?? "The vault stayed shut. Try again.");
       return null;
@@ -69,117 +106,118 @@ export default function RewardsPage() {
     return res.data;
   };
 
-  if (!authenticated) {
+  if (ready && !authenticated) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="gold-text font-display text-2xl font-semibold">
-          Rewards & Progression
-        </h1>
-        <p className="mt-3 text-sm text-bone-mut">
-          Tribute, chests and mastery await those who enter the realm.
-        </p>
-        <Link href="/signin" className="btn-gold mt-6 inline-flex px-6 py-2.5 text-sm">
-          Enter the Realm
-        </Link>
-      </div>
+      <WarFrame width="narrow">
+        <WarHeader
+          title="Rewards and progression"
+          kicker="Tribute, chests, mastery"
+          backHref="/war"
+          backLabel="The War"
+        />
+        <Card>
+          <EmptyState
+            icon3d="chest"
+            title="Nothing is being kept for you yet"
+            body="Tribute, relic chests and champion mastery all settle against your name once you enter the realm."
+            action={
+              <Button variant="gold" size="md" render={<Link href="/signin" />}>
+                Enter the realm
+              </Button>
+            }
+          />
+        </Card>
+      </WarFrame>
     );
   }
 
   const today = new Date().toISOString().slice(0, 10);
   const dailyClaimed = state?.last_daily === today;
-  const glory = state?.war_glory ?? 0;
-  const nextTier = PASS_TIERS.find((t) => t.at > glory);
-  const unlockedChamps = champions.filter((c) =>
+  const chests = state?.chests ?? 0;
+  const gold = state?.gold ?? 0;
+  const roster = champions.filter((c) =>
     state?.unlocked_champions.includes(c.slug)
   );
-  const sel = champions.find((c) => c.slug === selected);
-  const selLevel = state?.mastery?.[selected] ?? 0;
-  const upgradeCost = 120 + selLevel * 60;
+  const chestChampion = chestResult?.unlocked
+    ? champions.find((c) => c.slug === chestResult.unlocked)
+    : undefined;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-3">
-        <BackButton href="/war" label="The War" />
-      </div>
-      <h1 className="gold-text font-display text-2xl font-semibold">
-        Rewards & Progression
-      </h1>
-      <p className="text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Tribute · chests · mastery · the pass
-      </p>
+    <WarFrame width="board">
+      <WarHeader
+        title="Rewards and progression"
+        kicker="Tribute, chests, mastery"
+        backHref="/war"
+        backLabel="The War"
+      />
 
-      {/* stat strip */}
-      <div className="tnum mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {[
-          ["Gold", state?.gold ?? 0, "coin"],
-          ["War Glory", glory, "medal"],
-          ["Chests", state?.chests ?? 0, "lock"],
-          ["Victories", state?.wins ?? 0, "crown"],
-        ].map(([label, value, icon]) => (
-          <div key={String(label)} className="glass glass-sm flex items-center gap-2.5 px-3.5 py-2.5">
-            <Icon name={String(icon)} className="h-4 w-4 text-gold" />
-            <div>
-              <p className="text-sm font-bold text-bone">{Number(value).toLocaleString()}</p>
-              <p className="text-[10px] uppercase tracking-wider text-bone-faint">
-                {String(label)}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
+      {showSkeleton ? (
+        <StatStripSkeleton />
+      ) : state ? (
+        <StatStrip
+          stats={[
+            { label: "Gold", value: state.gold, icon: "coin" },
+            { label: "War Glory", value: state.war_glory, icon: "medal" },
+            { label: "Chests", value: state.chests, icon: "lock" },
+            { label: "Victories", value: state.wins, icon: "crown" },
+          ]}
+        />
+      ) : null}
 
-      {msg && (
-        <p className="glass glass-sm mt-3 px-4 py-2.5 text-xs text-ember">{msg}</p>
-      )}
+      {msg ? (
+        <Card variant="inset" pad="sm">
+          <p role="alert" className="text-xs text-state-danger">
+            {msg}
+          </p>
+        </Card>
+      ) : null}
 
-      {/* daily tribute */}
-      <section className="glass mt-4 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-display text-lg font-semibold text-bone">
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-display text-base font-semibold text-bone">
               Daily tribute
             </h2>
-            <p className="mt-0.5 text-xs text-bone-mut">
-              60 gold each day you return. The seventh day carries a relic chest.
+            <p className={`mt-0.5 text-bone-mut ${WAR_META}`}>
+              Sixty gold and ten Glory each day you return, and a relic chest
+              each Sunday.
             </p>
           </div>
-          <button
-            onClick={() => void act({ action: "daily" })}
-            disabled={busy || dailyClaimed}
-            className="btn-gold shrink-0 px-5 py-2 text-xs disabled:opacity-50"
+          <Button
+            variant="gold"
+            size="md"
+            loading={pending === "daily"}
+            disabled={Boolean(pending) || dailyClaimed || !state}
+            onClick={() => void act("daily", { action: "daily" })}
           >
             {dailyClaimed ? "Claimed today" : "Claim"}
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
 
-      {/* relic chest */}
-      <section className="glass glass-warm mt-3 p-5">
+      <Card variant="warm">
         <div className="flex flex-wrap items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/game/gear/relic-chest.png"
             alt=""
-            className="h-16 w-16 rounded-xl border border-gold/30 object-cover"
+            className="h-16 w-16 rounded-md border border-gold/30 object-cover"
           />
           <div className="min-w-0 flex-1">
-            <h2 className="font-display text-lg font-semibold text-bone">
+            <h2 className="font-display text-base font-semibold text-bone">
               Relic chest
             </h2>
-            <p className="mt-0.5 text-xs text-bone-mut">
+            <p className={`mt-0.5 text-bone-mut ${WAR_META}`}>
               Gold always. Sometimes, a champion answers the call.
             </p>
-            {chestResult && (
-              <p className="mt-1.5 text-xs font-semibold text-gold-bright">
-                +{chestResult.gold} gold
-                {chestResult.unlocked &&
-                  ` · ${champions.find((c) => c.slug === chestResult.unlocked)?.name} joins your banner`}
-              </p>
-            )}
           </div>
-          <button
+          <Button
+            variant="gold"
+            size="md"
+            loading={pending === "chest"}
+            disabled={Boolean(pending) || chests < 1}
             onClick={() =>
-              void act({ action: "open_chest" }).then((d) => {
+              void act("chest", { action: "open_chest" }).then((d) => {
                 if (d)
                   setChestResult({
                     gold: Number(d.gold ?? 0),
@@ -187,113 +225,134 @@ export default function RewardsPage() {
                   });
               })
             }
-            disabled={busy || (state?.chests ?? 0) < 1}
-            className="btn-gold shrink-0 px-5 py-2 text-xs disabled:opacity-50"
           >
-            Open ({state?.chests ?? 0})
-          </button>
+            {chests > 0 ? `Open (${chests})` : "No chests"}
+          </Button>
         </div>
-      </section>
+      </Card>
 
-      {/* war pass */}
-      <section className="glass mt-3 p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold text-bone">
+      {/* The pass ladder is not live. Saying so is the honest empty state; the
+          six invented tiers that used to sit here were not. */}
+      <Card>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-display text-base font-semibold text-bone-mut">
             The War Pass
           </h2>
-          <span className="tnum text-xs text-bone-faint">
-            {glory.toLocaleString()} Glory
-            {nextTier && ` · next at ${nextTier.at.toLocaleString()}`}
-          </span>
+          <Badge variant="beta" icon="lock">
+            Soon
+          </Badge>
         </div>
-        <div className="mt-3 overflow-x-auto pb-1">
-          <div className="flex min-w-max items-stretch gap-2">
-            {PASS_TIERS.map((t) => {
-              const reached = glory >= t.at;
-              return (
-                <div
-                  key={t.at}
-                  className={`glass-sm w-36 shrink-0 rounded-2xl border p-3 ${
-                    reached
-                      ? "border-gold/50 bg-panel-warm"
-                      : "border-steel-line bg-panel opacity-70"
-                  }`}
-                >
-                  <p className="tnum text-[10px] uppercase tracking-wider text-bone-faint">
-                    {t.at.toLocaleString()} Glory
+        <p className={`mt-1.5 text-bone-mut ${WAR_META}`}>
+          The pass has not opened. Your War Glory is counted from every battle
+          you fight, and the ladder will be posted when the Season begins.
+        </p>
+      </Card>
+
+      {/* Short, because the slot shares one row with the heading and the
+          hairline and nothing holds the heading's width. The signed in state
+          is the one case this harness cannot reach, so it is kept to a figure
+          rather than a sentence on the same reasoning that broke the heading
+          on /war/prepare. */}
+      <SectionHeader
+        title="Champion mastery"
+        hint={state ? `${gold.toLocaleString()} gold` : undefined}
+      />
+
+      {showSkeleton ? (
+        <BoardSkeleton rows={3} />
+      ) : roster.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon3d="oath-scroll"
+            title="No champion has sworn to you yet"
+            body="Open a relic chest and the first hero of your banner will answer. Mastery is forged after that."
+          />
+        </Card>
+      ) : (
+        <Board label="Champion mastery">
+          {roster.map((c) => {
+            const level = state?.mastery?.[c.slug] ?? 0;
+            const cost = UPGRADE_BASE_COST + level * UPGRADE_STEP;
+            const capped = level >= MASTERY_CAP;
+            const affordable = gold >= cost;
+            return (
+              <li key={c.slug} className={`${WAR_ROW} flex-wrap`}>
+                <ArtTile src={c.art} alt={c.name} icon="user" />
+
+                <div className="min-w-0 flex-1">
+                  <p className={`truncate font-semibold text-bone ${WAR_BODY}`}>
+                    {c.name}
                   </p>
-                  <p className={`mt-1 text-sm font-semibold ${reached ? "text-gold-bright" : "text-bone-mut"}`}>
-                    {t.label}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-bone-faint">{t.desc}</p>
-                  {reached && (
-                    <p className="mt-1.5 text-[10px] font-bold uppercase tracking-wider text-gold">
-                      Reached
-                    </p>
+                  <StatBar
+                    className="mt-1 max-w-xs"
+                    label="Mastery"
+                    value={level}
+                    max={MASTERY_CAP}
+                  />
+                </div>
+
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <Button
+                    variant={capped ? "ghost" : "gold"}
+                    size="sm"
+                    loading={pending === `upgrade:${c.slug}`}
+                    disabled={Boolean(pending) || capped || !affordable}
+                    aria-label={
+                      capped
+                        ? `${c.name} mastery is at its peak`
+                        : `Upgrade ${c.name} mastery for ${cost} gold`
+                    }
+                    onClick={() =>
+                      void act(`upgrade:${c.slug}`, {
+                        action: "upgrade",
+                        champion: c.slug,
+                      })
+                    }
+                  >
+                    {capped ? "At its peak" : "Upgrade"}
+                  </Button>
+                  {capped ? null : (
+                    <span
+                      className={`tnum ${WAR_META} ${
+                        affordable ? "text-bone-faint" : "text-ember"
+                      }`}
+                    >
+                      {cost.toLocaleString()} gold
+                    </span>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-        <p className="mt-2 text-[11px] text-bone-faint">
-          Pass rewards are honored automatically as your Glory rises this Season.
-        </p>
-      </section>
+              </li>
+            );
+          })}
+        </Board>
+      )}
 
-      {/* champion mastery */}
-      <section className="glass mt-3 p-5">
-        <h2 className="font-display text-lg font-semibold text-bone">
-          Champion mastery
-        </h2>
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {unlockedChamps.map((c) => (
-            <button
-              key={c.slug}
-              onClick={() => setSelected(c.slug)}
-              className={`shrink-0 overflow-hidden rounded-xl border transition ${
-                selected === c.slug ? "border-gold/60" : "border-steel-line opacity-70"
-              }`}
-            >
-              {c.art ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={c.art} alt={c.name} className="h-16 w-13 object-cover" />
-              ) : (
-                <div className="h-16 w-13 bg-panel" />
-              )}
-            </button>
-          ))}
-        </div>
-        {sel && (
-          <div className="mt-3 flex flex-wrap items-center gap-4">
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-base font-semibold text-bone">
-                {sel.name}
-                <span className="tnum ml-2 text-xs text-gold">
-                  Mastery {selLevel} / 10
-                </span>
-              </p>
-              <div className="bar-track mt-2 h-2 w-full max-w-xs">
-                <div
-                  className="bar-gold h-full"
-                  style={{ width: `${(selLevel / 10) * 100}%` }}
-                />
-              </div>
-              <p className="mt-1.5 text-[11px] text-bone-faint">
-                Each mastery level sharpens {sel.name.split(" ")[0]}'s blade in
-                battle. Paid in gold, earned in war.
-              </p>
-            </div>
-            <button
-              onClick={() => void act({ action: "upgrade", champion: sel.slug })}
-              disabled={busy || selLevel >= 10 || (state?.gold ?? 0) < upgradeCost}
-              className="btn-gold px-5 py-2 text-xs disabled:opacity-50"
-            >
-              {selLevel >= 10 ? "At its peak" : `Upgrade · ${upgradeCost} gold`}
-            </button>
-          </div>
-        )}
-      </section>
-    </div>
+      <p className={`px-1 text-bone-faint ${WAR_META}`}>
+        Gold, Glory and mastery settle on the server against the battles you
+        actually fought.
+      </p>
+
+      {/* The chest is the one Forge moment on this page. */}
+      <Ceremony
+        open={chestResult !== null}
+        onClose={() => setChestResult(null)}
+        icon="chest"
+        eyebrow="The lid gives way"
+        title={chestChampion ? "A champion answers" : "The chest opens"}
+        figure={`+${(chestResult?.gold ?? 0).toLocaleString()}`}
+        figureLabel="Gold"
+        {...(chestChampion
+          ? { body: `${chestChampion.name} joins your banner.` }
+          : {})}
+        {...(chestChampion
+          ? {
+              action: {
+                label: `See ${chestChampion.name}`,
+                href: `/war/champions/${chestChampion.slug}`,
+              },
+            }
+          : {})}
+      />
+    </WarFrame>
   );
 }

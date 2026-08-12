@@ -3,7 +3,17 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/ui/icon";
-import { BackButton } from "@/components/shell/back-button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { AdaptiveDialog } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SegmentedControl } from "@/components/ui/tabs";
+import {
+  ConsoleHeader,
+  ConsolePage,
+  ConsoleStack,
+} from "@/components/console/console-shell";
 
 const LOCKS = [
   { id: "30d", label: "30d" },
@@ -45,67 +55,59 @@ export default function ForgePage() {
   const amountValid = /^\d*\.?\d+$/.test(amount.trim()) && Number(amount) > 0;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4">
-        <BackButton />
-      </div>
-      <h1 className="font-display text-xl font-semibold text-bone">
-        The Forge
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-        Staking
-      </p>
+    <ConsolePage width="data">
+      <ConsoleHeader
+        title="The Forge"
+        kicker="Staking"
+        badge={
+          live === null ? undefined : stoking ? (
+            <Badge variant="beta" icon="flame">
+              Being stoked
+            </Badge>
+          ) : (
+            <Badge variant="gold" icon="orb">
+              Live on-chain
+            </Badge>
+          )
+        }
+      />
 
-      <div className="mt-5 flex flex-col gap-3">
-        {/* Hero */}
-        <section className="glass glass-warm relative overflow-hidden p-6 sm:p-8">
-          <div className="flex items-center gap-2.5">
-            <Icon name="flame" className="h-5 w-5 text-ember" />
-            <span className="text-[11px] uppercase tracking-[0.26em] text-bone-faint">
-              The oath of the anvil
-            </span>
-          </div>
-          <h2 className="gold-text font-display mt-3 text-2xl font-semibold sm:text-3xl">
+      <ConsoleStack className="mt-4 md:mt-3">
+        {/* The pitch. One card, not a full bleed hero: a Console has no room
+            for a marketing band above its controls. */}
+        <Card variant="warm" pad="none" render={<section />} className="p-4 md:p-3">
+          <p className="text-[11px] uppercase tracking-[0.26em] text-bone-faint">
+            The oath of the anvil
+          </p>
+          <h2 className="gold-text font-display mt-1.5 text-lg font-semibold md:text-base">
             Swear an oath. Earn real yield from protocol fees, not emissions.
           </h2>
-          <p className="mt-3 max-w-lg text-sm text-bone-mut">
+          <p className="mt-2 max-w-lg text-sm text-bone-mut md:text-[13px]">
             Stake $RSP, lock it at the anvil, and take a share of what the
             realm actually earns. No printed rewards, no borrowed shine.
           </p>
           {live === null ? (
-            <div className="mt-4 h-6 w-40 animate-pulse rounded-full bg-panel" />
-          ) : stoking ? (
-            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-steel-line bg-panel/70 px-3 py-1 text-xs text-ember">
-              <Icon name="flame" className="h-3.5 w-3.5" />
-              The Forge is being stoked
-            </span>
-          ) : (
-            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-steel-line bg-panel/70 px-3 py-1 text-xs text-gold">
-              <Icon name="orb" className="h-3.5 w-3.5" />
-              Staking is live on-chain
-            </span>
-          )}
-        </section>
+            <Skeleton radius="sm" className="mt-2.5 h-4 w-40" />
+          ) : null}
+        </Card>
 
-        {/* APR */}
-        <section className="glass p-5 sm:p-6">
-          <p className="text-xs uppercase tracking-[0.26em] text-bone-faint">
-            Current APR
-          </p>
-          <p className="gold-text font-display tnum mt-2 text-4xl font-semibold">
-            --
-          </p>
-          <p className="mt-2 text-xs text-bone-faint">
-            The rate appears when staking goes live on-chain. It will be read
-            from the contract, never promised in advance.
-          </p>
-        </section>
+        {/* The figures. All three read as unavailable until the chain pays,
+            which is the honest state, so they sit on one row. */}
+        <div className="grid grid-cols-3 gap-2 md:gap-1.5">
+          <Figure label="Current APR" />
+          <Figure label="Staked" />
+          <Figure label="Claimable" />
+        </div>
+        <p className="-mt-2 text-[11px] text-bone-faint md:-mt-1">
+          Every figure here reads from the contract once staking is live. None
+          is promised in advance, and none is shown before the chain has paid it.
+        </p>
 
         {/* Stake */}
-        <section className="glass p-5 sm:p-6">
-          <div className="flex items-center gap-2.5">
-            <Icon name="coin" className="h-4 w-4 text-gold" />
-            <h2 className="font-display text-base font-semibold text-bone">
+        <Card pad="none" render={<section />} className="p-4 md:p-3">
+          <div className="flex items-center gap-2">
+            <Icon name="coin" aria-hidden className="h-4 w-4 text-gold" />
+            <h2 className="font-display text-sm font-semibold text-bone">
               Swear an oath
             </h2>
             <span className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
@@ -113,7 +115,7 @@ export default function ForgePage() {
             </span>
           </div>
 
-          <label className="mt-4 block">
+          <label className="mt-3 block md:mt-2">
             <span className="text-xs uppercase tracking-[0.2em] text-bone-faint">
               Amount ($RSP)
             </span>
@@ -124,162 +126,117 @@ export default function ForgePage() {
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.0"
               disabled={stoking}
-              className="tnum mt-2 w-full rounded-2xl border border-steel-line bg-panel/70 px-4 py-3 font-mono text-lg text-bone placeholder:text-bone-faint focus:border-gold focus:outline-none disabled:opacity-60"
+              className="tnum mt-1.5 h-11 w-full rounded-md border border-steel-line bg-panel/70 px-3 font-mono text-base text-bone transition-colors duration-fast placeholder:text-bone-faint focus:border-gold disabled:opacity-60 md:h-9 md:text-sm"
             />
           </label>
 
-          <div className="mt-4">
+          <div className="mt-3 md:mt-2">
             <span className="text-xs uppercase tracking-[0.2em] text-bone-faint">
               Lock term
             </span>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {LOCKS.map((l) => (
-                <button
-                  key={l.id}
-                  type="button"
-                  onClick={() => setLock(l.id)}
-                  disabled={stoking}
-                  className={`tnum rounded-full border px-4 py-1.5 text-sm transition-colors disabled:opacity-60 ${
-                    lock === l.id
-                      ? "border-gold bg-gold/15 text-gold-bright"
-                      : "border-steel-line bg-panel/70 text-bone-mut"
-                  }`}
-                >
-                  {l.label}
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-bone-faint">
+            {/* Four exclusive terms, switched in place, so a Segmented control. */}
+            <SegmentedControl
+              label="Lock term"
+              size="sm"
+              block
+              className="mt-1.5 tnum"
+              items={LOCKS.map((l) => ({ value: l.id, label: l.label }))}
+              value={lock}
+              onValueChange={(v) => setLock(v as LockId)}
+            />
+            <p className="mt-1.5 text-[11px] text-bone-faint">
               Longer oaths earn a larger share of the fee pool.
             </p>
           </div>
 
-          <button
-            type="button"
+          <Button
+            variant="gold"
+            size="lg"
+            block
+            className="mt-4 md:mt-3 md:h-9 md:w-auto md:text-sm"
             disabled={stoking || !amountValid}
             onClick={() => setShowWiring(true)}
-            className="btn-gold mt-5 w-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             Swear an Oath
-          </button>
+          </Button>
           {stoking ? (
-            <p className="mt-2 text-xs text-bone-faint">
+            <p className="mt-2 text-[11px] text-bone-faint">
               Oaths open when the forge_staking flag lights. Nothing to sign
               until then.
             </p>
           ) : !amountValid && amount.trim() !== "" ? (
-            <p className="mt-2 text-xs text-ember">
+            <p className="mt-2 text-[11px] text-ember">
               Enter a positive amount of $RSP to stake.
             </p>
           ) : null}
-        </section>
-
-        {/* Position */}
-        <section className="glass p-5 sm:p-6">
-          <div className="flex items-center gap-2.5">
-            <Icon name="shield" className="h-4 w-4 text-gold" />
-            <h2 className="font-display text-base font-semibold text-bone">
-              Your position
-            </h2>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-steel-line bg-panel/60 p-4">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-                Staked
-              </p>
-              <p className="tnum font-display mt-1 text-2xl font-semibold text-bone">
-                --
-              </p>
-            </div>
-            <div className="rounded-2xl border border-steel-line bg-panel/60 p-4">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-                Earned
-              </p>
-              <p className="tnum font-display mt-1 text-2xl font-semibold text-bone">
-                --
-              </p>
-            </div>
-          </div>
-          <p className="mt-3 text-xs text-bone-faint">
-            You hold no oath yet, so there is nothing to count. Once staking is
-            live these read straight from the chain.
-          </p>
-        </section>
+        </Card>
 
         {/* Claim */}
-        <section className="glass p-5 sm:p-6">
-          <div className="flex items-center gap-2.5">
-            <Icon name="coin" className="h-4 w-4 text-gold" />
-            <h2 className="font-display text-base font-semibold text-bone">
-              Claim yield
+        <Card pad="none" render={<section />} className="p-4 md:p-3">
+          <div className="flex items-center gap-2">
+            <Icon name="shield" aria-hidden className="h-4 w-4 text-gold" />
+            <h2 className="font-display text-sm font-semibold text-bone">
+              Your position
             </h2>
             <span className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
               Harvest
             </span>
-          </div>
-          <div className="mt-4 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-                Claimable
-              </p>
-              <p className="gold-text font-display tnum mt-1 text-2xl font-semibold">
-                --
-              </p>
-            </div>
-            <button
-              type="button"
+            <Button
+              size="sm"
+              className="ml-auto"
               disabled={stoking}
               onClick={() => setShowWiring(true)}
-              className="btn-glass shrink-0 px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
               Claim
-            </button>
+            </Button>
           </div>
-          <p className="mt-3 text-xs text-bone-faint">
-            Yield accrues from protocol fees as your oath holds. The claimable
-            figure reads straight from the contract once staking is live; we
-            will never show a number the chain has not paid.
+          <p className="mt-2 text-[11px] leading-relaxed text-bone-faint md:mt-1.5">
+            You hold no oath yet, so there is nothing to count. Yield accrues
+            from protocol fees as your oath holds, and the claimable figure
+            reads straight from the contract once staking is live. We will never
+            show a number the chain has not paid.
           </p>
-        </section>
-      </div>
+        </Card>
+      </ConsoleStack>
 
-      {showWiring && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="forge-wiring-title"
-          onClick={() => setShowWiring(false)}
-        >
-          <div
-            className="glass w-full max-w-sm p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2.5">
-              <Icon name="flame" className="h-5 w-5 text-ember" />
-              <h3
-                id="forge-wiring-title"
-                className="font-display text-lg font-semibold text-bone"
-              >
-                Almost at the anvil
-              </h3>
-            </div>
-            <p className="mt-3 text-sm text-bone-mut">
-              The staking flag is lit, but the on-chain contract wiring is the
-              final step still being forged. No transaction will be signed and
-              no coin will move until the anvil is truly hot. Your oath is
-              recorded here the moment it can be honoured.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowWiring(false)}
-              className="btn-gold mt-5 w-full px-5 py-2.5 text-sm font-semibold"
-            >
-              Understood
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+      <AdaptiveDialog
+        open={showWiring}
+        onOpenChange={setShowWiring}
+        size="sm"
+        title={
+          <span className="flex items-center gap-2">
+            <Icon name="flame" aria-hidden className="h-4 w-4 text-ember" />
+            Almost at the anvil
+          </span>
+        }
+        footer={
+          <Button variant="gold" onClick={() => setShowWiring(false)}>
+            Understood
+          </Button>
+        }
+      >
+        <p className="text-sm text-bone-mut">
+          The staking flag is lit, but the on-chain contract wiring is the final
+          step still being forged. No transaction will be signed and no coin will
+          move until the anvil is truly hot. Your oath is recorded here the
+          moment it can be honoured.
+        </p>
+      </AdaptiveDialog>
+    </ConsolePage>
+  );
+}
+
+/* A figure the chain has not paid yet. Honest by construction: there is no
+   prop to pass it a number, so nothing can invent one. */
+function Figure({ label }: { label: string }) {
+  return (
+    <Card radius="lg" pad="none" className="p-3 md:p-2.5">
+      <p className="text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+        {label}
+      </p>
+      <p className="gold-text font-display tnum mt-1 text-xl font-semibold md:mt-0.5 md:text-lg">
+        --
+      </p>
+    </Card>
   );
 }

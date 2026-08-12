@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { Card } from "@/components/ui/card";
 import { LandingIcon } from "@/components/landing/icons";
 
 /*
@@ -22,10 +23,10 @@ type Slice = {
 
 /* Order matters: slices are drawn clockwise from the top in this sequence. */
 const slices: Slice[] = [
-  { label: "Liquidity", pct: 25, color: "#f0d68c" },
-  { label: "Presale", pct: 20, color: "#d8b45a" },
-  { label: "Ecosystem & CEX Growth", pct: 18, color: "#c8a24c" },
-  { label: "Staking & Farming", pct: 12, color: "#8a6a2c" },
+  { label: "Liquidity", pct: 25, color: "#ffe9a3" },
+  { label: "Presale", pct: 20, color: "#ecc860" },
+  { label: "Ecosystem & CEX Growth", pct: 18, color: "#d9b040" },
+  { label: "Staking & Farming", pct: 12, color: "#8f6717" },
   { label: "Team", pct: 10, color: "#e5702a" },
   { label: "P2E / Post2Earn & Rewards", pct: 10, color: "#c6402f" },
   { label: "Airdrop", pct: 5, color: "#6e7683" },
@@ -33,6 +34,17 @@ const slices: Slice[] = [
 
 const R = 52;
 const C = 2 * Math.PI * R;
+
+/* A hairline of page ground between wedges.
+
+   Four of the seven slices are rungs of the same forged gold, which is correct
+   for the brand and illegible as a chart: Liquidity, Presale and Ecosystem run
+   to sixty three percent of the ring and, drawn edge to edge, they read as one
+   continuous gold arc with no boundary anywhere in it. The legend carried the
+   whole reading and the donut carried none of it. Separating the wedges costs
+   nothing, changes no colour, and is what makes the ring a chart rather than a
+   gradient. */
+const WEDGE_GAP = 2.5;
 
 const rise: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -69,7 +81,7 @@ function Donut() {
               stroke={s.color}
               strokeWidth="13"
               strokeLinecap="butt"
-              strokeDasharray={`${len} ${C}`}
+              strokeDasharray={`${Math.max(len - WEDGE_GAP, 1)} ${C}`}
               transform={`rotate(${startDeg} 60 60)`}
               initial={{ strokeDashoffset: reduce ? 0 : len }}
               whileInView={{ strokeDashoffset: 0 }}
@@ -98,17 +110,11 @@ function Donut() {
 
 export function Tokenomics() {
   return (
-    <motion.section
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      className="glass relative overflow-hidden p-7 sm:p-9"
-    >
+    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-25 blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(200,162,76,0.4), transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.4), transparent 70%)" }}
       />
 
       <motion.div
@@ -135,7 +141,7 @@ export function Tokenomics() {
 
       {/* Ticker + supply header chips */}
       <motion.div variants={rise} className="mt-6 flex flex-wrap gap-3">
-        <div className="glass-sm flex items-center gap-3 rounded-2xl border border-gold/20 bg-panel px-4 py-3">
+        <div className="rounded-lg flex items-center gap-3 border border-gold/20 bg-panel px-4 py-3">
           <LandingIcon name="coin" className="h-5 w-5 text-gold" />
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
@@ -144,7 +150,7 @@ export function Tokenomics() {
             <p className="gold-text font-display text-lg font-semibold">{TICKER}</p>
           </div>
         </div>
-        <div className="glass-sm flex items-center gap-3 rounded-2xl border border-gold/20 bg-panel px-4 py-3">
+        <div className="rounded-lg flex items-center gap-3 border border-gold/20 bg-panel px-4 py-3">
           <LandingIcon name="ledger" className="h-5 w-5 text-gold" />
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
@@ -180,12 +186,19 @@ export function Tokenomics() {
                     {s.pct}%
                   </span>
                 </div>
+                {/* The bar's length is a width; its animation is a scale.
+
+                    It used to tween `width` from 0, which is a layout property
+                    and the one kind of animation the motion law rules out. Set
+                    the final width in CSS and grow a transform into it from the
+                    leading edge: the bar reads identically and the whole fill
+                    runs on the compositor. */}
                 <div className="bar-track mt-1.5 h-1.5 w-full">
                   <motion.div
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: s.color }}
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${s.pct * 4}%` }}
+                    className="h-full origin-left rounded-full"
+                    style={{ backgroundColor: s.color, width: `${s.pct * 4}%` }}
+                    initial={{ scaleX: 0 }}
+                    whileInView={{ scaleX: 1 }}
                     viewport={{ once: true, margin: "-40px" }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
                   />
@@ -195,6 +208,6 @@ export function Tokenomics() {
           ))}
         </motion.ul>
       </div>
-    </motion.section>
+    </Card>
   );
 }

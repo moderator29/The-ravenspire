@@ -1,6 +1,8 @@
+import { after } from "next/server";
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
+import { emit } from "@/lib/realm/events";
 import { duelPrompts } from "@/lib/game/quests";
 
 export async function POST(req: Request) {
@@ -38,6 +40,21 @@ export async function POST(req: Request) {
       .select("id")
       .single();
     if (error || !data) return json({ error: "Could not open the duel" }, 500);
+
+    /* A duel used to be a thing you had to visit a page to discover. On the
+       spine it lands in the Ravenry as a card the realm can answer or vote on
+       inline, which is the whole point of dissolving the Throne into the feed
+       rather than restoring it as a destination. */
+    after(async () => {
+      await emit(db, {
+        kind: "duel.opened",
+        actorId: profile.id,
+        subjectType: "duel",
+        subjectId: data.id,
+        houseSlug: profile.house_slug,
+        payload: { v: 1, prompt, challenger_entry: entry },
+      });
+    });
     return json({ ok: true, id: data.id });
   }
 
@@ -106,7 +123,14 @@ export async function POST(req: Request) {
       choice: body.choice,
     });
     if (error) return json({ error: "You have already voted" }, 409);
-    await award(db, profile.id, { points: 2, reason: "duel_vote", ref: duel.id });
+    /* Voting is a social action: unlimited, free, and trivially reciprocal
+       between two accounts, so it draws on the daily social allowance. */
+    await award(db, profile.id, {
+      points: 2,
+      reason: "duel_vote",
+      ref: duel.id,
+      category: "social",
+    });
 
     /* Settle when a side reaches 5 votes with a lead of 2. */
     const { data: votes } = await db

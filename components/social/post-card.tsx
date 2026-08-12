@@ -6,8 +6,12 @@ import { Avatar } from "@/components/social/avatar";
 import { RichBody } from "@/components/social/rich-body";
 import { PriceCard } from "@/components/social/price-card";
 import { CallChart } from "@/components/social/call-chart";
+import { Badge } from "@/components/ui/badge";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { OverflowMenu } from "@/components/ui/overflow-menu";
+import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
+import { StreamAction, StreamCard } from "@/components/stream/stream-shell";
 import { useDossier } from "@/components/social/user-dossier";
 import { TipDialog } from "@/components/tip/tip-dialog";
 import { shareOrCopy } from "@/lib/share";
@@ -17,8 +21,16 @@ import { useViewerId } from "@/lib/social/use-viewer";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { timeAgo, TIER_NAMES, type Post } from "@/lib/social/types";
 
+/* A raven, on the Stream card chassis.
+
+   Section 5 of the design system: one chassis, many bodies. The outer shell is
+   identical for every card in the product and the type is encoded by the 2px
+   accent rail alone, never by changing the shape, radius or width. Here that
+   means gold for a member's raven, ember for a Call, steel for the Herald,
+   which is the realm's system voice and must read quieter than a person. */
+
 /* A whisper of haptic feedback on a positive action, where the device (and
-   the browser) supports it. A no-op everywhere else — never throws. */
+   the browser) supports it. A no-op everywhere else, never throws. */
 function buzz(ms = 12) {
   try {
     if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
@@ -35,6 +47,8 @@ function PollBlock({ post }: { post: Post }) {
   const [voted, setVoted] = useState(false);
   const total = options.reduce((s, o) => s + o.votes, 0);
 
+  const [voteError, setVoteError] = useState<string | null>(null);
+
   const vote = async (i: number) => {
     if (!authenticated) {
       window.location.assign("/signin");
@@ -42,11 +56,22 @@ function PollBlock({ post }: { post: Post }) {
     }
     if (voted) return;
     setVoted(true);
+    setVoteError(null);
     const res = await realmFetch<{ options?: { text: string; votes: number }[] }>(
       "/api/polls",
       { method: "POST", json: { post_id: post.id, option: i } }
     );
-    if (res.data?.options) setOptions(res.data.options);
+    if (res.ok && res.data?.options) {
+      setOptions(res.data.options);
+      return;
+    }
+    /* Measured with the vote route answering 500: the first tap sent one
+       request, and the tap after it sent none at all. `voted` had already
+       latched, so the poll was closed to a member whose vote was never
+       recorded, and nothing on screen said so. Unlatching is the fix; the
+       tally never moved, so there is nothing else to roll back. */
+    setVoted(false);
+    setVoteError("That vote did not reach the realm. Try again.");
   };
 
   if (!options.length) return null;
@@ -55,67 +80,42 @@ function PollBlock({ post }: { post: Post }) {
       {options.map((o, i) => {
         const pct = total > 0 ? Math.round((o.votes / total) * 100) : 0;
         return (
-          <button
+          <Button
             key={i}
-            onClick={(e) => {
+            variant="glass"
+            size="lg"
+            block
+            onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               e.stopPropagation();
               void vote(i);
             }}
-            className="hairline relative overflow-hidden rounded-xl bg-void px-3 py-2 text-left text-xs text-bone-mut transition hover:border-gold/40"
+            pad="sm"
+            className="justify-between overflow-hidden text-xs font-medium text-bone-mut"
           >
             <span
+              aria-hidden
               className="absolute inset-y-0 left-0 bg-gold/12"
               style={{ width: `${pct}%` }}
             />
-            <span className="relative flex justify-between gap-2">
-              <span className="truncate">{o.text}</span>
-              {total > 0 && <span className="tnum shrink-0 text-bone-faint">{pct}%</span>}
-            </span>
-          </button>
+            <span className="relative min-w-0 truncate">{o.text}</span>
+            {total > 0 ? (
+              <span className="tnum relative shrink-0 text-bone-faint">
+                {pct}%
+              </span>
+            ) : null}
+          </Button>
         );
       })}
       <p className="tnum px-1 text-[10px] text-bone-faint">
         {total} {total === 1 ? "voice" : "voices"}
       </p>
-    </div>
-  );
-}
-
-function ActionButton({
-  icon,
-  count,
-  active,
-  activeClass,
-  label,
-  onClick,
-  iconClassName,
-}: {
-  icon: string;
-  count?: number;
-  active?: boolean;
-  activeClass?: string;
-  label: string;
-  onClick?: () => void;
-  iconClassName?: string;
-}) {
-  return (
-    <button
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onClick?.();
-      }}
-      aria-label={label}
-      className={`flex items-center gap-1.5 rounded-full px-2.5 py-2 text-sm transition hover:bg-panel active:scale-95 ${
-        active ? (activeClass ?? "text-gold") : "text-bone-faint hover:text-bone-mut"
-      }`}
-    >
-      <Icon name={icon} className={`h-[18px] w-[18px] ${iconClassName ?? ""}`} />
-      {count !== undefined && count > 0 && (
-        <span className="tnum text-xs">{count}</span>
+      {voteError && (
+        <p role="status" className="px-1 text-[10px] text-state-danger">
+          {voteError}
+        </p>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -142,7 +142,7 @@ export function PostCard({ post }: { post: Post }) {
   const [linkCopied, setLinkCopied] = useState(false);
 
   /* Live view count. An impression is recorded the first time this raven
-     scrolls into view — as it is on X — not only when its full page is
+     scrolls into view, as it is on X, not only when its full page is
      opened, so the tally reflects reality. The server dedupes one view per
      member per day, and we only bump the visible number when it actually
      counted, so the figure stays honest. */
@@ -185,6 +185,20 @@ export function PostCard({ post }: { post: Post }) {
     return true;
   };
 
+  /* An optimistic control that cannot take itself back is a control that
+     lies. Every one of these flipped instantly and then kept the new state
+     for good when the server refused: measured with every write answering
+     500, the like count went 13 to 14 and stayed, re-raven went 3 to 4 and
+     stayed, and the bookmark stayed gold. The member is then looking at a
+     tally the realm does not have.
+     `refused` carries the one sentence that says so, announced politely
+     because the change happens after the fact with no focus move. */
+  const [refused, setRefused] = useState<string | null>(null);
+  const refuse = (what: string) => {
+    setRefused(what);
+    window.setTimeout(() => setRefused(null), 2600);
+  };
+
   const toggleLike = async () => {
     if (!requireAuth()) return;
     const on = !liked;
@@ -197,10 +211,15 @@ export function PostCard({ post }: { post: Post }) {
       window.setTimeout(() => setLikePop(false), 360);
       window.setTimeout(() => setHeartBurst(false), 720);
     }
-    await realmFetch("/api/social", {
+    const res = await realmFetch("/api/social", {
       method: "POST",
       json: { action: "like", subject_type: "post", subject_id: post.id, on },
     });
+    if (!res.ok) {
+      setLiked(!on);
+      setLikes((n) => n - (on ? 1 : -1));
+      refuse(on ? "That like did not reach the realm." : "That could not be undone.");
+    }
   };
   const toggleBookmark = async () => {
     if (!requireAuth()) return;
@@ -211,20 +230,29 @@ export function PostCard({ post }: { post: Post }) {
       setBmPop(true);
       window.setTimeout(() => setBmPop(false), 360);
     }
-    await realmFetch("/api/social", {
+    const res = await realmFetch("/api/social", {
       method: "POST",
       json: { action: "bookmark", subject_id: post.id, on },
     });
+    if (!res.ok) {
+      setBookmarked(!on);
+      refuse("That bookmark did not reach the realm.");
+    }
   };
   const toggleRepost = async () => {
     if (!requireAuth()) return;
     const on = !reposted;
     setReposted(on);
     setReposts((n) => Math.max(0, n + (on ? 1 : -1)));
-    await realmFetch("/api/social", {
+    const res = await realmFetch("/api/social", {
       method: "POST",
       json: { action: "repost", subject_id: post.id, on },
     });
+    if (!res.ok) {
+      setReposted(!on);
+      setReposts((n) => Math.max(0, n - (on ? 1 : -1)));
+      refuse("That re-raven did not reach the realm.");
+    }
   };
   const [shared, setShared] = useState<null | "shared" | "copied" | "failed">(
     null
@@ -240,10 +268,16 @@ export function PostCard({ post }: { post: Post }) {
     if (!requireAuth()) return;
     if (!window.confirm("Delete this raven for good?")) return;
     setRemoved(true);
-    await realmFetch("/api/posts", {
+    const res = await realmFetch("/api/posts", {
       method: "DELETE",
       json: { id: post.id },
     });
+    /* A raven that vanished from the timeline but still exists on the server
+       is the worst of these: the member believes it is gone and it is not. */
+    if (!res.ok) {
+      setRemoved(false);
+      refuse("The realm would not delete that raven. It is still there.");
+    }
   };
   /* Copy a shareable link to this raven. Feedback lives in the menu label. */
   const doCopyLink = () => {
@@ -257,10 +291,16 @@ export function PostCard({ post }: { post: Post }) {
     if (!requireAuth()) return;
     if (reported) return;
     setReported(true);
-    await realmFetch("/api/reports", {
+    const res = await realmFetch("/api/reports", {
       method: "POST",
       json: { subject_type: "post", subject_id: post.id, reason: "member_flag" },
     });
+    /* The menu item disables itself on "Reported", so a swallowed failure
+       both lies and locks the member out of trying again. */
+    if (!res.ok) {
+      setReported(false);
+      refuse("That report did not reach the stewards. Try again.");
+    }
   };
   const doMute = async () => {
     if (!requireAuth()) return;
@@ -272,10 +312,16 @@ export function PostCard({ post }: { post: Post }) {
   const doBlock = async () => {
     if (!requireAuth()) return;
     setHidden("block");
-    await realmFetch("/api/blocks", {
+    const res = await realmFetch("/api/blocks", {
       method: "POST",
       json: { profile_id: post.author_id, on: true },
     });
+    /* Mute already brought the raven back when the server refused. Block did
+       not, so a failed banishment read as a successful one. */
+    if (!res.ok) {
+      setHidden(null);
+      refuse("The realm would not banish them. Try again.");
+    }
   };
   const undoHide = async () => {
     if (undoBusy) return;
@@ -294,47 +340,58 @@ export function PostCard({ post }: { post: Post }) {
   };
   const a = post.author;
   const firstTag = post.cashtags[0];
+  /* Type by rail, never by shape. A Call is ember, the Herald is the realm's
+     own voice and takes the quieter steel, everything else is a member's gold. */
+  const rail = post.call ? "ember" : a.is_agent ? "steel" : "gold";
 
   if (removed) return null;
 
   if (hidden) {
     const who = a.handle ? `@${a.handle}` : "this member";
     return (
-      <article className="glass glass-sm flex items-center gap-3 p-4 text-xs text-bone-faint">
-        <Icon
-          name={hidden === "block" ? "shield" : "bell"}
-          className="h-4 w-4 shrink-0"
-        />
-        <span className="min-w-0 flex-1">
-          {hidden === "block"
-            ? `You have banished ${who} from your sight.`
-            : `You have silenced ${who}. Their ravens will not reach you.`}
-        </span>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            void undoHide();
-          }}
-          disabled={undoBusy}
-          className="btn-glass shrink-0 rounded-full px-3 py-1 text-xs text-gold transition hover:text-gold-bright disabled:opacity-50"
-        >
-          Undo
-        </button>
-      </article>
+      <StreamCard rail="steel" pad="sm">
+        <div className="flex items-center gap-3 pl-2 text-xs text-bone-faint">
+          <Icon
+            name={hidden === "block" ? "shield" : "bell"}
+            className="h-4 w-4 shrink-0"
+          />
+          <span className="min-w-0 flex-1">
+            {hidden === "block"
+              ? `You have banished ${who} from your sight.`
+              : `You have silenced ${who}. Their ravens will not reach you.`}
+          </span>
+          <Button
+            variant="glass"
+            size="sm"
+            disabled={undoBusy}
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void undoHide();
+            }}
+            className="shrink-0 text-gold"
+          >
+            Undo
+          </Button>
+        </div>
+      </StreamCard>
     );
   }
 
   return (
-    <article ref={cardRef} className="glass glass-sm glass-hover relative p-4">
+    <StreamCard
+      rail={rail}
+      interactive
+      render={<article ref={cardRef} />}
+    >
       {heartBurst && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
         >
           <Icon
             name="heart"
-            className="heart-burst h-20 w-20 text-gold drop-shadow-[0_0_16px_rgba(200,162,76,0.6)]"
+            className="heart-burst h-20 w-20 text-gold drop-shadow-[0_0_16px_rgba(217,176,64,0.6)]"
           />
         </span>
       )}
@@ -365,127 +422,83 @@ export function PostCard({ post }: { post: Post }) {
             dossier.open(post.author_id, a.handle);
           }}
           aria-label={`Open ${a.handle ? `@${a.handle}` : "member"} dossier`}
-          className="shrink-0 rounded-full transition hover:opacity-90"
+          /* A 40px avatar with 2px of bleed on every side is a 44px target,
+             without the circle itself growing into the name row beside it. */
+          className="-m-0.5 shrink-0 self-start rounded-[var(--radius-full)] p-0.5 transition-opacity duration-fast ease-out-quint hover:opacity-90"
         >
           <Avatar author={a} size={40} />
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 text-sm">
-            <Link
-              href={a.handle ? `/u/${a.handle}` : "#"}
-              className="font-semibold text-bone hover:underline"
-            >
-              {a.display_name ?? a.handle ?? "A stranger"}
-            </Link>
-            {a.is_agent && (
-              <span className="rounded-full border border-gold/40 px-1.5 text-[9px] font-bold uppercase tracking-wider text-gold">
-                Herald
+              {/* The primary tap target on every raven in the feed, and it
+                  measured 175x20. The 44px it needs is already in this row,
+                  spent by the bookmark and overflow controls in the corner
+                  opposite, so the link takes the height rather than the card
+                  growing to give it one. */}
+              <Link
+                href={a.handle ? `/u/${a.handle}` : "#"}
+                className="inline-flex items-center font-semibold text-bone hover:underline touch:min-h-11"
+              >
+                {a.display_name ?? a.handle ?? "A stranger"}
+              </Link>
+              {a.is_agent && <Badge variant="gold">Herald</Badge>}
+              {a.handle && <span className="text-bone-faint">@{a.handle}</span>}
+              <span className="text-bone-faint">·</span>
+              <span className="text-xs text-bone-faint">
+                {timeAgo(post.created_at)}
               </span>
-            )}
-            {a.handle && (
-              <span className="text-bone-faint">@{a.handle}</span>
-            )}
-            <span className="text-bone-faint">·</span>
-            <span className="text-xs text-bone-faint">
-              {timeAgo(post.created_at)}
-            </span>
             </div>
-            <div className="relative flex shrink-0 items-center gap-1.5">
+            <div className="relative flex shrink-0 items-center gap-1">
               {a.tier && !a.is_agent && (
                 <span className="hidden text-[10px] uppercase tracking-[0.16em] text-bone-faint sm:inline">
                   {TIER_NAMES[a.tier] ?? a.tier}
                 </span>
               )}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  void toggleBookmark();
-                }}
-                aria-label="Bookmark"
-                className={`flex h-7 w-7 items-center justify-center rounded-full transition hover:bg-panel ${
-                  bookmarked ? "text-gold" : "text-bone-faint hover:text-bone-mut"
-                }`}
+              <StreamAction
+                icon="bookmark"
+                label={bookmarked ? "Remove bookmark" : "Bookmark"}
+                active={bookmarked}
+                iconClassName={bmPop ? "action-pop" : ""}
+                onClick={() => void toggleBookmark()}
+              />
+              <Menu
+                trigger={<IconButton icon="dots" label="More" size="md" className="h-11 w-11" />}
               >
-                <Icon name="bookmark" className={`h-4 w-4 ${bmPop ? "action-pop" : ""}`} />
-              </button>
-              <OverflowMenu ariaLabel="More">
-                {(close) => {
-                  const copyItem = (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        doCopyLink();
-                        close();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
+                <MenuItem icon="share" onClick={doCopyLink}>
+                  {linkCopied ? "Link copied" : "Copy link"}
+                </MenuItem>
+                {isOwn ? (
+                  <>
+                    <MenuSeparator />
+                    <MenuItem
+                      icon="flag"
+                      tone="danger"
+                      onClick={() => void doDelete()}
                     >
-                      <Icon name="share" className="h-3.5 w-3.5" />
-                      {linkCopied ? "Link copied" : "Copy link"}
-                    </button>
-                  );
-                  return isOwn ? (
-                    <>
-                      {copyItem}
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          close();
-                          void doDelete();
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-ember-deep transition hover:bg-panel"
-                      >
-                        <Icon name="flag" className="h-3.5 w-3.5" />
-                        Delete raven
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {copyItem}
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          close();
-                          void doReport();
-                        }}
-                        disabled={reported}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel disabled:opacity-50"
-                      >
-                        <Icon name="flag" className="h-3.5 w-3.5" />
-                        {reported ? "Reported" : "Report"}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          close();
-                          void doMute();
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                      >
-                        <Icon name="bell" className="h-3.5 w-3.5" />
-                        Mute
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          close();
-                          void doBlock();
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-bone-mut transition hover:bg-panel"
-                      >
-                        <Icon name="shield" className="h-3.5 w-3.5" />
-                        Block
-                      </button>
-                    </>
-                  );
-                }}
-              </OverflowMenu>
+                      Delete raven
+                    </MenuItem>
+                  </>
+                ) : (
+                  <>
+                    <MenuItem icon="bell" onClick={() => void doMute()}>
+                      Mute
+                    </MenuItem>
+                    <MenuItem icon="shield" onClick={() => void doBlock()}>
+                      Block
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      icon="flag"
+                      tone="danger"
+                      disabled={reported}
+                      onClick={() => void doReport()}
+                    >
+                      {reported ? "Reported" : "Report"}
+                    </MenuItem>
+                  </>
+                )}
+              </Menu>
             </div>
           </div>
 
@@ -494,34 +507,42 @@ export function PostCard({ post }: { post: Post }) {
           </Link>
 
           {post.call && (
-            <div
-              className={`glass-sm mt-2 flex items-center gap-3 rounded-xl border px-3 py-2 ${
+            <Card
+              variant="inset"
+              pad="none"
+              className={`mt-2 flex items-center gap-3 px-3 py-2 ${
                 post.call.stance === "up"
-                  ? "border-gold/40 bg-panel-warm"
-                  : "border-ember-deep/40 bg-panel"
+                  ? "border-chart-up/40"
+                  : "border-chart-down/40"
               }`}
             >
               <Icon
                 name="target"
-                className={`h-4 w-4 ${post.call.stance === "up" ? "text-gold" : "text-ember-deep"}`}
+                className={`h-4 w-4 shrink-0 ${
+                  post.call.stance === "up"
+                    ? "text-chart-up"
+                    : "text-chart-down"
+                }`}
               />
-              <p className="text-xs text-bone-mut">
+              <p className="min-w-0 text-xs text-bone-mut">
                 <span className="font-bold text-bone">CALL</span> · $
                 {post.call.token} {post.call.stance === "up" ? "rises" : "falls"}{" "}
                 within {post.call.timeframe} · sealed at ${post.call.entry_price}
               </p>
-              <span
-                className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                  post.call.verdict === "hit"
-                    ? "bg-gold/15 text-gold-bright"
-                    : post.call.verdict === "miss"
-                      ? "bg-ember-deep/15 text-ember-deep"
-                      : "bg-steel-deep text-bone-faint"
-                }`}
-              >
-                {post.call.verdict}
+              <span className="ml-auto shrink-0">
+                <Badge
+                  variant={
+                    post.call.verdict === "hit"
+                      ? "gold"
+                      : post.call.verdict === "miss"
+                        ? "danger"
+                        : "default"
+                  }
+                >
+                  {post.call.verdict}
+                </Badge>
               </span>
-            </div>
+            </Card>
           )}
 
           {post.call && (
@@ -570,75 +591,107 @@ export function PostCard({ post }: { post: Post }) {
 
           {/* Constant-width action bar: views on the left, the actions spread
              evenly to the right so every raven reads the same. Bookmark lives
-             up in the header corner. */}
-          <div className="mt-2 flex items-center justify-between">
+             up in the header corner.
+
+             The arithmetic of this row is why it reaches back into the avatar
+             gutter below `sm`. Five controls each hold a 44px width floor, so
+             they cannot go below 220 together, and the views readout is 74.
+             That is 294 in a 280px content column, so fourteen pixels sat
+             outside the box with nothing to scroll them, on every raven in the
+             product. The card itself is 332 wide and the gutter under the
+             avatar is empty, so the bar takes the width that is already there
+             rather than a control giving up its floor. The 52px is the gutter
+             exactly, the avatar's 40px margin box plus the 12px gap, so the
+             bar's leading edge lands on the card's own content edge rather
+             than a few pixels adrift of it.
+
+             `shrink-0` on the glyphs is the other half, and it was the worse
+             half: at 390 the flex squeeze had shrunk every count-bearing icon
+             to exactly 0px. Reply, re-raven and like rendered as bare numbers
+             with no icon at all, while the class list said 18px. */}
+          <div className="mt-2 flex items-center justify-between max-sm:-ml-13">
             <span
-              className="flex items-center gap-1.5 px-1 py-1 text-xs text-bone-faint"
+              className="flex shrink-0 items-center gap-1.5 px-1 py-1 text-xs text-bone-faint"
               aria-label={`${views} views`}
               title={`${views.toLocaleString()} views`}
             >
-              <Icon name="eye" className="h-[18px] w-[18px]" />
+              <Icon name="eye" className="h-[18px] w-[18px] shrink-0" />
               <span className="tnum">{views.toLocaleString()}</span>
             </span>
-            <Link
-              href={`/post/${post.id}`}
-              aria-label="Reply"
-              className="flex items-center gap-1.5 rounded-full px-2 py-2 text-sm text-bone-faint transition hover:bg-panel hover:text-bone-mut"
-            >
-              <Icon name="reply" className="h-[18px] w-[18px]" />
-              {post.reply_count > 0 && (
-                <span className="tnum text-xs">{post.reply_count}</span>
-              )}
-            </Link>
-            <ActionButton
+            <StreamAction
+              icon="reply"
+              label="Reply"
+              count={post.reply_count}
+              iconClassName="shrink-0"
+              render={<Link href={`/post/${post.id}`} />}
+            />
+            <StreamAction
               icon="repost"
               count={reposts}
               active={reposted}
               label="Re-raven"
+              iconClassName="shrink-0"
               onClick={toggleRepost}
             />
-            <ActionButton
+            <StreamAction
               icon="heart"
               count={likes}
               active={liked}
-              activeClass="text-gold"
               label="Like"
-              iconClassName={likePop ? "action-pop" : ""}
+              iconClassName={likePop ? "action-pop shrink-0" : "shrink-0"}
               onClick={toggleLike}
             />
-            <ActionButton
+            <StreamAction
               icon="coin"
               active={tipSent || tipOpen}
               label="Tip"
+              iconClassName="shrink-0"
               onClick={() => {
                 if (!requireAuth()) return;
                 setTipOpen(true);
               }}
             />
-            <ActionButton
+            <StreamAction
               icon="share"
               active={shared !== null}
               label="Share"
+              iconClassName="shrink-0"
               onClick={share}
             />
           </div>
 
+          {/* Section 11: an optimistic change announces through a polite live
+              region. Both of these appear after the fact with no focus move,
+              so a screen reader would otherwise never learn the tap landed. */}
+          {refused && (
+            <p
+              role="status"
+              className="mt-1 flex items-center gap-1.5 pl-1 text-xs text-state-danger"
+            >
+              <Icon name="alert" className="h-3.5 w-3.5 shrink-0" />
+              {refused}
+            </p>
+          )}
           {tipSent && (
-            <p className="mt-1 flex items-center gap-1.5 pl-1 text-xs text-gold">
+            <p
+              role="status"
+              className="mt-1 flex items-center gap-1.5 pl-1 text-xs text-gold"
+            >
               <Icon name="coin" className="h-3.5 w-3.5" />
               Tribute sent
             </p>
           )}
           {shared && (
             <p
-              className={`mt-1 flex items-center gap-1.5 pl-1 text-xs ${shared === "failed" ? "text-ember" : "text-gold"}`}
+              role="status"
+              className={`mt-1 flex items-center gap-1.5 pl-1 text-xs ${shared === "failed" ? "text-state-danger" : "text-gold"}`}
             >
               <Icon name="share" className="h-3.5 w-3.5" />
               {shared === "shared"
                 ? "Shared"
                 : shared === "copied"
                   ? "Link copied"
-                  : "Could not share — try again"}
+                  : "Could not share, try again"}
             </p>
           )}
         </div>
@@ -656,6 +709,6 @@ export function PostCard({ post }: { post: Post }) {
           onSent={() => setTipSent(true)}
         />
       )}
-    </article>
+    </StreamCard>
   );
 }

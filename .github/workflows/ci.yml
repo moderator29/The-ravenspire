@@ -1,0 +1,65 @@
+name: CI
+
+# The realm had no CI at all, and pull requests were merging straight to main
+# with no lint, typecheck or build gate. That is how a broken production build
+# reached main: /search called useSearchParams() with no Suspense boundary, the
+# prerender step failed, and nobody saw it because Vercel simply kept serving
+# the last good deployment.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Report only, deliberately. There are 6 pre-existing errors and 73
+      # warnings from the React 19 hook rules in eslint-config-next 16
+      # (react-hooks/refs and react-hooks/set-state-in-effect), spread across
+      # 20+ files. Gating on them today would land a permanently red CI, which
+      # teams learn to ignore within a week. Typecheck and build are the hard
+      # gates now; flip this to a gate once the backlog is cleared.
+      - name: Lint (report only)
+        run: npm run lint
+        continue-on-error: true
+
+      # Two founder rules are absolute and easy to break by accident. Both had
+      # already regressed once each after being swept clean, because a rule
+      # enforced by a human noticing is a rule that regresses.
+      - name: House rules
+        run: npm run check:rules
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # The Call scoring maths is the highest risk pure logic in the product:
+      # it decides Renown, and a sign error in it is a minting bug rather than a
+      # cosmetic one. Its tests already caught three errors in the written spec.
+      - name: Test
+        run: npm test
+
+      # The build prerenders every static route, which is the step that catches
+      # missing Suspense boundaries and server/client boundary mistakes. The
+      # Supabase values are build-time placeholders: the browser client is
+      # constructed during prerender and throws without them. They are not
+      # secrets and never reach a deployed environment.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-build-only

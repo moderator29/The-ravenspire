@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icon3D } from "@/components/ui/icon-3d";
+import { Card } from "@/components/ui/card";
+import { AtAGlance, type GlancePoint } from "@/components/legal/at-a-glance";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
   description:
-    "The terms that govern your use of The Ravenspire, a non-custodial SocialFi realm. No financial advice, no securities offering, and standing earned rather than bought.",
+    "The terms that govern your use of The Ravenspire, a non-custodial competitive realm. No financial advice, no securities offering, and standing earned rather than bought.",
 };
 
 const EFFECTIVE_DATE = "July 19, 2026";
@@ -16,12 +19,35 @@ type Section = {
   list?: string[];
 };
 
+/* Each point is a fair summary of the section it links to, and says nothing
+   those sections do not say. Checked against sections 3, 4 and 5. */
+const glance: GlancePoint[] = [
+  {
+    icon: "vault",
+    title: "Your keys are yours",
+    body: "The realm is non-custodial and never holds your private keys or your funds. Export them whenever you want.",
+    href: "#accounts-wallets",
+  },
+  {
+    icon: "scales",
+    title: "Nothing here is advice",
+    body: "Posts, Calls, market reads and anything @raven says are information, never financial, legal or tax advice.",
+    href: "#no-advice",
+  },
+  {
+    icon: "trophy",
+    title: "Earned, never bought",
+    body: "$RSP is a utility and social token, not an investment product, and standing comes from participation.",
+    href: "#token",
+  },
+];
+
 const sections: Section[] = [
   {
     id: "acceptance",
     heading: "1. Acceptance of these terms",
     body: [
-      "These Terms of Service govern your access to and use of The Ravenspire, a medieval-fantasy social realm and SocialFi platform. By entering the realm, creating an account, or using any part of the service, you agree to these terms. If you do not agree, do not use The Ravenspire.",
+      "These Terms of Service govern your access to and use of The Ravenspire, a medieval-fantasy competitive social realm. By entering the realm, creating an account, or using any part of the service, you agree to these terms. If you do not agree, do not use The Ravenspire.",
     ],
   },
   {
@@ -127,12 +153,14 @@ export default function TermsOfServicePage() {
       <div className="relative mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm font-medium text-bone-mut transition hover:text-gold"
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-bone-mut transition hover:text-gold"
         >
           Back to the realm
         </Link>
 
         <header className="mt-8">
+          {/* A legal page is still a page of the realm. The oath scroll gives the terms an identity rather than leaving them as the one unbranded surface in the product. */}
+          <Icon3D name="oath-scroll" size="xl" className="mb-5" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold">
             The terms of the realm
           </p>
@@ -144,7 +172,14 @@ export default function TermsOfServicePage() {
           </p>
         </header>
 
-        <article className="glass mt-8 p-7 sm:p-10">
+        <AtAGlance points={glance} />
+
+        <Card
+          render={<article />}
+          radius="xl"
+          pad="none"
+          className="mt-8 p-7 sm:p-10"
+        >
           <div className="flex flex-col gap-8">
             {sections.map((s) => (
               <section key={s.id} id={s.id} className="scroll-mt-8">
@@ -180,7 +215,7 @@ export default function TermsOfServicePage() {
               </section>
             ))}
           </div>
-        </article>
+        </Card>
 
         <footer className="mt-8 flex flex-col items-center gap-2 pb-6 text-center">
           <p className="text-xs uppercase tracking-[0.26em] text-bone-faint">

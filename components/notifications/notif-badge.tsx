@@ -26,7 +26,7 @@ export function NotifDot({ className = "" }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`h-2 w-2 rounded-full bg-gold-bright shadow-[0_0_6px_rgba(240,214,140,0.7)] ${className}`}
+      className={`h-2 w-2 rounded-full bg-gold-bright shadow-[0_0_6px_rgba(255,233,163,0.7)] ${className}`}
     />
   );
 }

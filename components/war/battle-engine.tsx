@@ -9,6 +9,9 @@ import {
   ultimateEffectText,
   playstyleTag,
 } from "@/lib/game/combat";
+import { Badge } from "@/components/ui/badge";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 
 /*
@@ -93,8 +96,6 @@ const FIELD_FOES: Record<string, number> = {
 /* A safety ceiling so a stalled field still resolves. Victory is normally by
    clearing the army, which lands well under this. */
 const MAX_SECONDS = 120;
-/* Illustrative season conversion, shown to players. Not a promise. */
-const GLORY_PER_RSP = 1000;
 
 export function BattleEngine({
   champion,
@@ -187,7 +188,7 @@ export function BattleEngine({
     const s = stateRef.current;
     const withArt = champions.filter((c) => c.art && c.slug !== champion.slug);
 
-    /* The chosen champion's real combat kit — attack, pace, reach, damage
+    /* The chosen champion's real combat kit, attack, pace, reach, damage
        reduction and their passive/ultimate mechanics all flow from here, so
        every champion actually plays to their stats and their written kit. */
     const prof = buildCombatProfile(champion);
@@ -332,9 +333,9 @@ export function BattleEngine({
     s.ultCd = 12;
     h.lunge = 1;
 
-    /* Each champion's ultimate resolves to its own shape — a single-target
+    /* Each champion's ultimate resolves to its own shape, a single-target
        nuke, a wide cleave, a double-striking storm, a heal, a shield, or a
-       stun — so the written ultimate finally plays the way it reads. */
+       stun, so the written ultimate finally plays the way it reads. */
     const prof = buildCombatProfile(champion);
     const amt = h.atk * prof.ultDamageMul;
     const inRange = s.units
@@ -364,7 +365,7 @@ export function BattleEngine({
       y: h.y - 0.06,
       text: prof.ultName,
       life: 1.4,
-      color: "#F0D68C",
+      color: "#FFE9A3",
     });
   }, [champion]);
 
@@ -476,7 +477,7 @@ export function BattleEngine({
   const progress = 1 - hud.remaining / totalFoes;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-obsidian">
+    <div className="z-overlay fixed inset-0 flex flex-col overflow-hidden bg-obsidian">
       {phase === "howto" ? (
         <HowToPlay
           champion={champion}
@@ -492,7 +493,10 @@ export function BattleEngine({
           {/* Top HUD: hero, army progress, kills, glory, time, retreat. */}
           <div className="pointer-events-none absolute inset-x-0 top-0 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
             <div className="flex items-center gap-2.5">
-              <div className="glass glass-sm pointer-events-auto flex min-w-0 flex-1 items-center gap-2 p-2">
+              <Card
+                pad="none"
+                className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2 p-2"
+              >
                 {champion.art && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -512,28 +516,30 @@ export function BattleEngine({
                         width: `${hud.heroHp * 100}%`,
                         background:
                           hud.heroHp > 0.3
-                            ? "linear-gradient(90deg,#C8A24C,#F0D68C)"
+                            ? "linear-gradient(90deg,#D9B040,#FFE9A3)"
                             : "#E5702A",
                       }}
                     />
                   </div>
                 </div>
-              </div>
-              <div className="glass glass-sm pointer-events-auto px-3 py-1.5 text-center">
+              </Card>
+              {/* The running tally, not the banked figure. The battle page
+                  reports what the server settled once the fight ends. */}
+              <Card pad="none" className="pointer-events-auto px-3 py-1.5 text-center">
                 <p className="tnum text-sm font-bold text-gold-bright">
                   {hud.glory}
                 </p>
                 <p className="text-[9px] uppercase tracking-wider text-bone-faint">
                   Glory
                 </p>
-              </div>
-              <button
+              </Card>
+              <IconButton
+                variant="glass"
+                icon="chevron-left"
+                label="Retreat"
+                className="pointer-events-auto shrink-0"
                 onClick={() => history.back()}
-                className="glass glass-sm pointer-events-auto flex h-9 w-9 items-center justify-center text-bone-mut"
-                aria-label="Retreat"
-              >
-                <Icon name="arrow" className="h-4 w-4 rotate-180" />
-              </button>
+              />
             </div>
 
             {/* Army-cleared bar: the legible goal. */}
@@ -607,17 +613,21 @@ function ControlButton({
 }) {
   const dim = size === "lg" ? "h-20 w-20" : "h-14 w-14";
   const iconDim = size === "lg" ? "h-9 w-9" : "h-6 w-6";
+  /* Genuinely circular thumb controls, which is the one shape rule 9 allows a
+     circle for. They carry no horizontal padding, so they are a circle and not
+     a capsule. Steel borrows the Button `glass` treatment rather than the raw
+     `.glass` class, which is frozen at a radius that predates the scale. */
   const tones: Record<string, string> = {
     gold: "gold-metal border border-gold-bright/60 text-obsidian",
     ember: "border border-ember/60 bg-ember/20 text-ember",
-    steel: "glass glass-sm text-bone",
+    steel: "border border-gold/25 bg-void/60 text-bone backdrop-blur-[10px]",
   };
   return (
     <button
       onClick={onClick}
       disabled={cooldown > 0}
       aria-label={label}
-      className={`flex ${dim} items-center justify-center rounded-full ${tones[tone]} transition active:scale-95 disabled:opacity-40`}
+      className={`flex ${dim} items-center justify-center rounded-full ${tones[tone]} transition-[transform,opacity] duration-fast ease-out-quint active:scale-95 disabled:opacity-40`}
     >
       {cooldown > 0 ? (
         <span className="tnum text-sm font-bold">{Math.ceil(cooldown)}</span>
@@ -689,7 +699,7 @@ function damage(
     y: target.y - 0.03,
     text: crit ? `-${Math.round(dealt)}!` : `-${Math.round(dealt)}`,
     life: crit ? 1 : 0.8,
-    color: crit ? "#FFE9A8" : byTeam === 0 ? "#F0D68C" : "#E5702A",
+    color: crit ? "#FFE9A8" : byTeam === 0 ? "#FFE9A3" : "#E5702A",
   });
 
   if (attacker) {
@@ -738,7 +748,7 @@ function damage(
   }
 }
 
-/* The support half of a champion ultimate — heal / shield the host or freeze
+/* The support half of a champion ultimate, heal / shield the host or freeze
    foes. Kept at module scope (like damage/step) so it can mutate live units
    freely; the in-component callbacks stay pure for the React Compiler. */
 function applyUltSupport(
@@ -850,7 +860,7 @@ function render(
   sky.addColorStop(1, "#050507");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = "rgba(200,162,76,0.06)";
+  ctx.fillStyle = "rgba(217, 176, 64,0.06)";
   ctx.fillRect(0, H * 0.62, W, H * 0.38);
 
   /* Draw back to front by y. */
@@ -859,7 +869,7 @@ function render(
     const px = u.x * W + u.lunge * (u.team === 0 ? 1 : -1) * 0.02 * W;
     const py = u.y * H;
     const r = u.size * H;
-    const ring = u.team === 0 ? "#C8A24C" : "#E5702A";
+    const ring = u.team === 0 ? "#D9B040" : "#E5702A";
 
     /* Shadow */
     ctx.fillStyle = "rgba(0,0,0,0.4)";
@@ -873,8 +883,8 @@ function render(
     /* Hero aura so the player always finds themselves at a glance. */
     if (u.hero && u.team === 0 && u.alive) {
       const glow = ctx.createRadialGradient(px, py, r * 0.2, px, py, r * 1.7);
-      glow.addColorStop(0, "rgba(240,214,140,0.35)");
-      glow.addColorStop(1, "rgba(240,214,140,0)");
+      glow.addColorStop(0, "rgba(255, 233, 163,0.35)");
+      glow.addColorStop(1, "rgba(255, 233, 163,0)");
       ctx.fillStyle = glow;
       ctx.beginPath();
       ctx.arc(px, py, r * 1.7, 0, Math.PI * 2);
@@ -911,7 +921,7 @@ function render(
     ctx.arc(px, py, r, 0, Math.PI * 2);
     ctx.stroke();
     if (u.shield > 0) {
-      ctx.strokeStyle = "rgba(240,214,140,0.8)";
+      ctx.strokeStyle = "rgba(255, 233, 163,0.8)";
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(px, py, r + 4, 0, Math.PI * 2);
@@ -938,7 +948,7 @@ function render(
   /* Slashes */
   for (const sl of s.slashes) {
     ctx.globalAlpha = sl.life;
-    ctx.strokeStyle = sl.team === 0 ? "#F0D68C" : "#E5702A";
+    ctx.strokeStyle = sl.team === 0 ? "#FFE9A3" : "#E5702A";
     ctx.lineWidth = 3;
     const x = sl.x * W;
     const y = sl.y * H;
@@ -992,81 +1002,101 @@ function HowToPlay({
         {totalFoes} foes to win.
       </p>
 
-      {/* The champion's real kit — passive and ultimate that actually shape how
-          they play, not flavor text. */}
-      <div className="glass glass-warm mt-5 w-full max-w-md p-5 text-left">
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-display text-base font-semibold text-bone">
-            {champion.name}
-          </p>
-          <span className="rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-gold">
-            {battleKit.tag}
-          </span>
-        </div>
-        <div className="mt-3 flex gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
-            <Icon name="orb" className="h-4 w-4" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-bone">
-              Passive · {champion.passive.name}
-            </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
-              {battleKit.passive}
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 flex gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
-            <Icon name="flame" className="h-4 w-4" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-bone">
-              Ultimate · {champion.ultimate.name}
-            </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
-              {battleKit.ultimate}
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Two panels, stacked on a phone and side by side from `md`.
 
-      <div className="glass mt-3 w-full max-w-md p-5 text-left text-sm text-bone-mut">
-        <Rule icon="swords" title="Dash">
-          Leap onto the nearest foe and cut down everything around them. Your
-          strongest move, on a short cooldown.
-        </Rule>
-        <Rule icon="flame" title={`Ultimate: ${champion.ultimate.name}`}>
-          {battleKit.ultimate} Save it for the thickest press.
-        </Rule>
-        <Rule icon="shield" title="Shield">
-          Guard yourself and nearby allies for a few seconds. Time it against
-          the enemy charge.
-        </Rule>
-        <Rule icon="medal" title="Glory and $RSP">
-          Every foe felled adds Glory. Break the whole host to claim victory.
-          Glory converts to $RSP at the season rate (about {GLORY_PER_RSP} Glory
-          per $RSP, illustrative for the season).
-        </Rule>
+          Measured at 1440 they were a 448px column: two cards 448 wide and 181
+          and 349.5 tall, the block sitting at x=496 with 496px of empty
+          obsidian on either side of it, on a briefing that covers the whole
+          viewport. That is the phone screen shown at desktop size, which rule
+          15 forbids.
+
+          Side by side the block is 768 wide and the gutter halves to 336. Each
+          panel is narrower, 376, so the rules card is in fact 39px taller than
+          it was, 388.5 against 349.5. The briefing still shortens, because the
+          two no longer stack: 542.5px of column becomes 388.5px of row, and
+          the champion's kit now sits beside the rules a player reads it
+          against rather than above them. */}
+      <div className="mt-5 flex w-full max-w-md flex-col items-stretch gap-3 text-left md:max-w-3xl md:flex-row md:items-start md:gap-4">
+        {/* The champion's real kit, passive and ultimate that actually shape how
+            they play, not flavor text. */}
+        <Card variant="warm" pad="lg" className="w-full text-left md:flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-display text-base font-semibold text-bone">
+              {champion.name}
+            </p>
+            <Badge variant="gold">{battleKit.tag}</Badge>
+          </div>
+          <div className="mt-3 flex gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
+              <Icon name="orb" className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-bone">
+                Passive · {champion.passive.name}
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
+                {battleKit.passive}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
+              <Icon name="flame" className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-bone">
+                Ultimate · {champion.ultimate.name}
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
+                {battleKit.ultimate}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card pad="lg" className="w-full text-left text-sm text-bone-mut md:flex-1">
+          <Rule icon="swords" title="Dash">
+            Leap onto the nearest foe and cut down everything around them. Your
+            strongest move, on a short cooldown.
+          </Rule>
+          <Rule icon="flame" title={`Ultimate: ${champion.ultimate.name}`}>
+            {battleKit.ultimate} Save it for the thickest press.
+          </Rule>
+          <Rule icon="shield" title="Shield">
+            Guard yourself and nearby allies for a few seconds. Time it against
+            the enemy charge.
+          </Rule>
+          <Rule icon="medal" title="Glory">
+            Every foe felled adds Glory. Break the whole host to claim victory.
+            The tally you see in the field is the engine counting; what is banked
+            is settled by the realm when the fight ends.
+          </Rule>
+        </Card>
       </div>
-      <p className="mt-3 text-xs text-bone-faint">
+      {/* A sentence about turning your phone sideways, read by someone holding
+          a mouse, is noise. `touch:` keys off `pointer: coarse`, the same test
+          the rotate hint in the field already uses. */}
+      <p className="mt-3 hidden text-xs text-bone-faint touch:block">
         On a phone, turn it sideways for the full field.
       </p>
-      <div className="mt-5 flex gap-3">
-        <button
-          onClick={onExit}
-          className="btn-glass px-6 py-2.5 text-sm text-bone-mut"
-        >
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        <Button variant="glass" size="lg" onClick={onExit}>
           Not yet
-        </button>
-        <button onClick={onBegin} className="btn-gold px-8 py-2.5 text-sm">
+        </Button>
+        <Button variant="gold" size="lg" onClick={onBegin}>
+          <Icon name="swords" className="h-4 w-4" />
           Sound the horns
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
+/* Steel, not gold. The four control rules say the same four things before
+   every battle in the realm, which is the definition of ambient, and six gold
+   bordered tiles on one briefing left nothing for the champion's own kit above
+   to be brighter than. The kit card keeps its gold because it is the half that
+   changes with the champion you brought. */
 function Rule({
   icon,
   title,
@@ -1078,7 +1108,7 @@ function Rule({
 }) {
   return (
     <div className="mb-3 flex gap-3 last:mb-0">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-steel-line bg-void text-bone-mut">
         <Icon name={icon} className="h-4 w-4" />
       </span>
       <div>
@@ -1091,11 +1121,16 @@ function Rule({
   );
 }
 
+/* The hint sat dead centre of the play field, and it never leaves while the
+   phone is upright, so it covered the hero and the fight happening around them
+   for the whole battle. A permanent overlay in the middle of the thing it is
+   describing is noise, not help. It now rides just under the HUD, clear of the
+   field, where it says the same sentence without standing in front of it. */
 function RotateHint() {
   return (
-    <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-obsidian/80 px-4 py-2 text-center backdrop-blur-sm">
-      <p className="flex items-center gap-2 text-xs text-gold">
-        <Icon name="compass" className="h-4 w-4" />
+    <div className="pointer-events-none absolute inset-x-0 top-[calc(7rem+env(safe-area-inset-top))] flex justify-center px-4">
+      <p className="flex items-center gap-2 rounded-sm bg-obsidian/80 px-3 py-1.5 text-xs text-gold backdrop-blur-sm">
+        <Icon name="compass" className="h-4 w-4 shrink-0" />
         Turn sideways for the full field
       </p>
     </div>

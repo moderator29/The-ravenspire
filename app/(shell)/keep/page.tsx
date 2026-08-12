@@ -1,15 +1,66 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EditProfile } from "@/components/social/edit-profile";
-import { ProfileView } from "@/components/social/profile-view";
+import { ProfileView, type ProfileTab } from "@/components/social/profile-view";
 import { fetchProfile } from "@/lib/social/queries";
 import type { PublicProfile } from "@/lib/social/types";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { Button } from "@/components/ui/button";
+import {
+  DossierMissing,
+  DossierSkeleton,
+} from "@/components/dossier/dossier-shell";
 
+/* The member's own Keep. The Dossier is ProfileView, which the public
+   /u/handle route renders too; this route resolves who the viewer is and
+   answers honestly in the three states where there is no Keep to show yet.
+   The Keep itself carries no back control, because it is a dock destination
+   rather than somewhere a member was navigated into. */
+
+/* The dock's contextual strip links `/keep?tab=calls` and `/keep?tab=media`,
+   and the panel used to live in ProfileView's own state with nothing reading
+   the query, so both chips changed the address bar and left the Keep on
+   Ravens. Three dead controls, counting the bare `/keep` that meant Ravens.
+
+   The panel is the URL now. ProfileView stays uncontrolled for a public
+   /u/handle, which has no dock strip of its own and no param to answer. */
+const TABS: ProfileTab[] = ["posts", "calls", "media"];
+
+function tabFromParam(raw: string | null): ProfileTab {
+  return TABS.includes(raw as ProfileTab) ? (raw as ProfileTab) : "posts";
+}
+
+/* useSearchParams opts a component out of static rendering, so the reading
+   half sits behind a boundary and the route still prerenders. */
 export default function KeepPage() {
+  return (
+    <Suspense fallback={<DossierSkeleton />}>
+      <KeepBody />
+    </Suspense>
+  );
+}
+
+function KeepBody() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const tab = tabFromParam(params.get("tab"));
+
+  const setTab = useCallback(
+    (next: ProfileTab) => {
+      const query = new URLSearchParams(params.toString());
+      if (next === "posts") query.delete("tab");
+      else query.set("tab", next);
+      const qs = query.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [params, pathname, router]
+  );
+
   const { ready, authenticated, enabled } = useRealmAuth();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [state, setState] = useState<"loading" | "anon" | "onboard" | "ok">(
@@ -62,43 +113,49 @@ export default function KeepPage() {
     };
   }, [ready, authenticated, refresh, tries]);
 
-  if (state === "loading")
-    return <div className="mx-auto max-w-2xl p-6"><div className="glass h-48 animate-pulse" /></div>;
+  /* Shaped like the Keep that is arriving, rather than one grey slab. */
+  if (state === "loading") return <DossierSkeleton />;
 
   if (state === "anon")
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="font-display text-2xl font-semibold text-bone">My Keep</h1>
-        <p className="mt-3 text-sm text-bone-mut">
-          {enabled
+      <DossierMissing
+        title="My Keep"
+        body={
+          enabled
             ? "Your Keep rises when you enter the realm."
-            : "Auth is not configured in this environment; your Keep awaits on the hosted realm."}
-        </p>
-        <Link href="/signin" className="btn-gold mt-6 inline-flex px-6 py-2.5 text-sm">
-          Enter the Realm
-        </Link>
-      </div>
+            : "Auth is not configured in this environment, so your Keep awaits on the hosted realm."
+        }
+        action={
+          <Button variant="gold" size="lg" render={<Link href="/signin" />}>
+            Enter the Realm
+          </Button>
+        }
+      />
     );
 
   if (state === "onboard")
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="font-display text-2xl font-semibold text-bone">
-          One step remains
-        </h1>
-        <p className="mt-3 text-sm text-bone-mut">
-          Claim your name and swear to a House, and your Keep is raised.
-        </p>
-        <Link href="/welcome" className="btn-gold mt-6 inline-flex px-6 py-2.5 text-sm">
-          See the Maester
-        </Link>
-      </div>
+      <DossierMissing
+        title="One step remains"
+        body="Claim your name and swear to a House, and your Keep is raised."
+        action={
+          <Button variant="gold" size="lg" render={<Link href="/welcome" />}>
+            See the Maester
+          </Button>
+        }
+      />
     );
 
   return (
     <div>
       {profile && (
-        <ProfileView profile={profile} own onEdit={() => setEditOpen(true)} />
+        <ProfileView
+          profile={profile}
+          own
+          onEdit={() => setEditOpen(true)}
+          tab={tab}
+          onTabChange={setTab}
+        />
       )}
       <EditProfile
         open={editOpen}

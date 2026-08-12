@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Card } from "@/components/ui/card";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
 
 /*
@@ -43,9 +45,9 @@ const phases: Phase[] = [
     title: "Social layer launch",
     body: "The social realm opens its gates to all who ride.",
     points: [
-      "Whispers, Calls and Courts go wide",
+      "Whispers, the Rookery and the Roll of Honour",
       "The Herald @raven with real-data reads",
-      "Claim the Throne and The War playable",
+      "Calls scored on difficulty, Houses and The War playable",
     ],
     icon: "users",
     status: "live",
@@ -91,8 +93,8 @@ const phases: Phase[] = [
     title: "Presale",
     body: "Presale coming soon, announced plainly and in the open.",
     points: [
+      "Runs on an external launchpad, never on the platform",
       "Terms, caps and timing shared openly",
-      "Non-custodial from the first transaction",
       "No seats sold that must be earned",
     ],
     icon: "coin",
@@ -175,7 +177,7 @@ function PhaseNode({ p }: { p: Phase }) {
           className="absolute inset-0 rounded-full opacity-40 blur-md"
           style={{
             background:
-              "radial-gradient(circle, rgba(200,162,76,0.5), transparent 70%)",
+              "radial-gradient(circle, rgba(217, 176, 64,0.5), transparent 70%)",
           }}
         />
         <LandingIcon name={p.icon} className="relative h-5 w-5 text-gold" />
@@ -186,7 +188,7 @@ function PhaseNode({ p }: { p: Phase }) {
             {p.tag}
           </span>
           <span
-            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${st.className}`}
+            className={`inline-flex items-center rounded-sm border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${st.className}`}
           >
             {st.label}
           </span>
@@ -222,13 +224,7 @@ export function Roadmap() {
   const rest = phases.slice(PREVIEW);
 
   return (
-    <motion.section
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass relative overflow-hidden p-7 sm:p-9"
-    >
+    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full opacity-20 blur-3xl"
@@ -252,7 +248,11 @@ export function Roadmap() {
         <h2 className="font-display text-2xl font-semibold text-bone sm:text-3xl">
           The march ahead
         </h2>
-        <span className="glass-sm inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-panel px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-gold">
+        {/* `sm`, not `lg`. This chip is 27px tall, so a 16px radius reached
+            half its height and rounded the ends completely. Picking a rung off
+            the scale is not enough on its own: a rung at or above half the box
+            height is a capsule whatever it is called. */}
+        <span className="inline-flex items-center gap-1.5 rounded-sm border border-gold/25 bg-panel px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-gold">
           <LandingIcon name="layers" className="h-3.5 w-3.5" />
           Built on Ethereum
         </span>
@@ -280,13 +280,22 @@ export function Roadmap() {
 
         <AnimatePresence initial={false}>
           {expanded && (
+            /* Opacity and a transform, never height. A height animation is
+               the one thing the motion law names outright, and it earns the
+               ban here: this block holds six phase nodes with a spine behind
+               them, so every frame of an auto height tween relaid out the
+               whole timeline. The reveal reads the same and costs the
+               compositor nothing. */
             <motion.div
               key="rest"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              className="flex flex-col gap-5 overflow-hidden"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{
+                duration: 0.22,
+                ease: [0.23, 1, 0.32, 1],
+              }}
+              className="flex flex-col gap-5"
             >
               {rest.map((p) => (
                 <PhaseNode key={p.tag} p={p} />
@@ -297,11 +306,13 @@ export function Roadmap() {
       </motion.ol>
 
       {rest.length > 0 && (
-        <motion.button
-          variants={rise}
-          type="button"
+        <Button
+          variant="glass"
+          size="lg"
+          aria-expanded={expanded}
           onClick={() => setExpanded((v) => !v)}
-          className="btn-glass mt-6 inline-flex items-center gap-2 px-5 py-2.5 text-sm text-gold"
+          render={<motion.button variants={rise} type="button" />}
+          className="mt-6 text-gold"
         >
           {expanded ? "Show less" : `View the full march (${rest.length} more)`}
           <LandingIcon
@@ -310,8 +321,8 @@ export function Roadmap() {
               expanded ? "rotate-180" : ""
             }`}
           />
-        </motion.button>
+        </Button>
       )}
-    </motion.section>
+    </Card>
   );
 }

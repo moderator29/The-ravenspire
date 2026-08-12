@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { Card } from "@/components/ui/card";
 import { motion, useScroll, useTransform, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 import { LandingIcon } from "@/components/landing/icons";
@@ -29,7 +30,7 @@ function Chip({ label, tone = "gold" }: { label: string; tone?: "gold" | "ember"
   const border = tone === "ember" ? "border-ember/40" : "border-gold/30";
   return (
     <span
-      className={`rounded-full border ${border} px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${color}`}
+      className={`rounded-sm border ${border} px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${color}`}
     >
       {label}
     </span>
@@ -46,7 +47,7 @@ function Frame({
   children: React.ReactNode;
 }) {
   return (
-    <div className="glass overflow-hidden rounded-3xl">
+    <Card pad="none" className="overflow-hidden">
       <div className="flex items-center gap-2 border-b border-steel-line/70 bg-void/60 px-4 py-2.5">
         <Icon name={icon} className="h-3.5 w-3.5 text-gold" />
         <span className="font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-mut">
@@ -59,7 +60,7 @@ function Frame({
         </span>
       </div>
       <div className="p-4">{children}</div>
-    </div>
+    </Card>
   );
 }
 
@@ -76,7 +77,7 @@ function RavenryMock() {
   return (
     <Frame title="The Ravenry" icon="home">
       <div className="flex flex-col gap-3">
-        <div className="glass-sm rounded-2xl border border-steel-line bg-panel p-3">
+        <div className="rounded-lg border border-steel-line bg-panel p-3">
           <div className="flex items-center gap-2.5">
             <Avatar icon="raven" />
             <div className="min-w-0">
@@ -93,7 +94,7 @@ function RavenryMock() {
           <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-gold/20 bg-panel-warm px-3 py-2">
             <Icon name="target" className="h-4 w-4 text-gold" />
             <span className="text-[11px] font-semibold text-bone">Call sealed</span>
-            <span className="ml-auto rounded-full border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-gold">
+            <span className="ml-auto rounded-sm border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-gold">
               Judged live
             </span>
           </div>
@@ -109,7 +110,7 @@ function RavenryMock() {
             </span>
           </div>
         </div>
-        <div className="glass-sm rounded-2xl border border-steel-line bg-panel p-3">
+        <div className="rounded-lg border border-steel-line bg-panel p-3">
           <div className="flex items-center gap-2.5">
             <Avatar icon="user" />
             <div className="min-w-0">
@@ -142,7 +143,13 @@ function WhispersMock() {
       </div>
       <div className="mt-3 flex flex-col gap-2.5">
         <div className="flex justify-start">
-          <div className="glass-sm max-w-[80%] rounded-2xl rounded-tl-md px-3 py-2 text-[12px] text-bone-mut">
+          {/* The incoming bubbles carried a radius and a padding and no
+              surface, so only Ysolde's half of the conversation had a bubble
+              and the other half read as loose text floating in the frame. A
+              mock of a chat that does not look like a chat is worse than no
+              mock. `bg-panel` against the outgoing `bg-panel-warm` keeps the
+              two sides distinguishable without introducing a third colour. */}
+          <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel px-3 py-2 text-[12px] text-bone-mut">
             The Throne shifts this week. Will Goldmane hold the lead?
           </div>
         </div>
@@ -152,12 +159,12 @@ function WhispersMock() {
           </div>
         </div>
         <div className="flex justify-start">
-          <div className="glass-sm max-w-[80%] rounded-2xl rounded-tl-md px-3 py-2 text-[12px] text-bone-mut">
+          <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel px-3 py-2 text-[12px] text-bone-mut">
             Bold words. Court at dusk, then. Bring witnesses.
           </div>
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-2 rounded-full border border-steel-line bg-void px-3 py-2">
+      <div className="mt-3 flex items-center gap-2 rounded-sm border border-steel-line bg-void px-3 py-2">
         <span className="text-[11px] text-bone-faint">Send a whisper</span>
         <Icon name="send" className="ml-auto h-4 w-4 text-gold" />
       </div>
@@ -183,7 +190,7 @@ function HousesMock() {
         {houseRows.map((h, i) => (
           <div
             key={h.name}
-            className="glass-sm rounded-xl border border-steel-line bg-panel px-3 py-2.5"
+            className="rounded-lg border border-steel-line bg-panel px-3 py-2.5"
           >
             <div className="flex items-center gap-2">
               <span className="font-display text-[11px] font-bold text-bone-faint">
@@ -224,7 +231,7 @@ function KeepMock() {
           <p className="font-display text-[15px] font-semibold text-bone">Aeron Blackwood</p>
           <p className="text-[11px] text-bone-faint">@aeron · House Corvane</p>
         </div>
-        <span className="mb-1 ml-auto rounded-full border border-gold/40 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-gold">
+        <span className="mb-1 ml-auto rounded-sm border border-gold/40 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-gold">
           Warden
         </span>
       </div>
@@ -241,7 +248,7 @@ function KeepMock() {
           { k: "Calls won", v: "27" },
           { k: "Duels", v: "19-4" },
         ].map((s) => (
-          <div key={s.k} className="glass-sm rounded-xl border border-steel-line bg-panel py-2">
+          <div key={s.k} className="rounded-lg border border-steel-line bg-panel py-2">
             <p className="tnum font-display text-sm font-semibold text-gold-bright">{s.v}</p>
             <p className="text-[9px] uppercase tracking-[0.14em] text-bone-faint">{s.k}</p>
           </div>
@@ -261,15 +268,7 @@ export function PlatformPreview() {
   const yB = useTransform(scrollYProgress, [0, 1], [-24, 24]);
 
   return (
-    <motion.section
-      id="realm"
-      ref={ref}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass relative scroll-mt-28 overflow-hidden p-7 sm:p-9"
-    >
+    <Card render={<motion.section id="realm" ref={ref} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative scroll-mt-28 overflow-hidden p-7 sm:p-9">
       {/* Ambient premium glow: warm gold meeting a cool steel edge */}
       <div
         aria-hidden="true"
@@ -287,9 +286,9 @@ export function PlatformPreview() {
           <LandingIcon name="vision" className="h-4 w-4" />
           See the realm
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-void/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
+        <span className="inline-flex items-center gap-1.5 rounded-sm border border-gold/25 bg-void/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
           <span className="h-1.5 w-1.5 rounded-full bg-ember" />
-          Live product preview
+          Product preview
         </span>
       </motion.div>
       <motion.h2
@@ -317,6 +316,6 @@ export function PlatformPreview() {
           <KeepMock />
         </motion.div>
       </div>
-    </motion.section>
+    </Card>
   );
 }

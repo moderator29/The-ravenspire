@@ -17,7 +17,7 @@ export default function OpengraphImage() {
           justifyContent: "center",
           background: "#07070A",
           backgroundImage:
-            "radial-gradient(circle at 50% 38%, rgba(200,162,76,0.16), rgba(7,7,10,0) 60%)",
+            "radial-gradient(circle at 50% 38%, rgba(217, 176, 64,0.16), rgba(7,7,10,0) 60%)",
         }}
       >
         <div
@@ -28,8 +28,8 @@ export default function OpengraphImage() {
             width: 172,
             height: 172,
             borderRadius: 40,
-            border: "8px solid #C8A24C",
-            color: "#C8A24C",
+            border: "8px solid #D9B040",
+            color: "#D9B040",
             fontSize: 128,
             fontWeight: 700,
             fontFamily:
@@ -42,7 +42,7 @@ export default function OpengraphImage() {
         <div
           style={{
             marginTop: 44,
-            color: "#C8A24C",
+            color: "#D9B040",
             fontSize: 92,
             fontWeight: 700,
             letterSpacing: 14,

@@ -2,8 +2,8 @@ import type { Champion } from "@/lib/game/champions";
 
 /* CHAMPION COMBAT PROFILES
 
-   The War engine used to fight every champion identically — a hardcoded attack,
-   one speed, one ultimate — so the roster's passives and ultimates were pure
+   The War engine used to fight every champion identically, a hardcoded attack,
+   one speed, one ultimate, so the roster's passives and ultimates were pure
    flavor. This module turns each champion's real stats and their written
    passive/ultimate into a machine-readable combat profile the engine actually
    plays: attack and pace scale from stats, defense becomes real damage
@@ -12,7 +12,7 @@ import type { Champion } from "@/lib/game/champions";
    The mapping is derived once from the champion's own data (keywords in the
    passive/ultimate text), so a new champion added to champions.ts automatically
    inherits a fitting kit with no engine change. Deterministic and framework
-   free — safe to call anywhere. */
+   free, safe to call anywhere. */
 
 export type PassiveKind =
   | "lifesteal"
@@ -39,7 +39,7 @@ export interface CombatProfile {
   attackInterval: number;
   moveSpeed: number;
   range: number;
-  /* 0..0.5 — fraction of incoming damage shrugged off (from Defense). */
+  /* 0..0.5, fraction of incoming damage shrugged off (from Defense). */
   damageReduction: number;
 
   passive: PassiveKind;
@@ -173,7 +173,7 @@ function readUltimate(c: Champion): {
 }
 
 /* Plain-language effect of a passive, so the battle intro can tell the player
-   what their champion actually does — not just flavor. */
+   what their champion actually does, not just flavor. */
 export function passiveEffectText(kind: PassiveKind): string {
   switch (kind) {
     case "lifesteal":
@@ -185,7 +185,7 @@ export function passiveEffectText(kind: PassiveKind): string {
     case "thorns":
       return "Reflects part of every blow back at attackers.";
     case "bulwark":
-      return "Hardened defense — takes sharply reduced damage.";
+      return "Hardened defense, takes sharply reduced damage.";
     case "ignite":
       return "Strikes set foes alight, burning them over time.";
     case "swift":

@@ -1,11 +1,26 @@
+import { getProfile } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 
-/* Deployment diagnostics. Reports ONLY whether required configuration is
-   present (never the values), the Supabase project the app is pointed at, and
-   whether the service-role client can actually read the database. This is how
-   we tell a missing env var or a wrong-project mismatch apart from a code bug.
-   No secret is ever returned. */
-export async function GET() {
+/* Deployment diagnostics, in two tiers.
+ *
+ * C6: this route was fully public and returned the Supabase project ref, the
+ * live profile count, which env vars are set, and the decoded role/ref/expiry
+ * claims of the service-role and anon keys. None of that is a secret on its
+ * own, and together it is a map of the deployment handed to anyone who asks.
+ *
+ * Unauthenticated callers now get liveness only: { ok: true }. That is what an
+ * uptime probe or a load balancer actually needs, and it needs no credential.
+ * The full diagnostic body is for admins, who are the only people who can act
+ * on it. No secret is ever returned in either tier. */
+
+export const dynamic = "force-dynamic";
+
+export async function GET(req: Request) {
+  /* Shallow liveness: the process is up and serving. Nothing about the
+     deployment leaves here. */
+  const profile = await getProfile(req);
+  if (!profile?.is_admin) return Response.json({ ok: true });
+
   const present = (v: string | undefined) => Boolean(v && v.length > 0);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
