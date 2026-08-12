@@ -5,6 +5,7 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { createClient } from "@/lib/supabase/client";
 import { crests, CrestRoundel } from "@/components/brand/crests";
+import { Card } from "@/components/ui/card";
 import { BackButton } from "@/components/shell/back-button";
 
 interface MeProfile {
@@ -87,9 +88,10 @@ export default function RenownPage() {
           {TIERS.map((t, i) => {
             const isMine = me !== null && i === tierIndex;
             return (
-              <div
+              <Card
                 key={t.slug}
-                className={`glass glass-sm shrink-0 px-4 py-3 text-center ${
+                pad="none"
+                className={`shrink-0 px-4 py-3 text-center ${
                   isMine ? "border border-gold/60" : ""
                 }`}
               >
@@ -108,14 +110,14 @@ export default function RenownPage() {
                     Your tier
                   </p>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>
       </div>
 
       {me && (
-        <div className="glass glass-sm mt-3 p-4">
+        <Card pad="md" className="mt-3">
           {nextTier ? (
             <>
               <div className="flex items-baseline justify-between gap-3">
@@ -139,7 +141,7 @@ export default function RenownPage() {
               You stand at the summit. There is no higher tier to climb.
             </p>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Crests */}
@@ -155,9 +157,11 @@ export default function RenownPage() {
           const isEarned = earned?.has(c.slug) ?? false;
           const dim = c.status === "locked" || (earned !== null && !isEarned);
           return (
-            <div
+            <Card
               key={c.slug}
-              className={`rarity-${c.rarity} rarity-frame glass glass-sm flex flex-col items-center p-5 text-center`}
+              pad="none"
+              variant="inset"
+              className={`rarity-${c.rarity} rarity-frame flex flex-col items-center p-5 text-center`}
             >
               <CrestRoundel icon={c.icon} className="h-20 w-20" dim={dim} />
               <p className="mt-3 font-display text-base font-semibold text-bone">
@@ -186,7 +190,7 @@ export default function RenownPage() {
               <p className="mt-2.5 text-xs leading-relaxed text-bone-mut">
                 {c.earn}
               </p>
-            </div>
+            </Card>
           );
         })}
       </div>
