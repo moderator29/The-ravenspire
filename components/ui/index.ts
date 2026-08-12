@@ -81,6 +81,9 @@ export type {
   TabsProps,
 } from "@/components/ui/tabs";
 
+export { Slider } from "@/components/ui/slider";
+export type { SliderProps } from "@/components/ui/slider";
+
 export { Badge, RARITIES, RarityChip } from "@/components/ui/badge";
 export type { BadgeProps, BadgeVariant, Rarity } from "@/components/ui/badge";
 
