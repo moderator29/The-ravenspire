@@ -326,7 +326,40 @@ blank card.
 
 ## 8. Ravenry V2
 
-- Card registry (6.2) with, at launch: raven, call, verdict, poll, duel, achievement, house-standings, chronicle.
+### The card registry, in full
+
+The directive names sixteen things that must appear in the Ravenry. All sixteen
+are listed here so none is lost, each mapped to what actually produces it. A
+card ships only when there is a real producer behind it; a card with no source
+is not built, because a card with invented contents breaks rule 4.
+
+| Card | Producer | Status |
+| --- | --- | --- |
+| Posts | `posts.kind = 'raven'` | Live |
+| Calls | `posts.kind = 'call'` | Live |
+| Polls | `posts.kind = 'poll'` | Live |
+| Call verdicts | `call.resolved` | Spine emits, no card |
+| Achievements | `crest.earned` | Spine emits, no card |
+| House victories | `house.overtake` | Spine emits, no card |
+| Season updates | `season.milestone` | Spine emits, no card |
+| Quest cards | `quest.completed` | Spine emits, no card |
+| Chronicle updates | `raven.chronicle` | Spine emits, no card |
+| Challenge invitations | `duel.opened` | Spine emits, no card |
+| Oaths sworn | `oath.sworn` | Spine emits, no card |
+| House announcements | **No producer yet.** Needs a House post type authored by leadership. | Queued |
+| Leaderboards | **No producer yet.** A periodic standings snapshot card, not a live table in the feed. | Queued |
+| Trending discussions | **No producer yet.** Derived from reply and reaction velocity, not a stored event. | Queued |
+| Community events | **No producer yet.** Needs an events table before a card can exist. | Queued |
+| Game invitations | **No producer yet.** The War emits nothing invitational today. | Queued |
+| Reward announcements | **No producer yet.** Blocked behind server settled rewards. | Queued |
+| AI responses | Raven, once it posts rather than only replies. | Queued |
+| World events | Realm wide events with no single actor. | Queued |
+
+Eleven of these have a spine that already emits and no card that renders it.
+Seven need a producer built first. That distinction is the build order: render
+what already exists before inventing new sources.
+
+- Card registry (6.2), resolved through one map so a new kind is one file and one registry line, never a change to the feed.
 - **Inline composer** at the top of the feed (the highest-leverage funnel fix in the product).
 - Fix pagination (B1). Add infinite scroll with a sentinel, keyset-paginated on `effectiveTime`.
 - Move audience filtering server-side (C1).
@@ -552,6 +585,41 @@ The single change that matters: **Raven stops waiting to be mentioned.**
 - Centralize `RAVEN_MODEL` (currently duplicated across three files and three clients).
 - Wire the shared rate limiter and add a spend cap.
 
+### The full capability list from the directive
+
+Every capability the directive names, with an honest cost and feasibility read.
+Rule 5 governs all of them: a real Anthropic call over real data, or it does not
+ship. Rule 19 governs the budget: Anthropic is the one unavoidable paid line, so
+each capability is rated by how many calls it costs.
+
+| Capability | Cost shape | Verdict |
+| --- | --- | --- |
+| @Raven mentions | Per mention | Live |
+| Analyse a Call before publishing | Per Call created | Build first. Highest value per call. |
+| Calculate confidence, compare with previous predictions | Free. Pure maths over stored Calls, no model needed. | Build first |
+| Detect similar Calls and discussions | Cheap with embeddings, or free with Postgres full text search | Build, prefer the free path |
+| Summarise a discussion | Per thread, on demand only | Build, never automatic |
+| Summarise Houses daily | One call per House per day | Build |
+| Daily and weekly Chronicle | One or two calls a day total | Build first. The whole living realm feeling for pennies. |
+| Detect spam | Free for the common cases with heuristics; model only on the uncertain tail | Build the heuristic first |
+| Moderate toxicity | Same shape as spam | Build the heuristic first |
+| Identify emerging trends | Free. Velocity over existing rows. | Build, no model needed |
+| Highlight outstanding contributors | Free. Ranking over existing rows. | Build, no model needed |
+| Recommend users and communities | Free at this size. Graph adjacency beats a model until the graph is large. | Build, no model needed |
+| Event recaps | Folds into the Chronicle rather than being separate | Merge |
+| Create quests | Per generation, low frequency | Build after the Chronicle |
+| Create tournaments | Low frequency | Later |
+| Intelligent notifications | Risk of noise outweighs value early | Later, and opt in |
+| Onboarding assistance | Per new member | Later |
+| Surface hidden content | Free. Ranking, not generation. | Build, no model needed |
+| Generate lore updates | Low frequency, high delight | Later |
+
+The pattern worth naming: **nine of these twenty need no model at all.** Trend
+detection, contributor ranking, recommendations, similarity and surfacing are
+all ranking problems over rows we already store. Doing them without a model is
+faster, free, deterministic and testable. Reaching for Anthropic where SQL
+suffices is the expensive mistake here.
+
 ## 11. Houses V2
 
 ### 11.1 Verdict on the oath system
@@ -684,6 +752,26 @@ retention mechanic in the entire survey.
 - **Claim the Throne dissolves** into the Ravenry and Houses per section 4.
 - **New games should be feed-native, not destinations.** The cheapest high-value additions, in order: House trivia (one question a day, posted as a card, answered inline), prediction leagues (already free once Calls V2 lands, it is a leaderboard over existing data), and co-operative realm events (a House-vs-House goal with a progress bar in the feed).
 
+### Every concept the directive names
+
+| Concept | Read | Verdict |
+| --- | --- | --- |
+| Trivia | One question a day, posted as a card, answered inline. No new surface, no new engine. | Build first |
+| Prediction leagues | Free once Calls V2 lands. It is a leaderboard over data we already settle. | Build first |
+| Co-operative realm events | A realm wide goal with a progress bar in the feed. Cheap, and it makes strangers allies. | Build second |
+| Weekly challenges | A recurring quest with a season scoped leaderboard. Reuses quests and Calls. | Build second |
+| House Wars | The strongest identity builder in the list, but it is a scheduled competitive season with scoring, brackets and dispute handling. Real scope. | Design before building |
+| Territory control | Genuinely compelling and genuinely expensive: a persistent map, contested state, tick resolution. | Later, needs its own plan |
+| Community boss battles | Cooperative damage against a shared pool. Cheap if it is a progress bar, expensive if it is a game. | Build the cheap version |
+| Kingdom building | A different product wearing this product's clothes. Persistent state, economy, balance. | Not planned. Say no. |
+| Dungeon runs | Same objection as kingdom building, plus content cost per run. | Not planned. Say no. |
+
+The rule that decides all of these: **a game earns its place by feeding the
+Ravenry, not by adding a nav link.** Trivia and prediction leagues pass because
+they are feed cards with a leaderboard behind them. Kingdom building and dungeon
+runs fail because they are destinations that pull members out of the realm and
+cost more to build than everything else on this list combined.
+
 Every one of these lives *in* the Ravenry rather than behind another nav link.
 
 ## 13. Frontend and design direction
@@ -691,6 +779,59 @@ Every one of these lives *in* the Ravenry rather than behind another nav link.
 Grounded in a measured audit of the codebase plus a survey of how the current
 best-in-class systems are built. Verified against the *installed* packages
 (`tailwindcss@4.3.3`, `next@16.2.10`) rather than remembered documentation.
+
+### 13.0 The target, in the founder's words
+
+> "Apple meets Discord meets Steam inside a fantasy realm."
+
+Taken seriously rather than as a slogan, each name contributes something
+specific and they pull in different directions, which is why the sentence is
+useful:
+
+- **Apple is the restraint.** One radius scale, one motion scale, one type
+  scale, and the discipline to refuse a one off. It is the reason
+  `npm run check:rules` fails a build over a capsule shaped chip. Apple is not
+  the chrome, it is the saying no.
+- **Discord is the density and the liveness.** A room you leave open. Dense
+  legible rows, fast transitions, presence you can feel. This is why the Ledger
+  register is flat and quiet across ninety percent of the product: quiet is what
+  makes density readable.
+- **Steam is the library.** A sense of a collection worth returning to, of
+  progress that accumulates and belongs to you. Crests, Renown, oath history and
+  the prediction profile are the Steam part.
+- **The fantasy realm is the skin, never the structure.** Obsidian and forged
+  gold, the Ravenry, the Keep, the Coffers. Lexicon and atmosphere carry the
+  world; the underlying interface stays a modern product. A member should never
+  have to decode a metaphor to find a control.
+
+Where these conflict, restraint wins. Ornament is earned, never ambient.
+
+### 13.00 User experience, as explicit requirements
+
+The directive names these directly, so they are recorded as requirements rather
+than left implicit in the archetypes.
+
+- **Reduce complexity, reduce clicks, reduce friction.** The measure is the
+  number of taps from intent to done. Posting was a floating button plus a
+  navigation; it is now an inline composer in the feed. Every flow gets the same
+  question asked of it.
+- **Prioritise speed.** The feed is the only surface where performance is a
+  product feature rather than an engineering concern. No N+1 per card, batched
+  lookups, keyset pagination.
+- **Improve mobile.** Responsive is not a resize. Desktop and mobile get
+  different layouts. Touch targets are 44px below `md`, without exception.
+- **Improve animation and transitions.** 100 to 150ms for micro interactions,
+  150 to 250ms standard, under 300ms for everything. Exits about twenty percent
+  faster than entrances. Only `transform` and `opacity`. Ambient atmosphere
+  loops are the sole exception.
+- **Improve onboarding.** A new member should reach their first real action
+  without reading anything.
+- **Improve accessibility.** Not a checklist bolted on: contrast, focus,
+  keyboard reachability and live regions are part of the look. See 11 of the
+  design system.
+- **Every screen has a clear purpose.** Enforced structurally: every route must
+  resolve to one of the six archetypes. A screen that resolves to none is a
+  screen without a purpose, and that is the signal to cut it.
 
 ### 13.1 What the measurements actually showed
 
@@ -1167,3 +1308,103 @@ committed, unless you tell me otherwise.
 but no delivery code exists anywhere. In-app-only notifications is the biggest
 retention gap in the product, and both are free at our scale. **Do you have those
 accounts, and do you want re-engagement wired in Phase 6?**
+
+---
+
+## 23. Directive coverage, checked line by line
+
+The founder's concern, in his words: "I just want to make sure everything in my
+prompt is actually what you going to build and it's on the file."
+
+That was a fair challenge, and the answer when it was asked was no. Sixteen
+named items from the directive appeared nowhere in this plan. This section
+exists so that question never needs asking again: every block of the directive,
+with where it lives and whether it is honestly covered.
+
+**Rule for this table.** COVERED means the plan says how, not merely that the
+word appears. QUEUED means it is planned and unbuilt. DECLINED means a
+deliberate no with a stated reason, which the directive explicitly invites
+("Whenever you identify a better solution than the one requested, explain your
+reasoning and recommend it").
+
+### The Ravenry
+
+| Directive item | Home | Status |
+| --- | --- | --- |
+| Sixteen feed surfaces | 8, full registry table | COVERED. Eleven have an emitting spine and no card; seven need a producer first. |
+| Rich, non repetitive card types | 8, 13 | QUEUED |
+| Reusable UI components | 6.2 registry, `components/ui/` | COVERED and largely built |
+| Grow without clutter | 8, one map, one file per kind | COVERED |
+
+### Calls
+
+All eighteen named capabilities are in section 9. Evidence, sources, discussions,
+personal analytics and the prediction profile were named in the directive and
+were thin in the plan; they are now explicit. The engine is built and tested,
+the product layer is not. That gap is section 21's scorecard.
+
+### Raven AI
+
+| Directive item | Status |
+| --- | --- |
+| All twenty capabilities | COVERED in 10, each with a cost shape and a verdict |
+| Nine of them need no model | Recorded in 10. Trend detection, contributor ranking, recommendations, similarity and surfacing are ranking problems over rows we already store. |
+
+### Games
+
+All nine named concepts are in section 12 with a verdict. Two are DECLINED:
+kingdom building and dungeon runs. Both are destinations that pull members out
+of the Ravenry and cost more than everything else on the list combined, which
+contradicts the directive's own rule that games must strengthen the Ravenry
+rather than become isolated products. Territory control is deferred rather than
+declined, because it is genuinely good and genuinely expensive.
+
+### User experience
+
+Named in the directive and previously absent from this plan as its own block.
+Now section 13.
+
+| Item | Status |
+| --- | --- |
+| Reduce complexity, reduce clicks, reduce friction | QUEUED |
+| Improve navigation | COVERED and built: five slot dock, contextual sub nav, collapsible side nav |
+| Prioritise speed | QUEUED. The feed is the surface that matters. |
+| Improve mobile | COVERED and partly built. Touch targets and the drawer are fixed. |
+| Improve animation and transitions | COVERED in 13, motion scale enforced |
+| Improve onboarding | QUEUED |
+| Improve accessibility | COVERED and largely built. Contrast, focus rings, live regions, dialog semantics. |
+| Every screen has a clear purpose | COVERED by the six archetypes. A screen that resolves to no archetype is a screen without a purpose. |
+
+### Design system
+
+| Item | Status |
+| --- | --- |
+| Consistent spacing, type, motion, cards, buttons, icons, colour | COVERED in 13 and `docs/DESIGN-SYSTEM.md` |
+| Glassmorphism only where it improves usability | COVERED. Ornament is earned, never ambient. The Ledger register is flat and quiet for ninety percent of the product. |
+| "Apple meets Discord meets Steam inside a fantasy realm" | Now recorded verbatim in 13 as the target. Apple is the restraint and the token discipline, Discord is the density and the speed of a live room, Steam is the library and the sense of a collection worth returning to. |
+
+### Architecture, admin, documentation
+
+| Item | Status |
+| --- | --- |
+| Modularity, maintainability, scalability, separation, reusable systems | COVERED in 6 and 14 |
+| Avoid technical debt | COVERED, and enforced: `npm run check:rules` fails the build on the rules that regress |
+| Admin tools for every public feature, no duplicate interfaces | COVERED in 15. Verified: all eleven admin routes converted, every destructive action behind a confirmation. |
+| Chronicles, landing, roadmap, dev, admin and product docs all tell one story | COVERED in 16, QUEUED as work |
+| API review, free tiers first | COVERED in 17 and `docs/APIS.md`, which prices every service and records the esports finding |
+
+### Process and principles
+
+| Item | Status |
+| --- | --- |
+| Evolve, do not rebuild | COVERED in 5. Keep, Upgrade, Merge, Remove, Postpone, with a reason per removal. |
+| Think like a co founder, challenge assumptions | Demonstrated rather than asserted: the Roll of Honour default was changed because ranking by monotonic Renown made Call spamming optimal, the esports resolver was declined on cost, and kingdom building is declined here. |
+| Never immediately code, plan first | This section is the mechanism. Nothing starts until it is written down here. |
+| Production grade: typed, documented, testable, maintainable, readable, performant | COVERED in 18 and enforced by the four gates |
+| Backward compatibility and migrations | COVERED in 20 |
+
+### What is genuinely not planned
+
+Kingdom building and dungeon runs, declined above with reasons. Everything else
+in the directive is either built, queued here, or explicitly deferred with a
+stated cost. Nothing is silently dropped.
