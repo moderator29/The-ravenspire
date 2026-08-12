@@ -5,6 +5,7 @@ import { award } from "@/lib/points";
 import { maybeRavenReplyToPost } from "@/lib/ai/mention";
 import { notifyMentions, notifyFollowers } from "@/lib/notifications";
 import { emit } from "@/lib/realm/events";
+import { screenAndFlag } from "@/lib/moderation/screen";
 import { prepareCall, type CallInput } from "@/lib/calls/create";
 
 export async function POST(req: Request) {
@@ -177,6 +178,17 @@ export async function POST(req: Request) {
   }
 
   after(async () => {
+    /* The free spam and abuse screen (V2 section 10). It never blocks and never
+       hides: the raven is already published, and a heuristic that cannot read
+       intent only ever raises a flag for a moderator. */
+    await screenAndFlag(db, {
+      subjectType: "post",
+      subjectId: post.id,
+      authorId: profile.id,
+      text,
+      mentions: mentions.length,
+      cashtags: cashtags.length,
+    });
     await maybeRavenReplyToPost(db, post.id, text, profile.handle, profile.id);
     /* Tell anyone named in the raven that they were mentioned. */
     await notifyMentions(db, {

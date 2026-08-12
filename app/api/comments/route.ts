@@ -3,6 +3,7 @@ import { requireProfile, getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { maybeRavenReplyToComment } from "@/lib/ai/mention";
+import { screenAndFlag } from "@/lib/moderation/screen";
 import { createNotification, notifyMentions } from "@/lib/notifications";
 import {
   ANON_VIEWER,
@@ -200,6 +201,14 @@ export async function POST(req: Request) {
   });
 
   after(async () => {
+    /* The same free screen the Ravenry runs over a raven. It never blocks and
+       never hides, it only raises a flag a moderator reads. */
+    await screenAndFlag(db, {
+      subjectType: "comment",
+      subjectId: comment.id,
+      authorId: profile.id,
+      text,
+    });
     await maybeRavenReplyToComment(db, {
       postId: post.id,
       commentId: comment.id,
