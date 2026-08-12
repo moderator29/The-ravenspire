@@ -1554,3 +1554,313 @@ Now section 13.
 Kingdom building and dungeon runs, declined above with reasons. Everything else
 in the directive is either built, queued here, or explicitly deferred with a
 stated cost. Nothing is silently dropped.
+
+---
+
+# Part Two: The Collectibles Realm
+
+Directive 2, from the founder and co-founder, August 12, 2026. Status: **plan
+approved for foundation work; naming and set economics awaiting founder votes
+in section 33.**
+
+The direction, in the co-founder's words: SocialFi is poorly received in
+crypto, other social networks hold the advantage. What can work is a
+collectibles community: NFTs from the trading card game we already have, and
+mystery boxes carrying official merch.
+
+The verdict: agreed, and the codebase agrees too. This document already
+ordered "SocialFi" removed from every shipping surface (section 5). Part Two
+finishes that thought: the social layer stays as the community square, but the
+identity of the product becomes the collection.
+
+## 24. The reframe, in one line
+
+Ravenspire is a collectibles realm: play the War, collect the champions, join
+a House, own the relics. The Ravenry is where the community lives. The trading
+tools remain as the crypto wing. Nothing built is deleted; it is re-ranked.
+
+## 25. Why this platform is uniquely positioned
+
+This is not a pivot onto empty ground. The expensive parts of a collectibles
+product already exist here, live, tested, and on brand:
+
+| Asset | State | What it becomes |
+| --- | --- | --- |
+| 62 champions with name, title, house, weapon, 2 abilities, 4 stats, lore | Shipped, 20 with art | The card set. Every champion IS a card |
+| Rarity ladder (rare, epic, legendary, mythic) with per-rarity visual law | Shipped | Card rarities and pull odds |
+| Six Houses with sigils, mottos, colors | Shipped | Collector factions; House-aligned sets |
+| Crests (badges of deed) | Shipped | Earned, non-purchasable collectibles |
+| Ceremony register (Forge) | Shipped | The pack-opening moment |
+| Privy embedded wallet per member, non-custodial | Shipped | NFT custody with zero onboarding. The hardest problem in NFT UX is already solved for every member |
+| Server-authoritative POINTS and inventory precedent | Shipped | Chest contents and card grants settle server-side, same law as Glory |
+| $RSP at TGE, presale on external launchpad | Planned | The economy connective tissue |
+
+The honest gap: no commerce, no NFT infrastructure, no fulfillment. All of
+that is in section 30.
+
+## 26. The product
+
+Four pieces, one loop.
+
+### 26.1 The Reliquary (the collectibles hub)
+
+Route `/reliquary`. Plain label: Cards and relics. The member's binder and the
+realm's catalog. Set One is the 40-card champion set (section 31). Each card
+shows the real art, name, title, house, rarity, abilities and lore, drawn from
+`lib/game/champions.ts`, the single source of truth. Until launch every card
+is sealed: rendered, desaturated behind a soft blur, padlock chip, "First set,
+coming soon", and a Notify me that actually registers interest (section 27).
+No invented owners, no invented prices, no invented sale counts, ever.
+
+### 26.2 Warchests (mystery boxes)
+
+Digital chests and physical boxes under one name. A Warchest opens into cards
+and, for physical tiers, official merch. Odds are printed on the chest, exact
+and honest, before any purchase exists. Three planned tiers, names on the
+rarity ladder (working names): Squire's Chest, Knight's Warchest, the King's
+Reliquary. Physical boxes ship merch plus printed cards plus a redemption code
+that mints the digital twin to the buyer's own wallet.
+
+### 26.3 The Mercer (official merch)
+
+Route `/mercer`. Plain label: Official merch. Working name, alternates in
+section 33. Launch catalog small and high quality: one tee, one hoodie, one
+cap, one art print, one playmat. Until product photos exist the shop renders
+planned SKUs with the 3D icon set and silhouettes, sealed behind the same
+padlock. No fake product photos, no fake stock counts.
+
+### 26.4 The trading card game
+
+The War is the game; the cards are the champions. Phase one changes nothing
+about combat: owning a champion card is owning the champion, and the existing
+muster, arsenal and battle loop carries on. Phase two (post-launch): a proper
+turn-based card mode built on the stats and abilities that already exist.
+Physical cards are printable from day one because every card's data is real.
+
+### 26.5 The economy loop
+
+Play and post, earn POINTS (existing, server-side). POINTS convert to $RSP at
+TGE (existing law, rule 7 unchanged: balances display as POINTS). Warchests
+and merch are purchased with money, not points, at launch; points-priced
+cosmetic chests are a post-launch decision. Every digital collectible is
+claimable to the member's own Privy wallet. The platform never holds keys and
+never takes custody (rule 6 unchanged).
+
+### 26.6 Demote, merge, remove
+
+| Verdict | Item |
+| --- | --- |
+| Demote, keep | Scrying, Scanner, Swap, DNA, Watch, Forge, Ledger: grouped under Tools. They serve the crypto wing and the $RSP story, they stop being the identity |
+| Remove | The word SocialFi, everywhere, now doctrine. `/kitchen-sink` from production nav. The six `/soon` stubs, replaced by three real sealed chapters: Reliquary, Warchests, The Mercer |
+| Merge | `/wallet` into `/vault` (already ordered in section 5) |
+| Continue | Throne dissolution as planned |
+
+## 27. The preview pattern: backend live, frontend sealed
+
+The founder's build order, made precise. We build the real backend now, ship
+the real frontend now, and gate launch behind flags, so opening day is a flag
+flip and not a deploy.
+
+1. **Feature flags.** A `realm_flags` table: `reliquary_live`, `chests_live`,
+   `mercer_live`. Server-read, cached. The padlock UI is driven by the flag,
+   so the gate opens with zero code change.
+2. **The LockedGate primitive.** One component: wraps a surface, desaturates
+   and blurs it slightly, lays a padlock chip and "Coming soon" over it, and
+   offers Notify me. Built once in `components/realm/`, used by all three
+   surfaces and the landing page.
+3. **Notify me that works.** An `interest` table keyed by member and feature.
+   The existing `/soon` buttons that navigate to `/ravens` and register
+   nothing are replaced by this. Interest counts are real demand data for the
+   launch decision.
+4. **Rule 4, clarified, not weakened.** Previewing the real catalog is
+   honest: the 40 cards are the actual planned set, rendered from real data
+   and labeled as coming soon. What stays banned is unchanged: invented
+   owners, invented prices, invented sales, invented balances, any number
+   pretending to be live.
+
+## 28. Architecture
+
+### 28.1 Schema (Supabase, additive, RLS deny-by-default)
+
+| Table | Purpose |
+| --- | --- |
+| `realm_flags` | key, enabled, updated_at. Launch switches |
+| `interest` | member_id, feature, created_at, unique pair. The waitlist |
+| `collectible_sets` | set slug, name, season, status: preview, live, closed |
+| `collectibles` | id, set_id, champion_slug, kind (card, relic), rarity, house, art_url, metadata jsonb, planned_supply, chain, contract, token_id nullable, status |
+| `inventory` | member_id, collectible_id, qty, acquired_via (chest, reward, purchase, redemption), acquired_at. Server-authoritative, same law as points |
+| `chests` | sku, name, tier, odds jsonb (printed on the box), includes_merch, price_usd nullable, status |
+| `chest_openings` | id, member_id, chest sku, result jsonb, server_seed_hash, opened_at. Auditable pulls |
+| `merch_products` | sku, name, kind, images, sizes jsonb, status |
+| `redemptions` | code_hash, grants jsonb, redeemed_by nullable, redeemed_at. Physical to digital bridge |
+| `orders`, `order_items` | Schema now, endpoints later, payments phase |
+
+### 28.2 APIs
+
+`GET /api/reliquary` (catalog plus own inventory), `GET /api/reliquary/[id]`,
+`POST /api/interest` (live immediately), `GET /api/chests`,
+`POST /api/chests/[sku]/open` (server-authoritative, flag-gated off),
+`GET /api/mercer/products`, `POST /api/redeem` (code to wallet claim), and
+`/admin/collectibles` for sets, cards, chests, products, and the flag panel.
+
+### 28.3 The NFT plan
+
+- Chain: **Base**. Cheap, liquid, works with the existing Alchemy key and
+  Privy embedded wallets.
+- Standard: **ERC-1155** editions for rare, epic, legendary print runs;
+  mythics as ultra-short editions or 721 one-of-ones, decided per card.
+- Custody: **lazy mint by claim voucher.** The server signs a voucher against
+  `inventory`; the member's own wallet executes the mint. The platform never
+  holds the token. Rule 6 survives contact with NFTs.
+- Sequence: preview (off-chain catalog, now), claimable (contracts deployed,
+  vouchers live), tradable (standard contracts mean OpenSea works day one; an
+  in-realm market is a later decision).
+- Metadata pinned before mint; supplies frozen before mint; no mint until the
+  set is final. Nothing on-chain is retractable, so on-chain goes last.
+
+### 28.4 Physical
+
+Print spec lives in `docs/CARD-ART-PROMPTS.md` (63 by 88 mm, 300 dpi, 3 mm
+bleed, art generated at 2:3 exceeds print resolution). Merch starts
+print-on-demand, one quality vendor, no held inventory. Every physical
+Warchest carries a QR redemption code, single-use, hash-stored.
+
+## 29. Dashboard IA redesign
+
+Side navigation regroups around the identity. Nothing is deleted:
+
+| Group | Entries |
+| --- | --- |
+| (top) | The Ravenry, Calls, The Crossroads, Houses |
+| The Collection | The War, The Reliquary (sealed), Warchests (sealed), The Mercer (sealed), Crests and Renown |
+| The Realm | The Rookery, Roll of Honour, Whispers, Bookmarks, Raise Your Banners |
+| Tools | The Scrying Glass, Scanner, Swap, The Ledger, DNA, Watch, Forge |
+| Account | Ravens, The Vault, The Chronicle, Settings |
+
+Sealed entries carry a small padlock glyph in the nav, gold on hover, which is
+itself a teaser. The mobile dock has five slots; two options, founder's call:
+
+- Option A: Ravenry, Reliquary, War, Crossroads, Keep
+- Option B (recommended): Ravenry, Calls, Reliquary, War, Keep, with the
+  Crossroads reachable from the top bar search
+
+Settings additions: collection privacy (show or seal your Hoard on your Keep),
+and notify preferences per sealed feature.
+
+## 30. Landing page corrections
+
+1. Hero repositions to the collectibles realm: play the War, collect the
+   champions, join a House. SocialFi language gone.
+2. A Collection section: a fanned preview of real Set One cards, sealed with
+   the padlock treatment, wired to the same interest capture.
+3. Champion count made consistent everywhere: sixty two (the baked-in "60+"
+   in `lineup.png` is replaced along with the concept-art backdrops).
+4. Roadmap gains the Collection chapter with honest states: preview now,
+   chests at launch, mint after.
+5. Presale copy unchanged by law: "Presale coming soon", POINTS never $RSP.
+6. Tokenomics section notes chest and merch revenue as realm revenue, no
+   invented figures.
+
+## 31. Set One: Champions of the Six Houses
+
+Forty cards from the live roster: 2 mythic, 12 legendary, 13 epic, 13 rare,
+six to seven per House. The manifest below is the set list; art direction and
+per-card prompts live in `docs/CARD-ART-PROMPTS.md`.
+
+| # | Rarity | House | Card | Title |
+| --- | --- | --- | --- | --- |
+| 1 | Mythic | Nightvale | The Faceless | A Stranger to All |
+| 2 | Mythic | Emberfall | Kaelen Dragonborn | The Last Ember of the Old Fire |
+| 3 | Legendary | Corvane | Aeron the Black | Warden of the Obsidian Coast |
+| 4 | Legendary | Corvane | Corvus Ashwing | The Raven Lord |
+| 5 | Legendary | Emberfall | Pyrra Flameheart | The First Spark |
+| 6 | Legendary | Emberfall | Varek Hollowflame | The Ash King's Heir |
+| 7 | Legendary | Frosthold | Grommash | The Walking Rampart |
+| 8 | Legendary | Frosthold | Helga Winterborn | The Glacier's Daughter |
+| 9 | Legendary | Stormcrest | Tempest Kael | The Rider of Gales |
+| 10 | Legendary | Stormcrest | Lyra Windmere | The Falcon of the Crest |
+| 11 | Legendary | Nightvale | Vorian Nightblade | Herald of the Long Dusk |
+| 12 | Legendary | Nightvale | Umbra Veilwalker | The Space Between Shadows |
+| 13 | Legendary | Goldmane | Leonar Goldmane | The Lion Ascendant |
+| 14 | Legendary | Goldmane | Isolde the Pure | Light of the Seven Roads |
+| 15 | Epic | Corvane | Thessaly Quill | Mistress of Whispers |
+| 16 | Epic | Corvane | Ravenna Holt | Keeper of the Black Archive |
+| 17 | Epic | Emberfall | Karn the Reaver | Terror of the Ember Coast |
+| 18 | Epic | Emberfall | Ashka Emberveil | The Smoke Dancer |
+| 19 | Epic | Frosthold | Torvald Ironhand | The Anvil of the North |
+| 20 | Epic | Frosthold | Gwendal Frost | The Winter's Lance |
+| 21 | Epic | Stormcrest | Mira Stormborn | Daughter of Thunder |
+| 22 | Epic | Stormcrest | Wren Galecaller | The Sky's Herald |
+| 23 | Epic | Stormcrest | Cormac Thunderhide | The Rolling Boom |
+| 24 | Epic | Nightvale | Morrigan Shadowmist | The Whisper Between Walls |
+| 25 | Epic | Nightvale | Sable Nightwood | The Quiet Harvest |
+| 26 | Epic | Goldmane | Octavia Gilt | The Coin Countess |
+| 27 | Epic | Goldmane | Elowen Brightshield | The Dawn Sentinel |
+| 28 | Rare | Corvane | Nymeria Vale | The Far-Reaching |
+| 29 | Rare | Corvane | Maren Darkfeather | The Owl at Midnight |
+| 30 | Rare | Emberfall | Brom Coalbeard | The Forge Father |
+| 31 | Rare | Emberfall | Seraphine Dawnash | The Morning Flame |
+| 32 | Rare | Frosthold | Ser Willas | The Unmoved |
+| 33 | Rare | Frosthold | Bjorn Frostfell | The Bear of the Tundra |
+| 34 | Rare | Stormcrest | Ser Brannoch | The Loud Knight |
+| 35 | Rare | Stormcrest | Petra Boneweather | The Storm Reader |
+| 36 | Rare | Nightvale | Bael the Bard | Voice of Velvet |
+| 37 | Rare | Nightvale | Nyx Emberdim | The Last Candle |
+| 38 | Rare | Goldmane | Lady Ysolde | The Gilded Thorn |
+| 39 | Rare | Goldmane | Ser Elyra | The Line That Holds |
+| 40 | Rare | Goldmane | Cressida Lorne | The Velvet Verdict |
+
+The card chrome (frame, rarity gems, house sigil, name, stats) is rendered by
+the platform, never baked into the art. That is the lesson of the
+battlefield.png finding: baked-in text ships typos and contradictions forever,
+composited chrome stays crisp, correctable and print-ready.
+
+## 32. What V2 still lacks, the honest gap list
+
+Frontend not built or not verified: onboarding steps 0 and 1 and `/banners`
+signed in (blocked on real Privy keys in any test environment), Whispers
+realtime UI, image attachment flows, `platform-preview.tsx` honest rebuild
+(now: replace invented feed with the sealed Collection preview), the three new
+sealed chapters, all Reliquary, Warchest and Mercer surfaces, dashboard IA
+regroup, landing reposition.
+
+Backend not built: feature flags, interest capture, the collectibles schema
+and APIs, chest opening with auditable seeds, redemption codes, payments
+(nothing exists), NFT voucher signing, durable rate limiting (the in-memory
+limiter in `/api/raven` still stands), search unification, `/wallet` into
+`/vault`, push and email notifications, admin for all of the above.
+
+Infrastructure not built: real staging environment with real keys, CI running
+all four gates (today CI runs typecheck and build only), error monitoring and
+alerts on free tier, analytics, Supabase backup and PITR verification, load
+readiness for chest-opening spikes, image CDN policy for card art, cleanup of
+the duplicated Vercel projects visible on every PR.
+
+## 33. Build phases
+
+| Phase | Contents | State |
+| --- | --- | --- |
+| A. Foundation | Flags, interest, schema, LockedGate, rewire `/soon`, three sealed chapters | Started, agent dispatched |
+| B. The Reliquary preview | `/reliquary` with Set One sealed, card detail sheets, Keep integration, dashboard IA regroup, landing reposition | Next, art can land mid-phase |
+| C. Warchests and Mercer preview | Chest tiers with printed odds, merch SKUs with silhouettes, both sealed, pack-opening Ceremony built and dark | After B |
+| D. Commerce | Payments, orders, fulfillment vendor, chest purchase live | Needs founder decisions on pricing and vendor |
+| E. Mint | Contracts on Base, vouchers, claim flow, redemption codes on physical boxes | Last, deliberately |
+
+Founder votes needed: the three names (Reliquary, Warchests, Mercer, with
+alternates The Hoard, The Vaultworks, The Outfitter), dock option A or B,
+chest tier names and pricing intent, print-on-demand vendor preference, and
+planned supplies per rarity before anything mints.
+
+## 34. Risks and guardrails
+
+1. NFT markets are as bruised as SocialFi. The answer is sequencing: lead
+   with the game and the physical collectibles, the word NFT arrives last,
+   attached to something people already want.
+2. Mystery boxes carry gambling optics. Exact odds printed on every chest,
+   guaranteed floor value per box, no cash-out promises, no invented scarcity.
+3. Merch logistics can eat a small team. Print-on-demand, one vendor, five
+   SKUs, quality over catalog.
+4. Nothing mints until the set is final. On-chain mistakes are permanent;
+   preview mistakes cost a deploy.
+5. The realm lexicon holds. Every new surface gets a realm name and a plain
+   label, same as every existing one.
