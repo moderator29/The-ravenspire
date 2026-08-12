@@ -13,8 +13,16 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
-import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs";
 import { StreamList } from "@/components/stream/stream-shell";
+import {
+  DossierBanner,
+  DossierHeader,
+  DossierHero,
+  DossierIdentity,
+  DossierPage,
+  DossierTabPanel,
+  DossierTabs,
+} from "@/components/dossier/dossier-shell";
 import {
   fetchFollowCounts,
   fetchProfilePosts,
@@ -39,7 +47,12 @@ import { shareOrCopy } from "@/lib/share";
    and the member's crests. Everything below it is Ledger, flat and quiet.
 
    The tab strip is the underline pattern rather than a chip rail, because these
-   are sections of one subject with counts, which is the rule in section 3. */
+   are sections of one subject with counts, which is the rule in section 3.
+
+   All of that is now the Dossier shell rather than this file's own reading of
+   it: the frame, the banner band, the identity block that overlaps it, and the
+   tab strip with its counts. This file describes the subject; the shell
+   decides what a Dossier looks like. */
 
 /* A file picker is a label wrapping a hidden input, which is invisible to the
    keyboard unless the input stays focusable and the label shows the ring on its
@@ -52,10 +65,15 @@ const PICKER_FOCUS =
 export function ProfileView({
   profile,
   own = false,
+  back = false,
   onEdit,
 }: {
   profile: PublicProfile;
   own?: boolean;
+  /* House rule 16. A Keep reached from a raven, a board or a roster is
+     navigated into and needs a way back; the member's own Keep is a dock
+     destination and does not. */
+  back?: boolean;
   onEdit?: () => void;
 }) {
   const { authenticated } = useRealmAuth();
@@ -208,11 +226,12 @@ export function ProfileView({
   };
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-4 sm:px-4 sm:py-6">
-      {/* ── Hero band ─────────────────────────────────────────────────── */}
-      <Card
-        pad="none"
-        className="relative h-32 overflow-hidden sm:h-40"
+    <DossierPage>
+      {back ? <DossierHeader /> : null}
+
+      {/* Hero band. The one place in a Dossier that may carry any weight. */}
+      <DossierHero>
+      <DossierBanner
         style={
           displayProfile.banner_url
             ? {
@@ -247,11 +266,9 @@ export function ProfileView({
             />
           </Button>
         )}
-      </Card>
+      </DossierBanner>
 
-      {/* Positioned and later in the DOM than the banner, so it paints above it
-          without needing a rung off the z-index scale. */}
-      <div className="relative -mt-8 px-4">
+      <DossierIdentity>
         <div className="flex items-end justify-between gap-3">
           {isOwn ? (
             <label
@@ -515,35 +532,26 @@ export function ProfileView({
           handle={profile.handle}
           own={isOwn}
         />
-      </div>
+      </DossierIdentity>
+      </DossierHero>
 
-      {/* ── Tabs, then panels ─────────────────────────────────────────── */}
-      <Tabs
+      {/* Tabs, then panels. Sections of one subject with counts, which is the
+          underline pattern by section 3. */}
+      <DossierTabs
         value={tab}
         onValueChange={(v) => setTab(v as "posts" | "calls" | "media")}
-        className="mt-5"
+        tabs={[
+          { value: "posts", label: "Ravens", count: posts.length },
+          { value: "calls", label: "Calls", count: callPosts.length },
+          { value: "media", label: "Media", count: mediaTiles.length },
+        ]}
       >
-        <TabsList>
-          <Tab value="posts">
-            Ravens{" "}
-            <span className="tnum text-bone-faint">{posts.length}</span>
-          </Tab>
-          <Tab value="calls">
-            Calls{" "}
-            <span className="tnum text-bone-faint">{callPosts.length}</span>
-          </Tab>
-          <Tab value="media">
-            Media{" "}
-            <span className="tnum text-bone-faint">{mediaTiles.length}</span>
-          </Tab>
-        </TabsList>
-
-        <TabsPanel value="posts" className="mt-3">
+        <DossierTabPanel value="posts">
           <PostPanel
             posts={posts}
             empty={
               <EmptyState
-                icon="raven"
+                icon3d="raven"
                 title={isOwn ? "Your Keep awaits its first raven" : "No ravens yet"}
                 body={
                   isOwn
@@ -560,14 +568,14 @@ export function ProfileView({
               />
             }
           />
-        </TabsPanel>
+        </DossierTabPanel>
 
-        <TabsPanel value="calls" className="mt-3">
+        <DossierTabPanel value="calls">
           <PostPanel
             posts={callPosts}
             empty={
               <EmptyState
-                icon="target"
+                icon3d="call-orb"
                 title="No Calls sealed yet"
                 body={
                   isOwn
@@ -584,13 +592,13 @@ export function ProfileView({
               />
             }
           />
-        </TabsPanel>
+        </DossierTabPanel>
 
-        <TabsPanel value="media" className="mt-3">
+        <DossierTabPanel value="media">
           {mediaTiles.length === 0 ? (
             <Card pad="none">
               <EmptyState
-                icon="image"
+                icon3d="media"
                 title="No images from this Keep yet"
                 body={
                   isOwn
@@ -625,9 +633,9 @@ export function ProfileView({
               ))}
             </div>
           )}
-        </TabsPanel>
-      </Tabs>
-    </div>
+        </DossierTabPanel>
+      </DossierTabs>
+    </DossierPage>
   );
 }
 

@@ -9,6 +9,16 @@ import type { PublicProfile } from "@/lib/social/types";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { Button } from "@/components/ui/button";
+import {
+  DossierMissing,
+  DossierSkeleton,
+} from "@/components/dossier/dossier-shell";
+
+/* The member's own Keep. The Dossier is ProfileView, which the public
+   /u/handle route renders too; this route resolves who the viewer is and
+   answers honestly in the three states where there is no Keep to show yet.
+   The Keep itself carries no back control, because it is a dock destination
+   rather than somewhere a member was navigated into. */
 
 export default function KeepPage() {
   const { ready, authenticated, enabled } = useRealmAuth();
@@ -63,37 +73,37 @@ export default function KeepPage() {
     };
   }, [ready, authenticated, refresh, tries]);
 
-  if (state === "loading")
-    return <div className="mx-auto max-w-2xl p-6"><div className="glass h-48 animate-pulse" /></div>;
+  /* Shaped like the Keep that is arriving, rather than one grey slab. */
+  if (state === "loading") return <DossierSkeleton />;
 
   if (state === "anon")
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="font-display text-2xl font-semibold text-bone">My Keep</h1>
-        <p className="mt-3 text-sm text-bone-mut">
-          {enabled
+      <DossierMissing
+        title="My Keep"
+        body={
+          enabled
             ? "Your Keep rises when you enter the realm."
-            : "Auth is not configured in this environment; your Keep awaits on the hosted realm."}
-        </p>
-        <Button variant="gold" size="lg" className="mt-6" render={<Link href="/signin" />}>
-          Enter the Realm
-        </Button>
-      </div>
+            : "Auth is not configured in this environment, so your Keep awaits on the hosted realm."
+        }
+        action={
+          <Button variant="gold" size="lg" render={<Link href="/signin" />}>
+            Enter the Realm
+          </Button>
+        }
+      />
     );
 
   if (state === "onboard")
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="font-display text-2xl font-semibold text-bone">
-          One step remains
-        </h1>
-        <p className="mt-3 text-sm text-bone-mut">
-          Claim your name and swear to a House, and your Keep is raised.
-        </p>
-        <Button variant="gold" size="lg" className="mt-6" render={<Link href="/welcome" />}>
-          See the Maester
-        </Button>
-      </div>
+      <DossierMissing
+        title="One step remains"
+        body="Claim your name and swear to a House, and your Keep is raised."
+        action={
+          <Button variant="gold" size="lg" render={<Link href="/welcome" />}>
+            See the Maester
+          </Button>
+        }
+      />
     );
 
   return (

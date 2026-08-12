@@ -4,7 +4,14 @@ import { use, useEffect, useState } from "react";
 import { ProfileView } from "@/components/social/profile-view";
 import { fetchProfile } from "@/lib/social/queries";
 import type { PublicProfile } from "@/lib/social/types";
-import { BackButton } from "@/components/shell/back-button";
+import {
+  DossierMissing,
+  DossierSkeleton,
+} from "@/components/dossier/dossier-shell";
+
+/* Another member's Keep. The Dossier itself lives in ProfileView, which the
+   member's own Keep renders too; this route resolves the handle and answers
+   honestly when nobody holds it. */
 
 export default function PublicKeepPage({
   params,
@@ -20,32 +27,15 @@ export default function PublicKeepPage({
     void fetchProfile(handle).then(setProfile);
   }, [handle]);
 
-  if (profile === "loading")
-    return (
-      <div className="mx-auto max-w-2xl p-6">
-        <div className="glass h-48 animate-pulse" />
-      </div>
-    );
+  if (profile === "loading") return <DossierSkeleton />;
+
   if (!profile)
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <div className="mb-6 flex justify-center">
-          <BackButton />
-        </div>
-        <h1 className="font-display text-xl font-semibold text-bone">
-          No such Keep
-        </h1>
-        <p className="mt-2 text-sm text-bone-mut">
-          No one by that name holds land in this realm.
-        </p>
-      </div>
+      <DossierMissing
+        title="No such Keep"
+        body="No one by that name holds land in this realm."
+      />
     );
-  return (
-    <>
-      <div className="mx-auto w-full max-w-2xl px-3 pt-4 sm:px-4">
-        <BackButton />
-      </div>
-      <ProfileView profile={profile} />
-    </>
-  );
+
+  return <ProfileView profile={profile} back />;
 }
