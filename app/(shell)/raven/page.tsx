@@ -12,11 +12,14 @@ import {
   VOICE_KEY,
   BROWSE_KEY,
   LENGTH_KEY,
+  LANGUAGE_KEY,
   CONVOS_KEY,
   ACTIVE_KEY,
+  LANGUAGES,
   type Msg,
   type Voice,
   type Length,
+  type Language,
   type Conversation,
   type TokenCard,
   type WalletCard,
@@ -57,6 +60,7 @@ export default function RavenPage() {
   const [voice, setVoice] = useState<Voice>("default");
   const [browse, setBrowse] = useState(false);
   const [length, setLength] = useState<Length>("normal");
+  const [language, setLanguage] = useState<Language>("auto");
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -74,6 +78,12 @@ export default function RavenPage() {
       const l = localStorage.getItem(LENGTH_KEY);
       if (l === "brief" || l === "normal" || l === "detailed") setLength(l);
       if (localStorage.getItem(BROWSE_KEY) === "1") setBrowse(true);
+      /* Validated against the shared list rather than a second literal union,
+         so a language removed from the list stops being restorable here
+         without anyone having to remember this line. */
+      const lang = localStorage.getItem(LANGUAGE_KEY);
+      if (lang && LANGUAGES.some((l) => l.id === lang))
+        setLanguage(lang as Language);
 
       const rawConvos = localStorage.getItem(CONVOS_KEY);
       if (rawConvos) {
@@ -168,7 +178,7 @@ export default function RavenPage() {
         retryAfter?: number;
       }>("/api/raven", {
         method: "POST",
-        json: { messages: payload, voice, browse, length },
+        json: { messages: payload, voice, browse, length, language },
       });
       if (!resOk || !data?.reply) {
         setMessages((m) => [
@@ -282,6 +292,10 @@ export default function RavenPage() {
     setLength(l);
     persist(LENGTH_KEY, l);
   };
+  const setLanguagePref = (l: Language) => {
+    setLanguage(l);
+    persist(LANGUAGE_KEY, l);
+  };
 
   return (
     /* A conversation owns the whole viewport. The shell drops its dock, its
@@ -354,9 +368,11 @@ export default function RavenPage() {
         voice={voice}
         browse={browse}
         length={length}
+        language={language}
         onVoice={setVoicePref}
         onBrowse={setBrowsePref}
         onLength={setLengthPref}
+        onLanguage={setLanguagePref}
       />
       <HistoryPanel
         open={historyOpen}

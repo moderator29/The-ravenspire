@@ -152,10 +152,17 @@ export async function POST(req: Request) {
     voice?: string;
     browse?: boolean;
     length?: string;
+    language?: string;
   } | null;
   const voice = typeof body?.voice === "string" ? body.voice : undefined;
   const browse = body?.browse === true;
   const length = typeof body?.length === "string" ? body.length : undefined;
+  /* Unvalidated on purpose at this layer. `resolveLanguage` downstream falls
+     back to "auto" for anything it does not recognise, so an unknown string
+     cannot reach the prompt. Validating twice would mean two lists to keep in
+     step, and the one that matters is the one beside the guidance text. */
+  const language =
+    typeof body?.language === "string" ? body.language : undefined;
   const messages = (body?.messages ?? [])
     .filter(
       (m) =>
@@ -202,7 +209,7 @@ export async function POST(req: Request) {
   const result = await askRaven(
     messages,
     contexts.length ? contexts.join("\n") : undefined,
-    { voice, browse, length }
+    { voice, browse, length, language }
   );
   if (!result)
     return json({ error: "The Raven is preoccupied. Try again shortly." }, 502);

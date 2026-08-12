@@ -6,8 +6,11 @@ import {
   resolveLength,
   lengthGuidance,
   lengthMaxTokens,
+  resolveLanguage,
+  languageGuidance,
   type RavenVoice,
   type RavenLength,
+  type RavenLanguage,
 } from "@/lib/ai/raven-voice";
 
 const key = process.env.ANTHROPIC_API_KEY;
@@ -44,6 +47,7 @@ export type AskRavenOptions = {
   voice?: RavenVoice | string;
   browse?: boolean;
   length?: RavenLength | string;
+  language?: RavenLanguage | string;
 };
 
 function buildSystem(context: string | undefined, opts: AskRavenOptions): string {
@@ -64,6 +68,13 @@ function buildSystem(context: string | undefined, opts: AskRavenOptions): string
       `## Live realm context (real, verified, safe to state)\nThe lines below were fetched from live sources moments ago. Cite these figures freely and name them only once. Do NOT invent any number that is absent here.\n\n${context}`
     );
   }
+
+  /* Last, deliberately. The realm context above is written in English and the
+     voice prompt is a wall of English, so a language instruction placed before
+     either of them competes with several thousand words pulling the other way.
+     Placed last it is the final thing read, and it is also directly beside the
+     figures it tells the Herald not to convert. */
+  parts.push(`## Language\n\n${languageGuidance(resolveLanguage(opts.language))}`);
 
   return parts.join("\n\n");
 }

@@ -2,12 +2,14 @@
 
 import { Sheet } from "@/components/ui/sheet";
 import { SegmentedControl } from "@/components/ui/tabs";
-import { Toggle } from "@/components/ui/field";
+import { Select, Toggle } from "@/components/ui/field";
 import {
   VOICES,
   LENGTHS,
+  LANGUAGES,
   type Voice,
   type Length,
+  type Language,
 } from "@/components/raven/types";
 
 /**
@@ -33,18 +35,22 @@ export function SettingsSheet({
   voice,
   browse,
   length,
+  language,
   onVoice,
   onBrowse,
   onLength,
+  onLanguage,
 }: {
   open: boolean;
   onClose: () => void;
   voice: Voice;
   browse: boolean;
   length: Length;
+  language: Language;
   onVoice: (v: Voice) => void;
   onBrowse: (b: boolean) => void;
   onLength: (l: Length) => void;
+  onLanguage: (l: Language) => void;
 }) {
   const activeVoice = VOICES.find((v) => v.id === voice) ?? VOICES[0];
 
@@ -104,6 +110,26 @@ export function SettingsSheet({
             onValueChange={(next) => onLength(next as Length)}
             items={LENGTHS.map((l) => ({ value: l.id, label: l.label }))}
           />
+        </section>
+
+        {/* A Select rather than a segmented control, because sixteen options
+            do not fit a segmented control at 390px and a wrapped grid of
+            sixteen chips would outweigh everything above it. */}
+        <section className="flex flex-col gap-2.5 border-t border-steel-line/60 pt-5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
+            Language
+          </span>
+          <Select
+            value={language}
+            onValueChange={(next) => {
+              if (next) onLanguage(next as Language);
+            }}
+            items={LANGUAGES.map((l) => ({ value: l.id, label: l.label }))}
+          />
+          <p className="text-[11px] leading-relaxed text-bone-faint">
+            The Raven answers in this language whatever you write in. Figures,
+            tickers and House names stay as they are.
+          </p>
         </section>
 
         <section className="border-t border-steel-line/60 pt-5">

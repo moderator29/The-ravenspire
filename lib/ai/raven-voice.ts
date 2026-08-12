@@ -232,6 +232,18 @@ export function lengthMaxTokens(length: RavenLength): number {
   return LENGTH_TOKENS[length];
 }
 
+/* Reply language. The list, the resolver and the guidance live in
+   lib/ai/raven-languages.ts, which carries no `server-only`, because the
+   settings sheet that offers the choice is a client component and importing a
+   server-only module from one fails the build. Re-exported here so the server
+   side has a single door onto the Herald's voice. */
+export {
+  RAVEN_LANGUAGES,
+  resolveLanguage,
+  languageGuidance,
+  type RavenLanguage,
+} from "@/lib/ai/raven-languages";
+
 /**
  * Starter prompts shown when the rookery is empty. Kept here so the voice and
  * its openers live in one place. These are invitations, not data.
