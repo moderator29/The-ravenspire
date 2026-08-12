@@ -9,6 +9,7 @@ import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { StreamChip, StreamChipRail } from "@/components/stream/stream-shell";
+import { claimSentence } from "@/components/calls/claim";
 import { realmFetch } from "@/lib/auth/api";
 import { houses } from "@/lib/data/houses";
 import { difficultyBand, scoreOutlook } from "@/lib/calls/analytics";
@@ -17,6 +18,7 @@ import {
   CALL_CATEGORIES,
   CALL_TIMEFRAMES,
   type CallCategory,
+  type CallData,
   type CallDirection,
   type CallTimeframe,
 } from "@/lib/calls/types";
@@ -165,6 +167,27 @@ export function callPayload(draft: CallDraft): Record<string, unknown> | null {
     ...(draft.rationale.trim() ? { rationale: draft.rationale.trim() } : {}),
     ...(sources.length > 0 ? { sources } : {}),
   };
+}
+
+/* The Call written out as the sentence it is.
+
+   A raven with a Call attached and no words of its own used to be refused by
+   the server, which requires a body, so the composer let a member seal a Call
+   and then told them their raven was empty. The Call itself is the claim, so
+   the claim is what the raven says. This restates the member's own stated
+   Call and invents nothing. */
+export function draftSentence(draft: CallDraft): string {
+  const claim = claimPayload(draft);
+  if (!claim) return "";
+  return claimSentence({
+    category: draft.category,
+    resolver: draft.category === "realm" ? "internal" : "price",
+    timeframe: draft.timeframe,
+    token: draft.token.trim().toUpperCase(),
+    stance: draft.stance,
+    threshold: thresholdFraction(draft),
+    claim: (claim.claim as CallData["claim"]) ?? undefined,
+  });
 }
 
 interface Preview {

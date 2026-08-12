@@ -14,6 +14,7 @@ import {
   EMPTY_CALL_DRAFT,
   callDraftReady,
   callPayload,
+  draftSentence,
   type CallDraft,
 } from "@/components/calls/call-form";
 import { realmFetch } from "@/lib/auth/api";
@@ -149,7 +150,13 @@ export function Composer({
     const payload: Record<string, unknown> = { body };
     if (callOpen) {
       const call = callPayload(callDraft);
-      if (call) payload.call = call;
+      if (call) {
+        payload.call = call;
+        /* A raven needs words and a Call is a claim, so a Call sealed without
+           any is sent as the claim itself rather than being refused by the
+           server for being empty. */
+        if (!body.trim()) payload.body = draftSentence(callDraft);
+      }
     }
     if (images.length)
       payload.media = images.map((img) => ({ url: img.url, type: "image" }));
