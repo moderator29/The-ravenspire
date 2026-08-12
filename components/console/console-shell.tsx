@@ -18,18 +18,37 @@ import { BackButton } from "@/components/shell/back-button";
 
    The density pairs, so the numbers stay in one place:
 
-     card padding    p-4  md:p-3      16 -> 12
-     section gap     gap-6 md:gap-4   24 -> 16
+     card padding    p-3  md:p-2.5    12 -> 10
+     section gap     gap-4 md:gap-3   16 -> 12
      body text       text-sm md:text-[13px]
      meta text       text-xs md:text-[11px]
      row height      min-h-11 md:min-h-9
      icon            h-5 w-5 md:h-[17px] md:w-[17px]
 
+   Padding and gap are one step tighter than the design system's section 4
+   table, following the platform wide reduction c23139a made to `Card`. The
+   Console needed it more than the feed did, not less. Measured at 390 before:
+   a word inside a Console panel started 29px from the screen edge, 12 of
+   `ConsolePage`'s own `px-3` and 16 of the panel's padding, so 58px of a 390px
+   screen went on horizontal chrome before any number. The feed's equivalent
+   complaint was 32px and it has already been cut. After: 21px in, 42px total,
+   14.9% of the screen down to 10.8%.
+
+   Type is deliberately NOT in that reduction. A Console body is 14/13 and its
+   meta 12/11, already a step under the feed's new 14, and these are the screens
+   where the text is a balance and a price. The founder's word was "sharp",
+   which a smaller number stops being before a tighter one does.
+
+   Row height and icon size are not in it either, for a harder reason: on a
+   coarse pointer `min-h-11` is a 44px accessibility floor rather than a style
+   choice. Density comes out of the space around things, never out of the thing
+   you tap.
+
    Ornament budget on a Console is zero, so nothing here glows, lifts or
    pulses. */
 
-export const CONSOLE_PAD = "p-4 md:p-3";
-export const CONSOLE_GAP = "gap-6 md:gap-4";
+export const CONSOLE_PAD = "p-3 md:p-2.5";
+export const CONSOLE_GAP = "gap-4 md:gap-3";
 export const CONSOLE_BODY = "text-sm md:text-[13px]";
 export const CONSOLE_META = "text-xs md:text-[11px]";
 export const CONSOLE_ROW = "min-h-11 md:min-h-9";

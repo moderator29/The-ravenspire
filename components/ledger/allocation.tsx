@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { Donut } from "@/components/ledger/donut";
 import { usd, type AllocSlice } from "@/components/ledger/portfolio-data";
@@ -20,7 +21,7 @@ export function Allocation({
   const slices = mode === "asset" ? byAsset : byChain;
 
   return (
-    <Card pad="none" render={<section />} className="p-4 md:p-3">
+    <Card pad="none" render={<section />} className={CONSOLE_PAD}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xs uppercase tracking-[0.26em] text-bone-faint">
           Allocation

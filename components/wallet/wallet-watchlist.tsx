@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Card as CardShell } from "@/components/ui/card";
+import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { IconButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { WatchItem } from "@/components/wallet/wallet-prefs";
@@ -73,7 +74,7 @@ export function WalletWatchlist({
   };
 
   return (
-    <CardShell pad="none" render={<section />} className="p-4 md:p-3">
+    <CardShell pad="none" render={<section />} className={CONSOLE_PAD}>
       <div className="flex items-center gap-2">
         <Icon name="eye" aria-hidden className="h-4 w-4 text-gold" />
         <h2 className="font-display text-sm font-semibold text-bone">

@@ -33,7 +33,7 @@ export function EarningsChart({
   if (series.length < 2) {
     return (
       <div
-        className={`flex h-[104px] items-center justify-center rounded-2xl border border-steel-line/60 bg-void/40 ${className}`}
+        className={`flex h-[104px] items-center justify-center rounded-lg border border-steel-line/60 bg-void/40 ${className}`}
       >
         <p className="px-4 text-center text-xs text-bone-faint">{emptyLabel}</p>
       </div>

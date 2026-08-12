@@ -3,6 +3,7 @@
 import { Icon } from "@/components/ui/icon";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { TxRecord } from "@/components/wallet/wallet-prefs";
 import {
@@ -34,7 +35,7 @@ export function WalletHistory({
     : null;
 
   return (
-    <Card pad="none" render={<section />} className="p-4 md:p-3">
+    <Card pad="none" render={<section />} className={CONSOLE_PAD}>
       <div className="flex items-center gap-2">
         <Icon name="scroll" aria-hidden className="h-4 w-4 text-gold" />
         <h2 className="font-display text-sm font-semibold text-bone">

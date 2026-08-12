@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { usdWhole, usd, pct, type Portfolio } from "@/components/ledger/portfolio-data";
 
 /* A two-point trend from the value 24h ago to the value now. Both endpoints
@@ -49,7 +50,7 @@ export function ValueHeader({ portfolio }: { portfolio: Portfolio }) {
       variant="warm"
       pad="none"
       render={<section />}
-      className="p-4 md:p-3"
+      className={CONSOLE_PAD}
     >
       <p className="text-[11px] uppercase tracking-[0.26em] text-bone-faint">
         Net worth

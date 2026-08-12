@@ -31,9 +31,12 @@ export function PositionsList({
       {rows.map((t) => {
         const up = t.change24h >= 0;
         return (
-          <li key={t.key} className="flex items-center gap-3 py-2.5">
+          /* 8px of vertical rhythm and a 30px logo, down from 10 and 34. A
+             holdings roll is a Board: dense rows where comparison is the job,
+             and five of them multiply whatever each one spends. */
+          <li key={t.key} className="flex items-center gap-2.5 py-2">
             <div className="relative shrink-0">
-              <TokenLogo logo={t.logo} symbol={t.symbol} size={34} />
+              <TokenLogo logo={t.logo} symbol={t.symbol} size={30} />
               <span className="absolute -bottom-1 -right-1 rounded-full border border-steel-line bg-void px-1 text-[8px] font-semibold uppercase tracking-wide text-bone-faint">
                 {t.chainShort}
               </span>

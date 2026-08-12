@@ -11,6 +11,7 @@ import { RavenMark } from "@/components/brand/raven-mark";
 import { StreakFlame } from "@/components/shell/streak-flame";
 import {
   primaryNav,
+  collectionNav,
   socialNav,
   toolsNav,
   accountNav,
@@ -271,6 +272,16 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </div>
 
+      {/* The identity group sits first among the sections: play the War,
+          collect the champions, own the relics. Sealed entries wear the same
+          Soon badge as the chapters; their routes are live previews. */}
+      <Section
+        label="The Collection"
+        items={collectionNav}
+        pathname={pathname}
+        defaultOpen
+        storageKey="collection"
+      />
       <Section
         label="The Realm"
         items={socialNav}

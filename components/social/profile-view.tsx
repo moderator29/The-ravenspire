@@ -587,20 +587,19 @@ export function ProfileView({
           </div>
         )}
 
-        {/* Earnings and balance close the hero band: this is the member's
-            standing, the same readout as Renown and Calls won above it, and its
-            privacy gate lives server side in /api/profile/earnings, which
-            respects the PnL and public-positions toggles. */}
-        <EarningsSection
-          profileId={profile.id}
-          handle={profile.handle}
-          own={isOwn}
-        />
       </DossierIdentity>
       </DossierHero>
 
-      {/* Tabs, then panels. Sections of one subject with counts, which is the
-          underline pattern by section 3. */}
+      {/* The tab line sits directly under the identity block, at the top of
+          the dashboard, per the founder's direction: plain text on one line,
+          no chip containers, the gold underline naming the current panel. It
+          used to sit below the Coffers, which on a phone put it below the
+          fold, and the dock strip duplicated it at the bottom of the screen
+          as boxed chips. The strip is gone; this line is the one switcher.
+
+          Renown and Saved ride the same line as quiet links when the Keep is
+          the viewer's own, because they were the strip's other two entries
+          and they navigate somewhere real rather than switching a panel. */}
       <DossierTabs
         value={tab}
         onValueChange={(v) => setTab(v as ProfileTab)}
@@ -609,7 +608,34 @@ export function ProfileView({
           { value: "calls", label: "Calls", count: callPosts.length },
           { value: "media", label: "Media", count: mediaTiles.length },
         ]}
+        trailing={
+          isOwn ? (
+            <>
+              <Link
+                href="/renown"
+                className="inline-flex shrink-0 items-center whitespace-nowrap rounded-t-md px-3 py-2.5 text-sm font-semibold text-bone-faint transition-colors duration-fast ease-out-quint hover:text-bone-mut touch:min-h-11"
+              >
+                Renown
+              </Link>
+              <Link
+                href="/bookmarks"
+                className="inline-flex shrink-0 items-center whitespace-nowrap rounded-t-md px-3 py-2.5 text-sm font-semibold text-bone-faint transition-colors duration-fast ease-out-quint hover:text-bone-mut touch:min-h-11"
+              >
+                Saved
+              </Link>
+            </>
+          ) : undefined
+        }
       >
+        {/* The Coffers holds its place on every panel: it is the member's
+            standing, not one tab's content, so it sits between the tab line
+            and the panels the way a pinned card would. Its privacy gate lives
+            server side in /api/profile/earnings. */}
+        <EarningsSection
+          profileId={profile.id}
+          handle={profile.handle}
+          own={isOwn}
+        />
         <DossierTabPanel value="posts">
           <PostPanel
             posts={posts}
