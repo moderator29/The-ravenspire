@@ -45,6 +45,9 @@ const SHEETS = [
     file: "sheet-2.png",
     cols: 8,
     rows: 8,
+    /* Tight grid, icons seated low, plinths spill into the row below. Reach
+       sixty percent of a cell down to recover the whole board. */
+    plinthSpill: 0.6,
     names: [
       "raven", "keep", "crown", "oath-scroll", "house-corvane", "duel", "council", "quest-scroll",
       "whispers", "call-orb", "accuracy", "trophy", "banner", "chest", "chronicle", "analytics",
@@ -217,20 +220,24 @@ async function despill(buf) {
     .toBuffer();
 }
 
-/* Keep only the largest connected island of opaque pixels.
+/* Keep the island nearest the cell centre, plus any detached fragment of it.
  *
- * Insetting the cell reduces neighbour bleed but cannot eliminate it: the
- * generator does not place every icon identically within its cell, so a tall
- * plinth in the row above can still poke into frame, and cutting hard enough
- * to guarantee it would clip real artwork on the icons that sit large.
+ * The region handed in is larger than the nominal cell (grown downward to
+ * recover a spilled plinth, see the extract below), so it can contain part of
+ * a neighbour from the next row as well as this cell's subject. Two facts sort
+ * them out. First, an icon is one connected object and a neighbour bled in from
+ * across a cell border is a separate island. Second, this cell's subject is the
+ * one sitting over the cell centre, while a neighbour's centroid falls far off
+ * it. So flood fill every island and keep the one whose centroid is closest to
+ * the centre.
  *
- * The structural fact is simpler than the geometry: an icon is one connected
- * object, and anything bled in from a neighbour is a separate island that does
- * not touch it. So flood fill every island and keep only the biggest. This is
- * exact rather than approximate, and it stops the slug depending on how well
- * the grid happens to line up.
+ * Choosing by distance to centre rather than by size is the point: when the
+ * region is grown downward it can catch most of a large next row icon, and
+ * "largest island" would then pick the neighbour and drop the real subject.
+ * Distance to centre never does. A small size credit keeps a stray speck near
+ * the centre from beating the subject, and a floor of sixty pixels ignores dust.
  */
-async function keepLargestIsland(buf) {
+async function keepCentreIsland(buf, cx, cy) {
   const { data, info } = await sharp(buf)
     .ensureAlpha()
     .raw()
@@ -240,49 +247,60 @@ async function keepLargestIsland(buf) {
   const solid = (i) => data[i * 4 + 3] > 24;
   const label = new Int32Array(w * h).fill(-1);
   const stack = new Int32Array(w * h);
-  let best = -1;
-  let bestSize = 0;
   let current = 0;
+  const sumX = [], sumY = [], size = [];
+  const minX = [], minY = [], maxX = [], maxY = [];
 
   for (let start = 0; start < w * h; start++) {
     if (label[start] !== -1 || !solid(start)) continue;
-    let top = 0;
-    let size = 0;
+    let top = 0, sx = 0, sy = 0, n = 0;
+    let mnx = w, mny = h, mxx = -1, mxy = -1;
     stack[top++] = start;
     label[start] = current;
     while (top > 0) {
       const p = stack[--top];
-      size++;
       const x = p % w;
       const y = (p - x) / w;
+      sx += x; sy += y; n++;
+      if (x < mnx) mnx = x;
+      if (x > mxx) mxx = x;
+      if (y < mny) mny = y;
+      if (y > mxy) mxy = y;
       /* Four way is enough: the art is antialiased, so a genuinely connected
          shape is never diagonally hinged by a single pixel. */
-      if (x > 0) { const n = p - 1; if (label[n] === -1 && solid(n)) { label[n] = current; stack[top++] = n; } }
-      if (x < w - 1) { const n = p + 1; if (label[n] === -1 && solid(n)) { label[n] = current; stack[top++] = n; } }
-      if (y > 0) { const n = p - w; if (label[n] === -1 && solid(n)) { label[n] = current; stack[top++] = n; } }
-      if (y < h - 1) { const n = p + w; if (label[n] === -1 && solid(n)) { label[n] = current; stack[top++] = n; } }
+      if (x > 0) { const q = p - 1; if (label[q] === -1 && solid(q)) { label[q] = current; stack[top++] = q; } }
+      if (x < w - 1) { const q = p + 1; if (label[q] === -1 && solid(q)) { label[q] = current; stack[top++] = q; } }
+      if (y > 0) { const q = p - w; if (label[q] === -1 && solid(q)) { label[q] = current; stack[top++] = q; } }
+      if (y < h - 1) { const q = p + w; if (label[q] === -1 && solid(q)) { label[q] = current; stack[top++] = q; } }
     }
-    if (size > bestSize) { bestSize = size; best = current; }
+    sumX[current] = sx; sumY[current] = sy; size[current] = n;
+    minX[current] = mnx; minY[current] = mny; maxX[current] = mxx; maxY[current] = mxy;
     current++;
   }
+  if (current === 0) return buf;
 
+  let best = -1, bestScore = Infinity;
+  for (let l = 0; l < current; l++) {
+    if (size[l] <= 60) continue;
+    const gx = sumX[l] / size[l], gy = sumY[l] / size[l];
+    const score = Math.hypot(gx - cx, gy - cy) - Math.sqrt(size[l]) * 0.5;
+    if (score < bestScore) { bestScore = score; best = l; }
+  }
   if (best === -1) return buf;
 
-  /* Keeping only the single biggest island would amputate parts of the icon
-     that are genuinely detached: a pennant clear of its pole, a spark above a
-     flame, the tip of a quill. So other islands are kept too, but only the
-     ones that cannot be a neighbour.
+  /* Keep the chosen island, plus SMALL islands that sit clear of every frame
+     edge and near its bounding box: a pennant clear of its pole, a spark above
+     a flame, the tip of a quill.
 
-     The test is whether the island touches the frame edge. A neighbour can
-     only enter this cell by crossing its border, so a bled in fragment always
-     runs to an edge, while a spark or a pennant tip belonging to this icon
-     sits clear of it inside the frame.
-
-     This replaced a rule that kept any island whose centroid fell inside the
-     main island's bounding box grown by a fifth. That measured the wrong
-     thing: these icons fill their cell, so the grown box covered the whole
-     frame and every neighbour fragment passed. Twenty odd icons shipped with
-     a pale wedge of the plinth above them floating over the artwork. */
+     The size cap is what makes this safe. The region is grown well into the row
+     below to recover a spilled plinth, so it routinely catches the top of the
+     next icon, and that fragment is neither edge touching (it sits mid region)
+     nor far from the subject's box. Without a cap it was kept, and scrying and
+     realm-map shipped with a campfire and a hood stuck to their base. A real
+     detached part of the subject is a small fraction of it; a neighbour caught
+     this way is a large blob. So keep a fragment only if it is under a fifth of
+     the subject, which passes every spark and pennant and rejects every
+     neighbour. A neighbour that does run to an edge is already excluded. */
   const touchesEdge = new Set();
   for (let x = 0; x < w; x++) {
     if (label[x] !== -1) touchesEdge.add(label[x]);
@@ -295,9 +313,14 @@ async function keepLargestIsland(buf) {
     if (label[r] !== -1) touchesEdge.add(label[r]);
   }
 
+  const bx0 = minX[best], by0 = minY[best], bx1 = maxX[best], by1 = maxY[best];
+  const padX = (bx1 - bx0) * 0.15, padY = (by1 - by0) * 0.15;
+  const fragmentCap = size[best] * 0.2;
   const keep = new Set([best]);
   for (let l = 0; l < current; l++) {
-    if (l !== best && !touchesEdge.has(l)) keep.add(l);
+    if (l === best || touchesEdge.has(l) || size[l] > fragmentCap) continue;
+    const gx = sumX[l] / size[l], gy = sumY[l] / size[l];
+    if (gx >= bx0 - padX && gx <= bx1 + padX && gy >= by0 - padY && gy <= by1 + padY) keep.add(l);
   }
 
   for (let i = 0; i < w * h; i++) {
@@ -357,14 +380,39 @@ async function sliceSheet(sheet) {
   /* Cell edges are computed per cell from the full dimension rather than from
      one floored cell size. Flooring first loses up to a pixel per column, and
      on the 8 wide sheet that accumulates to about six pixels by the last
-     column, which is enough to drag the neighbour's plinth into frame.
+     column, which is enough to drag a neighbour into frame.
 
-     INSET then removes the seam itself. The art very nearly fills its cell, so
-     a few percent off each edge costs nothing and reliably drops the sliver of
-     the icon above or beside. The trim that follows re-centres on whatever
-     artwork survives, so a slightly tight cut self corrects while a slightly
-     loose one bakes a neighbour into the file. */
-  const INSET = 0.02;
+     The region extracted is deliberately NOT the bare cell. The generator seats
+     many icons low in their cell, so the stone plinth spills past the nominal
+     grid line into the inter row gap below. The old cut fell on that line and,
+     with a two percent inset, shaved the plinth down to a flat slab: the "board
+     cut off at the bottom" the founder kept seeing. Rendered small with
+     object-contain that reads as an icon standing on a chopped board.
+
+     So the region is grown instead of inset: a little on the top and sides for
+     antialias safety, and a lot below (sixty percent of a cell) to recover the
+     spilled board in full. That pulls in part of the next row too, which is
+     exactly what keepCentreIsland is built to discard: it keeps the island over
+     the cell centre and drops the neighbour, and cropToContent re-centres on
+     whatever survives. The bottom row of the sheet has no next row and simply
+     clamps to the sheet edge. */
+  /* Only the dense sheet needs to reach past its cell. Its eight by eight grid
+     packs the art tight and seats it low, so the plinth spills past the grid
+     line and has to be chased into the next row: a little top and side room for
+     antialias safety, a lot below.
+
+     The five by five sheets are the opposite case. Their plinths sit whole
+     inside the cell, and reaching into the row below drags a neighbour in.
+     Worse, a neighbour that is seated high pokes up into this cell, and any
+     downward reach stops it running to the frame edge, which is the one thing
+     that would let it be dropped. So those sheets inset instead, exactly as the
+     original slice did: a two percent bite off every side that trims the seam,
+     cuts a poking neighbour at the edge so it is discarded, and self corrects
+     because the trim re-centres on whatever real artwork survives. */
+  const spill = sheet.plinthSpill ?? 0;
+  const MARGIN_SIDE = spill ? 0.1 : -0.02;
+  const MARGIN_TOP = spill ? 0.1 : -0.02;
+  const MARGIN_BOTTOM = spill ? spill : -0.02;
 
   const edge = (i, n, total) => Math.round((i * total) / n);
 
@@ -378,22 +426,33 @@ async function sliceSheet(sheet) {
       const x1 = edge(col + 1, sheet.cols, meta.width);
       const y0 = edge(row, sheet.rows, meta.height);
       const y1 = edge(row + 1, sheet.rows, meta.height);
-      const padX = Math.round((x1 - x0) * INSET);
-      const padY = Math.round((y1 - y0) * INSET);
+      const cw = x1 - x0;
+      const ch = y1 - y0;
+
+      const left = Math.max(0, Math.round(x0 - cw * MARGIN_SIDE));
+      const top = Math.max(0, Math.round(y0 - ch * MARGIN_TOP));
+      const right = Math.min(meta.width, Math.round(x1 + cw * MARGIN_SIDE));
+      const bottom = Math.min(meta.height, Math.round(y1 + ch * MARGIN_BOTTOM));
 
       const cell = await sharp(file)
         .ensureAlpha()
         .extract({
-          left: x0 + padX,
-          top: y0 + padY,
-          width: x1 - x0 - padX * 2,
-          height: y1 - y0 - padY * 2,
+          left,
+          top,
+          width: right - left,
+          height: bottom - top,
         })
         .png()
         .toBuffer();
 
-      const cleaned = await keepLargestIsland(
-        await despill(await removeFlatBackground(cell))
+      /* Cell centre expressed in the extracted region's own coordinates. */
+      const cx = (x0 + x1) / 2 - left;
+      const cy = (y0 + y1) / 2 - top;
+
+      const cleaned = await keepCentreIsland(
+        await despill(await removeFlatBackground(cell)),
+        cx,
+        cy
       );
 
       /* Trim the transparent margin so every icon fills its box equally, then
