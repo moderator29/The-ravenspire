@@ -20,19 +20,28 @@ export function WhoToFollow({ limit = 4 }: { limit?: number }) {
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    void fetchViewer().then((v) => {
-      setViewerId(v?.id ?? null);
-      void fetchTopPeople(v?.id).then((list) => {
-        const top = list.slice(0, limit);
+    void (async () => {
+      try {
+        const viewer = await fetchViewer();
+        setViewerId(viewer?.id ?? null);
+        const top = (await fetchTopPeople(viewer?.id)).slice(0, limit);
         setPeople(top);
-        if (v?.id && top.length > 0) {
-          void fetchFollowingSet(
-            v.id,
-            top.map((p) => p.id)
-          ).then(setFollowingSet);
+        if (viewer?.id && top.length > 0) {
+          setFollowingSet(
+            await fetchFollowingSet(
+              viewer.id,
+              top.map((p) => p.id)
+            )
+          );
         }
-      });
-    });
+      } catch {
+        /* An empty list, which removes the card entirely by the guard below.
+           This one sits inside an empty feed state, so a card promising
+           suggestions that never arrive is the second disappointment on a
+           screen that already had nothing on it. */
+        setPeople([]);
+      }
+    })();
   }, [limit]);
 
   if (people !== null && people.length === 0) return null;

@@ -29,56 +29,76 @@ export function RightRail() {
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
 
   /* Who to follow: the realm's most renowned, with the viewer's real
-     follow-state batched so every button loads truthfully in one query. */
+     follow-state batched so every button loads truthfully in one query.
+
+     The catch is the load bearing part. A rejected fetch used to leave `people`
+     null forever, and null is what draws the skeleton, so a member on a flaky
+     connection got three grey bars pulsing on every screen in the realm for as
+     long as they stayed. A skeleton is a claim that something is arriving. When
+     nothing is arriving that claim is false, and both of these cards already
+     have an honest empty state to fall to. */
   useEffect(() => {
-    void fetchViewer().then((v) => {
-      setViewerId(v?.id ?? null);
-      void fetchTopPeople(v?.id).then((list) => {
-        const top = list.slice(0, 4);
+    void (async () => {
+      try {
+        const viewer = await fetchViewer();
+        setViewerId(viewer?.id ?? null);
+        const top = (await fetchTopPeople(viewer?.id)).slice(0, 4);
         setPeople(top);
-        if (v?.id && top.length > 0) {
-          void fetchFollowingSet(
-            v.id,
-            top.map((p) => p.id)
-          ).then(setFollowingSet);
+        if (viewer?.id && top.length > 0) {
+          setFollowingSet(
+            await fetchFollowingSet(
+              viewer.id,
+              top.map((p) => p.id)
+            )
+          );
         }
-      });
-    });
+      } catch {
+        /* No suggestions rather than a promise of suggestions. */
+        setPeople([]);
+      }
+    })();
   }, []);
 
   useEffect(() => {
     const db = createClient();
     void (async () => {
-      const [{ data: posts }, { data: houseRows }, { data: season }] =
-        await Promise.all([
-          db
-            .from("posts")
-            .select("cashtags")
-            .eq("deleted", false)
-            .order("created_at", { ascending: false })
-            .limit(200),
-          db.from("houses").select("slug, name, glory").order("glory", {
-            ascending: false,
-          }),
-          db.from("seasons").select("ends_at").eq("id", 1).maybeSingle(),
-        ]);
+      try {
+        const [{ data: posts }, { data: houseRows }, { data: season }] =
+          await Promise.all([
+            db
+              .from("posts")
+              .select("cashtags")
+              .eq("deleted", false)
+              .order("created_at", { ascending: false })
+              .limit(200),
+            db.from("houses").select("slug, name, glory").order("glory", {
+              ascending: false,
+            }),
+            db.from("seasons").select("ends_at").eq("id", 1).maybeSingle(),
+          ]);
 
-      const counts = new Map<string, number>();
-      for (const p of posts ?? [])
-        for (const t of (p.cashtags as string[]) ?? [])
-          counts.set(t, (counts.get(t) ?? 0) + 1);
-      setTags(
-        [...counts.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 6)
-          .map(([tag, count]) => ({ tag, count }))
-      );
-      if (houseRows?.length) setLead(houseRows[0] as HouseRow);
-      if (season?.ends_at) {
-        const ms = new Date(season.ends_at).getTime() - Date.now();
-        setDays(Math.max(0, Math.ceil(ms / 86_400_000)));
+        const counts = new Map<string, number>();
+        for (const p of posts ?? [])
+          for (const t of (p.cashtags as string[]) ?? [])
+            counts.set(t, (counts.get(t) ?? 0) + 1);
+        setTags(
+          [...counts.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6)
+            .map(([tag, count]) => ({ tag, count }))
+        );
+        if (houseRows?.length) setLead(houseRows[0] as HouseRow);
+        if (season?.ends_at) {
+          const ms = new Date(season.ends_at).getTime() - Date.now();
+          setDays(Math.max(0, Math.ceil(ms / 86_400_000)));
+        }
+      } catch {
+        /* Fall through to the empty state below rather than pulse forever. */
+      } finally {
+        /* Settled either way: `ready` means the realm has answered, not that
+           the answer was good news. */
+        setReady(true);
       }
-      setReady(true);
     })();
   }, []);
 

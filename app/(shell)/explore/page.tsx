@@ -108,37 +108,64 @@ function ExploreBody() {
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
 
+  /* Every one of these lands on an honest empty state when it fails, rather
+     than leaving its list null, because null is what draws the skeleton and a
+     skeleton that never resolves is a claim that something is still coming.
+     This screen had fifteen of them pulsing at once on a failed load. */
   useEffect(() => {
     const db = createClient();
-    void db
-      .from("posts")
-      .select(
-        "id, created_at, call, author:profiles!posts_author_id_fkey (handle, display_name)"
-      )
-      .eq("kind", "call")
-      .eq("deleted", false)
-      .order("created_at", { ascending: false })
-      .limit(5)
-      .then(({ data }) => setCalls((data as unknown as CallRow[]) ?? []));
+    void (async () => {
+      try {
+        const { data } = await db
+          .from("posts")
+          .select(
+            "id, created_at, call, author:profiles!posts_author_id_fkey (handle, display_name)"
+          )
+          .eq("kind", "call")
+          .eq("deleted", false)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        setCalls((data as unknown as CallRow[]) ?? []);
+      } catch {
+        setCalls([]);
+      }
+    })();
 
-    void fetchTrendingCashtags().then(setCashtags);
-    void fetchHouseStats().then(setHouseStats);
+    void (async () => {
+      try {
+        setCashtags(await fetchTrendingCashtags());
+      } catch {
+        setCashtags([]);
+      }
+    })();
+
+    /* House stats only enrich the six static banners, so a failure here costs
+       a number rather than a section, and the banners still render. */
+    void fetchHouseStats()
+      .then(setHouseStats)
+      .catch(() => setHouseStats({}));
 
     /* Resolve the viewer, then the people to follow, then which of them the
        viewer already follows, all so every Follow button loads truthfully
        and in a single batched query, not one lookup per row. */
-    void fetchViewer().then((v) => {
-      setViewerId(v?.id ?? null);
-      void fetchTopPeople(v?.id).then((list) => {
+    void (async () => {
+      try {
+        const viewer = await fetchViewer();
+        setViewerId(viewer?.id ?? null);
+        const list = await fetchTopPeople(viewer?.id);
         setPeople(list);
-        if (v?.id && list.length > 0) {
-          void fetchFollowingSet(
-            v.id,
-            list.map((p) => p.id)
-          ).then(setFollowingSet);
+        if (viewer?.id && list.length > 0) {
+          setFollowingSet(
+            await fetchFollowingSet(
+              viewer.id,
+              list.map((p) => p.id)
+            )
+          );
         }
-      });
-    });
+      } catch {
+        setPeople([]);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -152,16 +179,23 @@ function ExploreBody() {
     const timer = setTimeout(() => {
       const db = createClient();
       const like = `%${q.replace(/[%_]/g, "")}%`;
-      void db
-        .from("profiles")
-        .select("id, handle, display_name, avatar_url, house_slug, tier")
-        .or(`handle.ilike.${like},display_name.ilike.${like}`)
-        .not("handle", "is", null)
-        .limit(12)
-        .then(({ data }) => {
+      void (async () => {
+        try {
+          const { data } = await db
+            .from("profiles")
+            .select("id, handle, display_name, avatar_url, house_slug, tier")
+            .or(`handle.ilike.${like},display_name.ilike.${like}`)
+            .not("handle", "is", null)
+            .limit(12);
           setHits((data as ProfileHit[]) ?? []);
+        } catch {
+          /* A search that failed answers "nothing found" rather than staying
+             on the searching skeleton forever. */
+          setHits([]);
+        } finally {
           setSearching(false);
-        });
+        }
+      })();
     }, 250);
     return () => clearTimeout(timer);
   }, [query]);
