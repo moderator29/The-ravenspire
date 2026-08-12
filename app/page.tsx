@@ -37,18 +37,26 @@ const chips = [
   { label: "Ask @raven", href: "/raven" },
 ];
 
-/* Fixed positions for the ten drifting crests (percent based, no randomness). */
+/* Fixed positions for the ten drifting crests (percent based, no randomness).
+
+   Every spot is out in the gutters now. Four of them used to sit inside the
+   reading column: 44% is the dead centre of the hero, and the one at 55%/30%
+   landed behind the introduction's body copy, so at 1440 a hard edged circle
+   with a legible eye inside it sat alone under the call to action and at 390 a
+   second one crossed the corner of the Mission card. Atmosphere belongs to the
+   background and legibility to the foreground, and a motif with an outline and
+   a glyph in it stops being atmosphere the moment it lands on a sentence. */
 const floatSpots = [
-  { top: "8%", left: "6%", size: 72, delay: 0 },
-  { top: "18%", left: "86%", size: 88, delay: 2 },
+  { top: "8%", left: "4%", size: 72, delay: 0 },
+  { top: "18%", left: "84%", size: 88, delay: 2 },
   { top: "40%", left: "3%", size: 60, delay: 4 },
-  { top: "62%", left: "90%", size: 66, delay: 1 },
-  { top: "76%", left: "12%", size: 84, delay: 3 },
-  { top: "6%", left: "44%", size: 52, delay: 5 },
-  { top: "84%", left: "58%", size: 58, delay: 2.5 },
-  { top: "30%", left: "70%", size: 54, delay: 6 },
-  { top: "55%", left: "30%", size: 48, delay: 7 },
-  { top: "12%", left: "22%", size: 56, delay: 8 },
+  { top: "62%", left: "86%", size: 66, delay: 1 },
+  { top: "76%", left: "6%", size: 84, delay: 3 },
+  { top: "6%", left: "76%", size: 52, delay: 5 },
+  { top: "84%", left: "80%", size: 58, delay: 2.5 },
+  { top: "30%", left: "88%", size: 54, delay: 6 },
+  { top: "55%", left: "5%", size: 48, delay: 7 },
+  { top: "12%", left: "80%", size: 56, delay: 8 },
 ];
 
 const faqs = [
@@ -114,7 +122,10 @@ export default function Landing() {
           {floatSpots.map((s, i) => (
             <div
               key={i}
-              className="aurora-item absolute opacity-40"
+              /* 25, not 40. At forty percent a dimmed crest roundel still
+                 reads as a piece of interface someone forgot to remove rather
+                 than as light behind the page. */
+              className="aurora-item absolute opacity-25"
               style={{
                 top: s.top,
                 left: s.left,
@@ -185,7 +196,14 @@ export default function Landing() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="gold-text mt-6 font-display text-5xl font-semibold tracking-[0.12em] sm:text-7xl"
+            /* At `text-5xl` with 0.12em tracking, "RAVENSPIRE" measured 355px
+               of a 390px screen inside a 342px content box, so the second line
+               of the wordmark ran to within 15px of both edges and read as
+               about to be clipped. The name is the loudest thing on the page
+               and it should have air around it, not be jammed against the
+               glass. 40px holds the line and the 72px desktop size is
+               untouched. */
+            className="gold-text mt-6 font-display text-[2.5rem] font-semibold tracking-[0.12em] sm:text-7xl"
           >
             THE RAVENSPIRE
           </motion.h1>
