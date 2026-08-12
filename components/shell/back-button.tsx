@@ -39,7 +39,13 @@ export function BackButton({ href = "/home", label = "Back" }: BackButtonProps) 
       size="sm"
       onClick={handleClick}
       aria-label={label}
-      className="group tracking-wide text-bone-mut hover:text-bone"
+      /* `self-start` is load bearing across roughly twenty five call sites.
+         Both this control and the `.btn-glass` it replaced are inline-flex,
+         and a flex item in a column container stretches on the cross axis by
+         default, so a bare BackButton dropped into any `flex-col` spans the
+         full width and stops reading as a back control. Pinning it here means
+         no caller has to remember. */
+      className="group self-start tracking-wide text-bone-mut hover:text-bone"
     >
       <Icon
         name="arrow"
