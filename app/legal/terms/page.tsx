@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icon3D } from "@/components/ui/icon-3d";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -133,6 +134,8 @@ export default function TermsOfServicePage() {
         </Link>
 
         <header className="mt-8">
+          {/* A legal page is still a page of the realm. The oath scroll gives the terms an identity rather than leaving them as the one unbranded surface in the product. */}
+          <Icon3D name="oath-scroll" size="xl" className="mb-5" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold">
             The terms of the realm
           </p>

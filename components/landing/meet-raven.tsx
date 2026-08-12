@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
-import { RavenMark } from "@/components/brand/raven-mark";
+import { Icon3D } from "@/components/ui/icon-3d";
 
 /*
   Meet @raven. Grounded in lib/ai/raven-voice (the real system prompt) and the
@@ -61,16 +61,11 @@ export function MeetRaven() {
       variants={container}
       className="glass overflow-hidden p-7 sm:p-9"
     >
-      <motion.div variants={rise} className="flex items-center gap-3">
-        <span className="relative flex h-12 w-12 items-center justify-center rounded-full border border-gold/40 bg-void">
-          <RavenMark className="h-7 w-7" />
-          <motion.span
-            aria-hidden="true"
-            className="absolute inset-0 rounded-full border border-gold/30"
-            animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut" }}
-          />
-        </span>
+      <motion.div variants={rise} className="flex items-center gap-4">
+        {/* The Herald's own 3D icon, which is the identity of this feature
+            rather than decoration. Icon3D falls back to the flat glyph until
+            the art lands, so this is correct either way. */}
+        <Icon3D name="herald-ai" size="lg" priority />
         <div>
           <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
             <Icon name="raven" className="h-4 w-4" />

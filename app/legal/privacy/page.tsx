@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icon3D } from "@/components/ui/icon-3d";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -117,6 +118,8 @@ export default function PrivacyPolicyPage() {
         </Link>
 
         <header className="mt-8">
+          {/* Privacy is the realm guarding what is yours, which is what this icon says without a sentence of copy. */}
+          <Icon3D name="guard" size="xl" className="mb-5" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold">
             The realm keeps its word
           </p>

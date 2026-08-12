@@ -16,10 +16,16 @@ import { execSync } from "node:child_process";
 
 const DASH = /[—–]/;
 
-/* The one legitimate use of an em dash in the codebase: the character class in
- * the Herald's output filter, which strips them from model output. Deleting it
- * would let the AI reintroduce the very thing the rule forbids. */
-const DASH_ALLOWED = new Set(["app/api/compose-suggest/route.ts"]);
+/* The one legitimate use of an em dash in the codebase: a character class in an
+ * AI output filter, which strips them from model output. Deleting one of these
+ * would let the model reintroduce the very thing the rule forbids, so every
+ * route that post processes Anthropic output belongs here.
+ *
+ * Add to this list only for that reason. It is not an escape hatch for prose. */
+const DASH_ALLOWED = new Set([
+  "app/api/compose-suggest/route.ts",
+  "app/api/calls/[id]/analysis/route.ts",
+]);
 
 /* Circles are correct for avatars, status dots, count bubbles and the small
  * chain badges that sit on the corner of a token logo. A chip is the thing with
