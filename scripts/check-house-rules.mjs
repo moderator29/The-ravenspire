@@ -16,16 +16,25 @@ import { execSync } from "node:child_process";
 
 const DASH = /[—–]/;
 
-/* The one legitimate use of an em dash in the codebase: a character class in an
- * AI output filter, which strips them from model output. Deleting one of these
- * would let the model reintroduce the very thing the rule forbids, so every
- * route that post processes Anthropic output belongs here.
+/* The one legitimate use of an em dash in the codebase: the character class in
+ * an AI output filter, which strips them from model output. Deleting one would
+ * let the model reintroduce the very thing this rule forbids.
  *
- * Add to this list only for that reason. It is not an escape hatch for prose. */
-const DASH_ALLOWED = new Set([
-  "app/api/compose-suggest/route.ts",
-  "app/api/calls/[id]/analysis/route.ts",
-]);
+ * Recognised by shape rather than by path. A list of allowed routes was the
+ * first approach and it was wrong: it had to be extended by hand every time an
+ * AI surface shipped, it was extended late twice, and the second time three
+ * routes reached the branch with CI red because the author had no reason to
+ * know the list existed. Worse, an allowed path was allowed for the whole
+ * file, so real prose in it went unchecked.
+ *
+ * This matches only the strip itself: a replace call whose pattern is a
+ * character class of nothing but dashes. Prose cannot accidentally look like
+ * that, and a new AI route needs no list entry and no knowledge of this file.
+ *
+ * The literal form is not written out here on purpose. A regex ending in a
+ * global flag closes a block comment, which is how the first draft of this
+ * comment turned the whole checker into a syntax error. */
+const DASH_STRIPPER = /\.replace\(\s*\/[^/\n]*\[[—–]+\][^/\n]*\/[gimsuy]*\s*,/;
 
 /* Circles are correct for avatars, status dots, count bubbles and the small
  * chain badges that sit on the corner of a token logo. A chip is the thing with
@@ -51,10 +60,10 @@ const problems = [];
    counts. The original sweep only covered .ts and .tsx, which is exactly how
    the documentation regression got in. */
 for (const f of files(["*.ts", "*.tsx", "*.md", "*.sql", "*.yml", "*.mjs"])) {
-  if (DASH_ALLOWED.has(f)) continue;
   if (f === "scripts/check-house-rules.mjs") continue;
   const text = readFileSync(f, "utf8");
   text.split("\n").forEach((line, i) => {
+    if (DASH_STRIPPER.test(line)) return;
     if (DASH.test(line)) {
       problems.push(
         `${f}:${i + 1}  em dash or en dash. Use a comma, a period, or restructure.`
