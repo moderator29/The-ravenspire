@@ -14,6 +14,7 @@ import {
   ConsoleHeader,
   ConsolePage,
   ConsoleStack,
+  CONSOLE_PAD,
 } from "@/components/console/console-shell";
 
 const LOCKS = [
@@ -87,7 +88,7 @@ export default function ForgePage() {
       <ConsoleStack className="mt-4 md:mt-3">
         {/* The pitch. One card, not a full bleed hero: a Console has no room
             for a marketing band above its controls. */}
-        <Card variant="warm" pad="none" render={<section />} className="p-4 md:p-3">
+        <Card variant="warm" pad="none" render={<section />} className={CONSOLE_PAD}>
           <p className="text-[11px] uppercase tracking-[0.26em] text-bone-faint">
             The oath of the anvil
           </p>
@@ -116,7 +117,7 @@ export default function ForgePage() {
         </p>
 
         {/* Stake */}
-        <Card pad="none" render={<section />} className="p-4 md:p-3">
+        <Card pad="none" render={<section />} className={CONSOLE_PAD}>
           <div className="flex items-center gap-2">
             <Icon name="coin" aria-hidden className="h-4 w-4 text-gold" />
             <h2 className="font-display text-sm font-semibold text-bone">
@@ -184,7 +185,7 @@ export default function ForgePage() {
         </Card>
 
         {/* Claim */}
-        <Card pad="none" render={<section />} className="p-4 md:p-3">
+        <Card pad="none" render={<section />} className={CONSOLE_PAD}>
           <div className="flex items-center gap-2">
             <Icon name="shield" aria-hidden className="h-4 w-4 text-gold" />
             <h2 className="font-display text-sm font-semibold text-bone">
