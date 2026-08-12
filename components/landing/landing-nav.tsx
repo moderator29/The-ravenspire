@@ -79,12 +79,16 @@ export function LandingNav({
             room for. */}
         <div className="hidden flex-1 items-center gap-1 md:flex">
           <div className="hidden items-center gap-1 md:flex">
-            {links.map((l) =>
+            {/* `whitespace-nowrap` because "The Realm" is the only two word label
+              in the set and it wrapped to two lines at 1440, which broke the
+              header's baseline and read as a rendering fault. A nav label is a
+              name; it does not wrap. */}
+          {links.map((l) =>
               l.route ? (
                 <Link
                   key={l.label}
                   href={l.target}
-                  className="rounded-xl px-3 py-2 text-[13px] font-medium text-bone-mut transition hover:bg-gold/5 hover:text-bone"
+                  className="whitespace-nowrap rounded-xl px-3 py-2 text-[13px] font-medium text-bone-mut transition hover:bg-gold/5 hover:text-bone"
                 >
                   {l.label}
                 </Link>
@@ -96,7 +100,7 @@ export function LandingNav({
                     e.preventDefault();
                     jump(l.target);
                   }}
-                  className="rounded-xl px-3 py-2 text-[13px] font-medium text-bone-mut transition hover:bg-gold/5 hover:text-bone"
+                  className="whitespace-nowrap rounded-xl px-3 py-2 text-[13px] font-medium text-bone-mut transition hover:bg-gold/5 hover:text-bone"
                 >
                   {l.label}
                 </a>
