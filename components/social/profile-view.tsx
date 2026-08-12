@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { HoardPanel } from "@/components/collectibles/hoard-panel";
 import { Icon } from "@/components/ui/icon";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
 import { StreamList } from "@/components/stream/stream-shell";
@@ -62,7 +63,7 @@ const PICKER_FOCUS =
   "cursor-pointer has-[input:focus-visible]:outline has-[input:focus-visible]:outline-2 " +
   "has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-[color:var(--state-focus-ring)]";
 
-export type ProfileTab = "posts" | "calls" | "media";
+export type ProfileTab = "posts" | "calls" | "media" | "hoard";
 
 export function ProfileView({
   profile,
@@ -617,6 +618,11 @@ export function ProfileView({
           { value: "posts", label: "Ravens", count: posts.length },
           { value: "calls", label: "Calls", count: callPosts.length },
           { value: "media", label: "Media", count: mediaTiles.length },
+          /* The Hoard carries no count. Every other tab counts something the
+             Keep already holds in memory; this one would have to be fetched
+             before the member had asked to see it, and a trophy case is worth
+             one deliberate press. */
+          { value: "hoard", label: "Hoard" },
         ]}
         trailing={
           isOwn ? (
@@ -733,6 +739,13 @@ export function ProfileView({
               ))}
             </div>
           )}
+        </DossierTabPanel>
+
+        {/* The trophy case. It loads itself, and only when this panel is the
+            one on screen, so a Keep opened to read someone's ravens never pays
+            for a collection nobody looked at. */}
+        <DossierTabPanel value="hoard">
+          <HoardPanel handle={profile.handle} own={isOwn} />
         </DossierTabPanel>
       </DossierTabs>
     </DossierPage>

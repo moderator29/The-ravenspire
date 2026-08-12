@@ -12,6 +12,7 @@ import {
   ConsolePage,
 } from "@/components/console/console-shell";
 import { WalletSection } from "@/components/wallet/wallet-section";
+import { HoardPanel } from "@/components/collectibles/hoard-panel";
 
 /* The Vault: a Console. Compact above md, zero ornament, and every panel
    inside it on the shared Card chassis. */
@@ -67,7 +68,31 @@ export default function VaultPage() {
             />
           </Card>
         ) : (
-          <WalletSection />
+          <>
+            <WalletSection />
+
+            {/* The collectibles half of the Vault. A wallet holds coin and it
+                holds collectibles, and until now this Console only knew about
+                one of them. It sits below the coin because that is the order a
+                member reaches for them, and it carries the claim controls
+                because the Vault is where a member goes to move what is
+                theirs. On the Keep the same case is a trophy; here it is an
+                instrument. */}
+            <section className="mt-4 flex flex-col gap-3 md:mt-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="font-display text-base font-semibold text-bone">
+                  The Hoard
+                </h2>
+                <Link
+                  href="/reliquary"
+                  className="text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+                >
+                  The Reliquary
+                </Link>
+              </div>
+              <HoardPanel handle={null} own />
+            </section>
+          </>
         )}
       </div>
     </ConsolePage>

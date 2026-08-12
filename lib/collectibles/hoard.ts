@@ -1,0 +1,226 @@
+import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { SET_ONE } from "@/lib/collectibles/set-one";
+
+/* The Hoard: a member's collection, shaped once for every surface that shows
+ * it.
+ *
+ * Two routes read this, /api/inventory for your own and /api/hoard for
+ * somebody else's, and they must agree about what a holding is. A trophy case
+ * that renders differently on your own Keep than it does on a friend's is two
+ * trophy cases, and the second one is the one nobody tests.
+ *
+ * Real data only, which here mostly means what is absent. The holdings ledger
+ * is written by chest opening and redemption, both of which are sealed, so
+ * almost every read of this returns an empty list. An empty Hoard is the
+ * honest answer and the surfaces render it as one. There is no starter card,
+ * no sample, no preview holding.
+ */
+
+const UNDEFINED_TABLE = "42P01";
+
+/* The card's real data comes from the roster, never from the ledger row. A
+   name stored twice is a name that will one day be stored differently, and the
+   champion roster is the single source of truth for every card in the realm. */
+const CARDS_BY_SLUG = new Map(
+  SET_ONE.cards.map((card) => [card.champion.slug, card] as const)
+);
+
+export type HoardClaim = {
+  id: string | null;
+  status: string;
+  tx_hash: string | null;
+  token_id: string | null;
+};
+
+export type HoardCard = {
+  /* The inventory row: one copy, which is what a claim points at. */
+  id: string;
+  set_slug: string;
+  card_number: number;
+  champion_slug: string;
+  rarity: string;
+  source: string;
+  acquired_at: string;
+  name: string | null;
+  title: string | null;
+  house: string | null;
+  /* The art path itself, so the tile renders the real portrait. Null when the
+     portrait has not landed yet, which the tile shows as the card back rather
+     than as a blank. */
+  art: string | null;
+  claim: HoardClaim | null;
+};
+
+export type HoardSummary = {
+  /* Copies held, which is not the same as cards held: duplicates are real. */
+  copies: number;
+  /* Distinct cards of the set, and the size of the set, so a surface can say
+     "9 of 40" without counting anything itself. */
+  distinct: number;
+  setSize: number;
+  byRarity: Record<string, number>;
+  /* Copies carried on-chain. Zero until the mint opens, and honest about it. */
+  minted: number;
+};
+
+export type Hoard = { cards: HoardCard[]; summary: HoardSummary };
+
+export const EMPTY_HOARD: Hoard = {
+  cards: [],
+  summary: {
+    copies: 0,
+    distinct: 0,
+    setSize: SET_ONE.counts.total,
+    byRarity: {},
+    minted: 0,
+  },
+};
+
+type InventoryRow = {
+  id: string;
+  set_slug: string;
+  card_number: number;
+  champion_slug: string;
+  rarity: string;
+  source: string;
+  acquired_at: string;
+};
+
+type ClaimRow = {
+  id: string;
+  inventory_id: string | null;
+  status: string;
+  tx_hash: string | null;
+  token_id: string | null;
+};
+
+/* Read one member's holdings, newest first, with the claim that carried each
+   copy on-chain if one has. Two queries rather than one per card: a Hoard of
+   two hundred copies must not be two hundred round trips. */
+export async function readHoard(
+  db: SupabaseClient,
+  profileId: string,
+  /* Whether the reader is allowed to see the on-chain proof. A public viewer
+     sees that a copy is minted, because that is the trophy, and the hash,
+     because it is public chain data and it is what makes the claim checkable.
+     Nothing else about the claim leaves the server. */
+  opts: { limit?: number } = {}
+): Promise<Hoard> {
+  const { data, error } = await db
+    .from("inventory")
+    .select("id, set_slug, card_number, champion_slug, rarity, source, acquired_at")
+    .eq("profile_id", profileId)
+    .order("acquired_at", { ascending: false })
+    .limit(opts.limit ?? 500);
+
+  if (error) {
+    /* Table not migrated yet: nobody holds anything, which is also true. */
+    if (error.code === UNDEFINED_TABLE) return EMPTY_HOARD;
+    throw error;
+  }
+
+  const rows = (data ?? []) as InventoryRow[];
+  if (rows.length === 0) return EMPTY_HOARD;
+
+  const claimByCopy = await readClaims(
+    db,
+    profileId,
+    rows.map((r) => r.id)
+  );
+
+  const cards: HoardCard[] = rows.map((copy) => {
+    const card = CARDS_BY_SLUG.get(copy.champion_slug);
+    const claim = claimByCopy.get(copy.id) ?? null;
+    return {
+      id: copy.id,
+      set_slug: copy.set_slug,
+      card_number: copy.card_number,
+      champion_slug: copy.champion_slug,
+      rarity: copy.rarity,
+      source: copy.source,
+      acquired_at: copy.acquired_at,
+      name: card?.champion.name ?? null,
+      title: card?.champion.title ?? null,
+      house: card?.champion.house ?? null,
+      art: card?.champion.art ?? null,
+      claim: claim
+        ? {
+            id: claim.id,
+            status: claim.status,
+            /* The hash only once it means something. A hash on an unsettled
+               claim is a transaction the realm has not verified, and putting
+               it on a trophy case would be showing proof of nothing. */
+            tx_hash: claim.status === "minted" ? claim.tx_hash : null,
+            token_id: claim.token_id,
+          }
+        : null,
+    };
+  });
+
+  return { cards, summary: summarise(cards) };
+}
+
+async function readClaims(
+  db: SupabaseClient,
+  profileId: string,
+  copyIds: string[]
+): Promise<Map<string, ClaimRow>> {
+  const byCopy = new Map<string, ClaimRow>();
+  const { data, error } = await db
+    .from("collectible_claims")
+    .select("id, inventory_id, status, tx_hash, token_id")
+    .eq("profile_id", profileId)
+    .in("inventory_id", copyIds);
+  /* The claim ledger being unreadable must never take the Hoard down: the
+     collection is the point, and the claim is an annotation on it. */
+  if (error || !data) return byCopy;
+
+  for (const row of data as ClaimRow[]) {
+    if (!row.inventory_id) continue;
+    /* Live claims win over dead ones. A copy carries at most one live claim
+       (a partial unique index sees to that) but it can accumulate expired
+       ones, and expired history is not what a card should report. */
+    const held = byCopy.get(row.inventory_id);
+    const isLive =
+      row.status === "issued" ||
+      row.status === "submitted" ||
+      row.status === "minted";
+    if (!held || isLive) byCopy.set(row.inventory_id, row);
+  }
+  return byCopy;
+}
+
+function summarise(cards: HoardCard[]): HoardSummary {
+  const byRarity: Record<string, number> = {};
+  const distinct = new Set<string>();
+  let minted = 0;
+  for (const card of cards) {
+    byRarity[card.rarity] = (byRarity[card.rarity] ?? 0) + 1;
+    distinct.add(`${card.set_slug}:${card.champion_slug}`);
+    if (card.claim?.status === "minted") minted += 1;
+  }
+  return {
+    copies: cards.length,
+    distinct: distinct.size,
+    setSize: SET_ONE.counts.total,
+    byRarity,
+    minted,
+  };
+}
+
+/* Whether a member has chosen to show their collection on their Keep.
+   Default ON: the trophy case is the point of the feature, so a member is
+   hidden only when they explicitly say so. Same shape and same default as the
+   pnlVisible and publicPositions gates in /api/profile/earnings, deliberately:
+   one privacy idea in the product, not three. */
+export function hoardVisible(settings: unknown): boolean {
+  if (settings && typeof settings === "object") {
+    const privacy = (settings as Record<string, unknown>).privacy;
+    if (privacy && typeof privacy === "object") {
+      const val = (privacy as Record<string, unknown>).hoardVisible;
+      if (typeof val === "boolean") return val;
+    }
+  }
+  return true;
+}
