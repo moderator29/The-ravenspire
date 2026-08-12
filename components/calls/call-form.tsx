@@ -12,7 +12,12 @@ import { StreamChip, StreamChipRail } from "@/components/stream/stream-shell";
 import { claimSentence } from "@/components/calls/claim";
 import { realmFetch } from "@/lib/auth/api";
 import { houses } from "@/lib/data/houses";
-import { difficultyBand, scoreOutlook } from "@/lib/calls/analytics";
+import {
+  bandFor,
+  difficultyBand,
+  scoreOutlook,
+  type CalibrationBucket,
+} from "@/lib/calls/analytics";
 import { CONFIDENCE_MAX, CONFIDENCE_MIN } from "@/lib/calls/scoring";
 import {
   CALL_CATEGORIES,
@@ -190,6 +195,37 @@ export function draftSentence(draft: CallDraft): string {
   });
 }
 
+/* The free reads the preview carries back beside the difficulty (V2 section
+   10). None of these cost a model call: the record is arithmetic over the
+   member's own settled Calls, the neighbours are an exact structured match on
+   the pinned subject, and the discussion count is one indexed count. The shapes
+   are declared here rather than imported because the modules that compute them
+   are server only. */
+interface RecordSlice {
+  total: number;
+  hits: number;
+  hitRate: number | null;
+  meanConfidence: number | null;
+}
+
+interface CallerRecord {
+  settled: RecordSlice;
+  category: RecordSlice;
+  subject: RecordSlice;
+  claim: RecordSlice;
+  open: number;
+  calibration: CalibrationBucket[];
+  score: number;
+}
+
+interface SimilarCall {
+  id: string;
+  relation: "same-claim" | "same-direction" | "same-subject";
+  mine: boolean;
+  verdict: string;
+  confidence: number | null;
+}
+
 interface Preview {
   token: string | null;
   stance: CallDirection;
@@ -199,6 +235,9 @@ interface Preview {
   pi_0: number | null;
   sigma: number | null;
   peers: { count: number; eligible: boolean; mean_confidence: number | null };
+  record: CallerRecord;
+  similar: SimilarCall[];
+  discussion: { posts: number; windowHours: number } | null;
 }
 
 function price(n: number | null | undefined): string {
@@ -226,6 +265,14 @@ export function CallForm({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const showSkeleton = useDelayedLoading(loading);
+
+  /* The Herald's read on the draft. Member triggered, never automatic: it is
+     the one part of this panel that costs real coin, and a reading that fired
+     on every keystroke would spend the realm's day on people typing. */
+  const [herald, setHerald] = useState<string | null>(null);
+  const [heraldError, setHeraldError] = useState<string | null>(null);
+  const [heraldLoading, setHeraldLoading] = useState(false);
+  const showHeraldSkeleton = useDelayedLoading(heraldLoading);
 
   const set = useCallback(
     <K extends keyof CallDraft>(key: K, value: CallDraft[K]) => {
@@ -290,6 +337,31 @@ export function CallForm({
   const pi0 = preview?.pi_0 ?? null;
   const band = pi0 !== null ? difficultyBand(pi0) : null;
   const outlook = pi0 !== null ? scoreOutlook(confidence, pi0) : null;
+
+  /* The member's own calibration at the confidence they are currently stating.
+     Read from the buckets the preview already returned rather than by asking
+     the server again, so the slider stays instant and the figure stays real. */
+  const record = preview?.record ?? null;
+  const calBand = record ? bandFor(record.calibration, confidence) : null;
+  const sameClaim =
+    preview?.similar.filter((s) => s.relation === "same-claim").length ?? 0;
+  const otherSide =
+    preview?.similar.filter((s) => s.relation === "same-subject").length ?? 0;
+
+  const askHerald = async () => {
+    const payload = callPayload(draft);
+    if (!payload || heraldLoading) return;
+    setHeraldLoading(true);
+    setHeraldError(null);
+    const res = await realmFetch<{ text?: string; error?: string }>(
+      "/api/calls/preview/analysis",
+      { method: "POST", json: payload }
+    );
+    setHeraldLoading(false);
+    if (res.data?.text) setHerald(res.data.text);
+    else
+      setHeraldError(res.data?.error ?? "The Herald could not be reached.");
+  };
 
   const sources = draft.sources;
 
@@ -533,6 +605,121 @@ export function CallForm({
               Renown takes the gain and never falls. Season Rating takes both.
               The realm settles this itself when the window closes.
             </p>
+
+            {/* The member's own record against the claim in front of them, and
+                their measured calibration at the confidence they are stating.
+                Every figure is counted from Calls they already settled. */}
+            {record && (
+              <div className="flex flex-col gap-1 border-t border-steel-line pt-2.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
+                  Your record
+                </span>
+                {record.settled.total > 0 ? (
+                  <>
+                    <p className="tnum text-xs leading-relaxed text-bone-mut">
+                      {record.settled.hits} of {record.settled.total} settled
+                      Calls landed
+                      {record.subject.total > 0
+                        ? `, ${record.subject.hits} of ${record.subject.total} on this subject`
+                        : record.category.total > 0
+                          ? `, ${record.category.hits} of ${record.category.total} in this category`
+                          : ""}
+                      .
+                    </p>
+                    {calBand ? (
+                      <p className="tnum text-xs leading-relaxed text-bone-mut">
+                        At {Math.round(calBand.from * 100)} to{" "}
+                        {Math.round(calBand.to * 100)}% you have stated{" "}
+                        {Math.round(calBand.stated * 100)}% and landed{" "}
+                        {Math.round(calBand.realized * 100)}% across{" "}
+                        {calBand.total}{" "}
+                        {calBand.total === 1 ? "Call" : "Calls"}.
+                      </p>
+                    ) : (
+                      <p className="text-xs leading-relaxed text-bone-faint">
+                        You have never settled a Call at this confidence, so the
+                        realm has nothing to compare it against.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs leading-relaxed text-bone-faint">
+                    Nothing of yours has settled yet. This is the first entry in
+                    the record.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* What else is already standing on this subject. An exact
+                structured match, not a guess, and it costs nothing. */}
+            {preview.similar.length > 0 && (
+              <p className="text-xs leading-relaxed text-bone-mut">
+                {sameClaim > 0
+                  ? `${sameClaim} standing ${sameClaim === 1 ? "Call states" : "Calls state"} this exact claim`
+                  : `${preview.similar.length} recent ${preview.similar.length === 1 ? "Call" : "Calls"} on this subject`}
+                {otherSide > 0
+                  ? `, and ${otherSide} ${otherSide === 1 ? "calls" : "call"} it the other way`
+                  : ""}
+                .
+              </p>
+            )}
+
+            {preview.discussion && preview.discussion.posts > 0 && (
+              <p className="tnum text-xs leading-relaxed text-bone-faint">
+                The realm has posted about it {preview.discussion.posts}{" "}
+                {preview.discussion.posts === 1 ? "time" : "times"} in the last{" "}
+                {preview.discussion.windowHours} hours.
+              </p>
+            )}
+
+            {/* The Herald, reading the draft over every figure above. This
+                panel holds no copy of its own: it never renders a cached or
+                example reading, and when the Herald cannot be reached it says
+                so rather than filling the space with something that looks like
+                a reading and is not. */}
+            <div className="flex flex-col gap-2 border-t border-steel-line pt-2.5">
+              {showHeraldSkeleton && (
+                <div className="flex flex-col gap-2">
+                  <Skeleton radius="sm" className="h-3 w-full" />
+                  <Skeleton radius="sm" className="h-3 w-4/5" />
+                </div>
+              )}
+
+              {!heraldLoading && herald && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Icon name="raven" className="h-3.5 w-3.5 shrink-0 text-gold" />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
+                      The Herald reads your draft
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-bone-mut">{herald}</p>
+                  <p className="text-[11px] leading-relaxed text-bone-faint">
+                    Written over the figures above and nothing else. It is a
+                    reading, not advice, and it does not know the outcome.
+                  </p>
+                </>
+              )}
+
+              {!heraldLoading && heraldError && (
+                <p role="alert" className="text-xs leading-relaxed text-state-danger">
+                  {heraldError}
+                </p>
+              )}
+
+              {!heraldLoading && !herald && (
+                <Button
+                  variant="glass"
+                  size="sm"
+                  onClick={() => void askHerald()}
+                  className="self-start"
+                >
+                  <Icon name="raven" className="h-3.5 w-3.5" />
+                  {heraldError ? "Ask again" : "Ask the Herald before you seal"}
+                </Button>
+              )}
+            </div>
 
             {preview.peers.count > 0 ? (
               <p className="text-xs leading-relaxed text-bone-mut">
