@@ -52,7 +52,20 @@ function Cell({
   return (
     <Link
       href={href}
-      className="group flex min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-md px-2.5 py-2 transition-colors duration-fast ease-out-quint hover:bg-panel/60 max-md:min-h-11"
+      /* Natural width on a phone, equal shares above `md`.
+       *
+       * `flex-1` is `flex: 1 1 0%`, so three cells in a 366px strip were each
+       * squeezed to about 120px and `truncate` did the rest. Measured on a
+       * real phone: the label read "HOUSE STOR..." and the value read "65
+       * ahead of ...", which is a status strip that has stopped carrying
+       * status. A House name and a rival's name are the whole point of that
+       * cell, and they were the two things cut.
+       *
+       * The strip already scrolls, so letting the cells take the width they
+       * need costs nothing and the reader gets whole words. Above `md` there
+       * is room for equal shares, which reads better than three cells of
+       * ragged width, so the shrinking behaviour comes back there. */
+      className="group flex min-w-0 shrink-0 flex-col justify-center gap-0.5 rounded-md px-2.5 py-2 transition-colors duration-fast ease-out-quint hover:bg-panel/60 max-md:min-h-11 md:flex-1 md:shrink"
     >
       <span className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
         {label}
