@@ -9,12 +9,20 @@ import { Icon } from "@/components/ui/icon";
 
 /* The signature surface, replacing 432 hand written `.glass` usages.
 
-   The `.glass` class in globals.css stays for now so nothing breaks under it,
-   but it is frozen at a 24px radius that predates the radius scale and it sits
-   outside Tailwind's layers, so it beats any `rounded-*` utility a caller
-   tries to apply. That is exactly why this component re-expresses the same
-   treatment against `--radius-xl` and `--shadow-card` instead of wrapping the
-   old class: here the radius is a token, and it can be overridden. */
+   `.glass` is gone from globals.css now, along with `.btn-gold` and
+   `.btn-glass`. This comment used to say it was still there, which was true
+   when it was written and stopped being true without anyone updating it: a
+   comment describing a landmine that has been removed is its own small trap,
+   because the next person reads it and plans around a constraint that no
+   longer exists.
+
+   Why it had to go rather than merely be discouraged is still worth keeping.
+   It was frozen at a 24px radius that predates the radius scale, and it sat
+   outside Tailwind's layers, so it beat any `rounded-*` a caller wrote beside
+   it. About a hundred and thirty such overrides existed and every one of them
+   described nothing. This component expresses the same treatment against
+   `--radius-xl` and `--shadow-card`, where the radius is a token and a caller
+   can actually override it. */
 
 export type CardVariant = "default" | "warm" | "inset" | "raised";
 export type CardPad = "none" | "sm" | "md" | "lg";
