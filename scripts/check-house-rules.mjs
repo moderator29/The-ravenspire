@@ -140,12 +140,11 @@ for (const f of files(["*.tsx"])) {
    are now the Card primitive, which takes its rung from a prop and can
    therefore be told which one to use.
 
-   Two files are still on the old class because they were being worked on
-   elsewhere when the sweep ran. They are named here rather than left to a
-   comment, so converting them is what deletes both this rule and the class. */
-const GLASS_HOLDOUTS = ["app/page.tsx", "app/legal/"];
+   The classes themselves are gone from globals.css, so a use of one is not a
+   style to discourage, it is a class that does nothing at all. This rule exists
+   to say which primitive replaced it rather than to leave a caller wondering
+   why their surface has no background. */
 for (const f of files(["*.tsx"])) {
-  if (GLASS_HOLDOUTS.some((h) => f.includes(h))) continue;
   const text = readFileSync(f, "utf8");
   text.split("\n").forEach((line, i) => {
     if (!/className=/.test(line)) return;

@@ -293,48 +293,22 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ----- Glass containers: retired, and down to two files -----
+/* ----- Glass containers: deleted -----
 
-   This was the core surface of the platform and it is now the Card primitive
-   in components/ui/card.tsx, which expresses the same treatment against
-   --radius-xl and --shadow-card instead of the 24px frozen below.
+   `.glass`, `.glass-sm`, `.glass-warm` and `.glass-hover` were the core surface
+   of the platform and are now the Card primitive in components/ui/card.tsx,
+   which expresses the same treatment against --radius-xl and --shadow-card.
 
-   The defect worth recording, because it is the reason the class had to go
-   rather than merely be discouraged: these rules are unlayered, so they beat
-   every layered `rounded-*` a caller wrote beside them. A surface that said
-   `glass rounded-2xl` was 24px, not 26px, and nothing in the class list showed
-   it. Roughly a hundred and thirty of those overrides existed and every one of
-   them described nothing.
+   The defect worth recording, because it is why the class had to go rather than
+   merely be discouraged: these rules were unlayered, so they beat every layered
+   `rounded-*` a caller wrote beside them. A surface that said `glass
+   rounded-2xl` was 24px, not 26px, and nothing in the class list showed it.
+   About a hundred and thirty of those overrides existed and every one of them
+   described nothing. That is a class silently overriding the radius scale,
+   which no amount of convention was going to fix.
 
-   .glass-warm and .glass-hover are gone entirely: warm is Card's `warm`
-   variant and hover is its `interactive` prop.
-
-   .glass and .glass-sm survive for exactly two files, app/page.tsx and the two
-   pages under app/legal, which were being worked on elsewhere when this sweep
-   ran and could not be touched. Converting those ten usages deletes this whole
-   block, and nothing else holds it. Nothing new may reach for it: the house
-   rule checker fails any use outside those files. */
-.glass {
-  position: relative;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 233, 163, 0.05) 0%,
-      rgba(255, 233, 163, 0.012) 12%,
-      rgba(16, 16, 23, 0.55) 100%
-    ),
-    rgba(12, 12, 17, 0.62);
-  border: 1px solid rgba(217, 176, 64, 0.16);
-  border-radius: 24px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 233, 163, 0.1),
-    0 18px 50px rgba(0, 0, 0, 0.45);
-}
-.glass-sm {
-  border-radius: 16px;
-}
+   Warm is Card's `warm` variant, hover is its `interactive` prop, and the 16px
+   rung is `radius="lg"`. A checker rule fails any new use of the names. */
 
 /* ----- Forged gold: gradient, never flat ----- */
 .gold-metal {

@@ -931,9 +931,13 @@ a guess. Updated as work lands.
    `cx` assumes class attribute order decides CSS precedence, which is false.
    Needs a deliberate visual pass, because the fix activates every currently
    dead override at once.
-4. **Retire the `.glass` utilities** once the remaining raw usages are gone. The
-   class is frozen at a 24px radius that predates the radius scale and sits
-   outside Tailwind's layers, so it beats any `rounded-*` a caller applies.
+4. **Retire the `.glass` utilities.** Done. Every raw usage is the `Card`
+   primitive and all four classes are deleted from `app/globals.css`. The
+   measured damage was about a hundred and thirty `rounded-*` classes sitting
+   beside an unlayered class that beat all of them, so every one of them
+   described nothing. `Card` also gained a `radius` prop, which is the narrow
+   fix for item 3 on the one property where the dead override was doing visible
+   harm. A checker rule fails any new use of the names.
 5. **Spacing scale enforcement** (`--spacing: initial`), which is approved but
    breaks every existing `p-4` at once and needs its own mechanical pass.
 
@@ -1292,7 +1296,7 @@ rather than to hide behind a green tick.
 | --- | --- | --- | --- |
 | Realm event spine | Built. Nine kinds, `emit()` wired into posts, verdicts, duels, quests, crests. | **Not built.** Only `/api/events` reads `realm_events`; the feed reads `posts` alone. | The spine was laid and never connected. The Ravenry is not yet the operating system. |
 | Calls V2 | Built and tested. Volatility implied difficulty frozen at creation, confidence, thresholds, peer consensus, contract pinned settlement. | **Barely built.** The composer collects one V2 field, `timeframe`. No Call detail page exists. | The engine computes difficulty and consensus that no member can see. |
-| Raven AI | Two routes: chat and compose suggest. | Chat only. | Still a tagged chatbot, not the intelligence layer. |
+| Raven AI | Seven of the twenty capabilities in section 10 are live: the draft read before a Call is sealed, the caller's record and calibration, similar Calls and discussion, the daily Chronicle, the daily House entries, the thread summary, and the spam and abuse screen. Four of those seven need no model at all. | The composer, the thread, the Ravenry. | It stopped waiting to be mentioned. The Chronicle writes itself once a day and the Herald reads a Call before it is sealed, which is the only moment a reading can still change anything. |
 | Houses V2 | Built. Size neutral top 20 scoring, computed leadership, oath history, Clashes. | Partial. | Closest to complete of the four. |
 | Games V2 | The War exists. | Converted, and three pieces of invented data removed. | Social first games are not started. |
 | Design system | Built. Six archetypes, two registers, thirteen primitives. | Applied across the platform. | The sweep is real: zero `btn-gold` or `btn-glass` remain in live code. |
@@ -1325,6 +1329,8 @@ a card registry, and the Calls V2 composer, detail page and prediction profile.
 | 2026-08-12 | **Invented data removed from The War**: a six tier reward ladder with no server behind it, a fabricated Glory to $RSP rate, and client computed Glory displayed as banked. |
 | 2026-08-12 | Mobile shell fixed: every top bar control was 36px on the only screens that render it, and the navigation drawer had no dialog role, focus trap or focus restore. |
 | 2026-08-12 | **Audit finding: the Ravenry is not yet the operating system, and Calls V2 has an engine with no product on top.** Both agents reassigned to close exactly that. |
+| 2026-08-12 | **Raven becomes the intelligence layer.** Seven capabilities from section 10, in the order it gives them. Four of the seven are pure arithmetic over stored rows and cost nothing, which is the pattern that section names: reaching for Anthropic where SQL suffices is the expensive mistake. Every paid route carries two caps through the shared limiter and degrades honestly with no key. |
+| 2026-08-12 | **The `.glass` utilities deleted.** Every raw usage is now the `Card` primitive. The measured damage was about a hundred and thirty `rounded-*` classes written beside an unlayered class that beat every one of them, so each one described nothing. |
 
 ### Known defect, not yet fixed
 
