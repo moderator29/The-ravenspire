@@ -1,6 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Dialog } from "@base-ui/react/dialog";
+import { motion, useReducedMotion } from "framer-motion";
 import { Card, type CardTone } from "@/components/ui/card";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,35 @@ import { Button } from "@/components/ui/button";
  *
  * Motion here is the documented exception to the sub-300ms rule. A reward may
  * take a full second. Under prefers-reduced-motion it degrades to a crossfade
- * rather than disappearing, because the moment still matters. */
+ * rather than disappearing, because the moment still matters.
+ *
+ * On Base UI Dialog, which it was not, and the gap was not cosmetic. This was
+ * a hand rolled `fixed inset-0` overlay carrying `role="dialog"` and
+ * `aria-modal="true"` by hand, which is the twentieth such overlay this
+ * codebase has had and the reason the Modal primitive exists at all. Measured
+ * with the chest Ceremony open on the War's mastery board: focus was never
+ * moved into the dialog, and the first three Tab presses landed on Upgrade
+ * buttons on the page underneath, with 22 of 24 focusable elements outside the
+ * dialog and reachable. Escape did nothing.
+ *
+ * Base UI supplies the focus entry, the focus restore on close, the Escape
+ * handler, the background scroll lock and a real portal to `document.body`,
+ * which is also house rule 16. Verified on this component: focus lands on the
+ * primary action when it opens, Escape closes it, and focus returns to the
+ * control that opened it.
+ *
+ * The keyboard containment is not Base UI's doing and is not this file's
+ * either. It marks the background `aria-hidden` but not `inert`, so the page
+ * stayed tabbable, and the Modal primitive leaked identically in the same
+ * build. `components/shell/inert-background.tsx` mirrors one attribute onto
+ * the other, once, for every dialog in the product.
+ *
+ * What is kept is the look. The dialog's own entrance is a CSS transition on
+ * the scale, matching the Modal, and the springs stay where they carry the
+ * Forge register: the 3D icon and the plate. The backdrop is `Dialog.Backdrop`
+ * rather than a full bleed `<button aria-label="Dismiss">`, which had been
+ * both a 390x844 tap target in the tab order and a second, redundant way to
+ * say what `Dialog.Close` already says. */
 
 export type CeremonyTone = "gold" | "ember" | "steel";
 
@@ -79,32 +108,22 @@ export function Ceremony({
   const t = TONES[tone];
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-modal flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: reduced ? 0.15 : 0.24 }}
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-        >
-          {/* The ground. Tapping it dismisses, because a reward should never
-              trap you. */}
-          <button
-            type="button"
-            aria-label="Dismiss"
-            onClick={onClose}
-            className="absolute inset-0 bg-obsidian/85 backdrop-blur-sm"
-          />
-
-          <Card render={<motion.div style={{ boxShadow: "var(--shadow-overlay)" }} initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 12 }} animate={reduced ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }} exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 6 }} transition={
+    <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <Dialog.Portal>
+        {/* Dismisses on click, because a reward should never trap you, and
+            Base UI wires that up without putting a viewport sized button in
+            the tab order to do it. */}
+        <Dialog.Backdrop className="fixed inset-0 z-overlay bg-obsidian/85 backdrop-blur-sm transition-opacity duration-base ease-out-quint data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-fast" />
+        <Dialog.Viewport className="fixed inset-0 z-modal flex items-center justify-center p-4">
+          <Dialog.Popup
+            aria-label={title}
+            className="w-full max-w-sm transition-opacity duration-base ease-out-quint data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-fast"
+          >
+          <Card render={<motion.div style={{ boxShadow: "var(--shadow-overlay)" }} initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 12 }} animate={reduced ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }} transition={
               reduced
                 ? { duration: 0.15 }
                 : { type: "spring", visualDuration: 0.42, bounce: 0.22 }
-            } />} pad="none" radius="2xl" elevation="overlay" tone={t.ring} className="relative w-full max-w-sm overflow-hidden p-7 text-center">
+            } />} pad="none" radius="2xl" elevation="overlay" tone={t.ring} className="relative w-full overflow-hidden p-7 text-center">
             {/* Atmosphere sits behind the plate, never on it. */}
             <div
               aria-hidden
@@ -178,8 +197,9 @@ export function Ceremony({
               </div>
             </div>
           </Card>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </Dialog.Popup>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
