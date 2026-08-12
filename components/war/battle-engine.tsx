@@ -9,6 +9,8 @@ import {
   ultimateEffectText,
   playstyleTag,
 } from "@/lib/game/combat";
+import { Button, IconButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 
 /*
@@ -93,8 +95,6 @@ const FIELD_FOES: Record<string, number> = {
 /* A safety ceiling so a stalled field still resolves. Victory is normally by
    clearing the army, which lands well under this. */
 const MAX_SECONDS = 120;
-/* Illustrative season conversion, shown to players. Not a promise. */
-const GLORY_PER_RSP = 1000;
 
 export function BattleEngine({
   champion,
@@ -476,7 +476,7 @@ export function BattleEngine({
   const progress = 1 - hud.remaining / totalFoes;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-obsidian">
+    <div className="z-overlay fixed inset-0 flex flex-col overflow-hidden bg-obsidian">
       {phase === "howto" ? (
         <HowToPlay
           champion={champion}
@@ -492,7 +492,10 @@ export function BattleEngine({
           {/* Top HUD: hero, army progress, kills, glory, time, retreat. */}
           <div className="pointer-events-none absolute inset-x-0 top-0 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
             <div className="flex items-center gap-2.5">
-              <div className="glass glass-sm pointer-events-auto flex min-w-0 flex-1 items-center gap-2 p-2">
+              <Card
+                pad="none"
+                className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2 p-2"
+              >
                 {champion.art && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -518,22 +521,24 @@ export function BattleEngine({
                     />
                   </div>
                 </div>
-              </div>
-              <div className="glass glass-sm pointer-events-auto px-3 py-1.5 text-center">
+              </Card>
+              {/* The running tally, not the banked figure. The battle page
+                  reports what the server settled once the fight ends. */}
+              <Card pad="none" className="pointer-events-auto px-3 py-1.5 text-center">
                 <p className="tnum text-sm font-bold text-gold-bright">
                   {hud.glory}
                 </p>
                 <p className="text-[9px] uppercase tracking-wider text-bone-faint">
                   Glory
                 </p>
-              </div>
-              <button
+              </Card>
+              <IconButton
+                variant="glass"
+                icon="chevron-left"
+                label="Retreat"
+                className="pointer-events-auto shrink-0"
                 onClick={() => history.back()}
-                className="glass glass-sm pointer-events-auto flex h-9 w-9 items-center justify-center text-bone-mut"
-                aria-label="Retreat"
-              >
-                <Icon name="arrow" className="h-4 w-4 rotate-180" />
-              </button>
+              />
             </div>
 
             {/* Army-cleared bar: the legible goal. */}
@@ -607,17 +612,21 @@ function ControlButton({
 }) {
   const dim = size === "lg" ? "h-20 w-20" : "h-14 w-14";
   const iconDim = size === "lg" ? "h-9 w-9" : "h-6 w-6";
+  /* Genuinely circular thumb controls, which is the one shape rule 9 allows a
+     circle for. They carry no horizontal padding, so they are a circle and not
+     a capsule. Steel borrows the Button `glass` treatment rather than the raw
+     `.glass` class, which is frozen at a radius that predates the scale. */
   const tones: Record<string, string> = {
     gold: "gold-metal border border-gold-bright/60 text-obsidian",
     ember: "border border-ember/60 bg-ember/20 text-ember",
-    steel: "glass glass-sm text-bone",
+    steel: "border border-gold/25 bg-void/60 text-bone backdrop-blur-[10px]",
   };
   return (
     <button
       onClick={onClick}
       disabled={cooldown > 0}
       aria-label={label}
-      className={`flex ${dim} items-center justify-center rounded-full ${tones[tone]} transition active:scale-95 disabled:opacity-40`}
+      className={`flex ${dim} items-center justify-center rounded-full ${tones[tone]} transition-[transform,opacity] duration-fast ease-out-quint active:scale-95 disabled:opacity-40`}
     >
       {cooldown > 0 ? (
         <span className="tnum text-sm font-bold">{Math.ceil(cooldown)}</span>
@@ -994,7 +1003,7 @@ function HowToPlay({
 
       {/* The champion's real kit, passive and ultimate that actually shape how
           they play, not flavor text. */}
-      <div className="glass glass-warm mt-5 w-full max-w-md p-5 text-left">
+      <Card variant="warm" pad="lg" className="mt-5 w-full max-w-md text-left">
         <div className="flex items-center justify-between gap-3">
           <p className="font-display text-base font-semibold text-bone">
             {champion.name}
@@ -1029,9 +1038,9 @@ function HowToPlay({
             </p>
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div className="glass mt-3 w-full max-w-md p-5 text-left text-sm text-bone-mut">
+      <Card pad="lg" className="mt-3 w-full max-w-md text-left text-sm text-bone-mut">
         <Rule icon="swords" title="Dash">
           Leap onto the nearest foe and cut down everything around them. Your
           strongest move, on a short cooldown.
@@ -1043,25 +1052,23 @@ function HowToPlay({
           Guard yourself and nearby allies for a few seconds. Time it against
           the enemy charge.
         </Rule>
-        <Rule icon="medal" title="Glory and $RSP">
+        <Rule icon="medal" title="Glory">
           Every foe felled adds Glory. Break the whole host to claim victory.
-          Glory converts to $RSP at the season rate (about {GLORY_PER_RSP} Glory
-          per $RSP, illustrative for the season).
+          The tally you see in the field is the engine counting; what is banked
+          is settled by the realm when the fight ends.
         </Rule>
-      </div>
+      </Card>
       <p className="mt-3 text-xs text-bone-faint">
         On a phone, turn it sideways for the full field.
       </p>
-      <div className="mt-5 flex gap-3">
-        <button
-          onClick={onExit}
-          className="btn-glass px-6 py-2.5 text-sm text-bone-mut"
-        >
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        <Button variant="glass" size="lg" onClick={onExit}>
           Not yet
-        </button>
-        <button onClick={onBegin} className="btn-gold px-8 py-2.5 text-sm">
+        </Button>
+        <Button variant="gold" size="lg" onClick={onBegin}>
+          <Icon name="swords" className="h-4 w-4" />
           Sound the horns
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1093,7 +1100,7 @@ function Rule({
 
 function RotateHint() {
   return (
-    <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-[--radius-sm] bg-obsidian/80 px-4 py-2 text-center backdrop-blur-sm">
+    <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[--radius-sm] bg-obsidian/80 px-4 py-2 text-center backdrop-blur-sm">
       <p className="flex items-center gap-2 text-xs text-gold">
         <Icon name="compass" className="h-4 w-4" />
         Turn sideways for the full field
