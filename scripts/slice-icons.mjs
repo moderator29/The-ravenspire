@@ -425,11 +425,19 @@ async function sliceSheet(sheet) {
         .png()
         .toBuffer();
 
-      /* Quantised deliberately. Full RGBA at 512 ran about 400KB an icon, so
-         the set alone was 34MB of repository. A palette at high quality takes
-         the same icon to roughly 56KB with no visible loss at any size this
-         art is ever drawn: the largest is the 192px hero, so even a 2x display
-         asks for 384. Seven times smaller, and identical on screen. */
+      /* Full colour, not a palette.
+       *
+       * Quantising was the right call when every icon was being written at
+       * 512, because full RGBA ran about 400KB each and the set was 34MB. It
+       * is the wrong call now that icons are written at their native size:
+       * 256 colours across a gold gradient with a soft glow is exactly the
+       * content that bands, and these icons are almost entirely gradient.
+       * At 150 to 250 pixels the full colour file is small anyway.
+       *
+       * The sharpen is the other half. Any resample softens edges slightly,
+       * and the browser softens them again when it draws a 150px icon into a
+       * 192px hero box. A light unsharp mask, well below the threshold where
+       * it starts ringing on the gold rims, puts that back. */
       /* Never scaled up. The sheets arrive at 1254 across, so a cell on the
          eight wide sheet is about 156 pixels: writing that out at 512 stores
          three times the bytes and not one extra pixel of detail, and an
@@ -443,7 +451,8 @@ async function sliceSheet(sheet) {
           kernel: "lanczos3",
           background: { r: 0, g: 0, b: 0, alpha: 0 },
         })
-        .png({ compressionLevel: 9, palette: true, quality: 100, effort: 10 })
+        .sharpen({ sigma: 0.7, m1: 0.6, m2: 1.4 })
+        .png({ compressionLevel: 9, effort: 10 })
         .toFile(path.join(OUT_DIR, `${slug}.png`));
 
       written++;
