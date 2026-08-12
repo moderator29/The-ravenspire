@@ -24,6 +24,7 @@ import { WatchStar } from "@/components/coin/watch-star";
 import { RealmTrades } from "@/components/trade/realm-trades";
 import { TRADE_CHAINS } from "@/lib/trade/config";
 import { realmFetch } from "@/lib/auth/api";
+import { withDeadline } from "@/lib/deadline";
 
 /* The Scrying Glass: a Console. The lens switcher and the chain filter sit on
    one toolbar rail that collapses into a Sheet below md, and the coin roll is
@@ -195,8 +196,13 @@ export default function ScryingPage() {
     try {
       /* Carries the member's token when there is one, so a signed-in reader is
          metered on their account rather than sharing an address bucket with
-         everyone behind the same network. */
-      const res = await realmFetch<ScryResponse>("/api/scrying");
+         everyone behind the same network.
+
+         The deadline is what makes the catch below reachable. A rejected read
+         already fell to "The glass clouded over", but a read that never
+         answers is not a rejection, and measured against one this page held
+         thirty-six pulsing bars at thirty seconds. */
+      const res = await withDeadline(realmFetch<ScryResponse>("/api/scrying"));
       const body = res.data ?? { heating: [], trending: [], top: [] };
       if (body.error) {
         setError(true);

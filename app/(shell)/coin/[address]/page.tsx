@@ -24,6 +24,7 @@ import { TradePanel } from "@/components/trade/trade-panel";
 import { RavenTake } from "@/components/trade/raven-take";
 import { TokenSafety } from "@/components/trade/token-safety";
 import { shareOrCopy } from "@/lib/share";
+import { withDeadline } from "@/lib/deadline";
 
 interface CoinData {
   address: string;
@@ -119,8 +120,19 @@ export default function CoinPage({
     qs.set("address", address);
     if (net) qs.set("net", net);
     if (sym) qs.set("symbol", sym);
-    fetch(`/api/coin?${qs.toString()}`)
-      .then(async (r) => ({ ok: r.ok, status: r.status, body: await r.json() }))
+    /* The deadline is what makes the `.catch` below reachable, and it covers
+       the body read as well as the response, so a stalled stream is bounded
+       the same way a stalled connection is. The catch already handled a
+       rejected read; a read that never answers is not a rejection, and
+       measured against one this page held ten pulsing bars at thirty seconds
+       with no price, no chart, and nothing saying the number was not coming. */
+    withDeadline(
+      fetch(`/api/coin?${qs.toString()}`).then(async (r) => ({
+        ok: r.ok,
+        status: r.status,
+        body: await r.json(),
+      }))
+    )
       .then(({ status: code, body }) => {
         if (!alive) return;
         const data = (body as { coin?: CoinData }).coin;

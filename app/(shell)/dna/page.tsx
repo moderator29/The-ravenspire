@@ -14,6 +14,7 @@ import { Sequencing } from "@/components/dna/sequencing";
 import { DnaCard } from "@/components/dna/dna-card";
 import type { DnaResult } from "@/components/dna/types";
 import { realmFetch } from "@/lib/auth/api";
+import { withDeadline, DEADLINE_MODEL } from "@/lib/deadline";
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const HANDLE_RE = /^@?[a-zA-Z0-9_]{1,30}$/;
@@ -58,10 +59,16 @@ function Analyzer() {
     try {
       /* Carries the member's token when there is one, so a signed-in reader is
          metered on their account rather than on a shared address. */
-      const res = await realmFetch<DnaResult & { error?: string }>("/api/dna", {
-        method: "POST",
-        json: { query: q },
-      });
+      /* A real model call, so the model budget rather than the read one, but
+         bounded either way: `loading` draws the Sequencing panel and only this
+         try clears it. */
+      const res = await withDeadline(
+        realmFetch<DnaResult & { error?: string }>("/api/dna", {
+          method: "POST",
+          json: { query: q },
+        }),
+        DEADLINE_MODEL
+      );
       const data = res.data;
       if (!res.ok || !data || data.error || !data.archetype) {
         setError(
