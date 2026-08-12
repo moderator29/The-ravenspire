@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { houses, sigilIcon } from "@/lib/data/houses";
 import { Avatar } from "@/components/social/avatar";
@@ -18,7 +19,11 @@ import {
   type HouseStat,
   type PersonHit,
 } from "@/lib/social/explore-queries";
-import { StreamColumn } from "@/components/stream/stream-shell";
+import {
+  StreamChip,
+  StreamChipRail,
+  StreamColumn,
+} from "@/components/stream/stream-shell";
 
 interface ProfileHit {
   id: string;
@@ -36,7 +41,63 @@ interface CallRow {
   author: { handle: string | null; display_name: string | null } | null;
 }
 
+/* The two discovery lists the Crossroads offers, and the only thing `?view=`
+   selects. Houses and Latest Calls are the standing furniture of the route and
+   show under both. */
+const VIEWS = [
+  { key: "people", label: "People" },
+  { key: "cashtags", label: "Cashtags" },
+] as const;
+
+type ExploreView = (typeof VIEWS)[number]["key"];
+
+function viewFromParam(raw: string | null): ExploreView {
+  return VIEWS.some((v) => v.key === raw) ? (raw as ExploreView) : "people";
+}
+
+/* useSearchParams() opts a component out of static rendering, so the reading
+   half sits behind a boundary and the route still prerenders. Without it this
+   page fails to build exactly the way the Ravenry did. */
 export default function ExplorePage() {
+  return (
+    <Suspense fallback={<ExploreFallback />}>
+      <ExploreBody />
+    </Suspense>
+  );
+}
+
+function ExploreFallback() {
+  return (
+    <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
+      <h1 className="font-display text-xl font-semibold text-bone">
+        The Crossroads
+      </h1>
+      <Card radius="lg" pad="none" className="mt-5 h-12 animate-pulse" />
+    </StreamColumn>
+  );
+}
+
+function ExploreBody() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const view = viewFromParam(params.get("view"));
+
+  /* The dock's contextual strip already links `?view=cashtags` on a phone, and
+     this page used to keep no view at all, so that chip changed the address bar
+     and nothing else. The view lives in the URL now, which makes the dock work
+     and keeps it and the rail from ever disagreeing. */
+  const setView = useCallback(
+    (next: ExploreView) => {
+      const query = new URLSearchParams(params.toString());
+      if (next === "people") query.delete("view");
+      else query.set("view", next);
+      const qs = query.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [params, pathname, router]
+  );
+
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<ProfileHit[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -167,91 +228,114 @@ export default function ExplorePage() {
       {/* Only surface discovery sections when not actively searching. */}
       {query.trim().length < 2 && (
         <>
-          {/* People to follow lead the Crossroads: real citizens worth
-              following come first, the talk of the realm follows below. */}
-          <h2 className="mt-8 font-display text-base font-semibold text-bone">
-            Lords and Ladies of Note
-          </h2>
-          <p className="text-xs text-bone-faint">
-            The realm&apos;s most renowned, worth a follow
-          </p>
-          <div className="mt-3 flex flex-col gap-2">
-            {people === null ? (
-              [0, 1, 2].map((i) => (
-                <Card key={i} radius="lg" pad="none" className="h-14 animate-pulse" />
-              ))
-            ) : people.length === 0 ? (
-              <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
-                The realm is yet young. Its first names have not risen.
-              </Card>
-            ) : (
-              people.map((p) => (
-                <Card key={p.id} radius="lg" pad="none" className="flex items-center gap-3 p-3">
-                  <Link
-                    href={`/u/${p.handle}`}
-                    className="flex min-w-0 flex-1 items-center gap-3"
-                  >
-                    <Avatar author={p} size={40} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-bone">
-                        {p.display_name ?? p.handle}
-                      </p>
-                      <p className="truncate text-xs text-bone-faint">
-                        @{p.handle}
-                      </p>
-                    </div>
-                    <span className="tnum shrink-0 text-right text-[11px] text-bone-faint">
-                      <span className="block font-semibold text-bone-mut">
-                        {p.renown.toLocaleString()}
-                      </span>
-                      Renown
-                    </span>
-                  </Link>
-                  <FollowButton
-                    targetId={p.id}
-                    viewerId={viewerId}
-                    initialFollowing={followingSet.has(p.id)}
-                  />
-                </Card>
-              ))
-            )}
-          </div>
+          {/* The desktop half of one control. Below lg the dock carries these
+              same two views a thumb's width above the content, so the rail is
+              hidden there and both write the same `?view=`. */}
+          <StreamChipRail label="Crossroads views" className="mt-6 max-lg:hidden">
+            {VIEWS.map((v) => (
+              <StreamChip
+                key={v.key}
+                active={view === v.key}
+                onClick={() => setView(v.key)}
+              >
+                {v.label}
+              </StreamChip>
+            ))}
+          </StreamChipRail>
 
-          {/* Trending cashtags */}
-          <h2 className="mt-8 font-display text-base font-semibold text-bone">
-            What the Realm Whispers
-          </h2>
-          <p className="text-xs text-bone-faint">
-            Cashtags carried by the most ravens this week
-          </p>
-          <div className="mt-3">
-            {cashtags === null ? (
-              <div className="flex flex-wrap gap-2">
-                {[0, 1, 2, 3].map((i) => (
-                  <Card key={i} radius="lg" pad="none" className="h-9 w-24 animate-pulse" />
-                ))}
-              </div>
-            ) : cashtags.length === 0 ? (
-              <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
-                No cashtags have taken flight yet. Seal a Call and start the
-                talk.
-              </Card>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {cashtags.map((c) => (
-                  <Card key={c.tag} render={<span />} radius="lg" pad="none" className="flex items-center gap-2 px-3.5 py-1.5">
-                    <Icon name="coin" className="h-3.5 w-3.5 text-gold" />
-                    <span className="text-sm font-semibold text-gold-bright">
-                      ${c.tag}
-                    </span>
-                    <span className="tnum text-[11px] text-bone-faint">
-                      {c.count}
-                    </span>
+          {view === "people" && (
+            <>
+            {/* People to follow lead the Crossroads: real citizens worth
+                following come first, the talk of the realm follows below. */}
+            <h2 className="mt-8 font-display text-base font-semibold text-bone">
+              Lords and Ladies of Note
+            </h2>
+            <p className="text-xs text-bone-faint">
+              The realm&apos;s most renowned, worth a follow
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              {people === null ? (
+                [0, 1, 2].map((i) => (
+                  <Card key={i} radius="lg" pad="none" className="h-14 animate-pulse" />
+                ))
+              ) : people.length === 0 ? (
+                <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
+                  The realm is yet young. Its first names have not risen.
+                </Card>
+              ) : (
+                people.map((p) => (
+                  <Card key={p.id} radius="lg" pad="none" className="flex items-center gap-3 p-3">
+                    <Link
+                      href={`/u/${p.handle}`}
+                      className="flex min-w-0 flex-1 items-center gap-3"
+                    >
+                      <Avatar author={p} size={40} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-bone">
+                          {p.display_name ?? p.handle}
+                        </p>
+                        <p className="truncate text-xs text-bone-faint">
+                          @{p.handle}
+                        </p>
+                      </div>
+                      <span className="tnum shrink-0 text-right text-[11px] text-bone-faint">
+                        <span className="block font-semibold text-bone-mut">
+                          {p.renown.toLocaleString()}
+                        </span>
+                        Renown
+                      </span>
+                    </Link>
+                    <FollowButton
+                      targetId={p.id}
+                      viewerId={viewerId}
+                      initialFollowing={followingSet.has(p.id)}
+                    />
                   </Card>
-                ))}
-              </div>
-            )}
-          </div>
+                ))
+              )}
+            </div>
+            </>
+          )}
+
+          {view === "cashtags" && (
+            <>
+            {/* Trending cashtags */}
+            <h2 className="mt-8 font-display text-base font-semibold text-bone">
+              What the Realm Whispers
+            </h2>
+            <p className="text-xs text-bone-faint">
+              Cashtags carried by the most ravens this week
+            </p>
+            <div className="mt-3">
+              {cashtags === null ? (
+                <div className="flex flex-wrap gap-2">
+                  {[0, 1, 2, 3].map((i) => (
+                    <Card key={i} radius="lg" pad="none" className="h-9 w-24 animate-pulse" />
+                  ))}
+                </div>
+              ) : cashtags.length === 0 ? (
+                <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
+                  No cashtags have taken flight yet. Seal a Call and start the
+                  talk.
+                </Card>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {cashtags.map((c) => (
+                    <Card key={c.tag} render={<span />} radius="lg" pad="none" className="flex items-center gap-2 px-3.5 py-1.5">
+                      <Icon name="coin" className="h-3.5 w-3.5 text-gold" />
+                      <span className="text-sm font-semibold text-gold-bright">
+                        ${c.tag}
+                      </span>
+                      <span className="tnum text-[11px] text-bone-faint">
+                        {c.count}
+                      </span>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+            </>
+          )}
         </>
       )}
 
