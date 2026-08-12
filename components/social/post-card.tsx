@@ -600,13 +600,16 @@ export function PostCard({ post }: { post: Post }) {
              outside the box with nothing to scroll them, on every raven in the
              product. The card itself is 332 wide and the gutter under the
              avatar is empty, so the bar takes the width that is already there
-             rather than a control giving up its floor.
+             rather than a control giving up its floor. The 52px is the gutter
+             exactly, the avatar's 40px margin box plus the 12px gap, so the
+             bar's leading edge lands on the card's own content edge rather
+             than a few pixels adrift of it.
 
              `shrink-0` on the glyphs is the other half, and it was the worse
              half: at 390 the flex squeeze had shrunk every count-bearing icon
              to exactly 0px. Reply, re-raven and like rendered as bare numbers
              with no icon at all, while the class list said 18px. */}
-          <div className="mt-2 flex items-center justify-between max-sm:-ml-14">
+          <div className="mt-2 flex items-center justify-between max-sm:-ml-13">
             <span
               className="flex shrink-0 items-center gap-1.5 px-1 py-1 text-xs text-bone-faint"
               aria-label={`${views} views`}
