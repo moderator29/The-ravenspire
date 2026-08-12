@@ -218,7 +218,7 @@ Detail in `RAVENSPIRE-V2.md` section 39. Highest value first:
 ## 7. Item 7, decided
 
 Stored server side in `lib/commerce/catalog.ts`, off customer surfaces until
-confirmed. Chest pricing 4.99, 14.99, 59.99 USD. One print on demand vendor,
+confirmed. Chest pricing 5.99, 15.49, 25.00 USD. One print on demand vendor,
 Gelato, with Printful and Prodigi fallbacks behind a swappable abstraction. Per
 card mint caps Rare 5,000, Epic 1,500, Legendary 400, Mythic 75. Art print edition
 250 per champion.
