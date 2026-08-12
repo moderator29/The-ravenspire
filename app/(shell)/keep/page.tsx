@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EditProfile } from "@/components/social/edit-profile";
-import { ProfileView } from "@/components/social/profile-view";
+import { ProfileView, type ProfileTab } from "@/components/social/profile-view";
 import { fetchProfile } from "@/lib/social/queries";
 import type { PublicProfile } from "@/lib/social/types";
 import { realmFetch } from "@/lib/auth/api";
@@ -20,7 +21,46 @@ import {
    The Keep itself carries no back control, because it is a dock destination
    rather than somewhere a member was navigated into. */
 
+/* The dock's contextual strip links `/keep?tab=calls` and `/keep?tab=media`,
+   and the panel used to live in ProfileView's own state with nothing reading
+   the query, so both chips changed the address bar and left the Keep on
+   Ravens. Three dead controls, counting the bare `/keep` that meant Ravens.
+
+   The panel is the URL now. ProfileView stays uncontrolled for a public
+   /u/handle, which has no dock strip of its own and no param to answer. */
+const TABS: ProfileTab[] = ["posts", "calls", "media"];
+
+function tabFromParam(raw: string | null): ProfileTab {
+  return TABS.includes(raw as ProfileTab) ? (raw as ProfileTab) : "posts";
+}
+
+/* useSearchParams opts a component out of static rendering, so the reading
+   half sits behind a boundary and the route still prerenders. */
 export default function KeepPage() {
+  return (
+    <Suspense fallback={<DossierSkeleton />}>
+      <KeepBody />
+    </Suspense>
+  );
+}
+
+function KeepBody() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const tab = tabFromParam(params.get("tab"));
+
+  const setTab = useCallback(
+    (next: ProfileTab) => {
+      const query = new URLSearchParams(params.toString());
+      if (next === "posts") query.delete("tab");
+      else query.set("tab", next);
+      const qs = query.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [params, pathname, router]
+  );
+
   const { ready, authenticated, enabled } = useRealmAuth();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [state, setState] = useState<"loading" | "anon" | "onboard" | "ok">(
@@ -109,7 +149,13 @@ export default function KeepPage() {
   return (
     <div>
       {profile && (
-        <ProfileView profile={profile} own onEdit={() => setEditOpen(true)} />
+        <ProfileView
+          profile={profile}
+          own
+          onEdit={() => setEditOpen(true)}
+          tab={tab}
+          onTabChange={setTab}
+        />
       )}
       <EditProfile
         open={editOpen}

@@ -62,11 +62,15 @@ const PICKER_FOCUS =
   "cursor-pointer has-[input:focus-visible]:outline has-[input:focus-visible]:outline-2 " +
   "has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-[color:var(--state-focus-ring)]";
 
+export type ProfileTab = "posts" | "calls" | "media";
+
 export function ProfileView({
   profile,
   own = false,
   back = false,
   onEdit,
+  tab: controlledTab,
+  onTabChange,
 }: {
   profile: PublicProfile;
   own?: boolean;
@@ -75,12 +79,23 @@ export function ProfileView({
      destination and does not. */
   back?: boolean;
   onEdit?: () => void;
+  /* Optionally controlled, so a route that carries the panel in its URL can
+     drive it. The member's own Keep does, because the dock's contextual strip
+     links `?tab=calls` and `?tab=media` and something has to answer those.
+     A public /u/handle passes neither and keeps its own state. */
+  tab?: ProfileTab;
+  onTabChange?: (next: ProfileTab) => void;
 }) {
   const { authenticated } = useRealmAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [crestSlugs, setCrestSlugs] = useState<string[]>([]);
   const [counts, setCounts] = useState({ followers: 0, following: 0 });
-  const [tab, setTab] = useState<"posts" | "calls" | "media">("posts");
+  const [internalTab, setInternalTab] = useState<ProfileTab>("posts");
+  const tab = controlledTab ?? internalTab;
+  const setTab = (next: ProfileTab) => {
+    setInternalTab(next);
+    onTabChange?.(next);
+  };
   const [following, setFollowing] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [viewerId, setViewerId] = useState<string | null>(null);
@@ -539,7 +554,7 @@ export function ProfileView({
           underline pattern by section 3. */}
       <DossierTabs
         value={tab}
-        onValueChange={(v) => setTab(v as "posts" | "calls" | "media")}
+        onValueChange={(v) => setTab(v as ProfileTab)}
         tabs={[
           { value: "posts", label: "Ravens", count: posts.length },
           { value: "calls", label: "Calls", count: callPosts.length },
