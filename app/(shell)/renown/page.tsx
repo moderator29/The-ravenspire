@@ -121,7 +121,7 @@ export default function RenownPage() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-3 py-4 sm:px-4 sm:py-6 md:gap-3">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-3 py-4 sm:px-4 sm:py-6 md:gap-3 lg:max-w-4xl">
       <div className="flex">
         <BackButton />
       </div>
@@ -135,10 +135,18 @@ export default function RenownPage() {
         </p>
       </div>
 
-      {/* The tier ladder. A rail, so it is allowed to run past the edge: it
-          scrolls, and the page does not. */}
-      <div className="-mx-3 overflow-x-auto px-3 sm:-mx-4 sm:px-4">
-        <div className="flex w-max gap-2 pb-1">
+      {/* The tier ladder. On a phone it is a rail, so it is allowed to run past
+          the edge: it scrolls, and the page does not.
+
+          On a mouse it is not a rail at all. The seven tiers need 895px and the
+          column measured 672px at both 1024 and 1440, so Hand and King / Queen,
+          the two tiers the whole ladder is climbing towards, sat off the right
+          of a track with no visible scrollbar while a quarter of the page was
+          empty beside it. That is the phone layout unresized, which rule 15
+          forbids. From `lg` the ladder wraps instead of scrolling and every
+          tier is on screen. */}
+      <div className="-mx-3 overflow-x-auto px-3 sm:-mx-4 sm:px-4 lg:mx-0 lg:overflow-x-visible lg:px-0">
+        <div className="flex w-max gap-2 pb-1 lg:w-auto lg:flex-wrap">
           {TIERS.map((t, i) => {
             const isMine = me !== null && i === tierIndex;
             return (
@@ -258,7 +266,7 @@ export default function RenownPage() {
           />
         </Card>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((c) => {
             const isEarned = held.has(c.slug);
             return (
