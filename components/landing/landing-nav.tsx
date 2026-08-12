@@ -70,8 +70,14 @@ export function LandingNav({
         }`}
       >
         {/* Left group: desktop anchors. flex-1 so it balances the right group
-            and the centered brand sits dead center of the bar. */}
-        <div className="flex flex-1 items-center gap-1">
+            and the centered brand sits dead center of the bar.
+
+            `hidden md:flex` rather than only hiding its contents. Empty but
+            present, it still claimed a share of a 390px bar as a flex-1 box,
+            which is part of why the header did not fit on a phone. Below md
+            there are no anchors to balance, so there is nothing to reserve
+            room for. */}
+        <div className="hidden flex-1 items-center gap-1 md:flex">
           <div className="hidden items-center gap-1 md:flex">
             {links.map((l) =>
               l.route ? (
@@ -99,14 +105,31 @@ export function LandingNav({
           </div>
         </div>
 
-        {/* Center: brand, perfectly balanced between the two flex-1 groups */}
+        {/* Center on desktop, leading on a phone.
+
+            The header did not fit at 390px: the bar wanted 422px inside a
+            364px box, so the menu toggle ran 45px off the right edge of the
+            screen. Nothing caught it because the nav is fixed, and a fixed
+            element that overflows never grows the document.
+
+            The wordmark is what did not fit. "THE RAVENSPIRE" at 0.18em
+            tracking is about 160px, which a phone bar cannot spend beside a
+            call to action and a menu. The mark alone carries the brand at that
+            size, which is what a premium app does on a phone rather than
+            shrinking its own name until it is unreadable. The wordmark returns
+            at `sm`, where there is room for it. */}
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2.5"
+          /* `min-h-11` on a finger, so the mark keeps its size and the link
+             keeps the floor. It measured 28 square once the spacing scale
+             stopped inflating `h-7`, which it had been hiding behind. Both
+             axes, since the mark is 28 square and a floor on one axis alone
+             leaves a target that is still too narrow for a thumb. */
+          className="mr-auto flex shrink-0 items-center gap-2.5 touch:min-h-11 touch:min-w-11 sm:mr-0"
           aria-label="The Ravenspire home"
         >
           <RavenMark className="h-7 w-7" />
-          <span className="gold-text font-display text-sm font-semibold tracking-[0.18em] sm:text-base">
+          <span className="gold-text hidden font-display text-sm font-semibold tracking-[0.18em] sm:inline sm:text-base">
             THE RAVENSPIRE
           </span>
         </Link>

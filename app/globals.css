@@ -245,14 +245,41 @@
      actually hold the line, but it breaks every existing p-4 and gap-3 at once.
      That flip is a dedicated mechanical pass, tracked in docs/RAVENSPIRE-V2.md
      section 13.3, and must not land while feature work is in flight. */
-  --spacing-1: 0.25rem; /* 4, icon and text gaps */
-  --spacing-2: 0.5rem; /* 8, chip padding, tight rows */
-  --spacing-3: 0.75rem; /* 12, default inline gap */
-  --spacing-4: 1rem; /* 16, card padding on mobile */
-  --spacing-5: 1.5rem; /* 24, card padding on desktop, section gap */
-  --spacing-6: 2rem; /* 32 */
-  --spacing-7: 3rem; /* 48 */
-  --spacing-8: 4rem; /* 64, page rhythm */
+  /* THESE ARE NAMES, NOT RUNGS, AND THEY MUST NOT BE CALLED `--spacing-N`.
+
+     They were, and it was silently redefining Tailwind's own numeric scale.
+     In Tailwind v4 `--spacing-N` is not documentation, it IS the definition of
+     utility rung N, so declaring `--spacing-8: 4rem` did not describe the
+     eighth step of a house scale, it redefined `h-8`, `w-8`, `p-8`, `gap-8`
+     and every other 8 in the product from 32px to 64px.
+
+     What that cost, read out of the emitted stylesheet:
+
+       h-8   32px intended, 64px emitted
+       w-8   32px intended, 64px emitted
+       h-6   24px intended, 32px emitted
+       h-7   28px intended, 48px emitted
+       p-5   20px intended, 24px emitted
+       gap-6 24px intended, 32px emitted
+
+     `h-8` is the Button primitive's `sm` height, and that file documents its
+     scale as "Dense by intent. 32 / 36 / 44px tall". Every small button in the
+     realm was rendering at double its documented height, which is how a back
+     control measured 64px tall while its source plainly asked for 32. Rungs 9
+     and above were untouched, since no name collided with them, which is why
+     `h-9` and `h-11` were always right and only some numbers looked wrong.
+
+     Renamed to `--space-*`, which collides with nothing. The values are
+     unchanged and they remain the named scale for new work; they simply no
+     longer reach into utilities nobody meant them to touch. */
+  --space-1: 0.25rem; /* 4, icon and text gaps */
+  --space-2: 0.5rem; /* 8, chip padding, tight rows */
+  --space-3: 0.75rem; /* 12, default inline gap */
+  --space-4: 1rem; /* 16, card padding on mobile */
+  --space-5: 1.5rem; /* 24, card padding on desktop, section gap */
+  --space-6: 2rem; /* 32 */
+  --space-7: 3rem; /* 48 */
+  --space-8: 4rem; /* 64, page rhythm */
 }
 
 /* ── Z INDEX ───────────────────────────────────────────────────────────────
@@ -503,7 +530,14 @@ body {
   color: var(--rarity, var(--steel));
   border: 1px solid
     color-mix(in srgb, var(--rarity, var(--steel)) 55%, transparent);
-  border-radius: 999px;
+  /* Was 999px, which is a capsule, which chips are not. This one hid in plain
+     sight because it is written as a hand rolled class rather than as a
+     `rounded-full` utility, so a check that reads class names could never see
+     it: the shape lives in the stylesheet, not in the markup. It was the last
+     capsule left in the product and it appeared ten times on the Crests screen
+     and ten more on the landing page. `--radius-sm` is the chip rung and the
+     rung the Badge primitive already uses. */
+  border-radius: var(--radius-sm);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;

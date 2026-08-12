@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { houses, sigilIcon } from "@/lib/data/houses";
 import { Avatar } from "@/components/social/avatar";
 import { Icon } from "@/components/ui/icon";
+import { Input } from "@/components/ui/field";
 import { FollowButton } from "@/components/social/follow-button";
 import { TIER_NAMES, timeAgo } from "@/lib/social/types";
 import { fetchViewer, fetchFollowingSet } from "@/lib/social/profile-queries";
@@ -209,16 +210,29 @@ function ExploreBody() {
         Explore
       </p>
 
-      {/* Search */}
-      <Card radius="lg" pad="none" className="mt-5 flex items-center gap-3 px-4 py-3">
-        <Icon name="search" className="h-4 w-4 shrink-0 text-bone-faint" />
-        <input
+      {/* Search.
+
+          Was a bare `<input>` inside a Card, carrying no height, so it rendered
+          at 23px. The row around it was tall enough to hit, which is why no
+          audit ever flagged it, but the floor was coming from the Card's
+          padding by accident rather than from the control by design. The same
+          shape was on the Search screen and is fixed the same way: the `Input`
+          primitive, which carries the 44px floor, the radius rung and the
+          recessed shadow that every other field in the realm has. */}
+      <label className="relative mt-5 block">
+        <span className="sr-only">Search the realm by name or handle</span>
+        <Icon
+          name="search"
+          aria-hidden
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-faint"
+        />
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the realm by name or handle"
-          className="w-full bg-transparent text-sm text-bone placeholder:text-bone-faint"
+          className="h-11 pl-10"
         />
-      </Card>
+      </label>
 
       {query.trim().length >= 2 && (
         <div className="mt-3 flex flex-col gap-2">

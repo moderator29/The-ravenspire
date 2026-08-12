@@ -37,10 +37,18 @@ export function TopBar() {
           aria-expanded={open}
           onClick={() => setOpen(true)}
         />
+        {/* The mark stays 32px, the target does not.
+
+            This link measured 64 square until the spacing scale stopped
+            redefining `h-8`, which is to say it cleared the 44px floor for the
+            wrong reason and would have failed the moment that was fixed. A
+            brand mark should not grow to 44px, so the link is a 44px box with
+            a 32px mark centred in it: the eye sees the mark, the thumb gets
+            the floor. */}
         <Link
           href="/home"
           aria-label="The Ravenry"
-          className="absolute left-1/2 -translate-x-1/2"
+          className="absolute left-1/2 flex h-11 w-11 -translate-x-1/2 items-center justify-center"
         >
           <RavenMark className="h-8 w-8" />
         </Link>

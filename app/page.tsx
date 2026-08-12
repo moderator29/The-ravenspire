@@ -147,7 +147,13 @@ export default function Landing() {
                 transition={{ duration: 0.7 }}
               />
             }
-            radius="lg"
+            /* `sm`, not `lg`. A radius rung reads as a capsule whenever it
+               reaches half the box height, whatever rung it came off. This
+               badge is about 29px tall, so 16px rounded its ends completely
+               and the first shape on the landing page was the one shape the
+               design rules forbid. The Badge primitive is on `sm` for exactly
+               this reason. */
+            radius="sm"
             pad="none"
             className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-gold"
           >

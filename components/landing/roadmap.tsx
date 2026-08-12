@@ -248,7 +248,11 @@ export function Roadmap() {
         <h2 className="font-display text-2xl font-semibold text-bone sm:text-3xl">
           The march ahead
         </h2>
-        <span className="rounded-lg inline-flex items-center gap-1.5 border border-gold/25 bg-panel px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-gold">
+        {/* `sm`, not `lg`. This chip is 27px tall, so a 16px radius reached
+            half its height and rounded the ends completely. Picking a rung off
+            the scale is not enough on its own: a rung at or above half the box
+            height is a capsule whatever it is called. */}
+        <span className="inline-flex items-center gap-1.5 rounded-sm border border-gold/25 bg-panel px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-gold">
           <LandingIcon name="layers" className="h-3.5 w-3.5" />
           Built on Ethereum
         </span>
