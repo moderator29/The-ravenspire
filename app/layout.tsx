@@ -1,17 +1,40 @@
 import type { Metadata } from "next";
-import { Cinzel, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const cinzel = Cinzel({
+/* Both faces are self hosted rather than pulled through next/font/google.
+ *
+ * The Google loader downloads the font at BUILD time, so a build that cannot
+ * reach fonts.gstatic.com does not fall back, it fails: the generated CSS
+ * module keeps a src pointing at an internal module that was never produced,
+ * and the build dies on a module resolution error with no mention of the
+ * network. CI went red on exactly that, on a commit that touched nothing but
+ * images, while the same commit built clean locally and deployed clean.
+ *
+ * A build that can fail because a third party CDN is having a moment is not a
+ * build. These are the same two files the loader would have fetched, the latin
+ * subset of each variable face, committed at 74KB together. Nothing else
+ * changes: the CSS variables, the weights and the swap behaviour are what they
+ * were, and now nothing is fetched from Google at build time or at run time,
+ * which is a privacy improvement for members as well.
+ *
+ * Both are variable fonts, so one file covers the whole weight range. Cinzel
+ * and Inter are both under the SIL Open Font License, which permits this. */
+const cinzel = localFont({
+  src: "./fonts/cinzel-latin.woff2",
   variable: "--font-cinzel",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
+  style: "normal",
+  display: "swap",
 });
 
-const inter = Inter({
+const inter = localFont({
+  src: "./fonts/inter-latin.woff2",
   variable: "--font-inter",
-  subsets: ["latin"],
+  weight: "100 900",
+  style: "normal",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
