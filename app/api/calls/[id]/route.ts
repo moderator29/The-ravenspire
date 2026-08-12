@@ -54,6 +54,11 @@ export async function GET(
   const { id } = await ctx.params;
   if (!id) return json({ error: "bad request" }, 400);
 
+  /* Who is reading, resolved from the verified bearer token rather than from
+     anything the browser claims about itself. The page is told whether the
+     viewer is the caller, and nothing else about them. */
+  const viewer = await getProfile(req);
+
   const { data, error } = await db
     .from("posts")
     .select(
@@ -180,6 +185,8 @@ export async function GET(
       view_count: row.view_count,
       author_id: row.author_id,
       author: row.author,
+      /* Server resolved. The client never decides whose Call this is. */
+      is_yours: viewer?.id === row.author_id,
       house_slug: row.house_slug,
       data: call,
       live,
@@ -200,6 +207,5 @@ export async function GET(
         best_streak: run.best,
       },
     },
-    viewer: (await getProfile(req))?.id ?? null,
   });
 }
