@@ -47,7 +47,21 @@ export async function GET(req: Request) {
   /* Read-only auth check: never mints a profile row for a probe. Signed-out
      callers get the honest empty list, same shape as /api/interest. */
   const profile = await getProfile(req);
-  if (!profile) return json({ claims: [] });
+  /* The mint's state travels with the list because every surface that renders
+     claims needs both, and two round trips to answer one question is how a
+     claim button ends up rendering before the realm knows whether it can mint.
+     What the client is told: whether the mint is open and on which chain.
+     Never the contracts, and never anything derived from the signing key. */
+  const gate = await mintGate();
+  const mint = gate.open
+    ? {
+        open: true,
+        chain: { id: gate.config.chain.id, name: gate.config.chain.name },
+        explorer: gate.config.chain.explorer,
+      }
+    : { open: false, reason: gate.reason };
+
+  if (!profile) return json({ claims: [], mint });
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
@@ -60,10 +74,10 @@ export async function GET(req: Request) {
 
   if (error) {
     /* Table not migrated yet: nobody has claimed anything. */
-    if (error.code === UNDEFINED_TABLE) return json({ claims: [] });
+    if (error.code === UNDEFINED_TABLE) return json({ claims: [], mint });
     return json({ error: "unavailable" }, 503);
   }
-  return json({ claims: (data ?? []) as ClaimRow[] });
+  return json({ claims: (data ?? []) as ClaimRow[], mint });
 }
 
 export async function POST(req: Request) {
