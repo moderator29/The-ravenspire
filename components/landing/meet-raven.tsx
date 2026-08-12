@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 import { motion, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 import { Icon3D } from "@/components/ui/icon-3d";
@@ -54,17 +55,18 @@ const chat = [
 
 export function MeetRaven() {
   return (
-    <motion.section
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={container}
-      className="glass overflow-hidden p-7 sm:p-9"
-    >
-      <motion.div variants={rise} className="flex items-center gap-4">
+    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="overflow-hidden p-7 sm:p-9">
+      <motion.div
+        variants={rise}
+        className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4"
+      >
         {/* The Herald's own 3D icon, which is the identity of this feature
-            rather than decoration. Icon3D falls back to the flat glyph until
-            the art lands, so this is correct either way. */}
+            rather than decoration.
+
+            Stacked below sm. Measured on a 390px viewport, a 96px icon on the
+            same row left about 230px for the heading, which broke "Meet
+            @raven" across two lines and made the section title read as two
+            fragments. */}
         <Icon3D name="herald-ai" size="lg" priority />
         <div>
           <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
@@ -90,11 +92,7 @@ export function MeetRaven() {
         {/* Powers */}
         <div className="flex flex-col gap-3">
           {powers.map((p) => (
-            <motion.div
-              key={p.title}
-              variants={rise}
-              className="glass-sm flex items-start gap-3 rounded-2xl border border-steel-line bg-panel p-4"
-            >
+            <Card key={p.title} render={<motion.div variants={rise} />} radius="lg" pad="none" className="flex items-start gap-3 rounded-2xl border border-steel-line bg-panel p-4">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/25 bg-void text-gold">
                 <Icon name={p.icon} className="h-5 w-5" />
               </span>
@@ -102,12 +100,12 @@ export function MeetRaven() {
                 <p className="font-display text-sm font-semibold text-bone">{p.title}</p>
                 <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">{p.body}</p>
               </div>
-            </motion.div>
+            </Card>
           ))}
         </div>
 
         {/* Chat + demo card */}
-        <motion.div variants={rise} className="glass-sm rounded-2xl border border-steel-line bg-void/50 p-4">
+        <Card render={<motion.div variants={rise} />} radius="lg" pad="none" className="rounded-2xl border border-steel-line bg-void/50 p-4">
           <div className="flex flex-col gap-3">
             {chat.map((m, i) =>
               m.from === "user" ? (
@@ -121,9 +119,9 @@ export function MeetRaven() {
                   <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-void text-gold">
                     <Icon name="raven" className="h-3.5 w-3.5" />
                   </span>
-                  <div className="glass-sm max-w-[85%] rounded-2xl rounded-tl-md px-3.5 py-2 text-[13px] text-bone-mut">
+                  <Card radius="lg" pad="none" className="max-w-[85%] rounded-2xl rounded-tl-md px-3.5 py-2 text-[13px] text-bone-mut">
                     {m.text}
-                  </div>
+                  </Card>
                 </div>
               )
             )}
@@ -153,7 +151,7 @@ export function MeetRaven() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </Card>
       </div>
 
       <motion.div variants={rise}>
@@ -165,6 +163,6 @@ export function MeetRaven() {
           <Icon name="arrow" className="h-4 w-4" />
         </Link>
       </motion.div>
-    </motion.section>
+    </Card>
   );
 }
