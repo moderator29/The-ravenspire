@@ -89,6 +89,18 @@ const phases: Phase[] = [
     status: "planned",
   },
   {
+    tag: "New chapter",
+    title: "The Collection: cards, chests and merch",
+    body: "The trading card game steps out of the War and into your hands.",
+    points: [
+      "Set One preview live: forty champions, sealed, real roster data",
+      "Warchests with exact odds printed on every box",
+      "The Mercer: five pieces of official merch, and a physical box that mints digital twins to your own wallet",
+    ],
+    icon: "layers",
+    status: "building",
+  },
+  {
     tag: "Phase VI",
     title: "Presale",
     body: "Presale coming soon, announced plainly and in the open.",
