@@ -52,14 +52,16 @@ and not a deploy (`docs/RAVENSPIRE-V2.md` section 27).
 | Interest capture ("Notify me") | Live, real, `/api/interest` |
 | Commerce engine: orders, payments, fulfillments, chest entitlements, inventory | Schema live, sealed |
 | The ownership loop: claims, vouchers, on-chain verification | Shipped, sealed. Section 35 of the V2 doc |
+| The Hoard: the trophy case on the Keep, a public Keep and the Vault | Shipped. Honestly empty until a chest opens |
+| Chest opening: pre-committed seed, deterministic roll, one atomic settle | Shipped, sealed. Section 36 |
 | Realm flags | `reliquary_live`, `chests_live`, `mercer_live`, `mint_live`, all off |
 
 ## 4. The missions, in order
 
 1. **Close the ownership loop.** Done. Wallet-backed non-custodial cards and
    soulbound crests: `docs/RAVENSPIRE-V2.md` section 35.
-2. **The trophy case.** The Hoard in the Keep and the Vault, the Show beat.
-   `GET /api/inventory` already serves it.
+2. **The trophy case.** Done. The Hoard renders on the Keep, on a public
+   Keep and in the Vault, with a server-side privacy gate.
 3. **Sinks and stakes.** Crafting, staked Calls, House treasury perks.
 4. **The native non-custodial secondary market.** Reads `isSoulbound`; a
    crest is never listable.
@@ -75,11 +77,20 @@ and not a deploy (`docs/RAVENSPIRE-V2.md` section 27).
 12. **Compliance guardrails** before commerce takes a dollar: AMOE, age gate,
     caps, cooling off, geo.
 
-Alongside those, the leftover commerce build (checkout, Vault, Ceremony and
-redeem surfaces, redemption code creation, fulfillment worker, refunds,
-Sentry, onboarding, Whispers realtime, attachments) and the security
-residuals: transactional chest open, a daily War Glory cap, and the
-pre-committed seed.
+Alongside those, the leftover commerce build: checkout, the Ceremony and
+redeem surfaces, redemption code creation, the fulfillment worker, refunds,
+Sentry, onboarding, Whispers realtime, attachments.
+
+The four security residuals are all closed: on-chain transaction verification
+(section 35), the transactional chest open and the pre-committed seed
+(section 36), and the daily War Glory cap (`award_capped`, and the reasoning
+is in `lib/points.ts`).
+
+What the chest opening still waits on is the thing that grants an
+entitlement. Nothing sells a chest yet, so `chest_entitlements` is empty and
+the opening route answers honestly that you have no unopened chest. Checkout
+and redemption codes are the two writers, and both are founder-gated on
+pricing.
 
 ## 5. Founder-only, and never a reason to stop
 

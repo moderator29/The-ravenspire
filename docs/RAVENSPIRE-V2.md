@@ -1949,3 +1949,65 @@ the worst possible place: in their own wallet, after paying gas.
 To open the mint: deploy the two contracts on Base, set `MINT_CHAIN_ID`,
 `MINT_CARD_CONTRACT`, `MINT_CREST_CONTRACT` and `MINT_VOUCHER_SIGNER_KEY`,
 then flip `mint_live`. No deploy is needed for any of it.
+
+## 36. The chest, and why anyone should believe it
+
+Shipped, sealed. Two of the section 39 security residuals, and they turned out
+to be one bug seen from two angles: the realm could not honestly promise what
+came out of a chest, and it could not promise that opening one happened
+exactly once.
+
+### 36.1 The commitment came too late
+
+The planned design generated a server seed at open time and stored its hash.
+That is the version of provably fair that proves nothing. A server that picks
+its seed after the member has committed can roll a thousand seeds and publish
+the hash of whichever one pays out least, and every published hash still
+verifies. The proof has to exist before the member can act on it.
+
+So the seed is generated and committed the first time a member looks at the
+chests, kept in `chest_seeds`, and revealed only when they rotate it. By the
+time an opening happens the hash is already in their hands and the seed behind
+it cannot change. `/api/chests/seed` is deliberately not flag gated: a member
+is entitled to hold the realm to its promise before the chests are live and
+long after.
+
+### 36.2 The three inputs
+
+| Input | Who chooses it | What it stops |
+| --- | --- | --- |
+| Server seed | The realm, committed as a hash beforehand | The member predicting the roll |
+| Client seed | The member, any text | The realm choosing the roll |
+| Nonce | The entitlement being spent, a uuid | The same pair of seeds dealing the same chest twice |
+
+The nonce is fixed before the roll rather than counted during it, which is
+what makes a retried open recompute the same cards instead of rerolling into a
+better chest. Changing the client seed is a rotation, never an edit, because a
+client seed changed under a live commitment would let a member re-roll a chest
+whose odds they had already seen.
+
+The roll (`lib/collectibles/pulls.ts`) is a pure function of those three. It
+reads no clock, no database and no random number generator, which is exactly
+what makes it checkable: anyone holding a revealed seed can rerun it. Nine
+tests cover the count, the floor, the odds, determinism, and that a chest can
+only ever deal cards that exist in the roster.
+
+### 36.3 The opening was four writes
+
+Consume the entitlement, record the opening, grant the cards, link the two.
+Four round trips from a serverless route, and a crash between any two either
+ate a paid chest and granted nothing or granted the cards and left the
+entitlement to be spent again. Neither is distinguishable from the other
+afterwards. `public.chest_open` does all four under a row lock in one
+transaction, or none of them, and a partial unique index on the entitlement is
+the second line of defence.
+
+### 36.4 What it waits on
+
+Nothing grants an entitlement yet. Checkout and redemption codes are the two
+writers and both are founder-gated on pricing, so `chest_entitlements` is
+empty and the route answers honestly that you have no unopened chest of that
+kind. `chests_live` is off as well, so the door is shut on both counts.
+
+The verifier page (mission 6) is the surface this was built for: the revealed
+seeds, the openings under them, and a rerun anybody can check.
