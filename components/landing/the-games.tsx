@@ -7,9 +7,9 @@ import { Icon } from "@/components/ui/icon";
 import { Icon3D } from "@/components/ui/icon-3d";
 
 /*
-  The contests. Two cinematic teasers. The War uses public/game/battlefield.png
-  as a backdrop (verified present); Calls is drawn from divs and a gold motif
-  so it needs no art.
+  The contests. Two cinematic teasers, both drawn from divs, a gradient and a
+  warm radial, so neither depends on art and neither can ship someone's concept
+  deck by accident. Calls carries gold, The War carries ember.
 
   This card used to be Claim the Throne, billed as a live Season game. It is
   not one: it holds no navigation slot, /throne is a coming soon teaser, and
@@ -68,11 +68,18 @@ export function TheGames() {
         Two contests. One realm at stake.
       </motion.h2>
 
+      {/* `rounded-xl`, not `rounded-3xl`. The radius scale runs 8, 12, 16, 20,
+          26 and Tailwind's own `3xl` is 24, which is on none of them. The two
+          contest cards were the only surfaces on the landing page at a radius
+          the system does not name, and next to a page of 20px cards the
+          difference reads as a mistake rather than as a choice. The checker
+          cannot see this one: it reads arbitrary values like `rounded-[24px]`
+          and a named Tailwind rung slips past it. */}
       <div className="mt-7 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Calls */}
         <motion.div
           variants={rise}
-          className="group relative overflow-hidden rounded-3xl border border-steel-line bg-panel"
+          className="group relative overflow-hidden rounded-xl border border-steel-line bg-panel"
         >
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-panel-warm via-void to-void" />
           <div
@@ -114,17 +121,33 @@ export function TheGames() {
         {/* The War */}
         <motion.div
           variants={rise}
-          className="group relative overflow-hidden rounded-3xl border border-steel-line bg-panel"
+          className="group relative overflow-hidden rounded-xl border border-steel-line bg-panel"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/game/battlefield.png"
-            alt=""
+          {/* The backdrop was `public/game/battlefield.png`, and it is not a
+              battlefield. It is a page out of a concept deck: the words
+              "4. BATTLE INTERFACE - REAL TIME COMBAT" are baked into the top
+              left, and around all four edges sit a fake HUD, a fake timer
+              reading 02:47, fake health bars and a fake progress rail reading
+              GLORY 7,880 / 10,000. At thirty percent behind the card, every
+              one of those ghosted through the copy, so the landing page shipped
+              a design document's page number and a set of invented numbers as
+              its art. The chrome runs along every edge, so no crop saves it.
+
+              The Calls card beside it never needed a photograph: it builds its
+              atmosphere out of a gradient and one warm radial. The War gets the
+              same materials in ember, which also makes the two contests read as
+              the matched pair the section says they are. */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-panel-warm via-void to-void" />
+          <div
             aria-hidden="true"
-            loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover opacity-30 transition duration-700 group-hover:scale-105 group-hover:opacity-40"
+            className="pointer-events-none absolute -left-10 -top-10 h-48 w-48 rounded-full opacity-40 blur-2xl transition-opacity duration-slow group-hover:opacity-60"
+            style={{ background: "radial-gradient(circle, rgba(229,112,42,0.38), transparent 70%)" }}
           />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-void via-void/85 to-void/40" />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-16 -right-8 h-56 w-56 rounded-full opacity-30 blur-3xl"
+            style={{ background: "radial-gradient(circle, rgba(198,64,47,0.32), transparent 70%)" }}
+          />
           <div className="relative p-6">
             <div className="flex items-center gap-2">
               <Icon3D name="crossed-axes" size="md" />
