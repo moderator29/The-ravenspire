@@ -163,7 +163,12 @@ export function EarningsSection({
       setData(res.data);
       /* Only seed the editable thesis from the server on the first fetch, so a
          background refresh never clobbers what the owner is typing. */
-      if (firstLoad.current) setThesis(res.data.public.thesis ?? "");
+      /* `res.data.public` is optional-chained rather than assumed. The live
+         route always sends it, so this is hardening rather than a live bug,
+         but a 200 without that block would throw inside an effect and take the
+         whole Keep down with it. A missing thesis is an empty field; it is not
+         a reason for the screen to disappear. */
+      if (firstLoad.current) setThesis(res.data.public?.thesis ?? "");
     }
     firstLoad.current = false;
     setLoading(false);
@@ -657,7 +662,17 @@ function CoffersBanner({
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <div className="flex items-center gap-3">
+      {/* `min-w-0` here, not only on the text block inside it.
+
+          A flex item will not shrink below its content unless every ancestor
+          between it and the flex container says it may. The `truncate` two
+          levels down was doing nothing, because this row could not shrink to
+          let it: the header measured 379px of content inside a 300px box at
+          390px wide, so the Share button sat outside the card.
+
+          This is the same missing link every time: `min-w-0` belongs on the
+          flex child, and the chain has to be unbroken. */}
+      <div className="flex min-w-0 items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gold/30 bg-gold/5 text-gold">
           <Icon name="wallet" className="h-5 w-5" />
         </span>
