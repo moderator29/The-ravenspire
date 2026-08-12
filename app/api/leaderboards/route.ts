@@ -44,7 +44,7 @@ export async function GET(req: Request) {
     ? (raw as Metric)
     : "accuracy";
 
-  if (metric === "accuracy") return accuracyBoard(db);
+  if (metric === "accuracy") return accuracyBoard(db, viewer.id);
 
   const column = METRICS[metric];
   const { data, error } = await db
@@ -91,8 +91,15 @@ export async function GET(req: Request) {
 }
 
 /* The accuracy board. Ranked by a shrunk mean over settled Calls so that
-   judgment outranks volume, with the raw rate shown alongside for legibility. */
-async function accuracyBoard(db: ReturnType<typeof adminClient>) {
+   judgment outranks volume, with the raw rate shown alongside for legibility.
+
+   The viewer is passed in for the same reason the other three boards read it:
+   a board that cannot show a member their own row is a board they have no
+   reason to open twice. */
+async function accuracyBoard(
+  db: ReturnType<typeof adminClient>,
+  viewerId: string
+) {
   if (!db) return json({ metric: "accuracy", entries: [] });
 
   const { data, error } = await db
@@ -134,15 +141,20 @@ async function accuracyBoard(db: ReturnType<typeof adminClient>) {
     tally.set(row.author_id, e);
   }
 
+  /* Same shape as the other three metrics, camel cased. It used to answer in
+     the database's own snake case, so every key the board reads by name came
+     back undefined: no display name, no avatar, no verification mark, and no
+     way to find yourself on it. The default board was the one that was wrong. */
   const entries = [...tally.entries()]
     .map(([id, e]) => ({
       id,
       handle: e.a?.handle ?? null,
-      display_name: e.a?.display_name ?? null,
-      avatar_url: e.a?.avatar_url ?? null,
-      house_slug: e.a?.house_slug ?? null,
+      displayName: e.a?.display_name ?? null,
+      avatarUrl: e.a?.avatar_url ?? null,
+      houseSlug: e.a?.house_slug ?? null,
       tier: e.a?.tier ?? null,
-      is_verified: Boolean(e.a?.is_verified),
+      isVerified: e.a?.is_verified === true,
+      isViewer: id === viewerId,
       hits: e.hits,
       total: e.total,
       hit_rate: e.total > 0 ? e.hits / e.total : 0,
