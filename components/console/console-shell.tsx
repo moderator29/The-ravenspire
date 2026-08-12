@@ -203,11 +203,25 @@ export function ConsoleToolbar({
    `rgb(249,227,159)`. Rule 12 says the global ring must never be defeated, and
    this defeated it on all eleven surfaces that use a rail.
 
-   Above `md` the fix is simply to stop scrolling: a Console is compact there
-   and the chips fit, so `overflow-visible` costs nothing and restores the
-   ring. Below `md` the rail genuinely needs to scroll, so the vertical padding
-   gives the ring room inside the box instead, with a matching negative margin
-   so the rail still sits on the same line it always did. */
+   The vertical padding is the fix, and it is the fix at every width. It gives
+   the ring room INSIDE the scroll box, with a matching negative margin so the
+   rail still sits on the line it always did.
+
+   Not scrolling above `md` was the other half of that fix and it had to come
+   back out, because "a Console is compact there and the chips fit" is not true
+   of the narrowest one. The Swap is `width="form"`, so `max-w-xl`, and it
+   carries the most chips in the product, one per trade chain. Measured at 1024
+   and at 1440 with the rail set to `overflow-x: visible`: 577px of chips in a
+   534px box, so the tail of the rail escaped and pushed its three ancestors
+   out with it, 581/542 on the toolbar and 598/576 on the Console page itself.
+   The document never grew, because a Console is centred and the spill landed
+   in the gutter, which is exactly why nothing caught it.
+
+   Scrolling at every width, with the padding kept, holds both properties at
+   once. Same two measurements after: zero boxes whose content overflows a
+   visible `overflow-x`, and the pixels directly above a Tab-focused chip still
+   sample `rgb(255,233,163)`, the ring. A rail whose chips do fit gains no
+   scrollbar and does not move. */
 export function ChipRail({
   label,
   className,
@@ -223,7 +237,6 @@ export function ChipRail({
       aria-label={label}
       className={cx(
         "scrollbar-none -mx-1 -my-1 flex min-w-0 items-center gap-1.5 overflow-x-auto p-1",
-        "md:-my-0 md:overflow-x-visible md:py-0",
         className
       )}
     >
