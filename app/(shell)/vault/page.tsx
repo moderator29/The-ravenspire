@@ -38,7 +38,7 @@ export default function VaultPage() {
         ) : !authenticated ? (
           <Card pad="none">
             <EmptyState
-              icon="wallet"
+              icon3d="vault"
               title="The Vault awaits its keeper"
               body="Enter the realm and a non-custodial wallet is forged for you on the spot. Your keys, your coin, your vault. No one else holds a copy."
               action={

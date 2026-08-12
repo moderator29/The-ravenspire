@@ -117,7 +117,7 @@ export default function RewardsPage() {
         />
         <Card>
           <EmptyState
-            icon="coin"
+            icon3d="chest"
             title="Nothing is being kept for you yet"
             body="Tribute, relic chests and champion mastery all settle against your name once you enter the realm."
             action={
@@ -260,7 +260,7 @@ export default function RewardsPage() {
       ) : roster.length === 0 ? (
         <Card>
           <EmptyState
-            icon="crown"
+            icon3d="oath-scroll"
             title="No champion has sworn to you yet"
             body="Open a relic chest and the first hero of your banner will answer. Mastery is forged after that."
           />

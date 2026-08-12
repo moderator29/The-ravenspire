@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui/cx";
 import { Icon } from "@/components/ui/icon";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 
 /* The honest empty state.
 
@@ -20,6 +21,16 @@ export interface EmptyStateProps {
   /* An `Icon` name. Rendered inside a soft gold well so the state reads as
      composed rather than as a failure. */
   icon?: string;
+  /* The 3D icon, for an empty state that owns its surface.
+
+     Ornament is earned, never ambient. A full surface with nothing on it is a
+     moment: the member has arrived somewhere and there is nothing here yet, so
+     it is worth illustrating what would be here. A four row empty inside a
+     dense admin table is not, and keeps the flat glyph.
+
+     Takes precedence over `icon` when both are given, so a caller can name a
+     flat fallback and an illustration without branching. */
+  icon3d?: Icon3DName;
   title: ReactNode;
   body?: ReactNode;
   /* Usually a single Button. The way out of the empty state. */
@@ -32,6 +43,7 @@ export interface EmptyStateProps {
 
 export function EmptyState({
   icon,
+  icon3d,
   title,
   body,
   action,
@@ -49,7 +61,9 @@ export function EmptyState({
         className
       )}
     >
-      {icon ? (
+      {icon3d ? (
+        <Icon3D name={icon3d} size={small ? "md" : "lg"} className="mb-1" />
+      ) : icon ? (
         <span
           aria-hidden
           className={cx(

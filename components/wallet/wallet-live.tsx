@@ -119,7 +119,7 @@ export function WalletLive({ address }: { address?: string }) {
     return (
       <Card pad="none" render={<section />}>
         <EmptyState
-          icon="wallet"
+          icon3d="forge"
           title="Forging your wallet"
           body="No embedded wallet is ready yet. One is created automatically once you are fully signed in."
         />

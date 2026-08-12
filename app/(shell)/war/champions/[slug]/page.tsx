@@ -65,7 +65,7 @@ export default function ChampionDetailPage({
         </div>
         <Card>
           <EmptyState
-            icon="search"
+            icon3d="search"
             title="No such champion"
             body="The heralds have no record of this hero. The name may have been miscopied by a sleepy scribe."
             action={

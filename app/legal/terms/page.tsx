@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon3D } from "@/components/ui/icon-3d";
+import { AtAGlance, type GlancePoint } from "@/components/legal/at-a-glance";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -16,6 +17,29 @@ type Section = {
   body: string[];
   list?: string[];
 };
+
+/* Each point is a fair summary of the section it links to, and says nothing
+   those sections do not say. Checked against sections 3, 4 and 5. */
+const glance: GlancePoint[] = [
+  {
+    icon: "vault",
+    title: "Your keys are yours",
+    body: "The realm is non-custodial and never holds your private keys or your funds. Export them whenever you want.",
+    href: "#accounts-wallets",
+  },
+  {
+    icon: "scales",
+    title: "Nothing here is advice",
+    body: "Posts, Calls, market reads and anything @raven says are information, never financial, legal or tax advice.",
+    href: "#no-advice",
+  },
+  {
+    icon: "trophy",
+    title: "Earned, never bought",
+    body: "$RSP is a utility and social token, not an investment product, and standing comes from participation.",
+    href: "#token",
+  },
+];
 
 const sections: Section[] = [
   {
@@ -146,6 +170,8 @@ export default function TermsOfServicePage() {
             Effective date: {EFFECTIVE_DATE}
           </p>
         </header>
+
+        <AtAGlance points={glance} />
 
         <article className="glass mt-8 p-7 sm:p-10">
           <div className="flex flex-col gap-8">

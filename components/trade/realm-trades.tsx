@@ -110,7 +110,7 @@ export function RealmTrades() {
           ))
         ) : trades.length === 0 ? (
           <EmptyState
-            icon="repost"
+            icon3d="market"
             bordered
             title="No trades in the realm yet"
             body="Make the first move through the Scrying Glass or The Swap."

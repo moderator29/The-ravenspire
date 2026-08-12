@@ -1,3 +1,5 @@
+import type { Icon3DName } from "@/components/ui/icon-3d-names";
+
 /* The Chronicle: the realm's own documentation, rendered at /chronicle.
 
    Rewritten for V2 (section 16). The previous eight sections described a
@@ -32,6 +34,10 @@ export interface ChronicleNote {
 
 export interface ChronicleSection {
   slug: string;
+  /* The section's 3D icon. The Chronicle is the realm explaining itself, and
+     a wall of identical prose blocks is hard to navigate by eye. The icon is
+     what a member scrolling for the Vault actually scans for. */
+  icon3d: Icon3DName;
   title: string;
   plain: string;
   status: ChronicleStatus;
@@ -42,6 +48,7 @@ export interface ChronicleSection {
 export const chronicle: ChronicleSection[] = [
   {
     slug: "what-is-ravenspire",
+    icon3d: "world",
     title: "What Ravenspire Is",
     plain: "A competitive online realm where communities earn reputation through participation.",
     status: "live",
@@ -54,6 +61,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "the-ravenry",
+    icon3d: "raven",
     title: "The Ravenry",
     plain: "The feed, and the dashboard above it.",
     status: "live",
@@ -79,6 +87,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "calls",
+    icon3d: "call-orb",
     title: "Calls",
     plain: "The flagship. A public claim, scored against how hard it actually was.",
     status: "live",
@@ -105,6 +114,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "houses",
+    icon3d: "banner",
     title: "The Houses",
     plain: "Six banners, size-neutral scoring, and leadership earned every season.",
     status: "live",
@@ -119,6 +129,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "renown-and-crests",
+    icon3d: "trophy",
     title: "Renown, Crests and the Roll of Honour",
     plain: "Standing you earn, medals you cannot buy, four public ladders.",
     status: "live",
@@ -142,6 +153,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "the-herald",
+    icon3d: "herald-ai",
     title: "The Herald",
     plain: "@raven, the realm's resident intelligence, reasoning over real data.",
     status: "live",
@@ -155,6 +167,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "whispers-and-the-rookery",
+    icon3d: "whispers",
     title: "Whispers and the Rookery",
     plain: "Private messages, and live courts with real voices in them.",
     status: "live",
@@ -167,6 +180,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "the-vault",
+    icon3d: "vault",
     title: "The Vault",
     plain: "Your wallet. Non-custodial in the fullest sense.",
     status: "live",
@@ -180,6 +194,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "the-war",
+    icon3d: "crossed-axes",
     title: "The War",
     plain: "Battle for the Realm, and the Glory that comes out of it.",
     status: "live",
@@ -192,6 +207,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "the-tools",
+    icon3d: "workshop",
     title: "The Tools",
     plain: "Serious instruments that sit quietly under the play.",
     status: "live",
@@ -210,6 +226,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "seasons-and-points",
+    icon3d: "season",
     title: "Seasons and Points",
     plain: "How the clock works, what earns, and what a point is.",
     status: "live",
@@ -230,6 +247,7 @@ export const chronicle: ChronicleSection[] = [
 
   {
     slug: "the-chapters-ahead",
+    icon3d: "realm-map",
     title: "The Chapters Ahead",
     plain: "Six chapters on the map, none of them built.",
     status: "planned",

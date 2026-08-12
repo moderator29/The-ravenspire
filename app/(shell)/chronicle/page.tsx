@@ -10,6 +10,7 @@ import { BackButton } from "@/components/shell/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cx } from "@/components/ui/cx";
+import { Icon3D } from "@/components/ui/icon-3d";
 
 /* The Chronicle: the Document archetype (design system section 2).
 
@@ -19,9 +20,14 @@ import { cx } from "@/components/ui/cx";
    long-form prose, and it read as a settings page rather than something anyone
    would read end to end.
 
-   Ledger register throughout. One accent per section heading, which is the
-   status badge, and no ornament at all. A page about what is true should not
-   glow. */
+   Ledger register throughout: no glow, no gradient, no motion. A page about
+   what is true should not glow.
+
+   The section icons are the one exception, and they are navigation rather than
+   ornament. The Chronicle is twelve sections of prose that look identical from
+   a scrollbar, and a member who wants the Vault is scanning for it. An icon is
+   what the eye actually catches at speed, which is the same reason the status
+   badge sits beside the heading rather than in a legend. */
 
 const STATUS_VARIANT: Record<ChronicleStatus, "gold" | "beta" | "default"> = {
   /* Live is the realm's one success colour, which is gold. */
@@ -132,13 +138,23 @@ export default function ChroniclePage() {
           <div className="mt-10 flex flex-col gap-12">
             {chronicle.map((s) => (
               <section key={s.slug} id={s.slug} className="scroll-mt-6">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <h2 className="font-display text-xl font-semibold text-bone">
-                    {s.title}
-                  </h2>
-                  <StatusBadge status={s.status} />
+                {/* The icon anchors the section for a member scrolling to find
+                    one thing. It sits beside the heading on a wide reading
+                    column and above it on a phone, where a 64px illustration
+                    beside 40 characters of heading would squeeze the title
+                    into two words a line. */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+                  <Icon3D name={s.icon3d} size="md" className="shrink-0" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <h2 className="font-display text-xl font-semibold text-bone">
+                        {s.title}
+                      </h2>
+                      <StatusBadge status={s.status} />
+                    </div>
+                    <p className="mt-1.5 text-sm text-bone-faint">{s.plain}</p>
+                  </div>
                 </div>
-                <p className="mt-1.5 text-sm text-bone-faint">{s.plain}</p>
 
                 <div className="mt-5 flex flex-col gap-5">
                   {s.body.map((p, i) => (

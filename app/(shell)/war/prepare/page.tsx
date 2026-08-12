@@ -136,7 +136,7 @@ export default function BattlePreparePage() {
       ) : !selected ? (
         <Card>
           <EmptyState
-            icon="crown"
+            icon3d="oath-scroll"
             title="No champion has sworn to you yet"
             body="Open a relic chest or win a battle and the first hero of your banner will answer."
             action={

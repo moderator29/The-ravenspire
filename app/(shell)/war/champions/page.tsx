@@ -103,7 +103,7 @@ export default function ChampionsPage() {
       {rows.length === 0 ? (
         <Card>
           <EmptyState
-            icon="crown"
+            icon3d="crown"
             title="No champions of that rarity"
             body="The realm keeps forging new legends. Widen the filter to see the whole roster."
             action={

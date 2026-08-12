@@ -395,7 +395,7 @@ export function RoomLive({ roomId }: { roomId: string }) {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-16">
         <EmptyState
-          icon="signal"
+          icon3d="gathering"
           title="No such court"
           body="The dais you seek was never raised, or has long since emptied."
           action={

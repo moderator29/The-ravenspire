@@ -159,7 +159,7 @@ export default function LedgerPage() {
         ) : !data.configured ? (
           <Card pad="none">
             <EmptyState
-              icon="eye"
+              icon3d="scrying"
               title="Lens not mounted"
               body="The Ledger's far-seeing lens is not mounted in this environment yet, so no balances can be read."
             />
@@ -181,7 +181,7 @@ export default function LedgerPage() {
           (portfolio.positions.length === 0 && portfolio.dust.length === 0) ? (
           <Card pad="none">
             <EmptyState
-              icon="coin"
+              icon3d="coins"
               title="Nothing held yet"
               body="This wallet holds no coin worth an entry across the chains we read. The Ledger awaits your first treasure."
             />

@@ -121,7 +121,7 @@ export default function ArsenalPage() {
       {gear.length === 0 ? (
         <Card>
           <EmptyState
-            icon="shield"
+            icon3d="guard"
             title="Nothing in that slot yet"
             body="The armourers have not filled this rack. Widen the filter to see the whole catalog."
             action={

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon3D } from "@/components/ui/icon-3d";
+import { AtAGlance, type GlancePoint } from "@/components/legal/at-a-glance";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -16,6 +17,29 @@ type Section = {
   body: string[];
   list?: string[];
 };
+
+/* Each point is a fair summary of the section it links to, and says nothing
+   those sections do not say. Checked against sections 2, 4 and 7. */
+const glance: GlancePoint[] = [
+  {
+    icon: "guard",
+    title: "We never hold your keys",
+    body: "Your wallet is yours. We cannot move, freeze or recover your assets, and we never see your seed phrase.",
+    href: "#non-custodial",
+  },
+  {
+    icon: "chronicle",
+    title: "A small, stated surface",
+    body: "We collect what the realm needs to run and keep itself safe, section 3 lists all of it, and we do not sell any of it.",
+    href: "#how-we-use",
+  },
+  {
+    icon: "oath-scroll",
+    title: "The choices stay yours",
+    body: "Export your keys at any time, update your account details, and ask us to delete your account record.",
+    href: "#your-choices",
+  },
+];
 
 const sections: Section[] = [
   {
@@ -130,6 +154,8 @@ export default function PrivacyPolicyPage() {
             Effective date: {EFFECTIVE_DATE}
           </p>
         </header>
+
+        <AtAGlance points={glance} />
 
         <article className="glass mt-8 p-7 sm:p-10">
           <div className="flex flex-col gap-8">
