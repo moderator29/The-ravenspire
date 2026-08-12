@@ -317,6 +317,48 @@ describe("rule 12, the focus ring", () => {
   });
 });
 
+describe("rule 22, a 3D icon is never labelled with its own name", () => {
+  it("catches a caption that just says the slug", () => {
+    const src = '<Icon3D name="chest" size="md" />\n<p>Chest</p>';
+    const found = check("no-3d-icon-caption", "a.tsx", src);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/captioned with its own name/);
+  });
+
+  it("catches it however the slug is spaced or cased", () => {
+    const src = '<Icon3D name="oath-scroll" />\n<span>Oath Scroll</span>';
+    expect(check("no-3d-icon-caption", "a.tsx", src)).toHaveLength(1);
+  });
+
+  it("leaves a section kicker beside the icon alone", () => {
+    /* The naive version of this rule false positived here, on a real file. A
+       kicker containing another element is the section's own title, not the
+       icon's label, and the icon sitting with the content it belongs to is
+       exactly what the rule asks for. */
+    const src = [
+      '<Icon3D name="herald-ai" size="lg" priority />',
+      "<div>",
+      '  <p className="text-gold">',
+      '    <Icon name="raven" className="h-4 w-4" />',
+      "    The Herald",
+      "  </p>",
+      "  <h2>Meet @raven</h2>",
+      "</div>",
+    ].join("\n");
+    expect(check("no-3d-icon-caption", "a.tsx", src)).toEqual([]);
+  });
+
+  it("leaves copy that says something the slug does not alone", () => {
+    const src = '<Icon3D name="chest" />\n<p>Open it to see what the realm left you.</p>';
+    expect(check("no-3d-icon-caption", "a.tsx", src)).toEqual([]);
+  });
+
+  it("does not read past an element into a later heading", () => {
+    const src = '<Icon3D name="trophy" />\n<div><span>x</span></div>\n<h2>Trophy</h2>';
+    expect(check("no-3d-icon-caption", "a.tsx", src)).toEqual([]);
+  });
+});
+
 describe("rule 13, one gold and never green", () => {
   it("catches a retired gold hex", () => {
     expect(check("retired-gold", "a.css", "--gold: #d8b45a;")).toHaveLength(1);

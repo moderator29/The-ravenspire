@@ -451,6 +451,49 @@ export const RULES = [
   },
 
   {
+    id: "no-3d-icon-caption",
+    title: "Rule 22: never label a 3D icon with its own name",
+    globs: ["*.tsx"],
+    /* "A caption under an icon is an admission that the icon failed."
+       
+       The naive version of this rule, text near an Icon3D matching its slug,
+       false positived immediately on components/landing/meet-raven.tsx, where a
+       section kicker reading "The Herald" sits beside a herald-ai icon. That is
+       not a caption, it is the section's own title, and the icon sitting with
+       the content it belongs to is precisely what the rule asks for.
+       
+       So the test is structural rather than proximity based: the very next
+       element after the icon must be TEXT ONLY, and its text must normalise to
+       the icon's own slug. A kicker containing another element, a heading with
+       an icon in it, or any text that says something the slug does not, all
+       pass. That is the difference between labelling the icon and writing
+       beside it. */
+    check: (file, text) => {
+      const found = [];
+      const norm = (t) =>
+        t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      for (const { text: tag, line } of openingTags(text, "Icon3D")) {
+        const name = tag.match(/\bname=\{?["']([a-z0-9-]+)["']/);
+        if (!name) continue;
+        const after = text.slice(text.indexOf(tag) + tag.length);
+        /* The next element, and only the next one. */
+        const next = after.match(/<\s*([A-Za-z][\w.]*)\b[^>]*>([^<>]*)<\s*\//);
+        if (!next) continue;
+        /* Anything between the icon and that element that is itself an element
+           means this is not the icon's own label. */
+        const between = after.slice(0, after.indexOf(next[0]));
+        if (/<\s*[A-Za-z]/.test(between)) continue;
+        if (norm(next[2]) !== name[1]) continue;
+        found.push({
+          line,
+          message: `the 3D icon "${name[1]}" is captioned with its own name. Let the surrounding copy carry the meaning.`,
+        });
+      }
+      return found;
+    },
+  },
+
+  {
     id: "retired-button-utilities",
     title: "Rule 18: the legacy button utilities are retired",
     globs: ["*.tsx"],
