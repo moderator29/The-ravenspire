@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -22,8 +22,53 @@ import { Icon } from "@/components/ui/icon";
 export function FloatingCompose() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const fabRef = useRef<HTMLDivElement | null>(null);
+  const active = pathname === "/home";
 
-  if (pathname !== "/home") return null;
+  /* Publishes how much room it needs, the same way the dock publishes its own
+     height, and for the same reason: nothing else can know.
+   *
+   * The button is 56px square, anchored 12px above the dock, at `right-4`. On a
+   * 390px screen that is a fixed 56x56 plate sitting at x 318, y 654, directly
+   * over the right hand end of the feed column. Anything under it is untappable:
+   * measured on the Ravenry, two Follow buttons in the who to follow card
+   * resolved their own centre to this button, and a click on them timed out.
+   *
+   * Mid page that is survivable, because scrolling moves the content out from
+   * under it. At the end of the page it is not, because there is nothing left
+   * to scroll: a control in the last card stays under the button for good. So
+   * the fix is clearance rather than moving the button, which would only choose
+   * a different thing to cover.
+   *
+   * Measured rather than hardcoded, because the stack grows when the speed dial
+   * opens and a constant would be wrong again the moment the button changes
+   * size, which is exactly how `pb-28` came to be 10px short of the dock. */
+  useEffect(() => {
+    const el = fabRef.current;
+    const root = document.documentElement;
+    if (!active || !el) {
+      root.style.removeProperty("--fab-clearance");
+      return;
+    }
+    const publish = () => {
+      /* The gap to the dock is part of the clearance: the button starts above
+         the dock, so the page has to clear both. */
+      const GAP = 12;
+      root.style.setProperty(
+        "--fab-clearance",
+        `${Math.round(el.getBoundingClientRect().height) + GAP}px`
+      );
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--fab-clearance");
+    };
+  }, [active, open]);
+
+  if (!active) return null;
 
   return (
     <>
@@ -45,6 +90,7 @@ export function FloatingCompose() {
           The dock measures itself and publishes --dock-height; the fallback
           matches the bar without a strip, for the frame before it reports. */}
       <div
+        ref={fabRef}
         style={{ position: "fixed" }}
         className="bottom-[calc(var(--dock-height,4.5rem)+0.75rem)] right-4 z-40 flex flex-col items-end gap-3 lg:bottom-8 lg:right-8"
       >

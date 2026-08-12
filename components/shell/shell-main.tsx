@@ -31,10 +31,17 @@ export function ShellMain({ children }: { children: React.ReactNode }) {
                space below the content. Both directions wrong, from the same
                constant.
 
+               `--fab-clearance` is the same idea for the gold action button,
+               which floats above the dock on the Ravenry and is 0 everywhere
+               else. Mid page it covers content that scrolling moves out from
+               under it; at the end of the page there is nothing left to scroll,
+               so without this the last card keeps a 56px square of itself
+               permanently untappable.
+
                The fallback matches the old value so nothing shifts before the
                effect runs, and `lg:pb-8` still wins on desktop, where the dock
                is display:none and measures zero. */
-            "min-w-0 flex-1 pb-[calc(var(--dock-height,7rem)+1rem)] lg:pb-8"
+            "min-w-0 flex-1 pb-[calc(var(--dock-height,7rem)+var(--fab-clearance,0px)+1rem)] lg:pb-8"
       }
     >
       {children}
