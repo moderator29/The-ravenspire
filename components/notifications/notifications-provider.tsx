@@ -248,9 +248,9 @@ export function NotificationsProvider({
                     e.stopPropagation();
                     dismissToast(t.key);
                   }}
-                  className="shrink-0 text-bone-faint transition hover:text-bone"
+                  className="shrink-0 text-bone-faint transition-colors duration-fast hover:text-bone"
                 >
-                  <Icon name="plus" className="h-4 w-4 rotate-45" />
+                  <Icon name="close" className="h-4 w-4" />
                 </button>
               </Link>
             ))}

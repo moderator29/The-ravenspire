@@ -1,5 +1,7 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
+
 /* The "sequencing" state: a gold double-helix scanning under a sweep line.
    Pure CSS, reduced-motion aware via the global media query in globals.css
    (which zeroes animations), so nothing here needs to special-case it. */
@@ -8,7 +10,7 @@ const RUNGS = Array.from({ length: 14 });
 
 export function Sequencing({ subject }: { subject: string }) {
   return (
-    <div className="glass flex flex-col items-center gap-6 px-6 py-10 text-center">
+    <Card pad="none" className="flex flex-col items-center gap-6 px-6 py-10 text-center">
       <div className="dna-stage" aria-hidden="true">
         {RUNGS.map((_, i) => (
           <div
@@ -98,6 +100,6 @@ export function Sequencing({ subject }: { subject: string }) {
           100% { top: 150px; }
         }
       `}</style>
-    </div>
+    </Card>
   );
 }
