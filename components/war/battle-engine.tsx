@@ -1002,62 +1002,81 @@ function HowToPlay({
         {totalFoes} foes to win.
       </p>
 
-      {/* The champion's real kit, passive and ultimate that actually shape how
-          they play, not flavor text. */}
-      <Card variant="warm" pad="lg" className="mt-5 w-full max-w-md text-left">
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-display text-base font-semibold text-bone">
-            {champion.name}
-          </p>
-          <Badge variant="gold">{battleKit.tag}</Badge>
-        </div>
-        <div className="mt-3 flex gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
-            <Icon name="orb" className="h-4 w-4" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-bone">
-              Passive · {champion.passive.name}
-            </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
-              {battleKit.passive}
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 flex gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
-            <Icon name="flame" className="h-4 w-4" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-bone">
-              Ultimate · {champion.ultimate.name}
-            </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
-              {battleKit.ultimate}
-            </p>
-          </div>
-        </div>
-      </Card>
+      {/* Two panels, stacked on a phone and side by side from `md`.
 
-      <Card pad="lg" className="mt-3 w-full max-w-md text-left text-sm text-bone-mut">
-        <Rule icon="swords" title="Dash">
-          Leap onto the nearest foe and cut down everything around them. Your
-          strongest move, on a short cooldown.
-        </Rule>
-        <Rule icon="flame" title={`Ultimate: ${champion.ultimate.name}`}>
-          {battleKit.ultimate} Save it for the thickest press.
-        </Rule>
-        <Rule icon="shield" title="Shield">
-          Guard yourself and nearby allies for a few seconds. Time it against
-          the enemy charge.
-        </Rule>
-        <Rule icon="medal" title="Glory">
-          Every foe felled adds Glory. Break the whole host to claim victory.
-          The tally you see in the field is the engine counting; what is banked
-          is settled by the realm when the fight ends.
-        </Rule>
-      </Card>
-      <p className="mt-3 text-xs text-bone-faint">
+          Measured at 1440 they were a 448px column: two cards 448 wide and 181
+          and 349.5 tall, the block sitting at x=496 with 496px of empty
+          obsidian on either side of it, on a briefing that covers the whole
+          viewport. That is the phone screen shown at desktop size, which rule
+          15 forbids.
+
+          Side by side the block is 768 wide and the gutter halves to 336. Each
+          panel is narrower, 376, so the rules card is in fact 39px taller than
+          it was, 388.5 against 349.5. The briefing still shortens, because the
+          two no longer stack: 542.5px of column becomes 388.5px of row, and
+          the champion's kit now sits beside the rules a player reads it
+          against rather than above them. */}
+      <div className="mt-5 flex w-full max-w-md flex-col items-stretch gap-3 text-left md:max-w-3xl md:flex-row md:items-start md:gap-4">
+        {/* The champion's real kit, passive and ultimate that actually shape how
+            they play, not flavor text. */}
+        <Card variant="warm" pad="lg" className="w-full text-left md:flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-display text-base font-semibold text-bone">
+              {champion.name}
+            </p>
+            <Badge variant="gold">{battleKit.tag}</Badge>
+          </div>
+          <div className="mt-3 flex gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
+              <Icon name="orb" className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-bone">
+                Passive · {champion.passive.name}
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
+                {battleKit.passive}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gold/25 bg-void text-gold">
+              <Icon name="flame" className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-bone">
+                Ultimate · {champion.ultimate.name}
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-bone-mut">
+                {battleKit.ultimate}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card pad="lg" className="w-full text-left text-sm text-bone-mut md:flex-1">
+          <Rule icon="swords" title="Dash">
+            Leap onto the nearest foe and cut down everything around them. Your
+            strongest move, on a short cooldown.
+          </Rule>
+          <Rule icon="flame" title={`Ultimate: ${champion.ultimate.name}`}>
+            {battleKit.ultimate} Save it for the thickest press.
+          </Rule>
+          <Rule icon="shield" title="Shield">
+            Guard yourself and nearby allies for a few seconds. Time it against
+            the enemy charge.
+          </Rule>
+          <Rule icon="medal" title="Glory">
+            Every foe felled adds Glory. Break the whole host to claim victory.
+            The tally you see in the field is the engine counting; what is banked
+            is settled by the realm when the fight ends.
+          </Rule>
+        </Card>
+      </div>
+      {/* A sentence about turning your phone sideways, read by someone holding
+          a mouse, is noise. `touch:` keys off `pointer: coarse`, the same test
+          the rotate hint in the field already uses. */}
+      <p className="mt-3 hidden text-xs text-bone-faint touch:block">
         On a phone, turn it sideways for the full field.
       </p>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
