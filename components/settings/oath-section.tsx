@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardRow } from "@/components/ui/card";
+import { cx } from "@/components/ui/cx";
+import { AdaptiveDialog } from "@/components/ui/sheet";
 import { houseBySlug, houseIcon, houses } from "@/lib/data/houses";
 import { realmFetch } from "@/lib/auth/api";
 import { roleMeta } from "@/lib/houses/roles";
@@ -216,151 +217,23 @@ function OathDialog({
   onClose: () => void;
   onConfirm: (slug: string) => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  /* No mount gate needed: this dialog is only ever rendered in response to a
-     click, so it cannot be reached during server rendering. The guard is here
-     purely so the portal target is never read on a server pass. */
-  if (typeof document === "undefined") return null;
-
   const currentSlug = state.current?.house_slug ?? null;
   const currentMeta = houseBySlug(currentSlug);
   const targetMeta = houseBySlug(selected);
   const crestCount = state.house_crests.length;
   const nextSeason = state.season.next_id;
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-modal flex items-end justify-center bg-obsidian/80 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Swear a new oath"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-gold/20 bg-void p-5 shadow-overlay sm:rounded-2xl sm:p-6">
-        <div className="flex items-center gap-2.5">
-          <Icon name="banner" className="h-5 w-5 shrink-0 text-gold" />
-          <h2 className="font-display text-lg font-semibold text-bone">
-            Swear a new oath
-          </h2>
-        </div>
-
-        <p className="mt-2 text-sm leading-relaxed text-bone-mut">
-          Oaths change only between seasons, so no one can defect to the winning
-          House on the last day. Choosing early, while a House is still a risk,
-          is the whole point.
-        </p>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {houses.map((house) => {
-            const isCurrent = house.slug === currentSlug;
-            const isSelected = house.slug === selected;
-            return (
-              <button
-                key={house.slug}
-                type="button"
-                disabled={isCurrent || busy}
-                onClick={() => onSelect(house.slug)}
-                aria-pressed={isSelected}
-                className={`flex items-center gap-2.5 rounded-md border p-2.5 text-left transition-[border-color,background-color] duration-fast ease-out-quint disabled:cursor-not-allowed disabled:opacity-45 ${
-                  isSelected
-                    ? "border-gold bg-gold/10"
-                    : "border-steel-line bg-panel hover:border-gold/40"
-                }`}
-              >
-                <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm"
-                  style={{
-                    background: `linear-gradient(160deg, ${house.color}22, #101017)`,
-                    border: `1px solid ${house.color}44`,
-                    color: house.color,
-                  }}
-                >
-                  <Icon name={houseIcon(house.slug)} className="h-4 w-4" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-xs font-semibold text-bone">
-                    {house.name.replace("House ", "")}
-                  </span>
-                  <span className="block truncate text-[10px] text-bone-faint">
-                    {isCurrent ? "Your House" : house.element}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* What it costs, itemised. Kept and lost side by side so neither can
-            be skimmed past. */}
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <div className="rounded-md border border-gold/25 bg-gold/[0.06] p-3">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-gold">
-              <Icon name="shield" className="h-3.5 w-3.5" />
-              You keep
-            </p>
-            <ul className="mt-2 flex flex-col gap-1.5 text-xs text-bone-mut">
-              <li>
-                <b className="text-bone">All your Renown.</b> It is personal
-                legacy and is never taken away.
-              </li>
-              <li>
-                <b className="text-bone">Your tier, crests and Calls record.</b>{" "}
-                Nothing on your Keep is reset.
-              </li>
-              <li>
-                <b className="text-bone">Your followers and your ravens.</b>
-              </li>
-            </ul>
-          </div>
-
-          <div className="rounded-md border border-ember/30 bg-ember/[0.06] p-3">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-state-warning">
-              <Icon name="flame" className="h-3.5 w-3.5" />
-              You give up
-            </p>
-            <ul className="mt-2 flex flex-col gap-1.5 text-xs text-bone-mut">
-              <li>
-                <b className="text-bone">Your House contribution resets to 0.</b>{" "}
-                Everything you earned for {currentMeta?.name ?? "your House"}{" "}
-                stays with them, permanently. It never transfers.
-              </li>
-              <li>
-                <b className="text-bone">Any title you hold.</b> Leadership is
-                granted by a House and does not travel.
-              </li>
-              <li>
-                <b className="text-bone">
-                  {crestCount > 0
-                    ? `${crestCount} House crest${crestCount === 1 ? "" : "s"} become Legacy.`
-                    : "House crests become Legacy."}
-                </b>{" "}
-                Still held and still shown, but unearnable again unless you
-                return.
-              </li>
-              <li>
-                <b className="text-bone">One season of cooldown.</b>{" "}
-                {nextSeason
-                  ? `Swearing for Season ${nextSeason} means you cannot swear again until Season ${nextSeason + 2}.`
-                  : "You cannot swear again for a full season after this."}
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {error ? (
-          <p className="mt-3 text-xs text-state-danger" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+  return (
+    <AdaptiveDialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      size="lg"
+      title="Swear a new oath"
+      description="Oaths change only between seasons, so no one can defect to the winning House on the last day. Choosing early, while a House is still a risk, is the whole point."
+      footer={
+        <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Keep my oath
           </Button>
@@ -374,9 +247,118 @@ function OathDialog({
               ? `Swear to ${targetMeta.name.replace("House ", "")}`
               : "Choose a House"}
           </Button>
+        </>
+      }
+    >
+      <div
+        role="group"
+        aria-label="Choose a House"
+        className="grid grid-cols-2 gap-2"
+      >
+        {houses.map((house) => {
+          const isCurrent = house.slug === currentSlug;
+          const isSelected = house.slug === selected;
+          return (
+            <Button
+              key={house.slug}
+              variant="ghost"
+              size="md"
+              block
+              disabled={isCurrent || busy}
+              onClick={() => onSelect(house.slug)}
+              aria-pressed={isSelected}
+              className={cx(
+                "h-auto min-h-11 justify-start gap-2.5 p-2.5 text-left font-normal",
+                isSelected
+                  ? "border-gold bg-gold/10 hover:bg-gold/10"
+                  : "border-steel-line bg-panel hover:border-gold/40"
+              )}
+            >
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm"
+                style={{
+                  background: `linear-gradient(160deg, ${house.color}22, #101017)`,
+                  border: `1px solid ${house.color}44`,
+                  color: house.color,
+                }}
+              >
+                <Icon name={houseIcon(house.slug)} className="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-semibold text-bone">
+                  {house.name.replace("House ", "")}
+                </span>
+                <span className="block truncate text-[10px] text-bone-faint">
+                  {isCurrent ? "Your House" : house.element}
+                </span>
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+
+      {/* What it costs, itemised. Kept and lost side by side so neither can
+          be skimmed past. */}
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="rounded-md border border-gold/25 bg-gold/[0.06] p-3">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-gold">
+            <Icon name="shield" className="h-3.5 w-3.5" />
+            You keep
+          </p>
+          <ul className="mt-2 flex flex-col gap-1.5 text-xs text-bone-mut">
+            <li>
+              <b className="text-bone">All your Renown.</b> It is personal
+              legacy and is never taken away.
+            </li>
+            <li>
+              <b className="text-bone">Your tier, crests and Calls record.</b>{" "}
+              Nothing on your Keep is reset.
+            </li>
+            <li>
+              <b className="text-bone">Your followers and your ravens.</b>
+            </li>
+          </ul>
+        </div>
+
+        <div className="rounded-md border border-ember/30 bg-ember/[0.06] p-3">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-state-warning">
+            <Icon name="flame" className="h-3.5 w-3.5" />
+            You give up
+          </p>
+          <ul className="mt-2 flex flex-col gap-1.5 text-xs text-bone-mut">
+            <li>
+              <b className="text-bone">Your House contribution resets to 0.</b>{" "}
+              Everything you earned for {currentMeta?.name ?? "your House"}{" "}
+              stays with them, permanently. It never transfers.
+            </li>
+            <li>
+              <b className="text-bone">Any title you hold.</b> Leadership is
+              granted by a House and does not travel.
+            </li>
+            <li>
+              <b className="text-bone">
+                {crestCount > 0
+                  ? `${crestCount} House crest${crestCount === 1 ? "" : "s"} become Legacy.`
+                  : "House crests become Legacy."}
+              </b>{" "}
+              Still held and still shown, but unearnable again unless you
+              return.
+            </li>
+            <li>
+              <b className="text-bone">One season of cooldown.</b>{" "}
+              {nextSeason
+                ? `Swearing for Season ${nextSeason} means you cannot swear again until Season ${nextSeason + 2}.`
+                : "You cannot swear again for a full season after this."}
+            </li>
+          </ul>
         </div>
       </div>
-    </div>,
-    document.body
+
+      {error ? (
+        <p className="mt-3 text-xs text-state-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </AdaptiveDialog>
   );
 }
