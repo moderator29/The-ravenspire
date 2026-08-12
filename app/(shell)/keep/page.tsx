@@ -8,6 +8,7 @@ import { fetchProfile } from "@/lib/social/queries";
 import type { PublicProfile } from "@/lib/social/types";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { Button } from "@/components/ui/button";
 
 export default function KeepPage() {
   const { ready, authenticated, enabled } = useRealmAuth();
@@ -74,9 +75,9 @@ export default function KeepPage() {
             ? "Your Keep rises when you enter the realm."
             : "Auth is not configured in this environment; your Keep awaits on the hosted realm."}
         </p>
-        <Link href="/signin" className="btn-gold mt-6 inline-flex px-6 py-2.5 text-sm">
+        <Button variant="gold" size="lg" className="mt-6" render={<Link href="/signin" />}>
           Enter the Realm
-        </Link>
+        </Button>
       </div>
     );
 
@@ -89,9 +90,9 @@ export default function KeepPage() {
         <p className="mt-3 text-sm text-bone-mut">
           Claim your name and swear to a House, and your Keep is raised.
         </p>
-        <Link href="/welcome" className="btn-gold mt-6 inline-flex px-6 py-2.5 text-sm">
+        <Button variant="gold" size="lg" className="mt-6" render={<Link href="/welcome" />}>
           See the Maester
-        </Link>
+        </Button>
       </div>
     );
 

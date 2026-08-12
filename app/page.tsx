@@ -5,6 +5,7 @@ import { motion, MotionConfig, useReducedMotion, useScroll, useTransform } from 
 import { RavenMark } from "@/components/brand/raven-mark";
 import { CrestRoundel, crests } from "@/components/brand/crests";
 import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 import { LandingIcon } from "@/components/landing/icons";
 import { comingSoonNav } from "@/lib/nav";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -190,10 +191,10 @@ export default function Landing() {
             transition={{ duration: 0.7, delay: 0.65 }}
             className="mt-9 flex flex-wrap items-center justify-center gap-4"
           >
-            <Link href={ctaHref} className="btn-gold px-7 py-3 text-sm">
+            <Button variant="gold" size="lg" render={<Link href={ctaHref} />}>
               {ctaLabel}
               <LandingIcon name="arrowRight" className="h-4 w-4" />
-            </Link>
+            </Button>
             <Link
               href="/chronicle"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-bone-mut transition hover:text-bone"
@@ -209,13 +210,15 @@ export default function Landing() {
             className="mt-10 flex max-w-full flex-wrap items-center justify-center gap-2 px-2"
           >
             {chips.map((c) => (
-              <Link
+              <Button
                 key={c.label}
-                href={c.href}
-                className="btn-glass px-3.5 py-1.5 text-xs text-bone-mut"
+                variant="glass"
+                size="sm"
+                className="text-bone-mut"
+                render={<Link href={c.href} />}
               >
                 {c.label}
-              </Link>
+              </Button>
             ))}
           </motion.div>
 
@@ -415,13 +418,15 @@ export default function Landing() {
               A non-custodial wallet is created for you the moment you enter. No
               keys held, no seats sold, nothing bought that must be earned.
             </p>
-            <Link
-              href={ctaHref}
-              className="btn-gold relative mt-6 inline-flex px-8 py-3 text-sm"
+            <Button
+              variant="gold"
+              size="lg"
+              className="mt-6"
+              render={<Link href={ctaHref} />}
             >
               {ctaLabel}
               <LandingIcon name="arrowRight" className="h-4 w-4" />
-            </Link>
+            </Button>
           </motion.section>
 
           {/* Risk and legal disclaimer band */}

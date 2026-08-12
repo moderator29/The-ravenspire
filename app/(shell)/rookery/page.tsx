@@ -6,6 +6,7 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 
 type Host = {
   handle: string | null;
@@ -88,7 +89,10 @@ function CourtCard({ c }: { c: Court }) {
             <span className="tnum text-bone">{c.participants}</span>{" "}
             {c.participants === 1 ? "soul" : "souls"}
           </p>
-          <span className="btn-glass inline-flex items-center gap-1.5 px-3 py-1.5 text-xs transition group-hover:text-gold">
+          {/* A span, not a Button: the whole row is already the link, and a
+              nested interactive element inside a link is invalid and traps a
+              second tab stop. This is the affordance, drawn to match. */}
+          <span className="inline-flex items-center gap-1.5 rounded-[--radius-md] border border-gold/25 bg-void/60 px-3 py-1.5 text-xs font-semibold text-bone transition-colors duration-fast group-hover:border-gold/45 group-hover:text-gold">
             Enter
             <Icon name="arrow" className="h-3.5 w-3.5" />
           </span>
@@ -229,22 +233,30 @@ export default function RookeryPage() {
           )}
 
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <button
+            <Button
+              variant="gold"
+              size="lg"
+              className="flex-1"
+              loading={opening === "open"}
+              disabled={opening !== null || !title.trim()}
               onClick={() => void open("open")}
-              disabled={opening !== null || !title.trim()}
-              className="btn-gold flex-1 px-4 py-2.5 text-sm disabled:opacity-50"
             >
-              <Icon name="signal" className="h-4 w-4" />
+              {opening !== "open" && <Icon name="signal" className="h-4 w-4" />}
               {opening === "open" ? "Raising..." : "Open now"}
-            </button>
-            <button
-              onClick={() => void open("schedule")}
+            </Button>
+            <Button
+              variant="glass"
+              size="lg"
+              className="flex-1"
+              loading={opening === "schedule"}
               disabled={opening !== null || !title.trim()}
-              className="btn-glass flex-1 px-4 py-2.5 text-sm disabled:opacity-50"
+              onClick={() => void open("schedule")}
             >
-              <Icon name="scroll" className="h-4 w-4" />
+              {opening !== "schedule" && (
+                <Icon name="scroll" className="h-4 w-4" />
+              )}
               {opening === "schedule" ? "Announcing..." : "Announce upcoming"}
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ import { BackButton } from "@/components/shell/back-button";
 import { Avatar } from "@/components/social/avatar";
 import { realmFetch } from "@/lib/auth/api";
 import { timeAgo } from "@/lib/social/types";
+import { Button } from "@/components/ui/button";
 
 /* The Calls index.
 
@@ -271,12 +272,14 @@ function Empty({ view }: { view: ViewKey }) {
       <p className="mt-2 max-w-sm text-sm leading-relaxed text-bone-mut">
         {c.body}
       </p>
-      <Link
-        href="/compose"
-        className="btn-gold mt-6 rounded-[--radius-md] px-5 py-2.5 text-sm"
+      <Button
+        variant="gold"
+        size="lg"
+        className="mt-6"
+        render={<Link href="/compose" />}
       >
         Seal a Call
-      </Link>
+      </Button>
     </div>
   );
 }

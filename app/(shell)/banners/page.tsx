@@ -6,6 +6,7 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
+import { Button } from "@/components/ui/button";
 
 interface MeProfile {
   handle: string | null;
@@ -84,12 +85,14 @@ export default function BannersPage() {
               ? "Every citizen carries a banner with their name on it. Enter the realm to claim yours."
               : "Claim your handle first; your banner link carries your name."}
           </p>
-          <Link
-            href={!authenticated ? "/signin" : "/keep"}
-            className="btn-gold mt-5 px-5 py-2.5 text-sm"
+          <Button
+            variant="gold"
+            size="lg"
+            className="mt-5"
+            render={<Link href={!authenticated ? "/signin" : "/keep"} />}
           >
             {!authenticated ? "Enter the realm" : "Finish your Keep"}
-          </Link>
+          </Button>
         </div>
       ) : (
         <>
@@ -99,16 +102,18 @@ export default function BannersPage() {
               Your banner
             </p>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <code className="glass-sm min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-xl border border-steel-line bg-void px-4 py-3 text-xs text-gold-bright">
+              <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-[--radius-lg] border border-steel-line bg-void px-4 py-3 text-xs text-gold-bright">
                 {link}
               </code>
-              <button
+              <Button
+                variant="gold"
+                size="lg"
+                className="shrink-0"
                 onClick={copy}
-                className="btn-gold shrink-0 px-5 py-2.5 text-sm"
               >
                 <Icon name="banner" className="h-4 w-4" />
                 {copied ? "Copied" : "Copy link"}
-              </button>
+              </Button>
             </div>
           </div>
 

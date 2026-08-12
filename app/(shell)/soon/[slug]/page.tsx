@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
 import { comingSoonNav, findComingSoon } from "@/lib/nav";
+import { Button } from "@/components/ui/button";
 
 export function generateStaticParams() {
   return comingSoonNav.map((i) => ({ slug: i.slug }));
@@ -38,9 +39,9 @@ export default async function ComingSoonPage({
         <p className="mt-4 max-w-sm text-sm leading-relaxed text-bone-mut">
           {item.blurb}
         </p>
-        <Link href="/ravens" className="btn-gold mt-7 px-6 py-2.5 text-sm">
+        <Button variant="gold" size="lg" className="mt-7" render={<Link href="/ravens" />}>
           Notify me
-        </Link>
+        </Button>
         <p className="mt-3 text-[11px] text-bone-faint">
           A raven will find you the day this chapter opens.
         </p>

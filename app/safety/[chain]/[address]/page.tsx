@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { fetchGoPlus, fetchHoneypot, buildReport } from "@/lib/tools/goplus";
@@ -213,21 +215,27 @@ export default async function SafetyReportPage({
             </div>
 
             {report.explorer && (
-              <a
-                href={report.explorer}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-glass mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm"
+              <Button
+                variant="glass"
+                size="md"
+                className="mt-3"
+                render={
+                  <a
+                    href={report.explorer}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
               >
                 <Icon name="arrow" className="h-4 w-4" />
                 Verify on the block explorer
-              </a>
+              </Button>
             )}
           </>
         )}
 
         {/* Calls to enter the realm */}
-        <div className="glass mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <Card pad="lg" className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-display text-base font-semibold text-bone">
               Read any token before you trade it
@@ -237,17 +245,20 @@ export default async function SafetyReportPage({
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <Link
-              href={`/watch?address=${address}&chain=${chain}`}
-              className="btn-glass px-4 py-2 text-sm"
+            <Button
+              variant="glass"
+              size="md"
+              render={
+                <Link href={`/watch?address=${address}&chain=${chain}`} />
+              }
             >
               Open The Watch
-            </Link>
-            <Link href="/" className="btn-gold px-4 py-2 text-sm">
+            </Button>
+            <Button variant="gold" size="md" render={<Link href="/" />}>
               Enter the realm
-            </Link>
+            </Button>
           </div>
-        </div>
+        </Card>
 
         <p className="mt-6 text-center text-[11px] text-bone-faint">
           Safety data via GoPlus &amp; honeypot.is, read live and cached briefly.

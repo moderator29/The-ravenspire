@@ -92,6 +92,30 @@ for (const f of files(["*.tsx"])) {
   });
 }
 
+/* Rule 2b: the legacy button utilities are retired.
+
+   `.btn-gold` and `.btn-glass` were pasted into 268 hand written buttons, each
+   picking its own radius, padding and focus behaviour on top. Every one of
+   them is now the Button primitive, and this check is what stops the 269th
+   from appearing. The classes still exist in globals.css so nothing breaks
+   under an in flight branch, but nothing new may reach for them.
+
+   Matching on `className=` rather than the bare word deliberately: the two
+   files that still mention these names do so in a comment explaining what
+   they were converted off, which is documentation worth keeping. */
+for (const f of files(["*.tsx"])) {
+  const text = readFileSync(f, "utf8");
+  text.split("\n").forEach((line, i) => {
+    if (!/className=/.test(line)) return;
+    const m = line.match(/\b(btn-gold|btn-glass)\b/);
+    if (m) {
+      problems.push(
+        `${f}:${i + 1}  ${m[1]} is retired. Use the Button primitive from components/ui/button.`
+      );
+    }
+  });
+}
+
 /* Rule 3: never put text on a fill only hue. --foe, --blood and --ash do not
    clear WCAG AA as text and have -text twins for exactly this case. */
 for (const f of files(["*.tsx"])) {
