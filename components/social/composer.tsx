@@ -332,7 +332,8 @@ export function Composer({
               variant="ghost"
               size="lg"
               render={<label className="cursor-pointer" />}
-              className={`px-2.5 ${uploading ? "text-gold" : "text-bone-faint"}`}
+              pad="sm"
+              className={uploading ? "text-gold" : "text-bone-faint"}
             >
               <Icon name="image" className="h-5 w-5" />
               <span className="sr-only">Attach an image</span>
@@ -364,7 +365,8 @@ export function Composer({
               onClick={() => void suggest()}
               disabled={suggesting}
               aria-label="Let the Herald draft a raven"
-              className={`px-2.5 ${suggesting ? "bg-gold/15 text-gold" : "text-bone-faint"}`}
+              pad="sm"
+              className={suggesting ? "bg-gold/15 text-gold" : "text-bone-faint"}
             >
               <Icon name="raven" className="h-5 w-5" />
               {suggesting && <span className="text-xs">Drafting</span>}
@@ -375,7 +377,8 @@ export function Composer({
               size="lg"
               aria-pressed={callOpen}
               onClick={() => setCallOpen((v) => !v)}
-              className={`px-2.5 text-xs ${callOpen ? "bg-gold/15 text-gold" : "text-bone-faint"}`}
+              pad="sm"
+              className={`text-xs ${callOpen ? "bg-gold/15 text-gold" : "text-bone-faint"}`}
             >
               <Icon name="target" className="h-5 w-5" />
               Make a Call
@@ -388,7 +391,8 @@ export function Composer({
                   variant="ghost"
                   size="lg"
                   aria-label="Choose who can see this raven"
-                  className={`ml-auto px-2.5 text-xs ${
+                  pad="sm"
+                  className={`ml-auto text-xs ${
                     visibility === "public" ? "text-bone-faint" : "text-gold"
                   }`}
                 >

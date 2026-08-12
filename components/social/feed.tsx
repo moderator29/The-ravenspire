@@ -215,7 +215,8 @@ export function Feed() {
           size="lg"
           onClick={() => setFiltersOpen(true)}
           aria-label="Feed filters"
-          className="shrink-0 px-3.5"
+          pad="md"
+          className="shrink-0"
         >
           <Icon name="sliders" className="h-4 w-4" />
           {activeFilters > 0 ? (

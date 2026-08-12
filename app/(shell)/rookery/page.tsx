@@ -260,7 +260,7 @@ export default function RookeryPage() {
       )}
 
       {error && (
-        <Card radius="lg" pad="none" className="mt-3 border-ember/40 p-3 text-sm text-ember">
+        <Card radius="lg" pad="none" tone="ember" className="mt-3 p-3 text-sm text-ember">
           {error}
         </Card>
       )}

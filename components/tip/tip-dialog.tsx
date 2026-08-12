@@ -254,8 +254,9 @@ export function TipDialog({
           <Card
             variant="inset"
             pad="sm"
+            tone="danger"
             role="alert"
-            className="flex items-start gap-3 border-state-danger/40 text-xs text-bone-mut"
+            className="flex items-start gap-3 text-xs text-bone-mut"
           >
             <Icon name="alert" className="h-4 w-4 shrink-0 text-state-danger" />
             <span>{error ?? "Something went awry."}</span>
@@ -300,10 +301,9 @@ export function TipDialog({
                 variant={choice === preset ? "glass" : "ghost"}
                 aria-pressed={choice === preset}
                 disabled={phase === "sending"}
+                tone={choice === preset ? "gold" : "steel"}
                 className={
-                  choice === preset
-                    ? "tnum border-gold/60 text-gold-bright"
-                    : "tnum border border-steel-line"
+                  choice === preset ? "tnum text-gold-bright" : "tnum"
                 }
                 onClick={() => {
                   setChoice(preset);

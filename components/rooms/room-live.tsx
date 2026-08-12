@@ -798,8 +798,9 @@ export function RoomLive({ roomId }: { roomId: string }) {
         <Card
           variant="inset"
           pad="sm"
+          tone="danger"
           role="alert"
-          className="mt-3 flex items-start gap-2.5 border-state-danger/45"
+          className="mt-3 flex items-start gap-2.5"
         >
           <Icon
             name="alert"

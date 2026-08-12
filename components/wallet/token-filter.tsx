@@ -63,7 +63,8 @@ export function TokenFilter({
         size="sm"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={activeCount > 0 ? "border-gold/45 text-gold" : undefined}
+        {...(activeCount > 0 ? { tone: "gold" as const } : {})}
+        className={activeCount > 0 ? "text-gold" : undefined}
       >
         <Icon name="sliders" aria-hidden className="h-3.5 w-3.5" />
         Filter

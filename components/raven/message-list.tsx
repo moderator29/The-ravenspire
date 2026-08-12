@@ -108,8 +108,9 @@ export function MessageList({
                 <RavenAvatar />
                 <Card
                   pad="none"
+                  tone="danger"
                   role="alert"
-                  className="border-state-danger/40 px-4 py-2.5 text-sm leading-relaxed text-bone-mut"
+                  className="px-4 py-2.5 text-sm leading-relaxed text-bone-mut"
                 >
                   <p className="whitespace-pre-wrap break-words">{m.content}</p>
                 </Card>

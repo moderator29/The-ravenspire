@@ -77,7 +77,8 @@ function PollBlock({ post }: { post: Post }) {
               e.stopPropagation();
               void vote(i);
             }}
-            className="justify-between overflow-hidden px-3 text-xs font-medium text-bone-mut"
+            pad="sm"
+            className="justify-between overflow-hidden text-xs font-medium text-bone-mut"
           >
             <span
               aria-hidden

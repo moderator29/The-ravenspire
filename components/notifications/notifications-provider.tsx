@@ -200,7 +200,7 @@ export function NotificationsProvider({
         createPortal(
           <div className="pointer-events-none fixed inset-x-0 top-3 z-[70] flex flex-col items-center gap-2 px-3 sm:inset-x-auto sm:right-4 sm:items-end">
             {toasts.map((t) => (
-              <Card key={t.key} render={<Link href={t.href} onClick={() => dismissToast(t.key)} />} variant="warm" pad="none" className="notif-toast   pointer-events-auto flex w-full max-w-sm items-start gap-3 p-3.5 shadow-2xl transition hover:border-gold/40">
+              <Card key={t.key} render={<Link href={t.href} onClick={() => dismissToast(t.key)} />} variant="warm" pad="none" elevation="overlay" className="notif-toast   pointer-events-auto flex w-full max-w-sm items-start gap-3 p-3.5 transition hover:border-gold/40">
                 <span className="relative shrink-0">
                   <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-steel-line bg-panel font-display text-sm text-gold">
                     {t.actor?.avatar_url ? (

@@ -87,7 +87,8 @@ export function ChatInput({
             onClick={onToggleBrowse}
             aria-pressed={browse}
             title="Toggle live web browsing"
-            className={browse ? "border-gold/45 text-gold" : undefined}
+            {...(browse ? { tone: "gold" as const } : {})}
+            className={browse ? "text-gold" : undefined}
           >
             <Icon name="search" className="h-3.5 w-3.5" />
             {browse ? "Browsing on" : "Browse"}

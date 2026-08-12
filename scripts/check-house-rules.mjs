@@ -224,6 +224,146 @@ for (const f of files(["*.tsx", "*.css"])) {
   });
 }
 
+/* Rule 5: a background is a variant, never a class.
+ *
+ * Most base-versus-caller conflicts are now resolved in the primitives
+ * themselves: `components/ui/merge.ts` drops a base class when the caller has
+ * spoken about the same CSS property, so a caller's `p-3`, `rounded-lg`,
+ * `fixed` or `font-normal` all take effect. That fixed twenty nine silently
+ * dead classes and it needs no rule here.
+ *
+ * Background is the one group merging cannot fix, and the reason is worth
+ * stating because it is not obvious. Card's lit variants and Button's glass
+ * variant do not set a background colour, they set three things: a colour, a
+ * backdrop blur, and a `bg-[image:...]` gradient painted over the colour. A
+ * caller writing `bg-panel` replaces only the first of the three, so the
+ * gradient still covers it and the card still does not look like `bg-panel`.
+ * No ordering rule and no merge can rescue that, because the caller has not
+ * said anything about the other two layers.
+ *
+ * So a background is chosen by `variant` (or `opaque` on a Button), and this
+ * check keeps it that way. `ghost` sets no background at all, and `raised` and
+ * `inset` set a flat colour with no gradient, so a caller's own background on
+ * those is the only one in play and is allowed. */
+const BACKGROUND = /^bg-(?!\[)(?!clip-|origin-|repeat|blend-|fixed$|local$|scroll$)[a-z]/;
+
+const BACKGROUND_GUARD = [
+  {
+    component: "Card",
+    /* The flat variants have no gradient over the colour, so nothing is
+       fighting the caller there. */
+    allowed: (tag) => /variant="(inset|raised)"/.test(tag),
+    fix: 'the `variant` prop (default, warm, inset, raised)',
+  },
+  {
+    component: "Button",
+    allowed: (tag) => /variant="ghost"/.test(tag),
+    fix: 'the `variant` prop, or `opaque` for a control that floats over content',
+  },
+  {
+    component: "IconButton",
+    /* IconButton defaults to ghost. */
+    allowed: (tag) => !/variant="/.test(tag) || /variant="ghost"/.test(tag),
+    fix: 'the `variant` prop',
+  },
+];
+
+/* Read one JSX opening tag, balancing braces and skipping strings, so a
+   className built from a template literal or a cx() call is seen whole. */
+function openingTags(src, component) {
+  const out = [];
+  const re = new RegExp(`<${component}(\\s|\\n)`, "g");
+  let m;
+  while ((m = re.exec(src))) {
+    let i = m.index + component.length + 1;
+    let depth = 0;
+    let quote = null;
+    while (i < src.length) {
+      const c = src[i];
+      if (quote) {
+        if (c === quote && src[i - 1] !== "\\") quote = null;
+      } else if (c === '"' || c === "'" || c === "`") quote = c;
+      else if (c === "{") depth++;
+      else if (c === "}") depth--;
+      else if (c === ">" && depth === 0) break;
+      i++;
+    }
+    out.push({
+      text: src.slice(m.index, i),
+      line: src.slice(0, m.index).split("\n").length,
+    });
+    re.lastIndex = i;
+  }
+  return out;
+}
+
+/* Only the tag's OWN className. A `render={<a><Icon className="h-4"/></a>}`
+   prop carries markup of its own, and those classes belong to that element.
+   Reading them as this tag's produced eleven false positives the first time
+   this check ran. */
+function classNamesIn(tag) {
+  let depth = 0;
+  let quote = null;
+  for (let i = 0; i < tag.length; i++) {
+    const c = tag[i];
+    if (quote) {
+      if (c === quote && tag[i - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") {
+      quote = c;
+      continue;
+    }
+    if (c === "{") { depth++; continue; }
+    if (c === "}") { depth--; continue; }
+    if (depth !== 0) continue;
+    if (!tag.startsWith("className", i)) continue;
+    if (/[A-Za-z0-9_$]/.test(tag[i - 1] ?? " ")) continue;
+    let j = i + "className".length;
+    while (tag[j] === " " || tag[j] === "\n") j++;
+    if (tag[j] !== "=") continue;
+    j++;
+    while (tag[j] === " " || tag[j] === "\n") j++;
+    if (tag[j] === '"') {
+      return tag.slice(j + 1, tag.indexOf('"', j + 1)).split(/\s+/).filter(Boolean);
+    }
+    if (tag[j] !== "{") return [];
+    let d2 = 0;
+    let k = j;
+    while (k < tag.length) {
+      if (tag[k] === "{") d2++;
+      else if (tag[k] === "}") { d2--; if (d2 === 0) break; }
+      k++;
+    }
+    return [...tag.slice(j + 1, k).matchAll(/["'`]([^"'`]*)["'`]/g)]
+      .map((x) => x[1])
+      .join(" ")
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+  return [];
+}
+
+for (const f of files(["*.tsx"])) {
+  if (/^components\/ui\/(card|button)\.tsx$/.test(f)) continue;
+  const text = readFileSync(f, "utf8");
+  for (const { component, allowed, fix } of BACKGROUND_GUARD) {
+    for (const { text: tag, line } of openingTags(text, component)) {
+      if (allowed(tag)) continue;
+      for (const cls of classNamesIn(tag)) {
+        /* A state or responsive variant paints over the gradient in its own
+           bucket and is a legitimate way to express a hover or a breakpoint. */
+        if (cls.includes(":")) continue;
+        if (!BACKGROUND.test(cls)) continue;
+        problems.push(
+          `${f}:${line}  <${component} className="... ${cls} ..."> cannot work: ` +
+            `the variant paints a gradient over it. Use ${fix}.`
+        );
+      }
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error(`\nHouse rule violations (${problems.length}):\n`);
   for (const p of problems) console.error(`  ${p}`);

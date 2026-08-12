@@ -45,7 +45,9 @@ export function FloatingCompose() {
             <Button
               variant="glass"
               size="lg"
-              className="border-gold/40 bg-panel-warm/95 shadow-xl"
+              tone="gold"
+              opaque
+              className="shadow-xl"
               render={<Link href="/raven" />}
               onClick={() => setOpen(false)}
             >
@@ -60,7 +62,9 @@ export function FloatingCompose() {
             <Button
               variant="glass"
               size="lg"
-              className="border-gold/40 bg-panel-warm/95 shadow-xl"
+              tone="gold"
+              opaque
+              className="shadow-xl"
               render={<Link href="/compose" />}
               onClick={() => setOpen(false)}
             >

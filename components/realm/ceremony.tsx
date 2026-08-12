@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Card } from "@/components/ui/card";
+import { Card, type CardTone } from "@/components/ui/card";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { Button } from "@/components/ui/button";
 
@@ -25,18 +25,22 @@ import { Button } from "@/components/ui/button";
 
 export type CeremonyTone = "gold" | "ember" | "steel";
 
-const TONES: Record<CeremonyTone, { glow: string; ring: string }> = {
+/* The ring is Card's `tone`, not a border class. A border class here was
+   silently dead: Card's own variant border is emitted later in the stylesheet
+   and won every time, so a gold ceremony and an ember one drew the same
+   edge. */
+const TONES: Record<CeremonyTone, { glow: string; ring: CardTone }> = {
   gold: {
     glow: "radial-gradient(60% 50% at 50% 38%, rgba(217,176,64,0.22), transparent 70%)",
-    ring: "border-gold/40",
+    ring: "gold",
   },
   ember: {
     glow: "radial-gradient(60% 50% at 50% 38%, rgba(229,112,42,0.20), transparent 70%)",
-    ring: "border-ember/40",
+    ring: "ember",
   },
   steel: {
     glow: "radial-gradient(60% 50% at 50% 38%, rgba(116,125,139,0.16), transparent 70%)",
-    ring: "border-steel-line",
+    ring: "steel",
   },
 };
 
@@ -100,7 +104,7 @@ export function Ceremony({
               reduced
                 ? { duration: 0.15 }
                 : { type: "spring", visualDuration: 0.42, bounce: 0.22 }
-            } />} pad="none" className={`relative w-full max-w-sm overflow-hidden rounded-[--radius-2xl] border ${t.ring} p-7 text-center`}>
+            } />} pad="none" radius="2xl" elevation="overlay" tone={t.ring} className="relative w-full max-w-sm overflow-hidden p-7 text-center">
             {/* Atmosphere sits behind the plate, never on it. */}
             <div
               aria-hidden

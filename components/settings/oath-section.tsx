@@ -267,11 +267,12 @@ function OathDialog({
               disabled={isCurrent || busy}
               onClick={() => onSelect(house.slug)}
               aria-pressed={isSelected}
+              tone={isSelected ? "gold" : "steel"}
               className={cx(
                 "h-auto min-h-11 justify-start gap-2.5 p-2.5 text-left font-normal",
                 isSelected
-                  ? "border-gold bg-gold/10 hover:bg-gold/10"
-                  : "border-steel-line bg-panel hover:border-gold/40"
+                  ? "bg-gold/10 hover:bg-gold/10"
+                  : "bg-panel hover:border-gold/40"
               )}
             >
               <span

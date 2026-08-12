@@ -204,6 +204,7 @@ export function StreamAction({
     <Button
       variant="ghost"
       size="md"
+      pad="sm"
       {...(render ? { render } : {})}
       aria-label={label}
       onClick={
@@ -216,7 +217,7 @@ export function StreamAction({
           : undefined
       }
       className={cx(
-        "h-11 gap-1.5 px-2.5 font-normal",
+        "h-11 gap-1.5 font-normal",
         active
           ? tone === "ember"
             ? "text-ember"

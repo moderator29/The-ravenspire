@@ -379,13 +379,14 @@ export function BoardCard({
   return (
     <Card
       pad="sm"
-      variant="inset"
+      /* The viewer's own row. Warm tint and a gold edge, kept flat by
+         elevation, because a Board row that lifts off the page is ornament
+         and section 2 gives a Board an ornament budget of zero. */
+      variant={highlight ? "warm" : "inset"}
+      elevation="flat"
+      {...(highlight ? { tone: "gold" as const } : {})}
       {...(href ? { interactive: true, render: <Link href={href} /> } : {})}
-      className={cx(
-        "block min-h-11",
-        highlight && "border-gold/40 bg-panel-warm/40",
-        className
-      )}
+      className={cx("block min-h-11", className)}
     >
       {body}
     </Card>

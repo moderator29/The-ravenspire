@@ -504,11 +504,8 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                   size="lg"
                   variant={active ? "glass" : "ghost"}
                   aria-pressed={active}
-                  className={
-                    active
-                      ? "tnum border-gold/60 text-gold-bright"
-                      : "tnum border border-steel-line"
-                  }
+                  tone={active ? "gold" : "steel"}
+                  className={active ? "tnum text-gold-bright" : "tnum"}
                   onClick={() => {
                     setUsdChoice(p);
                     setCustomUsd("");
@@ -549,12 +546,9 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                   key={p}
                   size="lg"
                   variant={active ? "glass" : "ghost"}
+                  tone={active ? "ember" : "steel"}
                   aria-pressed={active}
-                  className={
-                    active
-                      ? "tnum border-ember/60 text-ember-deep"
-                      : "tnum border border-steel-line"
-                  }
+                  className={active ? "tnum text-ember-deep" : "tnum"}
                   onClick={() => setSellPct(p)}
                 >
                   {p === 100 ? "Max" : `${p}%`}
