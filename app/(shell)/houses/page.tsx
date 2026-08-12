@@ -7,9 +7,18 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Meter } from "@/components/ui/meter";
 import { SegmentedControl } from "@/components/ui/tabs";
-import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import { useDelayedLoading } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/social/avatar";
+import {
+  Board,
+  BoardCard,
+  BoardHeader,
+  BoardPage,
+  BoardSkeleton,
+  BoardStack,
+} from "@/components/board/board-shell";
 import { houseBySlug, houseIcon, HOUSE_TOP_N } from "@/lib/data/houses";
 import type { HouseStandingRow, ClashRow } from "@/lib/houses/view";
 import { clashCountdown, seasonCountdown } from "@/lib/houses/view";
@@ -29,7 +38,13 @@ type View = "standings" | "clashes";
 
 export default function HousesPage() {
   return (
-    <Suspense fallback={<HousesSkeleton />}>
+    <Suspense
+      fallback={
+        <BoardPage width="wide">
+          <HousesSkeleton />
+        </BoardPage>
+      }
+    >
       <HousesSurface />
     </Suspense>
   );
@@ -41,35 +56,33 @@ function HousesSurface() {
   const view: View = params.get("view") === "clashes" ? "clashes" : "standings";
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-xl font-semibold text-bone sm:text-2xl">
-            Houses
-          </h1>
-          <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-            Six banners, one season
-          </p>
-        </div>
-        <SegmentedControl
-          label="Houses view"
-          size="sm"
-          value={view}
-          onValueChange={(next) =>
-            router.replace(
-              next === "clashes" ? "/houses?view=clashes" : "/houses",
-              { scroll: false }
-            )
+    <BoardPage width="wide">
+      <BoardStack>
+        <BoardHeader
+          title="Houses"
+          kicker="Six banners, one season"
+          actions={
+            <SegmentedControl
+              label="Houses view"
+              size="sm"
+              value={view}
+              onValueChange={(next) =>
+                router.replace(
+                  next === "clashes" ? "/houses?view=clashes" : "/houses",
+                  { scroll: false }
+                )
+              }
+              items={[
+                { value: "standings", label: "Standings" },
+                { value: "clashes", label: "Clashes" },
+              ]}
+            />
           }
-          items={[
-            { value: "standings", label: "Standings" },
-            { value: "clashes", label: "Clashes" },
-          ]}
         />
-      </header>
 
-      {view === "standings" ? <Standings /> : <Clashes />}
-    </div>
+        {view === "standings" ? <Standings /> : <Clashes />}
+      </BoardStack>
+    </BoardPage>
   );
 }
 
@@ -110,8 +123,8 @@ function Standings() {
   const top = Math.max(1, ...rows.map((r) => Math.max(0, r.score)));
 
   return (
-    <>
-      <Card variant="warm" pad="sm" className="mt-4">
+    <BoardStack>
+      <Card variant="warm" pad="sm">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Icon name="scroll" className="h-4 w-4 shrink-0 text-gold" />
           <p className="text-sm text-bone">
@@ -132,7 +145,7 @@ function Standings() {
       </Card>
 
       {rows.length === 0 ? (
-        <Card className="mt-4">
+        <Card>
           <EmptyState
             icon="banner"
             title="No standings yet"
@@ -140,90 +153,148 @@ function Standings() {
           />
         </Card>
       ) : (
-        <ol className="mt-4 flex flex-col gap-2.5">
-          {rows.map((row) => (
-            <li key={row.slug}>
-              <StandingRow row={row} top={top} />
-            </li>
-          ))}
-        </ol>
+        <Board
+          label="The six Houses ranked by their season score"
+          rows={rows}
+          rowKey={(row) => row.slug}
+          rowHref={(row) => `/houses/${row.slug}`}
+          rowLabel={(row) =>
+            `${houseBySlug(row.slug)?.name ?? row.slug}, rank ${row.rank}`
+          }
+          columns={[
+            {
+              key: "rank",
+              header: "#",
+              className: "w-10 whitespace-nowrap",
+              cell: (row) => (
+                <span className="tnum font-display text-base text-bone-faint">
+                  {row.rank}
+                </span>
+              ),
+            },
+            {
+              key: "house",
+              header: "House",
+              cell: (row) => (
+                <span className="flex items-center gap-2.5">
+                  <Sigil slug={row.slug} size="sm" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-display font-semibold text-bone">
+                      {houseBySlug(row.slug)?.name ?? row.slug}
+                    </span>
+                    <span className="block truncate text-[11px] italic text-bone-faint">
+                      {houseBySlug(row.slug)?.motto}
+                    </span>
+                  </span>
+                </span>
+              ),
+            },
+            {
+              key: "level",
+              header: "Level",
+              numeric: true,
+              className: "whitespace-nowrap",
+              cell: (row) => row.level.level,
+            },
+            {
+              key: "score",
+              header: `Top ${HOUSE_TOP_N}`,
+              numeric: true,
+              className: "whitespace-nowrap font-semibold text-gold",
+              cell: (row) => row.score.toLocaleString(),
+            },
+            {
+              key: "counting",
+              header: "Counting",
+              numeric: true,
+              className: "whitespace-nowrap",
+              cell: (row) => `${row.counted} of ${row.member_count}`,
+            },
+            {
+              key: "rival",
+              header: "The race",
+              className: "min-w-[13rem] text-xs",
+              cell: (row) => <Rival row={row} />,
+            },
+          ]}
+          /* Below md the columns become a card, and the bar comes back with
+             them: cards sit one under another and cannot be compared by eye
+             the way a column of right aligned figures can, so the share of
+             the leader is what carries the comparison on a phone. */
+          card={(row) => (
+            <BoardCard
+              href={`/houses/${row.slug}`}
+              leading={<Sigil slug={row.slug} size="md" />}
+              title={houseBySlug(row.slug)?.name ?? row.slug}
+              subtitle={houseBySlug(row.slug)?.motto}
+              trailing={
+                <>
+                  <span className="block text-sm font-semibold text-gold">
+                    {row.score.toLocaleString()}
+                  </span>
+                  <span className="block text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                    Lv {row.level.level}
+                  </span>
+                </>
+              }
+            >
+              <Meter value={row.score} max={top} className="mt-2.5" floor={3} />
+              <p className="tnum mt-1.5 text-[11px] text-bone-faint">
+                {row.counted} of {row.member_count} counting
+              </p>
+              {row.rival ? (
+                <div className="mt-2.5 border-t border-steel-line pt-2.5 text-xs">
+                  <Rival row={row} />
+                </div>
+              ) : null}
+            </BoardCard>
+          )}
+        />
       )}
-    </>
+    </BoardStack>
   );
 }
 
-function StandingRow({ row, top }: { row: HouseStandingRow; top: number }) {
-  const meta = houseBySlug(row.slug);
-  const rivalMeta = row.rival ? houseBySlug(row.rival.slug) : null;
-  const color = meta?.color ?? "#D9B040";
-  const width = Math.max(3, (Math.max(0, row.score) / top) * 100);
-
+/* The House sigil in its own colour. Two sizes, matching the two densities. */
+function Sigil({ slug, size }: { slug: string; size: "sm" | "md" }) {
+  const color = houseBySlug(slug)?.color ?? "#D9B040";
+  const box = size === "sm" ? "h-8 w-8" : "h-10 w-10";
+  const glyph = size === "sm" ? "h-4 w-4" : "h-5 w-5";
   return (
-    <Card
-      interactive
-      pad="none"
-      render={<Link href={`/houses/${row.slug}`} />}
-      className="block p-3.5 sm:p-4"
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-lg ${box}`}
+      style={{
+        background: `linear-gradient(160deg, ${color}22, #101017)`,
+        border: `1px solid ${color}44`,
+        color,
+      }}
     >
-      <div className="flex items-center gap-3 sm:gap-4">
-        <span className="tnum w-5 shrink-0 text-center font-display text-lg text-bone-faint">
-          {row.rank}
+      <Icon name={houseIcon(slug)} className={glyph} />
+    </span>
+  );
+}
+
+/* Naming the nearest House is what turns a table into a race. */
+function Rival({ row }: { row: HouseStandingRow }) {
+  const rivalMeta = row.rival ? houseBySlug(row.rival.slug) : null;
+  if (!row.rival || !rivalMeta)
+    return <span className="text-bone-faint">Alone at the top</span>;
+  return (
+    <span className="flex items-center gap-1.5 text-bone-mut">
+      <Icon name="swords" className="h-3.5 w-3.5 shrink-0 text-gold" />
+      {row.rival.ahead ? (
+        <span className="truncate">
+          Holding off{" "}
+          <b className="font-semibold text-bone">{rivalMeta.name}</b> by{" "}
+          <span className="tnum">{row.rival.gap.toLocaleString()}</span>
         </span>
-        <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11"
-          style={{
-            background: `linear-gradient(160deg, ${color}22, #101017)`,
-            border: `1px solid ${color}44`,
-            color,
-          }}
-        >
-          <Icon name={houseIcon(row.slug)} className="h-5 w-5" />
+      ) : (
+        <span className="truncate">
+          <span className="tnum">{row.rival.gap.toLocaleString()}</span> behind{" "}
+          <b className="font-semibold text-bone">{rivalMeta.name}</b>
         </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate font-display text-[15px] font-semibold text-bone sm:text-base">
-              {meta?.name ?? row.slug}
-            </p>
-            <Badge variant="default">Lv {row.level.level}</Badge>
-          </div>
-          <p className="mt-0.5 hidden truncate text-xs italic text-bone-faint sm:block">
-            {meta?.motto}
-          </p>
-          <div className="bar-track mt-2 h-1.5 w-full">
-            <div className="bar-gold h-full" style={{ width: `${width}%` }} />
-          </div>
-        </div>
-
-        <div className="shrink-0 text-right">
-          <p className="tnum text-sm font-semibold text-gold sm:text-base">
-            {row.score.toLocaleString()}
-          </p>
-          <p className="tnum text-[11px] text-bone-faint">
-            {row.counted} of {row.member_count} counting
-          </p>
-        </div>
-      </div>
-
-      {/* Naming the nearest House is what turns a table into a race. */}
-      {row.rival && rivalMeta ? (
-        <p className="mt-2.5 flex items-center gap-1.5 border-t border-steel-line pt-2.5 text-xs text-bone-mut">
-          <Icon name="swords" className="h-3.5 w-3.5 shrink-0 text-gold" />
-          {row.rival.ahead ? (
-            <>
-              Holding off{" "}
-              <b className="font-semibold text-bone">{rivalMeta.name}</b> by{" "}
-              <span className="tnum">{row.rival.gap.toLocaleString()}</span>
-            </>
-          ) : (
-            <>
-              <span className="tnum">{row.rival.gap.toLocaleString()}</span>{" "}
-              behind <b className="font-semibold text-bone">{rivalMeta.name}</b>
-            </>
-          )}
-        </p>
-      ) : null}
-    </Card>
+      )}
+    </span>
   );
 }
 
@@ -339,14 +410,13 @@ function ClashCard({ clash }: { clash: ClashRow }) {
                     <p className="truncate text-xs font-semibold text-bone">
                       {house.name}
                     </p>
-                    <div className="bar-track mt-1 h-1 w-full">
-                      <div
-                        className="bar-gold h-full"
-                        style={{
-                          width: `${Math.max(3, (Math.max(0, house.score) / top) * 100)}%`,
-                        }}
-                      />
-                    </div>
+                    <Meter
+                      value={house.score}
+                      max={top}
+                      size="xs"
+                      floor={3}
+                      className="mt-1"
+                    />
                   </div>
                   <p className="tnum shrink-0 text-right text-xs text-bone-mut">
                     <b className="text-gold">{house.score.toLocaleString()}</b>
@@ -408,15 +478,8 @@ function ClashCard({ clash }: { clash: ClashRow }) {
   );
 }
 
+/* Six Houses, six rows. Shaped like the board it stands in for, rather than
+   six generic blocks, so nothing shifts when the real standings arrive. */
 function HousesSkeleton() {
-  return (
-    <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
-      <Skeleton radius="sm" className="h-6 w-28" />
-      <div className="mt-5 flex flex-col gap-2.5">
-        {Array.from({ length: 6 }, (_, i) => (
-          <Skeleton key={i} radius="xl" className="h-[86px] w-full" />
-        ))}
-      </div>
-    </div>
-  );
+  return <BoardSkeleton rows={6} columns={6} />;
 }
