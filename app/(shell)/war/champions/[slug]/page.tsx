@@ -60,7 +60,9 @@ export default function ChampionDetailPage({
   if (!champion) {
     return (
       <WarFrame width="narrow">
-        <BackButton href="/war/champions" label="All champions" />
+        <div className="flex">
+          <BackButton href="/war/champions" label="All champions" />
+        </div>
         <Card>
           <EmptyState
             icon="search"
@@ -89,7 +91,10 @@ export default function ChampionDetailPage({
 
   return (
     <WarFrame width="board">
-      <BackButton href="/war/champions" label="All champions" />
+      {/* Sized to its label: bare in a `flex-col` it would stretch. */}
+      <div className="flex">
+        <BackButton href="/war/champions" label="All champions" />
+      </div>
 
       {/* The hero band. */}
       <Card pad="none" className="overflow-hidden">

@@ -85,7 +85,11 @@ export function WarHeader({
 }) {
   return (
     <div className={cx("flex flex-col gap-3 md:gap-2", className)}>
-      <BackButton href={backHref} {...(backLabel ? { label: backLabel } : {})} />
+      {/* The back control sizes to its label. Left bare in a `flex-col` it
+          would stretch the full width of the page. */}
+      <div className="flex">
+        <BackButton href={backHref} {...(backLabel ? { label: backLabel } : {})} />
+      </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-display text-xl font-semibold text-bone sm:text-2xl">
