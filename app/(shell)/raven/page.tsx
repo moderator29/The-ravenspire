@@ -8,19 +8,17 @@ import { MessageList } from "@/components/raven/message-list";
 import { SettingsSheet } from "@/components/raven/settings-sheet";
 import { HistoryPanel } from "@/components/raven/history-panel";
 import { realmFetch } from "@/lib/auth/api";
+import { useRavenHistory } from "@/components/raven/use-history";
 import {
   VOICE_KEY,
   BROWSE_KEY,
   LENGTH_KEY,
   LANGUAGE_KEY,
-  CONVOS_KEY,
-  ACTIVE_KEY,
   LANGUAGES,
   type Msg,
   type Voice,
   type Length,
   type Language,
-  type Conversation,
   type TokenCard,
   type WalletCard,
   type Source,
@@ -41,16 +39,7 @@ function withWait(message: string, retryAfter?: number): string {
   return `${message} Try again in about ${wait}.`;
 }
 
-function newId(): string {
-  try {
-    return crypto.randomUUID();
-  } catch {
-    return `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-  }
-}
-
 export default function RavenPage() {
-  const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -62,14 +51,16 @@ export default function RavenPage() {
   const [length, setLength] = useState<Length>("normal");
   const [language, setLanguage] = useState<Language>("auto");
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  /* Conversations, the active thread and the transcript all live in one hook,
+     because on the server they are one thing: a member's history. The page
+     keeps what is genuinely the page's, which is the draft, the busy flag and
+     the four preferences. */
+  const history = useRavenHistory();
+  const { messages } = history;
 
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const activeIdRef = useRef<string | null>(null);
 
-  /* Restore settings + history once on mount. */
+  /* Restore the four preferences. History restores itself inside the hook. */
   useEffect(() => {
     try {
       const v = localStorage.getItem(VOICE_KEY);
@@ -84,25 +75,9 @@ export default function RavenPage() {
       const lang = localStorage.getItem(LANGUAGE_KEY);
       if (lang && LANGUAGES.some((l) => l.id === lang))
         setLanguage(lang as Language);
-
-      const rawConvos = localStorage.getItem(CONVOS_KEY);
-      if (rawConvos) {
-        const parsed = JSON.parse(rawConvos) as Conversation[];
-        if (Array.isArray(parsed)) {
-          setConversations(parsed);
-          const active = localStorage.getItem(ACTIVE_KEY);
-          const found = active ? parsed.find((c) => c.id === active) : null;
-          if (found) {
-            setMessages(found.messages);
-            setActiveId(found.id);
-            activeIdRef.current = found.id;
-          }
-        }
-      }
     } catch {
       /* storage unavailable, defaults are fine */
     }
-    setLoaded(true);
   }, []);
 
   const persist = (key: string, value: string) => {
@@ -113,39 +88,6 @@ export default function RavenPage() {
     }
   };
 
-  /* Fold the live thread into the saved history whenever it changes. */
-  useEffect(() => {
-    if (!loaded || messages.length === 0) return;
-    let id = activeIdRef.current;
-    if (!id) {
-      id = newId();
-      activeIdRef.current = id;
-      setActiveId(id);
-    }
-    const firstUser = messages.find((m) => m.role === "user");
-    const title =
-      (firstUser?.content ?? "New chat").trim().slice(0, 60) || "New chat";
-    const convoId = id;
-    setConversations((prev) => {
-      const others = prev.filter((c) => c.id !== convoId);
-      return [
-        { id: convoId, title, messages, updatedAt: Date.now() },
-        ...others,
-      ].slice(0, 40);
-    });
-  }, [messages, loaded]);
-
-  /* Mirror history + active pointer into storage. */
-  useEffect(() => {
-    if (!loaded) return;
-    persist(CONVOS_KEY, JSON.stringify(conversations));
-  }, [conversations, loaded]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    if (activeId) persist(ACTIVE_KEY, activeId);
-  }, [activeId, loaded]);
-
   /* Keep the transcript pinned to the newest message. */
   useEffect(() => {
     const el = scrollerRef.current;
@@ -155,8 +97,12 @@ export default function RavenPage() {
   const send = async (text?: string) => {
     const content = (text ?? draft).trim();
     if (!content || busy) return;
-    const next: Msg[] = [...messages, { role: "user", content }];
-    setMessages(next);
+    const question: Msg = { role: "user", content };
+    const next: Msg[] = [...messages, question];
+    /* The question shows now and is held. It is written only once the Herald
+       answers, so an interrupted send does not leave a one line thread with no
+       reply sitting in the drawer. */
+    history.beginTurn(question);
     setDraft("");
     setBusy(true);
     try {
@@ -181,103 +127,66 @@ export default function RavenPage() {
         json: { messages: payload, voice, browse, length, language },
       });
       if (!resOk || !data?.reply) {
-        setMessages((m) => [
-          ...m,
-          {
-            role: "error",
-            /* The server's own words, never ours over the top of them. Two
-               cases carry meaning a generic failure message would destroy.
+        /* The server's own words, never ours over the top of them. Two cases
+           carry meaning a generic failure message would destroy.
 
-               503 with no key configured means there is no Herald here at
-               all. That must read as an absence, because a member cannot
-               tell a fake Herald from a real one and would trust either.
+           503 with no key configured means there is no Herald here at all.
+           That must read as an absence, because a member cannot tell a fake
+           Herald from a real one and would trust either.
 
-               429 means a spend cap was reached, and the cap is the honest
-               reason. The wait is appended rather than the request being
-               retried quietly, since a silent retry against a cap is just a
-               slower way to hit it again. */
-            content: withWait(
-              data?.error ?? "The Raven is preoccupied. Try again shortly.",
-              status === 429 ? data?.retryAfter : undefined
-            ),
-          },
-        ]);
+           429 means a spend cap was reached, and the cap is the honest reason.
+           The wait is appended rather than the request being retried quietly,
+           since a silent retry against a cap is just a slower way to hit it
+           again. */
+        history.completeTurn({
+          role: "error",
+          content: withWait(
+            data?.error ?? "The Raven is preoccupied. Try again shortly.",
+            status === 429 ? data?.retryAfter : undefined
+          ),
+        });
       } else {
-        setMessages((m) => [
-          ...m,
-          {
-            role: "assistant",
-            content: data.reply as string,
-            cards:
-              Array.isArray(data.cards) && data.cards.length
-                ? data.cards
-                : undefined,
-            walletCard: data.walletCard ?? undefined,
-            pulse: data.pulse ?? undefined,
-            suggestions:
-              Array.isArray(data.suggestions) && data.suggestions.length
-                ? data.suggestions
-                : undefined,
-            sources:
-              Array.isArray(data.sources) && data.sources.length
-                ? data.sources
-                : undefined,
-            browsed: data.browsed,
-            browseRequested: data.browseRequested,
-            browseAvailable: data.browseAvailable,
-          },
-        ]);
+        history.completeTurn({
+          role: "assistant",
+          content: data.reply as string,
+          cards:
+            Array.isArray(data.cards) && data.cards.length
+              ? data.cards
+              : undefined,
+          walletCard: data.walletCard ?? undefined,
+          pulse: data.pulse ?? undefined,
+          suggestions:
+            Array.isArray(data.suggestions) && data.suggestions.length
+              ? data.suggestions
+              : undefined,
+          sources:
+            Array.isArray(data.sources) && data.sources.length
+              ? data.sources
+              : undefined,
+          browsed: data.browsed,
+          browseRequested: data.browseRequested,
+          browseAvailable: data.browseAvailable,
+        });
       }
     } catch {
-      setMessages((m) => [
-        ...m,
-        {
-          role: "error",
-          content: "The winds swallowed your message. Try again shortly.",
-        },
-      ]);
+      history.completeTurn({
+        role: "error",
+        content: "The winds swallowed your message. Try again shortly.",
+      });
     } finally {
       setBusy(false);
     }
   };
 
   const startNewChat = () => {
-    setMessages([]);
-    setActiveId(null);
-    activeIdRef.current = null;
+    history.startNewChat();
     setDraft("");
     setHistoryOpen(false);
   };
 
   const selectConversation = (id: string) => {
-    const convo = conversations.find((c) => c.id === id);
-    if (!convo) return;
-    setMessages(convo.messages);
-    setActiveId(id);
-    activeIdRef.current = id;
+    history.selectConversation(id);
     setHistoryOpen(false);
-  };
-
-  const clearAllConversations = () => {
-    setConversations([]);
-    setMessages([]);
-    setActiveId(null);
-    activeIdRef.current = null;
-    persist(CONVOS_KEY, "[]");
-    try {
-      localStorage.removeItem(ACTIVE_KEY);
-    } catch {
-      /* storage unavailable, the in memory reset above is what matters */
-    }
-  };
-
-  const deleteConversation = (id: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    if (id === activeIdRef.current) {
-      setMessages([]);
-      setActiveId(null);
-      activeIdRef.current = null;
-    }
   };
 
   const setVoicePref = (v: Voice) => {
@@ -346,6 +255,18 @@ export default function RavenPage() {
         <MessageList messages={messages} busy={busy} onSend={(t) => void send(t)} />
       </div>
 
+      {/* Said out loud, never swallowed. A member who believes their history is
+          safe and finds it gone has been lied to by the interface, and the only
+          moment we can tell them is the moment the write fails. */}
+      {history.syncError && (
+        <p
+          role="status"
+          className="shrink-0 border-t border-state-danger/30 bg-state-danger/10 px-4 py-2 text-center text-[12px] text-bone-mut"
+        >
+          {history.syncError}
+        </p>
+      )}
+
       {/* Composer: pinned to the bottom of the column, full width, with a top
           border and safe-area padding so it is never crowded by the mobile
           bottom nav. */}
@@ -377,16 +298,16 @@ export default function RavenPage() {
       <HistoryPanel
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        conversations={conversations}
-        activeId={activeId}
+        conversations={history.conversations}
+        activeId={history.activeId}
         onSelect={selectConversation}
         onNewChat={startNewChat}
-        onDelete={deleteConversation}
+        onDelete={history.deleteConversation}
         onOpenSettings={() => {
           setHistoryOpen(false);
           setSettingsOpen(true);
         }}
-        onClearAll={clearAllConversations}
+        onClearAll={history.clearAll}
       />
     </div>
   );
