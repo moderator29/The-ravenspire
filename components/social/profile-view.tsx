@@ -360,7 +360,9 @@ export function ProfileView({
         </div>
 
         {isOwn && portraitError && (
-          <p className="mt-2 text-xs text-state-danger">{portraitError}</p>
+          <p role="alert" className="mt-2 text-xs text-state-danger">
+            {portraitError}
+          </p>
         )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">

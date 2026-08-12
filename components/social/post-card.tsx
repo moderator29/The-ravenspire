@@ -569,14 +569,21 @@ export function PostCard({ post }: { post: Post }) {
             />
           </div>
 
+          {/* Section 11: an optimistic change announces through a polite live
+              region. Both of these appear after the fact with no focus move,
+              so a screen reader would otherwise never learn the tap landed. */}
           {tipSent && (
-            <p className="mt-1 flex items-center gap-1.5 pl-1 text-xs text-gold">
+            <p
+              role="status"
+              className="mt-1 flex items-center gap-1.5 pl-1 text-xs text-gold"
+            >
               <Icon name="coin" className="h-3.5 w-3.5" />
               Tribute sent
             </p>
           )}
           {shared && (
             <p
+              role="status"
               className={`mt-1 flex items-center gap-1.5 pl-1 text-xs ${shared === "failed" ? "text-state-danger" : "text-gold"}`}
             >
               <Icon name="share" className="h-3.5 w-3.5" />

@@ -347,7 +347,11 @@ export function Composer({
             </Card>
           )}
 
-          {error && <p className="mt-2 text-xs text-state-danger">{error}</p>}
+          {error && (
+            <p role="alert" className="mt-2 text-xs text-state-danger">
+              {error}
+            </p>
+          )}
 
           <div
             className={

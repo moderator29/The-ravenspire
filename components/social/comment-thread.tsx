@@ -379,7 +379,11 @@ export function CommentThread({ postId }: { postId: string }) {
           />
         </Card>
       )}
-      {error && <p className="mt-2 text-xs text-state-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-xs text-state-danger">
+          {error}
+        </p>
+      )}
 
       {!loading && comments.length > 0 && (
         <p className="tnum mt-4 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-bone-faint">
