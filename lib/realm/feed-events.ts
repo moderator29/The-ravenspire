@@ -39,10 +39,14 @@ type Db = NonNullable<ReturnType<typeof adminClient>>;
    the timeline. Dropping the event rather than the post is also the safe
    direction for audience, since a post can be narrower than its event.
 
-   season.milestone is absent because nothing emits it yet. When a producer
-   lands, it arrives with its card and one line here, which is exactly how
-   raven.chronicle arrived: the daily job at /api/cron/chronicle writes it, and
-   it is the one card in the stream the realm itself speaks in. */
+   season.milestone is no longer absent. It was the one kind defined with no
+   producer at all, and it now has one: the realm's calendar turning, emitted
+   when a steward opens, closes or settles a season.
+
+   The four kinds after it are the realm speaking about itself rather than
+   about one member. None has an actor, and each is derived from something the
+   product already stores, which is the rule the registry states: a card ships
+   with its producer, never ahead of it. */
 export const FEED_EVENT_KINDS = [
   "call.resolved",
   "crest.earned",
@@ -51,6 +55,10 @@ export const FEED_EVENT_KINDS = [
   "quest.completed",
   "oath.sworn",
   "raven.chronicle",
+  "season.milestone",
+  "standings.snapshot",
+  "clash.opened",
+  "discussion.trending",
 ] as const;
 
 /* Whether this reader is in the audience for one event. The authoritative

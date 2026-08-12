@@ -4,11 +4,15 @@ import type { ComponentType } from "react";
 import { PostCard } from "@/components/social/post-card";
 import { CallResolvedCard } from "@/components/stream/cards/call-resolved";
 import { ChronicleCard } from "@/components/stream/cards/chronicle";
+import { ClashOpenedCard } from "@/components/stream/cards/clash-opened";
 import { CrestEarnedCard } from "@/components/stream/cards/crest-earned";
+import { DiscussionTrendingCard } from "@/components/stream/cards/discussion-trending";
 import { DuelOpenedCard } from "@/components/stream/cards/duel-opened";
 import { HouseOvertakeCard } from "@/components/stream/cards/house-overtake";
 import { OathSwornCard } from "@/components/stream/cards/oath-sworn";
 import { QuestCompletedCard } from "@/components/stream/cards/quest-completed";
+import { SeasonMilestoneCard } from "@/components/stream/cards/season-milestone";
+import { StandingsSnapshotCard } from "@/components/stream/cards/standings-snapshot";
 import type { FeedEvent, FeedItem } from "@/lib/feed/types";
 
 /* The card registry (V2 section 6.2).
@@ -25,21 +29,47 @@ import type { FeedEvent, FeedItem } from "@/lib/feed/types";
  * means a card was removed or a payload changed shape, and an honest gap in the
  * timeline beats a card drawn from nothing.
  *
- * Two kinds on the spine are deliberately absent:
+ * One kind on the spine is deliberately absent:
  *
- *   call.sealed        the post that sealed the Call is already in this feed,
- *                      carrying the same ember rail and a chart, so a card here
- *                      would double every Call in the timeline.
- *   season.milestone   emitted by nothing today. Cards are built for producers
- *                      that exist, never ahead of them.
+ *   call.sealed   the post that sealed the Call is already in this feed,
+ *                 carrying the same ember rail and a chart, so a card here
+ *                 would double every Call in the timeline.
  *
- * raven.chronicle arrived the way this comment says a kind should: with its
- * producer, the daily job at /api/cron/chronicle, rather than ahead of it.
+ * Four of the directive's seven queued cards arrived together, each with a
+ * producer over data the product already stores rather than a new source
+ * invented to fill a card:
  *
- * Seven more things the directive asks for (House announcements, leaderboards,
- * trending discussions, community events, game invitations, reward
- * announcements, world events) have no producer at all yet, so they have no
- * card. A card with no real source could only be filled with invented data. */
+ *   standings.snapshot    the weekly standings, written by the House recompute
+ *                         that already computes them. A snapshot, never a live
+ *                         table, which section 8 is explicit about.
+ *   clash.opened          the realm's community event. A Clash was already
+ *                         scheduled, bounded, realm wide and admin authored;
+ *                         it only lacked anyone being told.
+ *   season.milestone      the world event, and the producer this kind had been
+ *                         waiting for since the spine was written.
+ *   discussion.trending   derived from reply and reaction velocity, with the
+ *                         floors in lib/feed/trending.ts and no card at all
+ *                         below them.
+ *
+ * The other three were judged not worth building, and the reasons are recorded
+ * rather than left implicit, because "not yet" and "never" are different
+ * answers:
+ *
+ *   House announcements   the product already has them. A house-visibility
+ *                         raven from a titled member IS a House announcement,
+ *                         and it is already in this feed for that House, so a
+ *                         second card would double it exactly the way
+ *                         call.sealed would. What is missing is prominence in
+ *                         the House hall, which is a Dossier concern.
+ *   Game invitations      the War is single player. There is no lobby, no
+ *                         matchmaking and no opponent, and the only
+ *                         invitational mechanic in the realm is a duel, which
+ *                         duel.opened already draws. A card here would need a
+ *                         multiplayer mode built first.
+ *   Reward announcements  the realm-wide half is season.milestone at settle.
+ *                         The per member half would publish a member's earned
+ *                         balance to the realm, which is a privacy decision
+ *                         nobody has made and which rule 7 constrains. */
 
 export const CARD_REGISTRY: Record<
   string,
@@ -52,6 +82,10 @@ export const CARD_REGISTRY: Record<
   "quest.completed": QuestCompletedCard,
   "oath.sworn": OathSwornCard,
   "raven.chronicle": ChronicleCard,
+  "standings.snapshot": StandingsSnapshotCard,
+  "clash.opened": ClashOpenedCard,
+  "season.milestone": SeasonMilestoneCard,
+  "discussion.trending": DiscussionTrendingCard,
 };
 
 /* One feed item, whatever it turns out to be. The Ravenry maps over this and
