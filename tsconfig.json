@@ -44,7 +44,11 @@
     ".next-shots/types/**/*.ts",
     ".next-shots/dev/types/**/*.ts",
     ".next-uiaudit/types/**/*.ts",
-    ".next-uiaudit/dev/types/**/*.ts"
+    ".next-uiaudit/dev/types/**/*.ts",
+    ".next-money/types/**/*.ts",
+    ".next-money/dev/types/**/*.ts",
+    ".next-funnel/types/**/*.ts",
+    ".next-funnel/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
