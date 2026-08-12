@@ -25,8 +25,8 @@ export default function Icon() {
             width: 400,
             height: 400,
             borderRadius: 88,
-            border: "12px solid #C8A24C",
-            color: "#C8A24C",
+            border: "12px solid #D9B040",
+            color: "#D9B040",
             fontSize: 300,
             fontWeight: 700,
             fontFamily:

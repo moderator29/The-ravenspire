@@ -721,7 +721,7 @@ export function RoomLive({ roomId }: { roomId: string }) {
                   <span
                     aria-hidden
                     className="h-2.5 w-2.5 rounded-[var(--radius-full)]"
-                    style={{ backgroundColor: detail.house.color ?? "#C8A24C" }}
+                    style={{ backgroundColor: detail.house.color ?? "#D9B040" }}
                   />
                   {detail.house.name}
                 </span>

@@ -45,7 +45,7 @@ export default async function Image({
   const serif = "ui-serif, Georgia, 'Times New Roman', Times, serif";
 
   const score = report?.score ?? null;
-  const gold = "#C8A24C";
+  const gold = "#D9B040";
   const ember = "#C6633B";
   const emberDeep = "#B23B2E";
   const verdictColor =

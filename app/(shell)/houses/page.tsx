@@ -155,7 +155,7 @@ function Standings() {
 function StandingRow({ row, top }: { row: HouseStandingRow; top: number }) {
   const meta = houseBySlug(row.slug);
   const rivalMeta = row.rival ? houseBySlug(row.rival.slug) : null;
-  const color = meta?.color ?? "#C8A24C";
+  const color = meta?.color ?? "#D9B040";
   const width = Math.max(3, (Math.max(0, row.score) / top) * 100);
 
   return (

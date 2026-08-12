@@ -364,7 +364,7 @@ export function BattleEngine({
       y: h.y - 0.06,
       text: prof.ultName,
       life: 1.4,
-      color: "#F0D68C",
+      color: "#FFE9A3",
     });
   }, [champion]);
 
@@ -515,7 +515,7 @@ export function BattleEngine({
                         width: `${hud.heroHp * 100}%`,
                         background:
                           hud.heroHp > 0.3
-                            ? "linear-gradient(90deg,#C8A24C,#F0D68C)"
+                            ? "linear-gradient(90deg,#D9B040,#FFE9A3)"
                             : "#E5702A",
                       }}
                     />
@@ -698,7 +698,7 @@ function damage(
     y: target.y - 0.03,
     text: crit ? `-${Math.round(dealt)}!` : `-${Math.round(dealt)}`,
     life: crit ? 1 : 0.8,
-    color: crit ? "#FFE9A8" : byTeam === 0 ? "#F0D68C" : "#E5702A",
+    color: crit ? "#FFE9A8" : byTeam === 0 ? "#FFE9A3" : "#E5702A",
   });
 
   if (attacker) {
@@ -868,7 +868,7 @@ function render(
     const px = u.x * W + u.lunge * (u.team === 0 ? 1 : -1) * 0.02 * W;
     const py = u.y * H;
     const r = u.size * H;
-    const ring = u.team === 0 ? "#C8A24C" : "#E5702A";
+    const ring = u.team === 0 ? "#D9B040" : "#E5702A";
 
     /* Shadow */
     ctx.fillStyle = "rgba(0,0,0,0.4)";
@@ -947,7 +947,7 @@ function render(
   /* Slashes */
   for (const sl of s.slashes) {
     ctx.globalAlpha = sl.life;
-    ctx.strokeStyle = sl.team === 0 ? "#F0D68C" : "#E5702A";
+    ctx.strokeStyle = sl.team === 0 ? "#FFE9A3" : "#E5702A";
     ctx.lineWidth = 3;
     const x = sl.x * W;
     const y = sl.y * H;

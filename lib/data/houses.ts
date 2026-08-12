@@ -15,7 +15,7 @@ export const houses: House[] = [
     motto: "The Raven Remembers",
     sigil: "raven",
     element: "cunning",
-    color: "#C8A24C",
+    color: "#D9B040",
     desc: "Obsidian feathers, golden eyes, and a plan for everything. Corvane draws the schemers, the trivia hoarders, and anyone who wins the game three moves before it starts.",
   },
   {
@@ -60,7 +60,7 @@ export const houses: House[] = [
     motto: "Fortune Favors the Loud",
     sigil: "lion",
     element: "wealth",
-    color: "#F0D68C",
+    color: "#FFE9A3",
     desc: "Lions with excellent hair and even better taste. Goldmane welcomes the charmers, the hosts, and anyone who treats every entrance like a coronation.",
   },
 ];

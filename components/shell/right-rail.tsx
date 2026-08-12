@@ -175,9 +175,9 @@ export function RightRail() {
             <div
               className="flex h-9 w-9 items-center justify-center rounded-lg"
               style={{
-                background: `linear-gradient(160deg, ${leadMeta?.color ?? "#C8A24C"}26, #101017)`,
-                border: `1px solid ${leadMeta?.color ?? "#C8A24C"}55`,
-                color: leadMeta?.color ?? "#C8A24C",
+                background: `linear-gradient(160deg, ${leadMeta?.color ?? "#D9B040"}26, #101017)`,
+                border: `1px solid ${leadMeta?.color ?? "#D9B040"}55`,
+                color: leadMeta?.color ?? "#D9B040",
               }}
             >
               <Icon name="crown" className="h-5 w-5" />

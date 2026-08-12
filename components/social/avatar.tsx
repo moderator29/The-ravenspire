@@ -1,12 +1,12 @@
 import type { Author } from "@/lib/social/types";
 
 const houseTints: Record<string, string> = {
-  corvane: "#C8A24C",
+  corvane: "#D9B040",
   emberfall: "#E5702A",
   frosthold: "#6E7683",
   stormcrest: "#ECE4D2",
   nightvale: "#7E1F1C",
-  goldmane: "#F0D68C",
+  goldmane: "#FFE9A3",
 };
 
 export function Avatar({

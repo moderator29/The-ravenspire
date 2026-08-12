@@ -22,10 +22,10 @@ type Slice = {
 
 /* Order matters: slices are drawn clockwise from the top in this sequence. */
 const slices: Slice[] = [
-  { label: "Liquidity", pct: 25, color: "#f0d68c" },
-  { label: "Presale", pct: 20, color: "#d8b45a" },
-  { label: "Ecosystem & CEX Growth", pct: 18, color: "#c8a24c" },
-  { label: "Staking & Farming", pct: 12, color: "#8a6a2c" },
+  { label: "Liquidity", pct: 25, color: "#ffe9a3" },
+  { label: "Presale", pct: 20, color: "#ecc860" },
+  { label: "Ecosystem & CEX Growth", pct: 18, color: "#d9b040" },
+  { label: "Staking & Farming", pct: 12, color: "#8f6717" },
   { label: "Team", pct: 10, color: "#e5702a" },
   { label: "P2E / Post2Earn & Rewards", pct: 10, color: "#c6402f" },
   { label: "Airdrop", pct: 5, color: "#6e7683" },

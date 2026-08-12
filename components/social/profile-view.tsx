@@ -221,7 +221,7 @@ export function ProfileView({
                 backgroundPosition: "center",
               }
             : {
-                background: `radial-gradient(ellipse 70% 90% at 30% 0%, ${house?.color ?? "#C8A24C"}1e, transparent), linear-gradient(180deg, #101017, #0C0C11)`,
+                background: `radial-gradient(ellipse 70% 90% at 30% 0%, ${house?.color ?? "#D9B040"}1e, transparent), linear-gradient(180deg, #101017, #0C0C11)`,
               }
         }
       >

@@ -82,7 +82,7 @@ export default async function Image({
             style={{
               display: "flex",
               alignItems: "center",
-              color: "#C8A24C",
+              color: "#D9B040",
               fontSize: 26,
               letterSpacing: 8,
               fontFamily: serif,
@@ -97,7 +97,7 @@ export default async function Image({
                 width: 52,
                 height: 52,
                 borderRadius: 14,
-                border: "4px solid #C8A24C",
+                border: "4px solid #D9B040",
                 marginRight: 20,
                 fontSize: 36,
               }}
@@ -143,7 +143,7 @@ export default async function Image({
             fontSize: 30,
           }}
         >
-          <span style={{ color: "#C8A24C", marginRight: 10 }}>♥</span>
+          <span style={{ color: "#D9B040", marginRight: 10 }}>♥</span>
           {likes}
           <span style={{ margin: "0 10px 0 40px" }}>↺</span>
           {reposts}

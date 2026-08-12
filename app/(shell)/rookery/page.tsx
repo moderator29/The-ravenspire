@@ -77,7 +77,7 @@ function CourtCard({ c }: { c: Court }) {
               <span className="inline-flex items-center gap-1.5 text-xs text-bone-mut">
                 <span
                   className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: c.house.color ?? "#C8A24C" }}
+                  style={{ backgroundColor: c.house.color ?? "#D9B040" }}
                 />
                 {c.house.name}
               </span>
@@ -222,7 +222,7 @@ export default function RookeryPage() {
                     >
                       <span
                         className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: h.color ?? "#C8A24C" }}
+                        style={{ backgroundColor: h.color ?? "#D9B040" }}
                       />
                       {h.name.replace(/^House\s+/i, "")}
                     </button>

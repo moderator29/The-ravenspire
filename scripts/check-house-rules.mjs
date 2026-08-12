@@ -130,6 +130,36 @@ for (const f of files(["*.tsx"])) {
   });
 }
 
+/* Rule 3b: one gold, not two.
+
+   The gold scale was retuned to match the 3D icon set: a sharper, thicker
+   gold. But forty two hardcoded values across seventeen files still carried
+   the previous, duller gold, so the product shipped two golds side by side.
+   The Privy theme, the app icon, every OpenGraph share image, avatars, House
+   colours and the battle engine were all on the old one while everything
+   token driven had moved.
+
+   Most surfaces should use `var(--gold)` and its siblings rather than any hex
+   at all. A literal is legitimate in exactly one place: OpenGraph and icon
+   generation runs through Satori, which does not resolve CSS custom
+   properties. Those files must therefore carry the current hex, which is why
+   this checks for the RETIRED values rather than banning hexes outright. */
+const RETIRED_GOLD = /#(c8a24c|f0d68c|8a6a2c|d8b45a)\b/i;
+
+for (const f of files(["*.ts", "*.tsx", "*.css"])) {
+  if (f === "app/globals.css") continue; // records them in a comment as history
+  if (f === "scripts/check-house-rules.mjs") continue;
+  const text = readFileSync(f, "utf8");
+  text.split("\n").forEach((line, i) => {
+    const m = line.match(RETIRED_GOLD);
+    if (m) {
+      problems.push(
+        `${f}:${i + 1}  ${m[0]} is the retired gold. Use var(--gold) family, or the current hex in Satori rendered images.`
+      );
+    }
+  });
+}
+
 /* Rule 4: never green in brand surfaces, including success states. */
 for (const f of files(["*.tsx", "*.css"])) {
   const text = readFileSync(f, "utf8");
