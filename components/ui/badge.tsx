@@ -18,7 +18,13 @@ export type BadgeVariant =
   | "success";
 
 const BASE =
-  "inline-flex select-none items-center gap-1 rounded-sm border px-2 py-0.5 " +
+  /* `py-1`, not `py-0.5`. At 0.5 the badge stood 16px tall and `rounded-sm` is
+     8px, exactly half of it, so every badge in the product had fully rounded
+     ends: a capsule, which is the one shape a chip may not be. Being on the
+     right rung is not sufficient, because a rung is a capsule the moment it
+     reaches half the box height. 20px tall fixes the shape and gives a 10px
+     uppercase label air it wanted anyway. */
+  "inline-flex select-none items-center gap-1 rounded-sm border px-2 py-1 " +
   "text-[10px] font-bold uppercase tracking-[0.14em] leading-none";
 
 const VARIANT: Record<BadgeVariant, string> = {
@@ -96,7 +102,7 @@ export function RarityChip({
     <span
       className={cx(
         `rarity-${rarity}`,
-        "inline-flex select-none items-center rounded-sm border px-2 py-0.5",
+        "inline-flex select-none items-center rounded-sm border px-2 py-1",
         "text-[10px] font-bold uppercase tracking-[0.14em] leading-none",
         RARITY_TEXT[rarity],
         className
