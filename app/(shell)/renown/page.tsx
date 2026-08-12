@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/meter";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { BackButton } from "@/components/shell/back-button";
+import { ClaimButton } from "@/components/collectibles/claim-button";
 
 /* Crests and Renown.
 
@@ -52,6 +53,22 @@ interface MeProfile {
   renown: number;
 }
 
+/* What the realm says about the mint, and what the member has already carried
+   on-chain. Both arrive from GET /api/claims in one read, because a claim
+   control that renders before the realm knows whether it can mint is a control
+   that promises something it cannot do. */
+interface ClaimState {
+  status: string;
+  item_slug: string;
+  subject_kind: string;
+  tx_hash: string | null;
+}
+
+interface MintState {
+  open: boolean;
+  explorer?: string;
+}
+
 const TIERS = [
   { slug: "smallfolk", name: "Smallfolk", min: 0 },
   { slug: "squire", name: "Squire", min: 100 },
@@ -75,6 +92,34 @@ export default function RenownPage() {
   const [me, setMe] = useState<MeProfile | null>(null);
   const [earned, setEarned] = useState<Set<string> | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const [mint, setMint] = useState<MintState | null>(null);
+  const [claims, setClaims] = useState<Map<string, ClaimState>>(new Map());
+
+  /* Read the claim state once per visit. Refreshed by the claim control's own
+     callback rather than by polling: the only thing that changes it is the
+     member claiming something on this very screen. */
+  const loadClaims = useCallback(async () => {
+    const res = await realmFetch<{ claims?: ClaimState[]; mint?: MintState }>(
+      "/api/claims"
+    );
+    if (!res.ok) return;
+    setMint(res.data?.mint ?? { open: false });
+    const next = new Map<string, ClaimState>();
+    for (const claim of res.data?.claims ?? []) {
+      if (claim.subject_kind !== "crest") continue;
+      /* A settled claim outranks an open one, and an open one outranks the
+         expired history a slug can accumulate. */
+      const held = next.get(claim.item_slug);
+      if (held?.status === "minted") continue;
+      next.set(claim.item_slug, claim);
+    }
+    setClaims(next);
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    void loadClaims();
+  }, [ready, authenticated, loadClaims]);
 
   useEffect(() => {
     if (!ready || !authenticated) return;
@@ -222,8 +267,12 @@ export default function RenownPage() {
           wrapped "The Crests" onto two lines at 390px: that slot is sized for
           a count, not for prose. */}
       <SectionHeader title="The Crests" />
+      {/* The line has to stay true in both states of the mint. A crest that a
+          member carries to their own wallet is still earned, still unbuyable,
+          and still unsellable, because the crest contract refuses every
+          transfer after the mint. What it stops being is only ours. */}
       <p className="-mt-1 px-1 text-xs text-bone-faint">
-        Earned, never bought. Never NFTs, never for sale.
+        Earned, never bought. Bound to you, never for sale.
       </p>
 
       {/* Three mutually exclusive views of the same collection, switched in
@@ -306,6 +355,28 @@ export default function RenownPage() {
                   <p className="mt-2 text-xs leading-relaxed text-bone-mut">
                     {c.earn}
                   </p>
+                  {/* The ownership loop, on the only collectible in the realm
+                      anybody holds today. It appears for a crest you have
+                      earned, and only once the realm can actually mint: while
+                      the contracts are unbuilt `mint.open` is false and this
+                      whole block is absent rather than present and disabled,
+                      because a dead control is a promise the screen cannot
+                      keep. */}
+                  {isEarned && mint?.open ? (
+                    <div className="mt-3 w-full border-t border-hair pt-3">
+                      {claims.get(c.slug)?.status === "minted" ? (
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-gold">
+                          In your wallet
+                        </p>
+                      ) : (
+                        <ClaimButton
+                          subject={{ kind: "crest", crestSlug: c.slug }}
+                          label="Claim to your wallet"
+                          onClaimed={() => void loadClaims()}
+                        />
+                      )}
+                    </div>
+                  ) : null}
                 </Card>
               </li>
             );
