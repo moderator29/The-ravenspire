@@ -3,7 +3,11 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { SET_ONE, type SetOneCard } from "@/lib/collectibles/set-one";
+import {
+  SET_ONE,
+  COLLECTABLE_NOW_COUNT,
+  type SetOneCard,
+} from "@/lib/collectibles/set-one";
 import { houses, sigilIcon } from "@/lib/data/houses";
 import { RarityChip } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -63,7 +67,9 @@ function Ticks() {
  * Every name, title, House and rarity is the real record from
  * lib/game/champions.ts; most cards carry finished art, the few whose
  * portraits have not landed show the House sigil and say "Portrait incoming".
- * A card opens the champion in the War, a real door, never a dead one. */
+ * A card opens the collectible's own inner page, a real door, never a dead one.
+ * Most of the set is locked and held for a future drop; a small genesis wave is
+ * collectable now, and each card wears its drop state. */
 
 type HouseFilter = "all" | string;
 type RarityFilter = "all" | Rarity;
@@ -87,18 +93,21 @@ const RARITY_FILTERS: { key: RarityFilter; label: string }[] = [
  * own full line in the gold gradient, then a details row carries the rarity and
  * the collector number, the same shape the reference card uses.
  *
- * A link, not a dead door: the card opens the champion in the War, where the
- * kit, stats and lore live. The whole tile lifts on hover and the portrait
- * pushes in, transform only. The House is not repeated on the card because the
- * section header above already names it. */
+ * A link, not a dead door: the card opens the collectible's own inner page,
+ * where the edition, traits, kit and lore live. The whole tile lifts on hover
+ * and the portrait pushes in, transform only. The House is not repeated on the
+ * card because the section header above already names it. A locked card is part
+ * of Set One but held for a future drop, marked here and dimmed a touch. */
 function LegionCard({ card }: { card: SetOneCard }) {
   const c = card.champion;
   const sigil = sigilByHouseName.get(c.house) ?? "banner";
 
   return (
     <Link
-      href={`/war/champions/${c.slug}`}
-      aria-label={`${c.name}, ${c.rarity} of ${c.house}. Open in the War.`}
+      href={`/reliquary/${c.slug}`}
+      aria-label={`${c.name}, ${c.rarity} of ${c.house}. ${
+        card.locked ? "Held for a future drop." : "In the genesis drop."
+      } Open the collectible.`}
       className="group flex flex-col gap-2 rounded-lg outline-none transition-transform duration-fast ease-out-quint hover:-translate-y-1 focus-visible:-translate-y-1"
     >
       {/* The portrait container. Forged gold frame, no text. */}
@@ -109,7 +118,10 @@ function LegionCard({ card }: { card: SetOneCard }) {
             alt=""
             fill
             sizes="(min-width:1024px) 300px, (min-width:640px) 33vw, 50vw"
-            className="object-cover transition-transform duration-slow ease-out-quint group-hover:scale-[1.04]"
+            className={cx(
+              "object-cover transition-transform duration-slow ease-out-quint group-hover:scale-[1.04]",
+              card.locked && "opacity-85"
+            )}
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[image:radial-gradient(80%_60%_at_50%_35%,rgba(217,176,64,0.08),transparent_70%)]">
@@ -125,6 +137,20 @@ function LegionCard({ card }: { card: SetOneCard }) {
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-lg shadow-[inset_0_0_38px_rgba(0,0,0,0.55)]"
         />
+
+        {/* Drop state, top-left. Genesis pieces get a gold spark, locked pieces
+            a padlock, so the wave reads at a glance across the grid. */}
+        <span
+          className={cx(
+            "pointer-events-none absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] backdrop-blur-[2px]",
+            card.locked
+              ? "border-steel-line/70 bg-obsidian/70 text-bone-faint"
+              : "border-gold/45 bg-obsidian/70 text-gold-bright"
+          )}
+        >
+          <Icon name={card.locked ? "lock" : "spark"} className="h-2.5 w-2.5" />
+          {card.locked ? "Locked" : "Drop"}
+        </span>
 
         <Corners />
         <Ticks />
@@ -270,6 +296,9 @@ export default function ReliquaryPage() {
             <span>{counts.epic} epic</span>
             <span>{counts.rare} rare</span>
             <span>six Houses</span>
+            <span className="text-gold-bright">
+              {COLLECTABLE_NOW_COUNT} in the genesis drop
+            </span>
           </p>
         </Card>
       </header>

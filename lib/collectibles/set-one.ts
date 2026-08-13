@@ -62,10 +62,27 @@ const SET_ONE_SLUGS = [
   "cressida-lorne",
 ] as const;
 
+/* THE GENESIS DROP. Most of Set One is locked: a card is a collectible, and a
+   collectible that everything is available at once is not scarce. This is the
+   small first wave that is collectable now; every other card shows a locked
+   state until its drop. Curated to the two mythics and the legendaries whose
+   portraits have landed, so the available wave is also the strongest looking. */
+const COLLECTABLE_NOW: ReadonlySet<string> = new Set([
+  "the-faceless",
+  "kaelen-dragonborn",
+  "corvus-ashwing",
+  "pyrra-flameheart",
+  "varek-hollowflame",
+  "helga-winterborn",
+]);
+
 export interface SetOneCard {
   /* The collector number, 1 through 40, printed on the physical card. */
   number: number;
   champion: Champion;
+  /* False when the card is in the genesis drop and can be collected now, true
+     when it is held back for a future drop. */
+  locked: boolean;
 }
 
 const bySlug = new Map(champions.map((c) => [c.slug, c] as const));
@@ -77,8 +94,16 @@ export const setOneCards: SetOneCard[] = SET_ONE_SLUGS.map((slug, i) => {
        instead of shipping a set with a hole in it. */
     throw new Error(`Set One names a champion that does not exist: ${slug}`);
   }
-  return { number: i + 1, champion };
+  return { number: i + 1, champion, locked: !COLLECTABLE_NOW.has(slug) };
 });
+
+/* Look up a single card by its champion slug, for the collectible detail page. */
+export function setOneCard(slug: string): SetOneCard | null {
+  return setOneCards.find((c) => c.champion.slug === slug) ?? null;
+}
+
+/* How many cards are collectable now, for the drop headline. */
+export const COLLECTABLE_NOW_COUNT = setOneCards.filter((c) => !c.locked).length;
 
 function tally(rarity: Rarity): number {
   return setOneCards.filter((c) => c.champion.rarity === rarity).length;
