@@ -3,7 +3,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { getFlag } from "@/lib/flags";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
-import { chestPrice, pricesConfirmed } from "@/lib/commerce/catalog";
+import { chestPrice, merchPrice, pricesConfirmed } from "@/lib/commerce/catalog";
 import { lineTotal, sumMinor } from "@/lib/commerce/money";
 import { paymentProvider } from "@/lib/commerce/payments";
 import type { CheckoutLineItem } from "@/lib/commerce/payments";
@@ -21,8 +21,11 @@ import type { CheckoutLineItem } from "@/lib/commerce/payments";
  * the flag flipped, an unconfirmed price does not sell: pricesConfirmed gates
  * the money separately from the chapter (see the catalog header).
  *
- * Merch is intentionally not sellable here yet: no merch price exists, and REAL
- * DATA ONLY forbids inventing one. A merch line is rejected honestly.
+ * Merch sells here too, now that the founder has set its prices. A cart may
+ * hold chests, merch, or both, and each kind answers to its own chapter flag:
+ * a hoodie does not need the chests unsealed to be bought, and a chest does not
+ * need the Mercer. A mixed cart needs both open, because a single checkout
+ * session is a single decision to charge.
  *
  * Idempotent: the client sends an idempotency key. The same key from the same
  * member reuses the same order, and the provider's own idempotency key reuses
@@ -50,9 +53,6 @@ function baseUrl(req: Request): string {
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
-
-  const live = await getFlag("chests_live");
-  if (!live) return json({ error: "The chests are sealed until launch" }, 423);
 
   if (!pricesConfirmed()) {
     /* The chapter is open but the prices are not confirmed. Refuse to charge
@@ -83,31 +83,55 @@ export async function POST(req: Request) {
     return json({ error: "empty cart" }, 400);
   }
 
-  /* Validate and price every line against the server catalog. A chest kind is
-     the only sellable line today. */
+  /* Validate and price every line against the server catalog. The client names
+     a kind, a sku and a quantity, and nothing else: the price and the label
+     both come from the server, so a cart cannot name its own price. */
   const lines: (CartLine & { unitMinor: number; name: string })[] = [];
   for (const raw of body.items as unknown[]) {
     const line = raw as Partial<CartLine>;
-    if (line.kind === "merch") {
-      return json({ error: "merch is not for sale yet" }, 409);
-    }
-    if (line.kind !== "chest" || typeof line.sku !== "string") {
+    if (
+      (line.kind !== "chest" && line.kind !== "merch") ||
+      typeof line.sku !== "string"
+    ) {
       return json({ error: "invalid cart line" }, 400);
     }
     const qty = Number(line.qty);
     if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) {
       return json({ error: "invalid quantity" }, 400);
     }
-    const price = chestPrice(line.sku);
-    const tier = CHEST_TIERS.find((t) => t.sku === line.sku);
-    if (!price || !tier) return json({ error: "unknown chest" }, 400);
-    lines.push({
-      kind: "chest",
-      sku: line.sku,
-      qty,
-      unitMinor: price.priceMinor,
-      name: tier.name,
-    });
+
+    if (line.kind === "chest") {
+      const price = chestPrice(line.sku);
+      const tier = CHEST_TIERS.find((t) => t.sku === line.sku);
+      if (!price || !tier) return json({ error: "unknown chest" }, 400);
+      lines.push({
+        kind: "chest",
+        sku: line.sku,
+        qty,
+        unitMinor: price.priceMinor,
+        name: tier.name,
+      });
+    } else {
+      const price = merchPrice(line.sku);
+      if (!price) return json({ error: "unknown product" }, 400);
+      lines.push({
+        kind: "merch",
+        sku: line.sku,
+        qty,
+        unitMinor: price.priceMinor,
+        name: price.name,
+      });
+    }
+  }
+
+  /* Each kind answers to its own chapter. Checked after the cart is parsed
+     rather than before, so a merch-only order is not turned away by a sealed
+     chest chapter it never touched. */
+  if (lines.some((l) => l.kind === "chest") && !(await getFlag("chests_live"))) {
+    return json({ error: "The chests are sealed until launch" }, 423);
+  }
+  if (lines.some((l) => l.kind === "merch") && !(await getFlag("mercer_live"))) {
+    return json({ error: "The Mercer is sealed until launch" }, 423);
   }
 
   const totalMinor = sumMinor(lines.map((l) => lineTotal(l.unitMinor, l.qty)));
@@ -150,7 +174,7 @@ export async function POST(req: Request) {
     /* First creation of this order: write its items. */
     const items = lines.map((l) => ({
       order_id: orderId,
-      kind: "chest",
+      kind: l.kind,
       sku: l.sku,
       qty: l.qty,
       unit_price_minor: l.unitMinor,

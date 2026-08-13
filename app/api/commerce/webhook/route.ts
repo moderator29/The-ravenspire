@@ -141,6 +141,12 @@ export async function POST(req: Request) {
   let hasPhysical = false;
 
   for (const item of items) {
+    if (item.kind === "merch") {
+      /* Merch is printed and shipped, so it needs a fulfillment the same way a
+         physical chest does. Nothing is granted in-realm for it. */
+      hasPhysical = true;
+      continue;
+    }
     if (item.kind !== "chest") continue;
     const tier = CHEST_TIERS.find((t) => t.sku === item.sku);
     if (!tier) continue;
@@ -165,7 +171,8 @@ export async function POST(req: Request) {
   }
 
   if (hasPhysical) {
-    /* Record a fulfillment to ship the physical box. Left pending: the vendor
+    /* Record a fulfillment to ship the physical goods, a boxed chest or merch
+       or both. Left pending: the vendor
        call happens in the fulfillment worker once a shipping address is on the
        order, which the checkout collects at launch. A pending row with no
        vendor ref is the honest state, not a fabricated shipment. */
