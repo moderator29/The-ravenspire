@@ -10,6 +10,7 @@ vi.mock("@/lib/crests", () => ({
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   DAILY_SOCIAL_RENOWN_CAP,
+  DAILY_WAR_GLORY_CAP,
   TIERS,
   award,
   tierFor,
@@ -277,5 +278,82 @@ describe("award: the daily social allowance", () => {
        a budget an ordinary member has to think about. */
     expect(DAILY_SOCIAL_RENOWN_CAP).toBeGreaterThan(100);
     expect(DAILY_SOCIAL_RENOWN_CAP).toBeLessThan(1000);
+  });
+});
+
+describe("award: the daily War Glory allowance", () => {
+  it("routes a War award through the atomic capped RPC and nothing else", async () => {
+    /* War Glory is client reported, so the read of the day's total and the write
+       of the ledger row have to be one statement, exactly like the social cap.
+       If award() ever inserted the ledger row itself for the War, two concurrent
+       finishes would both see room and both spend it. */
+    const { db, recorded } = fakeDb({
+      award_war_glory_capped: { glory: 120, capped: false },
+    });
+    await award(db, PROFILE, {
+      glory: 120,
+      reason: "war_victory",
+      ref: "battle-3",
+      category: "war",
+    });
+    expect(recorded.inserts).toHaveLength(0);
+    expect(recorded.rpcs).toHaveLength(1);
+    expect(recorded.rpcs[0]).toEqual({
+      name: "award_war_glory_capped",
+      args: {
+        p_profile_id: PROFILE,
+        p_glory: 120,
+        p_reason: "war_victory",
+        p_ref: "battle-3",
+        p_daily_cap: DAILY_WAR_GLORY_CAP,
+      },
+    });
+  });
+
+  it("reports the Glory actually credited, not the raw roll", async () => {
+    const { db } = fakeDb({
+      award_war_glory_capped: { glory: 40, capped: true },
+    });
+    const result = await award(db, PROFILE, {
+      glory: 400,
+      reason: "war_victory",
+      category: "war",
+    });
+    expect(result).toEqual({ points: 0, glory: 40, capped: true });
+  });
+
+  it("grants nothing when the capped RPC fails, rather than minting uncapped", async () => {
+    const recorded: Recorded = { inserts: [], rpcs: [] };
+    const db = {
+      from(table: string) {
+        return {
+          insert(row: Record<string, unknown>) {
+            recorded.inserts.push({ table, row });
+            return Promise.resolve({ data: null, error: null });
+          },
+        };
+      },
+      rpc(name: string, args: Record<string, unknown>) {
+        recorded.rpcs.push({ name, args });
+        return Promise.resolve({ data: null, error: { message: "boom" } });
+      },
+    } as unknown as SupabaseClient;
+
+    const result = await award(db, PROFILE, {
+      glory: 120,
+      reason: "war_victory",
+      category: "war",
+    });
+    expect(result).toEqual({ points: 0, glory: 0, capped: false });
+    expect(recorded.inserts).toHaveLength(0);
+    expect(recorded.rpcs.map((r) => r.name)).toEqual(["award_war_glory_capped"]);
+  });
+
+  it("sets a ceiling a genuine player clears in a session and a farm walks into", () => {
+    /* A full victory banks up to 400 Glory, so the ceiling is several maxed
+       victories: a wall for a scripted grind, not a budget a real player
+       counts. The SQL cap and this constant must agree. */
+    expect(DAILY_WAR_GLORY_CAP).toBeGreaterThan(400);
+    expect(DAILY_WAR_GLORY_CAP).toBeLessThan(20000);
   });
 });

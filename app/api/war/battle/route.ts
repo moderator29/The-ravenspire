@@ -147,17 +147,22 @@ export async function POST(req: Request) {
   if (!state.unlocked_champions.includes(body.champion))
     return json({ error: "That champion is not yet sworn to you" }, 403);
 
+  const gold = victory ? 40 : 10;
+
+  /* The single-use gate for a session finish. Only the finish that flips settled
+     from false to true proceeds; a replayed finish for the same session changes
+     zero rows and is rejected here, before any Glory is credited. glory_earned
+     is written after the award below, so the row records the credited amount,
+     not the raw roll. A stateless finish has no session to gate and degrades to
+     a plain insert; the daily War ceiling is what bounds that path. */
+  let battleRowId: string | null = null;
   if (sessionId) {
-    /* Single use settle: only the finish that flips settled from false to true
-       banks the reward. A replayed finish for the same session changes zero
-       rows and is rejected. */
     const { data: settled } = await db
       .from("war_battles")
       .update({
         champion_slug: body.champion,
         battlefield,
         result: body.result,
-        glory_earned: glory,
         kills,
         duration_s: duration,
         settled: true,
@@ -167,28 +172,48 @@ export async function POST(req: Request) {
       .select("id");
     if (!settled || settled.length === 0)
       return json({ error: "That battle has already been settled" }, 409);
+    battleRowId = sessionId;
+  }
+
+  /* Bank the platform Glory through the daily War ceiling. The gate above has
+     fired for a session finish, so this credits exactly once. The ceiling trims
+     the amount against the member's day-to-date War Glory (award_war_glory_
+     capped, the settlement RPC), and the credited value, not the raw roll, is
+     what the member is told, what House scoring counts through glory_earned, and
+     what the War totals record, so every number the member sees agrees. */
+  const awarded = await award(db, profile.id, {
+    glory,
+    reason: victory ? "war_victory" : "war_fought",
+    category: "war",
+  });
+  const credited = awarded.glory;
+
+  if (battleRowId) {
+    await db
+      .from("war_battles")
+      .update({ glory_earned: credited })
+      .eq("id", battleRowId);
   } else {
     await db.from("war_battles").insert({
       profile_id: profile.id,
       champion_slug: body.champion,
       battlefield,
       result: body.result,
-      glory_earned: glory,
+      glory_earned: credited,
       kills,
       duration_s: duration,
       settled: true,
     });
   }
 
-  const gold = victory ? 40 : 10;
-  /* B6: one statement banks the battle and hands back the running totals, so
-     two battles settling together cannot each write over the other's, and the
-     numbers reported are the true post-battle standing rather than the values
-     read before the write. */
+  /* B6: one statement banks the battle totals and hands back the running
+     standing, so two battles settling together cannot each write over the
+     other's, and the numbers reported are the true post-battle standing rather
+     than the values read before the write. */
   const { data: settledTotals } = await db.rpc("war_settle_battle", {
     p_profile_id: profile.id,
     p_victory: victory,
-    p_glory: glory,
+    p_glory: credited,
     p_gold: gold,
   });
   const totals = (
@@ -198,18 +223,13 @@ export async function POST(req: Request) {
     | null
     | undefined;
 
-  await award(db, profile.id, {
-    glory,
-    reason: victory ? "war_victory" : "war_fought",
-  });
-
   return json({
     ok: true,
-    glory,
+    glory: credited,
     gold,
     battles: totals?.battles ?? state.battles + 1,
     wins: totals?.wins ?? state.wins + (victory ? 1 : 0),
-    war_glory: totals?.war_glory ?? state.war_glory + glory,
+    war_glory: totals?.war_glory ?? state.war_glory + credited,
   });
 }
 
