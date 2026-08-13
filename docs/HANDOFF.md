@@ -183,16 +183,40 @@ Sealed while the flag is off. Detail in `RAVENSPIRE-V2.md` section 38.
 
 ## 5. Security residuals to fix as you pass through (from the audit and re-audit)
 
-Detail in `RAVENSPIRE-V2.md` section 39. Highest value first:
+Detail in `RAVENSPIRE-V2.md` section 39. Highest value first. Items 1, 2 and 5
+are being handled in the parallel hardening pass this wave; confirm they landed
+on the branch before you start, and if they did not, they are yours.
 
 1. Move chest claim, roll and grant into one transactional RPC, or reset
    `opened_at` on failure, so a database error mid open never burns a paid chest.
 2. A server side daily War Glory cap (mirroring the two hundred per day social cap),
    or seed based replay verification, since War Glory is self reported.
-3. On chain verification of the `tx_hash` on tips and trades before recording
-   (needs an EVM RPC provider, an infra decision). Rate limits mitigate for now.
-4. Pre commit a rotating seed for chest opening (stronger provably fair).
 5. Align the redeem route comment with its code (the `attempts` bump).
+
+### Deliberately deferred this wave, now queued for YOU (build both)
+
+These two were held back on purpose and handed to you. They are real work, not
+optional notes.
+
+A. **Pre committed, rotating provably fair seed.** Today the chest open generates
+   the server seed and rolls in one request, so a hostile server could grind
+   seeds. Redesign it as a true commit reveal across two steps: the server
+   commits `sha256(serverSeed)` for the member's next open in one request (a seed
+   is reserved per entitlement and its hash shown before the client seed is
+   fixed), then the open request reveals it and rolls. This changes the open UX
+   contract into two steps, which is exactly why it was not done beside the
+   Ceremony UI: coordinate the contract change with the Ceremony you inherit.
+   Acceptance: a member sees the commitment hash before they choose their client
+   seed, and can still replay and verify after.
+
+B. **On chain verification of `tx_hash` on tips and trades.** `/api/tips` and
+   `/api/trade/record` record a client supplied transaction hash the server never
+   verifies, so within the rate limit a script can post fabricated trades and
+   tributes as fake social proof. Verify the receipt (correct token, amount,
+   recipient, confirmations) against an EVM RPC before recording. This needs an
+   RPC provider: prefer a free tier (rule 19), and gate the verification on the
+   provider env so it degrades honestly when absent. Until it lands the rate
+   limit is the only mitigation.
 
 ## 6. How the money and security code is shaped (so you extend it safely)
 
@@ -218,7 +242,7 @@ Detail in `RAVENSPIRE-V2.md` section 39. Highest value first:
 ## 7. Item 7, decided
 
 Stored server side in `lib/commerce/catalog.ts`, off customer surfaces until
-confirmed. Chest pricing 5.99, 15.49, 25.00 USD. One print on demand vendor,
+confirmed. Chest pricing 34.99, 41.00, 54.86 USD. One print on demand vendor,
 Gelato, with Printful and Prodigi fallbacks behind a swappable abstraction. Per
 card mint caps Rare 5,000, Epic 1,500, Legendary 400, Mythic 75. Art print edition
 250 per champion.

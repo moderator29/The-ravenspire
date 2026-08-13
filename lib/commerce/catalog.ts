@@ -43,14 +43,14 @@ export interface ChestCatalogEntry {
 }
 
 /* Prices set by the founder, item 7. Stored here and nowhere a client can read
-   them. Squire's 5.99, Knight's 15.49, King's Reliquary 25.00.
+   them. Squire's 34.99, Knight's 41.00, King's Reliquary 54.86.
    Floor values are provisional placeholders set to meet the guardrail (floor
    at least price); they are recomputed from real per-card valuations before
    confirmation, and the guardrail below is what forces that to stay honest. */
 const PROVISIONAL: Record<string, { price: number; floor: number }> = {
-  "squires-chest": { price: 5.99, floor: 5.99 },
-  "knights-warchest": { price: 15.49, floor: 15.49 },
-  "kings-reliquary": { price: 25.0, floor: 25.0 },
+  "squires-chest": { price: 34.99, floor: 34.99 },
+  "knights-warchest": { price: 41.0, floor: 41.0 },
+  "kings-reliquary": { price: 54.86, floor: 54.86 },
 };
 
 export const CHEST_CATALOG: ChestCatalogEntry[] = CHEST_TIERS.map((tier) => {
