@@ -407,7 +407,7 @@ function CartPanel({
                   <button
                     type="button"
                     onClick={() => setQty(l.sku, 0)}
-                    className="text-[11px] text-bone-faint underline decoration-steel-line underline-offset-2 transition-colors duration-fast hover:text-ember"
+                    className="inline-flex items-center text-[11px] text-bone-faint underline decoration-steel-line underline-offset-2 transition-colors duration-fast hover:text-ember touch:min-h-11 touch:min-w-11"
                   >
                     Remove
                   </button>

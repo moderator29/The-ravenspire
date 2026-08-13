@@ -181,11 +181,11 @@ export function PackCeremony({
             className="my-auto w-full max-w-lg transition-opacity duration-base ease-out-quint data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-fast"
           >
             <Card
-              pad="none"
+              pad="hero"
               radius="2xl"
               elevation="overlay"
               tone="gold"
-              className="relative w-full overflow-hidden p-6 sm:p-7"
+              className="relative w-full overflow-hidden"
             >
               {/* Atmosphere sits behind the plate, never on it. */}
               <div
