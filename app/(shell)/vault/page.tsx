@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { Icon } from "@/components/ui/icon";
@@ -12,6 +13,7 @@ import {
   ConsolePage,
 } from "@/components/console/console-shell";
 import { WalletSection } from "@/components/wallet/wallet-section";
+import { CommerceVaultSection } from "@/components/commerce/commerce-vault-section";
 
 /* The Vault: a Console. Compact above md, zero ornament, and every panel
    inside it on the shared Card chassis. */
@@ -67,7 +69,14 @@ export default function VaultPage() {
             />
           </Card>
         ) : (
-          <WalletSection />
+          <div className="flex flex-col gap-5 md:gap-4">
+            <WalletSection />
+            {/* useSearchParams inside the order history reads the post-checkout
+                return params, so it sits under a Suspense boundary. */}
+            <Suspense fallback={null}>
+              <CommerceVaultSection />
+            </Suspense>
+          </div>
         )}
       </div>
     </ConsolePage>
