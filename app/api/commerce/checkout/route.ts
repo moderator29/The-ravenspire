@@ -3,7 +3,8 @@ import { adminClient } from "@/lib/supabase/admin";
 import { getFlag } from "@/lib/flags";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
-import { chestPrice, pricesConfirmed } from "@/lib/commerce/catalog";
+import { MERCER_SKUS } from "@/lib/collectibles/mercer";
+import { chestPrice, merchPrice, pricesConfirmed } from "@/lib/commerce/catalog";
 import { lineTotal, sumMinor } from "@/lib/commerce/money";
 import { paymentProvider } from "@/lib/commerce/payments";
 import type { CheckoutLineItem } from "@/lib/commerce/payments";
@@ -12,19 +13,22 @@ import { logger } from "@/lib/observability/log";
 
 /* POST /api/commerce/checkout (V2 Part Two, section 33, Phase D).
  *
- * Create a payment checkout session for a cart of chests. Server-authoritative
- * throughout: the price and the line total come from the server catalog
- * (lib/commerce/catalog.ts), never from the request, so a client cannot name
- * its own price (rule 6). The order and its items are written before the
- * provider is called, so every session is backed by a real, priced order.
+ * Create a payment checkout session for a cart of chests and merch.
+ * Server-authoritative throughout: the price and the line total come from the
+ * server catalog (lib/commerce/catalog.ts), never from the request, so a client
+ * cannot name its own price (rule 6). The order and its items are written before
+ * the provider is called, so every session is backed by a real, priced order.
  *
  * SEALED UNTIL LAUNCH. While chests_live is false the whole route answers 423,
  * the same sealed posture as the rest of the collectibles realm. And even with
  * the flag flipped, an unconfirmed price does not sell: pricesConfirmed gates
  * the money separately from the chapter (see the catalog header).
  *
- * Merch is intentionally not sellable here yet: no merch price exists, and REAL
- * DATA ONLY forbids inventing one. A merch line is rejected honestly.
+ * Two sellable kinds: a chest and a merch piece. Both price from the server
+ * catalog; a merch kind whose price the founder has not set has no catalog
+ * entry, so its line is rejected as unknown rather than sold at a guessed price
+ * (REAL DATA ONLY). Every merch piece is physical, so a merch line always
+ * requires a shipping address.
  *
  * Idempotent: the client sends an idempotency key. The same key from the same
  * member reuses the same order, and the provider's own idempotency key reuses
@@ -88,21 +92,38 @@ export async function POST(req: Request) {
     return json({ error: "empty cart" }, 400);
   }
 
-  /* Validate and price every line against the server catalog. A chest kind is
-     the only sellable line today. */
+  /* Validate and price every line against the server catalog. Two kinds sell:
+     a chest (digital or the one physical box) and merch (always physical). The
+     price always comes from the server catalog, never the request. */
   const lines: (CartLine & { unitMinor: number; name: string })[] = [];
   let hasPhysical = false;
   for (const raw of body.items as unknown[]) {
     const line = raw as Partial<CartLine>;
-    if (line.kind === "merch") {
-      return json({ error: "merch is not for sale yet" }, 409);
-    }
-    if (line.kind !== "chest" || typeof line.sku !== "string") {
+    if (typeof line.sku !== "string") {
       return json({ error: "invalid cart line" }, 400);
     }
     const qty = Number(line.qty);
     if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) {
       return json({ error: "invalid quantity" }, 400);
+    }
+    if (line.kind === "merch") {
+      const price = merchPrice(line.sku);
+      const sku = MERCER_SKUS.find((s) => s.sku === line.sku);
+      if (!price || !sku) return json({ error: "unknown merch" }, 400);
+      /* Every merch piece ships, so a merch line always makes the order
+         physical and an address is required below. */
+      hasPhysical = true;
+      lines.push({
+        kind: "merch",
+        sku: line.sku,
+        qty,
+        unitMinor: price.priceMinor,
+        name: sku.name,
+      });
+      continue;
+    }
+    if (line.kind !== "chest") {
+      return json({ error: "invalid cart line" }, 400);
     }
     const price = chestPrice(line.sku);
     const tier = CHEST_TIERS.find((t) => t.sku === line.sku);
@@ -169,7 +190,7 @@ export async function POST(req: Request) {
     /* First creation of this order: write its items. */
     const items = lines.map((l) => ({
       order_id: orderId,
-      kind: "chest",
+      kind: l.kind,
       sku: l.sku,
       qty: l.qty,
       unit_price_minor: l.unitMinor,
@@ -184,6 +205,11 @@ export async function POST(req: Request) {
     qty: l.qty,
   }));
 
+  /* Send a cancelled checkout back to the surface the cart came from: the
+     Mercer for a merch-only cart, the Warchests otherwise. */
+  const merchOnly = lines.every((l) => l.kind === "merch");
+  const cancelPath = merchOnly ? "/mercer" : "/warchests";
+
   let session;
   try {
     session = await provider.createCheckoutSession({
@@ -191,7 +217,7 @@ export async function POST(req: Request) {
       currency: "usd",
       lineItems: checkoutLines,
       successUrl: `${baseUrl(req)}/vault?order=${orderId}&status=success`,
-      cancelUrl: `${baseUrl(req)}/warchests?checkout=cancelled`,
+      cancelUrl: `${baseUrl(req)}${cancelPath}?checkout=cancelled`,
       idempotencyKey,
     });
   } catch (err) {
