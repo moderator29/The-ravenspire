@@ -342,7 +342,7 @@ function Terms({
         <span className="font-semibold text-bone">
           {feePercentLabel(terms.fee_bps)}% protocol fee
         </span>{" "}
-        to the Coffers. The realm never holds the card and never holds the
+        to the Exchequer. The realm never holds the card and never holds the
         money, not for a moment. Both figures are shown in full before anybody
         signs anything.
       </p>

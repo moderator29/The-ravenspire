@@ -1916,7 +1916,7 @@ Ordered by leverage.
    tradeable cards, with a soulbound tier for earned Crests. The single highest
    leverage move: it turns a sealed set into a real collection.
 2. **Native secondary market.** List, buy, gift, transfer, member to member,
-   signed by their own wallets, a protocol fee to the Coffers, real print caps for
+   signed by their own wallets, a protocol fee to the Exchequer, real print caps for
    a real floor. The resale premium is the documented reason phygital retains.
 3. **Sinks and stakes.** Craft duplicates up a rarity, Call entries with a stake,
    House treasury perks, cosmetic Crest frames. Give status somewhere to go, or it
@@ -2398,14 +2398,14 @@ in the same transaction that records the payment. At every instant the answer to
 "who owns this copy" is one member, and it is either the seller or the buyer.
 
 **The money never touches the platform.** The buyer's own Privy wallet pays the
-seller's own wallet and pays the fee to the Coffers. Nothing in the schema holds
+seller's own wallet and pays the fee to the Exchequer. Nothing in the schema holds
 a balance because there is no balance to hold: the payment columns record hashes
 of transactions that happened between two other parties, which is bookkeeping.
 The honest test the ownership loop uses applies here too. If the platform
 vanished halfway through a trade, the seller would already have been paid, in
 full, because the payment went directly to them and never anywhere else.
 
-**The fee is revenue, not custody.** The Coffers receive it from the buyer, in
+**The fee is revenue, not custody.** The Exchequer receives it from the buyer, in
 the buyer's own transaction, as a disclosed charge for running the venue.
 Receiving your own fee is not holding somebody else's asset.
 
@@ -2460,7 +2460,7 @@ settlement is an invented number wearing a price tag.
 
 ### 45.4 The fee
 
-**500 basis points, five percent, to the Coffers.** Small, explicit, and shown
+**500 basis points, five percent, to the Exchequer.** Small, explicit, and shown
 in full before anybody commits: the seller sees what they will receive before
 they list, and the buyer sees the price and the fee before they sign. It is
 never taken out of a spread and never described as network costs.

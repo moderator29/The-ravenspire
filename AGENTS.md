@@ -21,6 +21,12 @@ The full V2 plan lives in `docs/RAVENSPIRE-V2.md`.
    (live), Whispers (DMs), The Vault (wallet), The Coffers (earnings), The
    Ledger (portfolio), The Scrying Glass (coin discovery), The War (game),
    @raven (the Herald AI), Houses, Renown, Glory, Calls, Crests, Keeps.
+   **The Exchequer is the platform's own fee wallet, and it is never called the
+   Coffers.** Those two were one word for a while, on opposite ends of the same
+   trade: the Bazaar took its five percent to "the Coffers" while the lexicon
+   said the Coffers is what a member earns. A seller reading that a fee went to
+   the Coffers could reasonably think it went to theirs. One name, one side of
+   the table. The Exchequer is the house's; the Coffers are the member's.
 
 ## Product
 

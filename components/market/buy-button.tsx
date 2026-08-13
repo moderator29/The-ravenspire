@@ -20,7 +20,7 @@ import { realmFetch } from "@/lib/auth/api";
  *      the proceeds, and pays its own gas. The platform never signs this, never
  *      receives it, and could not intercept it if it wanted to.
  *
- *   3. PAY THE FEE. A second transfer, to the Coffers, for the protocol fee
+ *   3. PAY THE FEE. A second transfer, to the Exchequer, for the protocol fee
  *      the buyer was shown before any of this began.
  *
  *   4. HAND BACK THE HASHES. The realm reads each receipt off the chain and

@@ -45,7 +45,8 @@ These bind every file, every commit, every subagent you spawn.
    docs. Use commas, periods, colons, or restructure.
 2. No emoji as icons. Use the `Icon` component. Never label a 3D icon with its name.
 3. Realm lexicon: The Ravenry (feed), The Crossroads (explore), The Rookery
-   (live), Whispers (DMs), The Vault (wallet), The Coffers (earnings), The Ledger
+   (live), Whispers (DMs), The Vault (wallet), The Coffers (a member's earnings),
+   The Exchequer (the platform's own fee wallet, never called the Coffers), The Ledger
    (portfolio), The Scrying Glass (coin discovery), The War (game), @raven (the
    Herald AI), Houses, Renown, Glory, Calls, Crests, Keeps.
 4. **Real data only.** No mock, placeholder, seeded, demo, or invented data. Every
@@ -145,7 +146,7 @@ commit, push, then move on. Full reasoning per item is in the strategy doc.
    item is untouched.
 4. **Native secondary market.** The Bazaar is DONE and sealed behind
    `market_live`: list, reserve, buy, withdraw, with a 5% protocol fee to the
-   Coffers shown in full before anybody signs. A listing is an intent, never a
+   Exchequer shown in full before anybody signs. A listing is an intent, never a
    deposit: the card stays the seller's until the moment it becomes the
    buyer's, and the payment goes wallet to wallet in transactions the buyer
    signs, so the platform never holds either side. `RAVENSPIRE-V2.md` section

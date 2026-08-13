@@ -29,14 +29,14 @@ import { isSoulbound, type ClaimSubjectKind } from "@/lib/collectibles/token-ids
  *      seller to the buyer, in the same transaction that records the payment.
  *
  *   2. THE MONEY GOES WALLET TO WALLET. The buyer's own Privy wallet pays the
- *      seller's own wallet, and pays the protocol fee to the Coffers. The
+ *      seller's own wallet, and pays the protocol fee to the Exchequer. The
  *      platform signs nothing, receives nothing that belongs to the seller,
  *      and could not intercept the proceeds if it wanted to. The honest test
  *      the ownership loop uses applies here too: if the platform vanished
  *      halfway through, the buyer's payment would already be in the seller's
  *      wallet, because it went there directly and never anywhere else.
  *
- *   3. THE FEE IS REVENUE, NOT CUSTODY. The Coffers receive the fee from the
+ *   3. THE FEE IS REVENUE, NOT CUSTODY. The Exchequer receives the fee from the
  *      buyer, in the buyer's own transaction, as a disclosed charge for running
  *      the venue. Receiving your own fee is not holding somebody else's asset.
  *
@@ -67,7 +67,7 @@ import { isSoulbound, type ClaimSubjectKind } from "@/lib/collectibles/token-ids
  *
  * WHY TWO TRANSFERS AND NOT ONE
  * A plain ERC-20 transfer pays one address, and this trade has two payees: the
- * seller and the Coffers. The single-transaction version of that is the buyer
+ * seller and the Exchequer. The single-transaction version of that is the buyer
  * paying the whole amount to the platform, which then forwards the seller's
  * share, and that is precisely the custody this design refuses. So the buyer
  * signs twice, or once if their wallet can batch the two calls, and the realm
@@ -104,7 +104,7 @@ import { isSoulbound, type ClaimSubjectKind } from "@/lib/collectibles/token-ids
  * an inventory the seller has to ship. An NFT marketplace takes two and a half
  * and provides no floor, no authentication and no venue beyond a contract.
  * This market authenticates every card by construction, because the realm
- * printed it, and the fee funds the Coffers rather than a middleman. Five is
+ * printed it, and the fee funds the Exchequer rather than a middleman. Five is
  * defensible on both sides of that range and it is a round number a member can
  * check in their head, which matters more than an optimised number they
  * cannot. */
@@ -469,7 +469,7 @@ if (MIN_PRICE_MINOR >= MAX_PRICE_MINOR) {
 
 /* The cheapest legal listing must still pay a fee of at least one minor unit.
    A fee that rounds to nothing is a free trade with a fee label on it, and the
-   Coffers would be quietly funding the venue for whoever noticed. */
+   Exchequer would be quietly funding the venue for whoever noticed. */
 {
   const cheapest = quoteFor(MIN_PRICE_MINOR);
   if (cheapest.feeMinor < 1) {
