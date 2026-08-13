@@ -2191,3 +2191,121 @@ kind. `chests_live` is off as well, so the door is shut on both counts.
 
 The verifier page (mission 6) is the surface this was built for: the revealed
 seeds, the openings under them, and a rerun anybody can check.
+
+## 43. Crafting, the card sink
+
+Shipped, sealed. The first half of mission 3, the Spend beat. The collectibles
+realm could mint a card and had no way to destroy one, so duplicates piled up
+and meant nothing. Crafting is the sink: burn copies of one rarity, forge one
+card of the rarity above.
+
+### 43.1 The ratios, and why each one is that number
+
+| Step | Burn | Floor burned | Floor forged | Destroyed |
+| --- | --- | --- | --- | --- |
+| rare to epic | 4 | 32 | 22 | 31% |
+| epic to legendary | 4 | 88 | 60 | 32% |
+| legendary to mythic | 10 | 600 | 275 | 54% |
+
+Two bars, both asserted at module load in `lib/collectibles/crafting.ts` rather
+than argued in a comment, so a bad ratio breaks the build instead of reaching a
+member.
+
+**It destroys floor value.** N copies of the lower rarity must be worth
+strictly more than the card they produce, against the real per rarity floor in
+`lib/commerce/catalog.ts`, and at least a fifth of what is burned has to
+disappear. A ratio that clears the floor by a dollar is arithmetically a sink
+and economically not one: a single revision to a floor would turn it into a
+printer with nothing failing.
+
+**It is never cheaper than the box.** In a chest the two rarities already
+arrive together at a rate the odds table fixes. The Squire's Chest deals 3.70
+rares per epic, 3.70 epics per legendary and 9.0 legendaries per mythic. A
+craft below those rates would be a strictly better chest with no variance at
+all, and nobody would open a box for that rarity again. Every ratio strictly
+exceeds the most generous co-drop rate any tier offers, read off
+`CHEST_TIERS.odds` rather than a copy of it, so a retuned odds table breaks the
+build rather than quietly turning crafting into arbitrage.
+
+Ten is the number worth explaining. The Knight's Warchest deals five cards at
+2% mythic, so ten of them are one mythic in expectation, and because every
+Knight's chest guarantees a legendary floor those same ten chests also
+guarantee the ten legendaries a craft costs. The two paths cost the same, which
+is exactly right: crafting is the floor under bad luck, never a cheaper route
+than good luck. Six or seven would have made the craft the dominant way to
+reach the top rarity, which is how a collectibles economy inflates to nothing.
+
+Chained end to end the ladder costs 160 rares, 1,280 dollars of floor, for a
+275 dollar mythic. A per step check alone would have missed that.
+
+### 43.2 Crafting is a choice, not a roll
+
+The member names the card they are forging. That is what the premium above the
+chest's own rate buys: the chest sells randomness cheaply, crafting sells
+certainty dearly. A bench that rolled would be a strictly worse chest and
+nobody would feed it. It also means there is nothing here to distrust: no seed,
+no commitment, no reveal, because there is no randomness to prove fair.
+
+### 43.3 The transaction
+
+`public.craft_cards` deletes N rows and inserts one, under a row lock, or does
+neither. From a route that is three round trips and a crash between any two is
+unrecoverable and undiagnosable afterwards: either the member's cards are gone
+with nothing to show, or a card was forged and the copies that paid for it are
+still in the ledger, which is a printer. Same lesson as `public.chest_open`,
+applied to the other end of the same ledger.
+
+What it re-checks under the lock, never trusting the route's read: ownership,
+the set, the rarity, the count, the absence of a repeated id, the absence of a
+live claim, and that the forged rarity is exactly one rung above the burned one.
+The last of those is the important one: a bug in a route could otherwise mint a
+mythic out of four rares, and a minted card is not retractable once a member has
+claimed it to their own wallet.
+
+**A card carried on-chain cannot be burned.** A copy with an issued, submitted
+or minted claim is refused. The member holds that token and the platform never
+had custody of it, so deleting the ledger row would put the database and the
+chain into permanent disagreement with the chain being right. Two independent
+mechanisms enforce it. The explicit status check catches a claim that exists.
+A claim being issued at the same moment is caught by the row lock itself:
+inserting a row that references `public.inventory` takes a `FOR KEY SHARE` lock
+on the referenced row, which conflicts with the `FOR UPDATE` the craft takes, so
+a concurrent issuance blocks until the craft commits and then fails its own
+foreign key. Without that a voucher could be signed against a copy being
+destroyed, and the member would meet the failure in their own wallet after
+paying gas. `FOR UPDATE` rather than `FOR NO KEY UPDATE` is load bearing.
+
+**Burned rows are deleted, not flagged.** A `burned_at` column was the other
+option and it is the worse one: every read of the holdings ledger would need to
+filter on it, and the day one forgets is the day a member sees a card they
+burned and can act on it. A deleted row cannot be misread by a query nobody
+updated. `craft_events` keeps the history, denormalised, because the rows it
+describes no longer exist to be joined against.
+
+### 43.4 The surface
+
+`/reliquary/craft`, a Console. Choosing what to destroy is Ledger work: dense,
+flat, one tile per copy rather than per card, because a member burning four
+rares is choosing four specific rows and a stacked tile would hide which ones.
+The one Forge moment is the card coming out, in a modal. Desktop puts the fire
+and the choice of what comes out of it side by side; a phone stacks them in the
+order the decision is made and pins the action to the thumb.
+
+A member may burn their only copy of a card. The bench marks it and does not
+stop them, because it is their card, and refusing would be the platform
+deciding what somebody may do with their own property.
+
+The Hoard grows one control, and only when the collection actually holds enough
+of one rarity to craft with. The trophy case is where a member notices they hold
+four of the same rare, so it is where the sink has to be offered.
+
+### 43.5 What it waits on
+
+`crafting_live` ships off, a fifth switch beside `reliquary_live`,
+`chests_live`, `mercer_live` and `mint_live`. Nothing grants a card yet, so
+every Hoard is empty and the bench renders its honest empty state. The ratios
+are printed while sealed, for the same reason a chest prints its odds before it
+can be bought: a member is entitled to read the terms of a trade before the
+trade exists.
+
+Migration `20260814090000_crafting_the_card_sink.sql`, not applied.
