@@ -5,6 +5,7 @@ import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
 import { SET_ONE } from "@/lib/collectibles/set-one";
 import { generateServerSeed, openChest } from "@/lib/commerce/chest-open";
+import { logger } from "@/lib/observability/log";
 
 /* POST /api/chests/[sku]/open (V2 Part Two, sections 28.2 and 34).
  *
@@ -12,21 +13,28 @@ import { generateServerSeed, openChest } from "@/lib/commerce/chest-open";
  * route recorded as a skeleton:
  *
  *   1. GATE. Auth, then the sku, then chests_live. A sealed chapter answers 423.
- *   2. ENTITLE. The member must hold an unopened chest of this sku. The
- *      entitlement is claimed by a conditional update that sets opened_at only
- *      while it is null, so two concurrent opens of the same chest cannot both
- *      win: the second update matches no row. No entitlement, no open.
- *   3. COMMIT. Generate a server seed and publish sha256(seed) in
- *      chest_openings.server_seed_hash before the pull.
- *   4. ROLL. lib/commerce/chest-open draws against the printed odds and enforces
- *      the printed guarantee floor, server-authoritative, the same law as Glory:
- *      the client is told what it pulled, never asked.
- *   5. GRANT. Write the pulled cards to the inventory ledger and the audit row
- *      to chest_openings, then reveal the seed so the member can verify the hash.
+ *   2. COMMIT and ROLL. Generate a server seed, publish sha256(seed), and draw
+ *      against the printed odds with the printed guarantee floor, all pure in
+ *      lib/commerce/chest-open, server-authoritative, the same law as Glory: the
+ *      client is told what it pulled, never asked.
+ *   3. CLAIM, RECORD and GRANT, ATOMICALLY. open_chest_tx claims one unopened
+ *      entitlement, writes the opening (with the revealed seeds), links the
+ *      entitlement to it, and writes the pulled cards to inventory, all in one
+ *      transaction. Either every write lands or none does, so a database error
+ *      partway through can never consume a paid chest without its cards. If the
+ *      member holds no unopened chest, the function writes nothing and returns
+ *      null, and the route reports no entitlement.
+ *
+ * The earlier version of this route did (a) mark the entitlement opened, then
+ * (b) write the opening, then (c) write inventory, as three separate statements.
+ * A failure between (a) and (c) burned a paid chest with no cards, which is the
+ * exact bug this route now closes by folding the three into one RPC.
  *
  * Only digital chests open here. The King's Reliquary is physical: its digital
  * twins are minted through the redemption code printed in the box, not this pull.
  */
+
+const log = logger("commerce.chest-open");
 
 export const dynamic = "force-dynamic";
 
@@ -59,88 +67,60 @@ export async function POST(req: Request, ctx: { params: Promise<{ sku: string }>
       ? body.clientSeed
       : "";
 
-  /* Claim one unopened entitlement atomically. The update targets a single
-     unopened row for this member and sku, so a double click or a race claims
-     the same row once and the loser claims nothing. */
-  const claimTs = new Date().toISOString();
-  const pick = await db
-    .from("chest_entitlements")
-    .select("id")
-    .eq("profile_id", profile.id)
-    .eq("chest_sku", sku)
-    .is("opened_at", null)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (pick.error) {
-    if (pick.error.code === "42P01") return json({ error: "not migrated" }, 503);
-    return json({ error: "unavailable" }, 503);
-  }
-  const entitlementId = pick.data?.id as string | undefined;
-  if (!entitlementId) {
-    return json({ error: "You have no unopened chest of this kind" }, 403);
-  }
-
-  const claim = await db
-    .from("chest_entitlements")
-    .update({ opened_at: claimTs })
-    .eq("id", entitlementId)
-    .is("opened_at", null)
-    .select("id");
-  if (claim.error || (claim.data?.length ?? 0) === 0) {
-    /* Someone else claimed it between the select and the update. */
-    return json({ error: "You have no unopened chest of this kind" }, 403);
-  }
-
-  /* How many the member has opened before, for the pull nonce. */
+  /* How many the member has opened before, the domain separator for this pull.
+     The nonce only has to be recorded exactly as it was used; the entitlement
+     that authorises the open is claimed inside the transaction below, not here. */
   const priorRes = await db
     .from("chest_openings")
     .select("id", { count: "exact", head: true })
     .eq("profile_id", profile.id)
     .eq("chest_sku", sku);
+  if (priorRes.error?.code === "42P01") return json({ error: "not migrated" }, 503);
   const nonce = priorRes.count ?? 0;
 
+  /* COMMIT and ROLL, both pure. Nothing is persisted yet: if the member turns
+     out to hold no unopened chest, the transaction below writes nothing and this
+     work is simply discarded. */
   const serverSeed = generateServerSeed();
   const result = openChest({ tier, serverSeed, clientSeed, nonce });
 
-  const openingRes = await db
-    .from("chest_openings")
-    .insert({
-      profile_id: profile.id,
-      chest_sku: sku,
-      result: { cards: result.cards },
-      server_seed_hash: result.serverSeedHash,
-      server_seed: serverSeed,
-      client_seed: clientSeed,
-      nonce,
-      opened_at: claimTs,
-    })
-    .select("id")
-    .single();
-
-  if (openingRes.error || !openingRes.data) {
-    return json({ error: "unavailable" }, 503);
-  }
-  const openingId = openingRes.data.id as string;
-
-  /* Link the entitlement to its opening, and write the pulled cards to the
-     holdings ledger. */
-  await db
-    .from("chest_entitlements")
-    .update({ opening_id: openingId })
-    .eq("id", entitlementId);
-
-  const rows = result.cards.map((c) => ({
-    profile_id: profile.id,
+  const cardRows = result.cards.map((c) => ({
     set_slug: SET_ONE.slug,
     card_number: c.number,
     champion_slug: c.slug,
     rarity: c.rarity,
-    source: "chest_opening",
-    source_id: openingId,
   }));
-  await db.from("inventory").insert(rows);
+
+  /* CLAIM, RECORD and GRANT in one transaction. Returns the opening id, or null
+     when there is no unopened chest to claim. */
+  const tx = await db.rpc("open_chest_tx", {
+    p_profile_id: profile.id,
+    p_chest_sku: sku,
+    p_server_seed: serverSeed,
+    p_server_seed_hash: result.serverSeedHash,
+    p_client_seed: clientSeed,
+    p_nonce: nonce,
+    p_result: { cards: result.cards },
+    p_cards: cardRows,
+  });
+
+  if (tx.error) {
+    if (tx.error.code === "42P01" || tx.error.code === "42883") {
+      return json({ error: "not migrated" }, 503);
+    }
+    log.error("open_chest_tx failed", {
+      profileId: profile.id,
+      sku,
+      err: tx.error,
+    });
+    return json({ error: "unavailable" }, 503);
+  }
+
+  const openingId = tx.data as string | null;
+  if (!openingId) {
+    /* No unopened chest of this kind. Nothing was written. */
+    return json({ error: "You have no unopened chest of this kind" }, 403);
+  }
 
   /* Reveal: the seed and the nonce, so the member can hash the seed, confirm it
      matches server_seed_hash, and replay the pull. */
