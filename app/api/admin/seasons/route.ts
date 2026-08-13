@@ -1,5 +1,10 @@
 import { json } from "@/lib/auth/server";
 import { emit } from "@/lib/realm/events";
+import { grantCrest } from "@/lib/points";
+import {
+  SEASON_CHAMPION_CREST_SLUG,
+  SEASON_CHAMPION_RANKS,
+} from "@/lib/realm/appointments";
 import { requireAdmin, isResponse, logAdminAction } from "../_admin";
 
 const SEASON_SELECT = "id, name, starts_at, ends_at, status, vault_raven";
@@ -150,52 +155,109 @@ export async function POST(req: Request) {
   }
 
   if (action === "settle") {
-    // Freeze the season's final standings into points. Keep it entirely in
-    // points; no $RSP is computed or surfaced. Idempotent per member via the
-    // (season_id, profile_id) unique key.
-    const { data: season } = await db
-      .from("seasons")
-      .select("id, status")
-      .eq("id", id)
-      .maybeSingle();
-    if (!season) return json({ error: "not_found" }, 404);
+    /* THE SEASON CLOSE, and it is no longer written here.
+     *
+     * This used to freeze season_settlements from a query in this route. Two
+     * things were wrong with that and both were invisible until the realm grew
+     * a clock:
+     *
+     *   It ranked the season by POINTS, which is a lifetime balance that never
+     *   resets. Ranking a season by a number that only accumulates means the
+     *   top of every season's table is the same people in the same order
+     *   forever, and the rank measures how long somebody has been here rather
+     *   than what they did this season. A season is ranked by the season's own
+     *   currency, which is Glory.
+     *
+     *   It froze the standings and reset nothing, so a season closing changed
+     *   a status field and nothing else. Every House kept its Glory, so the
+     *   House that led in month one led forever.
+     *
+     * public.close_season does both, in one transaction, because the reset
+     * destroys exactly the numbers the freeze is recording and a crash between
+     * them is unrepairable: the evidence is what would be gone. The scheduled
+     * clock job calls the same function, so the realm has one settlement path
+     * and cannot hold two opinions about who won a season.
+     *
+     * p_force is true here and only here. A steward pressing this button means
+     * "close it now", before its own end date if need be. It does NOT mean
+     * "close it again": the function refuses any season that is not still
+     * active, whatever force says, because a second close would upsert the
+     * frozen record with the zeroes the first one wrote. */
+    const { data: verdict, error: closeErr } = await db.rpc("close_season", {
+      p_season_id: id,
+      p_champion_ranks: SEASON_CHAMPION_RANKS,
+      p_force: true,
+    });
+    if (closeErr) return json({ error: "settle_failed" }, 500);
 
-    const { data: members, error: mErr } = await db
-      .from("profiles")
-      .select("id, points, renown, glory")
-      .eq("is_banned", false)
-      .eq("is_agent", false)
-      .eq("onboarded", true)
-      .order("points", { ascending: false })
-      .order("renown", { ascending: false })
-      .limit(5000);
-    if (mErr) return json({ error: "query_failed" }, 500);
+    const out = (verdict ?? {}) as {
+      closed?: boolean;
+      reason?: string;
+      status?: string;
+      members?: number;
+      total_points?: number;
+      champions?: { profile_id: string; rank: number }[];
+    };
 
-    const rows = (members ?? []).map((m, i) => ({
-      season_id: id,
-      profile_id: m.id as string,
-      points: Math.max(0, Math.trunc((m.points as number) ?? 0)),
-      renown: Math.max(0, Math.trunc((m.renown as number) ?? 0)),
-      glory: Math.max(0, Math.trunc((m.glory as number) ?? 0)),
-      rank: i + 1,
-    }));
-
-    if (rows.length > 0) {
-      const { error: upErr } = await db
-        .from("season_settlements")
-        .upsert(rows, { onConflict: "season_id,profile_id" });
-      if (upErr) return json({ error: "settle_failed" }, 500);
+    if (!out.closed) {
+      if (out.reason === "not_found") return json({ error: "not_found" }, 404);
+      return json(
+        {
+          error:
+            out.reason === "not_active"
+              ? `That season is already ${out.status ?? "closed"}.`
+              : "That season cannot be settled.",
+          reason: out.reason ?? "refused",
+        },
+        409
+      );
     }
 
-    const { data: updated, error: stErr } = await db
-      .from("seasons")
-      .update({ status: "settled" })
-      .eq("id", id)
-      .select(SEASON_SELECT)
-      .maybeSingle();
-    if (stErr) return json({ error: "update_failed" }, 500);
+    const members = out.members ?? 0;
+    const totalPoints = out.total_points ?? 0;
+    const champions = out.champions ?? [];
 
-    const totalPoints = rows.reduce((sum, r) => sum + r.points, 0);
+    /* The crests, granted outside the transaction on purpose: the close has to
+       be indivisible, a crest grant does not, and a failed notification insert
+       must never roll back a whole season's settlement. Idempotent by
+       user_crests' own key, and the champions were read back out of the frozen
+       rows so the crest and the record name the same members. */
+    for (const champion of champions) {
+      if (!champion?.profile_id) continue;
+      const { data: held } = await db
+        .from("user_crests")
+        .select("crest_slug")
+        .eq("profile_id", champion.profile_id)
+        .eq("crest_slug", SEASON_CHAMPION_CREST_SLUG)
+        .maybeSingle();
+      await grantCrest(db, champion.profile_id, SEASON_CHAMPION_CREST_SLUG);
+      if (held) continue;
+      await db.from("notifications").insert({
+        profile_id: champion.profile_id,
+        kind: "crest",
+        subject_id: SEASON_CHAMPION_CREST_SLUG,
+        body: `You finished among the highest when the season closed and earned the Champion of the Season crest.`,
+      });
+      await emit(db, {
+        kind: "crest.earned",
+        actorId: champion.profile_id,
+        subjectType: "crest",
+        subjectId: SEASON_CHAMPION_CREST_SLUG,
+        payload: {
+          v: 1,
+          crest_slug: SEASON_CHAMPION_CREST_SLUG,
+          title: "Champion of the Season",
+          season_id: id,
+          rank: champion.rank,
+        },
+      });
+    }
+
+    const { data: updated } = await db
+      .from("seasons")
+      .select(SEASON_SELECT)
+      .eq("id", id)
+      .maybeSingle();
 
     /* The realm hears the season close. This is the one reward announcement
        the product can make honestly: the figures are server settled, frozen in
@@ -204,8 +266,8 @@ export async function POST(req: Request) {
        to the realm is a privacy decision nobody has made and rule 7 constrains
        how a balance may be shown at all.
 
-       Once only, keyed on the season, so re-running a settlement to correct a
-       row does not announce the same close twice. */
+       Once only, keyed on the season, so a close and the clock job racing each
+       other cannot announce the same close twice. */
     await emit(db, {
       kind: "season.milestone",
       subjectType: "season",
@@ -214,21 +276,23 @@ export async function POST(req: Request) {
         v: 1,
         phase: "settled",
         season_id: id,
-        members: rows.length,
+        members,
         total_points: totalPoints,
+        champions: champions.length,
       },
     });
 
     await logAdminAction(db, profile.id, "season_settle", {
       targetType: "season",
       targetId: id,
-      payload: { members: rows.length, totalPoints },
+      payload: { members, totalPoints, champions: champions.length },
     });
     return json({
       ok: true,
       season: updated,
-      settled: rows.length,
+      settled: members,
       totalPoints,
+      champions: champions.length,
     });
   }
 

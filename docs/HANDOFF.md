@@ -146,9 +146,16 @@ commit, push, then move on. Full reasoning per item is in the strategy doc.
 4. **Native secondary market.** List, buy, gift, transfer, member to member, each
    signed by the member's own wallet, a small protocol fee to the Coffers, real
    print caps for a real floor. Non custodial, never take custody.
-5. **Appointment mechanics and seasons.** A daily Warchest window, a weekly House
-   Clash clock with a settlement time, a season finale that banks rank into a
-   permanent badge. Give the Chronicle, the Clash and Calls a clock.
+5. **Appointment mechanics and seasons.** DONE. `RAVENSPIRE-V2.md` section 45.
+   The Muster (two two-hour windows a day, paid out of the social allowance
+   that already exists so it mints nothing, earning `lord-of-light` at a thirty
+   day vigil), a weekly Clash on the calendar with an idempotent settlement and
+   a frozen result, and a season close that banks rank, resets Glory alone and
+   crowns `champion-of-the-season`. One hourly cron, `/api/cron/clock`. The
+   daily Warchest window this item originally asked for is NOT available and
+   should not be built: chests cost money and are sealed, so a window handing
+   them out would be inventing a reward the realm cannot pay.
+   Migration `20260817090000_appointments_and_seasons.sql`, not applied.
 6. **Provably fair as a feature.** A public verifier page and the reveal affordance
    on the Ceremony, with the floor and expected value published beside the odds.
    The opening already reveals the seed and nonce; build the surface that lets a
@@ -202,6 +209,10 @@ Detail in `RAVENSPIRE-V2.md` section 39. Highest value first:
 4. Pre commit a rotating seed for chest opening (stronger provably fair). DONE,
    both halves: `RAVENSPIRE-V2.md` section 42.1.
 5. Align the redeem route comment with its code (the `attempts` bump).
+6. Seasonal quest verification. FIXED. `lib/game/quest-verify.ts` read
+   `started_at` from `seasons` and the column is `starts_at`, so a swallowed
+   PostgREST error meant every seasonal quest had silently been verified
+   against a rolling ninety day window instead of against the season.
 
 ## 6. How the money and security code is shaped (so you extend it safely)
 
