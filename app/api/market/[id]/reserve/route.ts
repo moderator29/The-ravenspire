@@ -21,7 +21,7 @@ import {
  * this route remembers to check.
  *
  * That freeze is what a buyer is paying into. They send their money to the
- * seller's own wallet and the fee to the Coffers, directly, in transactions
+ * seller's own wallet and the fee to the Exchequer, directly, in transactions
  * they sign themselves, knowing the trade on the other end cannot be pulled
  * out from under them. The platform never sits between the two payments and
  * the two parties.
@@ -108,7 +108,7 @@ export async function POST(
   const { data, error } = await db.rpc("market_reserve", {
     p_listing_id: id,
     p_buyer_profile_id: profile.id,
-    /* The chain, the token and the Coffers come from the realm's own
+    /* The chain, the token and the Exchequer come from the realm's own
        configuration and are frozen onto the listing, so a config change while
        somebody is mid-purchase can never move where they were told to pay. */
     p_chain_id: gate.config.chain.id,

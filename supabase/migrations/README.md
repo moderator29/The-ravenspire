@@ -110,6 +110,23 @@ migration to touch this one constraint, and an earlier one nearly took every War
 award in the realm offline by re-adding it from a stale reading of this
 directory, which is why it is checked three times rather than once.
 
+## Two applied files say "Coffers" and mean the Exchequer
+
+`20260813112210_the_bazaar_schema.sql` and
+`20260813112239_the_bazaar_functions_list_cancel_reserve.sql` call the
+platform's fee wallet the Coffers, in their comments. That name was later found
+to collide with the lexicon, where the Coffers is what a MEMBER earns, and the
+platform's fee wallet was renamed to the Exchequer everywhere else.
+
+Those two files were deliberately not edited. The property this directory has to
+keep is that **the file's content is what ran**, and a comment improved after the
+fact is a file that no longer matches the migration production recorded. A stale
+comment is a small cost; a directory whose files are "mostly what ran" is the
+thing that broke five times.
+
+No column, function or constraint carries the word, so nothing in the schema
+needs renaming. Only the prose in those two files, and it stays.
+
 ## The rest of the posture
 
 Every table is RLS deny-by-default with ownership enforced in the route under

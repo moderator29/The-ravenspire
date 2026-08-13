@@ -75,7 +75,7 @@ export async function GET(req: Request) {
         open: true,
         /* What a client is told about settlement: the chain, the token's
            symbol and its decimals, because a buy control has to be able to
-           build a transfer. Never the Coffers address until a listing is
+           build a transfer. Never the Exchequer address until a listing is
            actually reserved, and never anything else. */
         chain: { id: gate.config.chain.id, name: gate.config.chain.name },
         explorer: gate.config.chain.explorer,

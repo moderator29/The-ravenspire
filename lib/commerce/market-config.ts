@@ -5,7 +5,7 @@ import { rpcUrl } from "@/lib/chain/rpc";
 /* Where the market's money moves, read from the environment.
  *
  * FOUNDER-ONLY, AND THAT IS WHY THIS FILE IS SHAPED THE WAY IT IS. The pay
- * token, the chain and the Coffers address are decisions with real money
+ * token, the chain and the Exchequer address are decisions with real money
  * attached, so this module is built to be completely absent-safe: with nothing
  * configured it returns null and every route above it answers 503 with an
  * honest sentence. It never guesses a token, never falls back to a testnet
@@ -46,7 +46,7 @@ export type MarketPayToken = {
 export type MarketConfig = {
   chain: MarketChain;
   token: MarketPayToken;
-  /* The Coffers. The protocol fee is paid here by the buyer, in their own
+  /* The Exchequer. The protocol fee is paid here by the buyer, in their own
      transaction, as disclosed revenue. Nothing belonging to a seller ever
      arrives at this address. */
   feeWallet: `0x${string}`;
@@ -113,7 +113,7 @@ export function marketConfig(): MarketConfig | null {
  * Two locks, both of which must be open, and they are deliberately different
  * things. `market_live` is the founder's decision that the realm is ready to
  * let members trade with each other; the configuration is the pay token and
- * the Coffers address actually existing. Either one alone means sealed, and
+ * the Exchequer address actually existing. Either one alone means sealed, and
  * the two report differently because they are different situations: a sealed
  * chapter is a product state a member should see explained, while a missing
  * pay token is an operational fault nobody outside the realm should have to

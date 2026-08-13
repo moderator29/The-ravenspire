@@ -204,7 +204,7 @@ export async function verifyTribute(args: {
  * pay token to this payee, in this transaction.
  *
  * ONE TRANSACTION MAY PROVE BOTH LEGS. A sale has two payees, the seller and
- * the Coffers, and a plain ERC-20 transfer pays one address, so a buyer
+ * the Exchequer, and a plain ERC-20 transfer pays one address, so a buyer
  * ordinarily signs twice. A wallet that can batch calls pays both in a single
  * transaction, and then the same hash proves both legs and this is called twice
  * against the same receipt. That is why the payee is an argument rather than
@@ -227,7 +227,7 @@ export async function verifyMarketLeg(args: {
   txHash: `0x${string}`;
   /* The buyer's own wallet, read from their profile. Never from the request. */
   from: string;
-  /* The seller's own wallet, or the Coffers. Never from the request. */
+  /* The seller's own wallet, or the Exchequer. Never from the request. */
   to: string;
   /* The pay token's contract. Only this contract may speak for the payment. */
   token: string;

@@ -184,7 +184,7 @@ export function ListButton({
             </div>
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-xs text-bone-mut">
-                Protocol fee, {feeLabel}%, to the Coffers
+                Protocol fee, {feeLabel}%, to the Exchequer
               </dt>
               <dd className="tnum text-sm text-bone-mut">
                 {formatMoney(money(quote.feeMinor))}

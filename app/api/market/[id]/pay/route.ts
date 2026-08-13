@@ -7,7 +7,7 @@ import { verifyMarketLeg } from "@/lib/chain/verify-transfer";
 
 /* POST /api/market/[id]/pay: hand back a transaction and let the realm read it.
  *
- * The buyer's own wallet has paid the seller, or the Coffers, or both at once
+ * The buyer's own wallet has paid the seller, or the Exchequer, or both at once
  * if it can batch. That transaction hash is the entire extent of what the
  * client is allowed to assert. Everything else is read off the chain: that the
  * transaction exists and succeeded, that it was sent by that member's own
@@ -28,7 +28,7 @@ import { verifyMarketLeg } from "@/lib/chain/verify-transfer";
  * is special-cased: whatever the receipt proves is what gets recorded.
  *
  * WHY THE PLATFORM IS NOT IN THE MIDDLE. There is no route here that receives
- * money. The buyer paid the seller's own wallet and the Coffers directly, and
+ * money. The buyer paid the seller's own wallet and the Exchequer directly, and
  * this route reads a public chain to find out that they did. If the realm
  * vanished at this exact moment, the seller would still have been paid, in
  * full, because the payment never went anywhere near the platform. That is the

@@ -104,7 +104,7 @@ describe("the protocol fee", () => {
   });
 
   it("takes exactly five percent of a round price", () => {
-    /* Ten dollars: fifty cents to the Coffers, nine fifty to the seller. If a
+    /* Ten dollars: fifty cents to the Exchequer, nine fifty to the seller. If a
        member does this sum in their head, it has to come out. */
     expect(quoteFor(1_000)).toMatchObject({
       priceMinor: 1_000,
@@ -117,7 +117,7 @@ describe("the protocol fee", () => {
 
   it("charges at least one cent at the cheapest legal listing", () => {
     /* A fee that rounds to nothing is a free trade with a fee label on it, and
-       the Coffers would be funding the venue for whoever noticed. */
+       the Exchequer would be funding the venue for whoever noticed. */
     const cheapest = quoteFor(MIN_PRICE_MINOR);
     expect(cheapest.feeMinor).toBeGreaterThanOrEqual(1);
     expect(cheapest.sellerMinor).toBeGreaterThanOrEqual(1);
