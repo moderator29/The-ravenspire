@@ -1,16 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { SET_ONE, type SetOneCard } from "@/lib/collectibles/set-one";
-import { houses } from "@/lib/data/houses";
 import { RarityChip } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { ChampionCardFace } from "@/components/ui/champion-card";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { BackButton } from "@/components/shell/back-button";
-import { cx } from "@/components/ui/cx";
 
 /* THE RELIQUARY (V2 Part Two, section 26.1). Plain label: cards and relics.
  *
@@ -31,45 +29,30 @@ import { cx } from "@/components/ui/cx";
  * other twenty show the sealed card back until their portraits land, and say
  * so plainly. */
 
-const sigilByHouse = new Map(houses.map((h) => [h.name, h.sigil] as const));
-
+/* The Reliquary grid draws the shared card chassis (components/ui/champion-card),
+   the one chassis used at every size across the product. The peek behaviour is
+   the Reliquary's own: the chassis renders the sealed veil, and pressing or
+   hovering lifts it by fading the veiled face out and the open face in, opacity
+   only, per the motion law. */
 function CardFace({ card, peeked }: { card: SetOneCard; peeked: boolean }) {
   const c = card.champion;
-  const sigil = sigilByHouse.get(c.house) ?? "banner";
-
   return (
-    <div className="relative aspect-[5/7] w-full overflow-hidden rounded-lg border border-steel-line bg-void">
-      {c.art ? (
-        <Image
-          src={c.art}
-          alt=""
-          fill
-          sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 200px"
-          className="object-cover"
-        />
-      ) : (
-        /* The card back: house sigil on obsidian. Honest about the missing
-           portrait rather than faking one. */
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[image:radial-gradient(80%_60%_at_50%_35%,rgba(217,176,64,0.08),transparent_70%)]">
-          <Icon name={sigil} className="h-10 w-10 text-gold/40" />
-          <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-bone-faint">
-            Portrait incoming
-          </span>
-        </div>
-      )}
-
-      {/* The seal. A veil over the art, not over the checklist: backdrop blur
-          plus an obsidian scrim, carrying the padlock. It fades on peek and on
-          hover, opacity only. pointer-events-none so the card button under it
-          receives every tap. */}
+    <div className="relative">
+      <ChampionCardFace
+        champion={c}
+        number={card.number}
+        total={SET_ONE.counts.total}
+        size="md"
+      />
+      {/* The veil, cross-faded on peek or hover. Kept as a sibling overlay so
+          the toggle animates opacity only rather than swapping the chassis. */}
       <div
         aria-hidden
-        className={cx(
-          "pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2",
-          "bg-obsidian/45 backdrop-blur-[3px]",
-          "transition-opacity duration-base ease-out-quint",
-          peeked ? "opacity-0" : "opacity-100 group-hover:opacity-0"
-        )}
+        className={
+          "pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg " +
+          "bg-obsidian/45 backdrop-blur-[3px] transition-opacity duration-base ease-out-quint " +
+          (peeked ? "opacity-0" : "opacity-100 group-hover:opacity-0")
+        }
       >
         <span className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gold/30 bg-obsidian/80">
           <Icon name="lock" className="h-4 w-4 text-gold" />
@@ -78,11 +61,6 @@ function CardFace({ card, peeked }: { card: SetOneCard; peeked: boolean }) {
           Sealed
         </span>
       </div>
-
-      {/* Collector number, always visible, the way a printed card carries it. */}
-      <span className="tnum absolute left-1.5 top-1.5 rounded-sm bg-obsidian/70 px-1.5 py-0.5 text-[9px] font-semibold text-bone-faint">
-        {card.number}/{SET_ONE.counts.total}
-      </span>
     </div>
   );
 }
