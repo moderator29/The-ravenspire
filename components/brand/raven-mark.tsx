@@ -1,39 +1,27 @@
-let gradientSeq = 0;
-
 /*
-  The Ravenspire sigil: sharp angular raven, swept pointed feathers,
-  diamond head with the all-seeing eye, long tapered tail. Forged-gold
-  gradient fill, never flat.
+  The Ravenspire crest: the raven-head sigil set in a forged-gold shield, the
+  brand mark the founder chose. Rendered from the crest art at
+  public/brand/raven-crest.png, a fixed full-colour mark (dark raven on gold)
+  built to sit on obsidian surfaces, which is every surface in the realm.
+
+  Kept as a component with the same name and the same `className` sizing API as
+  the sigil it replaces, so every call site that placed the old mark now shows
+  the crest at the same size with no other change. The art is square and
+  transparent, so `h-x w-x` classes frame it correctly.
 */
 export function RavenMark({ className = "h-12 w-12" }: { className?: string }) {
-  const id = `rv-gold-${gradientSeq++}`;
   return (
-    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#FFE9A3" />
-          <stop offset="48%" stopColor="#D9B040" />
-          <stop offset="100%" stopColor="#8F6717" />
-        </linearGradient>
-      </defs>
-      <g fill={`url(#${id})`}>
-        {/* head spike */}
-        <path d="M50 4 L53 14 L50 24 L47 14 Z" />
-        {/* diamond head with dark eye */}
-        <path d="M50 20 L56 30 L50 40 L44 30 Z" />
-        {/* left wing, three swept blades */}
-        <path d="M48 34 C36 26 20 24 4 30 C18 35 32 39 47 42 Z" />
-        <path d="M48 42 C38 40 24 42 12 48 C24 50 36 50 47 48 Z" />
-        <path d="M48 50 C40 50 30 54 24 60 C32 60 40 57 47 54 Z" />
-        {/* right wing, mirrored */}
-        <path d="M52 34 C64 26 80 24 96 30 C82 35 68 39 53 42 Z" />
-        <path d="M52 42 C62 40 76 42 88 48 C76 50 64 50 53 48 Z" />
-        <path d="M52 50 C60 50 70 54 76 60 C68 60 60 57 53 54 Z" />
-        {/* tapered tail */}
-        <path d="M50 44 L54 62 L50 92 L46 62 Z" />
-      </g>
-      {/* the all-seeing eye */}
-      <circle cx="50" cy="30" r="2.2" fill="#07070A" />
-    </svg>
+    /* A fixed raster brand mark, not an icon to be tinted, so a plain image is
+       correct here and next/image would only add layout constraints the callers
+       do not want. */
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/brand/raven-crest.png"
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      className={className}
+      style={{ objectFit: "contain" }}
+    />
   );
 }
