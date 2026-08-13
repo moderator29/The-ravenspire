@@ -9,6 +9,7 @@ import {
   type CraftState,
   type HoardCard,
   type HoardSummary,
+  type MarketState,
   type MintState,
 } from "@/components/collectibles/hoard";
 
@@ -31,6 +32,9 @@ type Payload = {
   /* Own reads only. /api/hoard carries no craft rule, because a visitor cannot
      burn somebody else's duplicates. */
   craft?: CraftState;
+  /* Own reads only, for the same reason: a visitor cannot sell somebody else's
+     card, so somebody else's Hoard carries no market terms at all. */
+  market?: MarketState;
   sealed?: boolean;
 };
 
@@ -40,6 +44,7 @@ const EMPTY_SUMMARY: HoardSummary = {
   setSize: 0,
   byRarity: {},
   minted: 0,
+  listed: 0,
 };
 
 export function HoardPanel({
@@ -106,8 +111,14 @@ export function HoardPanel({
       own={own}
       mint={payload.mint ?? null}
       craft={payload.craft ?? null}
+      market={payload.market ?? null}
       sealed={payload.sealed === true}
       onClaimed={() => void load()}
+      /* The ledger has changed underneath the case: a copy is now on the
+         board. Re-read rather than patch, because the ledger is the truth and
+         a locally reconciled copy of it is a second answer waiting to be
+         wrong. */
+      onListed={() => void load()}
     />
   );
 }

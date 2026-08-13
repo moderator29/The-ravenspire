@@ -64,6 +64,53 @@ export function sumMinor(amounts: number[]): number {
   return total;
 }
 
+/* A fee taken out of an amount, in integer minor units.
+ *
+ * WHY THIS IS HERE AND NOT IN THE MARKET. A fee split is money arithmetic, and
+ * money arithmetic lives in one module in this codebase. Writing
+ * `price * 0.05` at the call site is the exact mistake the header of this file
+ * exists to prevent: 2999 * 0.05 is 149.95000000000002 in IEEE 754, and the
+ * two obvious ways to force that back to an integer disagree about the cent.
+ *
+ * ROUNDING IS HALF UP, AND IT IS DECIDED HERE ONCE. The only rule that
+ * actually matters is that the two halves add back up to the whole, exactly,
+ * with no cent invented and none lost, which is asserted below and tested.
+ * The net is derived by subtraction rather than by a second rounding, because
+ * two independently rounded halves are how a ledger ends up a cent short of
+ * itself.
+ *
+ * Basis points rather than a percentage: 500 bps is 5%, and an integer rate
+ * cannot be typed as 0.05 by one caller and 5 by another. */
+export interface FeeSplit {
+  /* What the payer pays. */
+  totalMinor: number;
+  /* What the fee taker receives. */
+  feeMinor: number;
+  /* What the counterparty receives. Always exactly total minus fee. */
+  netMinor: number;
+  bps: number;
+}
+
+export function splitFee(totalMinor: number, bps: number): FeeSplit {
+  if (!Number.isInteger(totalMinor) || totalMinor < 0) {
+    throw new Error(`Invalid amount to split: ${totalMinor}`);
+  }
+  if (!Number.isInteger(bps) || bps < 0 || bps > 10_000) {
+    throw new Error(`Invalid fee rate: ${bps} bps`);
+  }
+  /* Integer throughout. `totalMinor * bps` is an exact integer for every
+     amount this product can charge, and the `+ 5_000` before the floor is what
+     makes it round half up rather than toward zero. */
+  const feeMinor = Math.floor((totalMinor * bps + 5_000) / 10_000);
+  const netMinor = totalMinor - feeMinor;
+  /* Never reachable for bps within range, and asserted anyway: a negative net
+     would mean a seller paying to sell. */
+  if (netMinor < 0) {
+    throw new Error(`Fee ${feeMinor} exceeds the amount ${totalMinor}`);
+  }
+  return { totalMinor, feeMinor, netMinor, bps };
+}
+
 /* The one place a decimal is produced, and only for display. Never feed this
    back into any arithmetic: it is a string for a human, not a number for a
    ledger. */
