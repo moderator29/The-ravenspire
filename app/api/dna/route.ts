@@ -1,8 +1,9 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { callerKey, rateLimit } from "@/lib/rate-limit";
+import { MODEL_REASONING, heraldClient } from "@/lib/ai/herald";
 import { fetchPortfolio } from "@/lib/market/goldrush";
 
 /* The DNA Analyzer. A presale hype tool: paste an EVM address or an @handle
@@ -11,10 +12,11 @@ import { fetchPortfolio } from "@/lib/market/goldrush";
    own public tables. Nothing is invented: when a source is empty we say so and
    let the model narrate honestly around the gap. */
 
-/* Anthropic client init mirrors lib/ai/raven.ts: same env var, same model. */
-const anthropicKey = process.env.ANTHROPIC_API_KEY;
-const anthropic = anthropicKey ? new Anthropic({ apiKey: anthropicKey }) : null;
-const DNA_MODEL = "claude-sonnet-5";
+/* One client for the whole realm, and the model the realm reasons with. This
+   route reads a model answer back as JSON rather than as prose, so it keeps its
+   own call and its own parser rather than going through heraldProse. */
+const anthropic = heraldClient();
+const DNA_MODEL = MODEL_REASONING;
 
 /* ---- Shared shapes returned to the client ---- */
 
