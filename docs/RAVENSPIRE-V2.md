@@ -2375,3 +2375,230 @@ can be bought: a member is entitled to read the terms of a trade before the
 trade exists.
 
 Migration `20260814090000_crafting_the_card_sink.sql`, not applied.
+
+## 45. The Bazaar, the non-custodial secondary market
+
+Shipped, sealed. Mission 4. Members held real cards and there was nowhere to
+trade one, so a collection could only ever grow: it had a floor the platform
+stands behind and no price anybody had ever paid, which makes a collectibles
+economy a subscription with pictures.
+
+### 45.1 Why this is not custody, in full
+
+The platform never holds a card and never holds a payment. That constraint is
+not a feature of the design, it is the design, and everything else falls out of
+it.
+
+**The card never moves to the platform.** A listing is an intent, not a deposit.
+`inventory.profile_id` stays the seller's for the entire life of the listing.
+There is no escrow row and no platform-owned profile. The card moves exactly
+once, in `public.market_record_payment`, straight from the seller to the buyer,
+in the same transaction that records the payment. At every instant the answer to
+"who owns this copy" is one member, and it is either the seller or the buyer.
+
+**The money never touches the platform.** The buyer's own Privy wallet pays the
+seller's own wallet and pays the fee to the Coffers. Nothing in the schema holds
+a balance because there is no balance to hold: the payment columns record hashes
+of transactions that happened between two other parties, which is bookkeeping.
+The honest test the ownership loop uses applies here too. If the platform
+vanished halfway through a trade, the seller would already have been paid, in
+full, because the payment went directly to them and never anywhere else.
+
+**The fee is revenue, not custody.** The Coffers receive it from the buyer, in
+the buyer's own transaction, as a disclosed charge for running the venue.
+Receiving your own fee is not holding somebody else's asset.
+
+### 45.2 The ordering problem, and the reservation that solves it
+
+An off-chain ledger row and an on-chain payment cannot settle atomically. One of
+them has to move first, and there are exactly three orderings.
+
+| Ordering | Verdict |
+| --- | --- |
+| The platform escrows the payment | Atomic, and custody. Refused |
+| The card moves first, then the buyer pays | The seller carries the whole risk with no recourse |
+| The buyer pays into a frozen reservation, then the ledger moves on proof | Chosen |
+
+The reservation is what makes the third one safe. While a listing is reserved to
+one buyer, the seller cannot cancel it, re-price it, sell it to anybody else,
+burn the card at the crafting bench, or carry it to their own wallet. The last
+two are enforced by triggers on the tables rather than by a route remembering to
+check. So the buyer pays into a trade the realm has already committed to
+completing, and the only failure left is the realm failing to record a payment
+that is on a public chain forever, which is retryable and idempotent rather than
+a loss.
+
+Said plainly, because a member is owed the plain version: the buyer takes a
+short window of risk against the realm's bookkeeping. They never take custody
+risk, because nobody has custody.
+
+**Expiry is a deadline on exclusivity, never on settlement.** The moment a
+single payment leg is proven, the reservation stops being releasable at all, no
+matter how long ago it was made. A buyer told their money arrived too late would
+be the worst sentence in this product.
+
+### 45.3 Two transfers, and why not one
+
+A sale has two payees and a plain ERC-20 transfer pays one address. The
+single-signature version is the buyer paying the platform, which then forwards
+the seller's share, and that is the custody this design refuses. So the buyer
+signs twice, or once if their wallet can batch the two calls, and the server
+records whichever legs each receipt actually proves. Two signatures is the price
+of never touching a seller's money.
+
+The seller leg is asked for first on purpose. A member who abandons the flow
+between the two prompts has paid the seller and owes only the fee, which leaves
+the seller whole and the trade completable. The other order would take a fee for
+a trade that never happened.
+
+Settlement is in a dollar stablecoin on Base, quoted in USD minor units and
+converted to token base units by exact integer arithmetic. That is the whole
+reason the pay token is a stablecoin: a floating asset would need an exchange
+rate, a rate needs an oracle, and a rate read at listing time and honoured at
+settlement is an invented number wearing a price tag.
+
+### 45.4 The fee
+
+**500 basis points, five percent, to the Coffers.** Small, explicit, and shown
+in full before anybody commits: the seller sees what they will receive before
+they list, and the buyer sees the price and the fee before they sign. It is
+never taken out of a spread and never described as network costs.
+
+Five percent is where it sits because of what it sits between. eBay takes about
+thirteen percent of a collectibles sale and StockX about nine, both on an
+inventory the seller has to ship. An NFT marketplace takes two and a half and
+provides no floor, no authentication and no venue beyond a contract. This market
+authenticates every card by construction, because the realm printed it. Five is
+defensible between those, and it is a number a member can check in their head.
+
+The arithmetic is integer minor units throughout (`splitFee` in
+`lib/commerce/money.ts`), rounded half up, with the seller's share derived by
+subtraction rather than by a second rounding, so the two halves can never
+disagree with the whole. That invariant is asserted at module load, tested
+exhaustively across every price the market allows, and checked again by a
+database constraint, because a split that quietly loses a cent shorts a seller
+on every sale forever and nothing ever fails.
+
+Price bounds are a dollar to a hundred thousand. The floor is what keeps the fee
+from rounding to nothing; the ceiling is a fat finger guard.
+
+### 45.5 A crest is never listable
+
+`isSoulbound` in `lib/collectibles/token-ids.ts` is the single answer to that
+question and the market reads it rather than re-deriving it, because a market
+that has to ask a second module whether a listing is legal will one day forget
+to. The database says it independently: `market_listings.subject_kind` is
+constrained to `card`. Two mechanisms, because a soulbound token sold to a buyer
+takes their money and delivers something that cannot be transferred to them, and
+there is no honest way to unwind that afterwards.
+
+### 45.6 A card carried on-chain, and the rule nobody would have written
+
+**A copy with a live claim cannot be listed.** The member holds the token in
+their own wallet and the ledger row is no longer the whole truth. Moving the row
+on payment would sell a buyer something the realm cannot deliver, with the chain
+saying the seller still owns it and the chain being right. Refused, exactly as
+`public.craft_cards` refuses it, with the same verdict name, because it is the
+same fact.
+
+Trading a card that is genuinely on-chain is a real feature and it is
+deliberately absent. The only honest way to do it is on-chain: the seller signs
+the transfer and it settles atomically against the payment in a contract both
+parties call. That needs a deployed marketplace contract, which is founder-gated
+and unbuilt, and the alternative of having the seller send the token to the
+platform to forward is the exact custody this design refuses.
+
+**The reciprocal rule is the one that actually protects a buyer's money, and a
+route would have forgotten it.** Without it a seller could list a card, wait for
+somebody to pay, and mint the token to their own wallet before the settlement
+landed. So a card with a live listing cannot be claimed on-chain, and cannot be
+burned at the bench either. Both are triggers on the tables. The claim trigger
+takes `FOR UPDATE` on the inventory row before it reads the listing table, which
+is what makes it race-proof rather than usually right: it forces the claim
+insert and `market_list` or `market_reserve` into a strict order, so whichever
+commits first is seen by the other. A plain `SELECT` there would be an MVCC
+snapshot taken beside an uncommitted listing, which reads as no listing at all.
+
+The triggers raise custom SQLSTATEs, `RS001` for the burn and `RS002` for the
+claim, which the craft route and the claim route map into sentences rather than
+reporting the realm as unavailable for something entirely of the member's doing.
+
+### 45.7 The floor is not a price, and the market never quotes it
+
+`lib/commerce/catalog.ts` is deliberately not imported by any market module.
+`RARITY_FLOOR_USD` is what the platform commits to standing behind, not a market
+price and not an appraisal. A board that showed it beside a listing would be
+quoting it as one, whatever the label said. The only number on a row is the
+price its seller named: no floor, no last sold, no estimate, no suggestion. The
+realm does not know what a card is worth and is not going to invent a figure.
+
+### 45.8 The transaction, and what it re-checks
+
+`public.market_list`, `market_cancel`, `market_reserve` and
+`market_record_payment`, all `security definer`, all `service_role` only, all
+under a row lock. Same lesson as `public.chest_open` and `public.craft_cards`,
+applied to the third end of the same ledger: a settlement from a route is five
+round trips, and a crash between any two leaves a buyer who has paid and holds
+nothing, or a card moved with the listing still open for a second buyer.
+
+What they re-check under the lock, never trusting the route's read: ownership,
+the absence of a live claim, the absence of another live listing, the buyer not
+being the seller, the reservation being this buyer's, and that the fee and the
+proceeds still add up to the price.
+
+**The wallets are read inside the function, never passed in.** If a route could
+name the payee, then a bug or a forged request in a route could redirect a
+sale's proceeds, which is the single most valuable thing anybody could do to
+this system. The chain, the pay token and the Coffers address do come from the
+caller, because they are the platform's own configuration, and they are frozen
+onto the listing at reservation time so a config change mid-flow cannot move
+where a buyer was told to pay.
+
+A listing cannot sell twice by three independent mechanisms: a partial unique
+index means a copy carries at most one live listing, the settlement is guarded
+on the status still being `reserved` under the row lock, and the update that
+moves the card is scoped to the seller still holding it.
+
+### 45.9 The surfaces
+
+**The Hoard grows a listing control**, on a copy that is neither on the board
+nor in the member's own wallet. Selling starts where a member is looking at what
+they own, which is the same argument that put the crafting bench there. The
+sheet prints three numbers before the button can be pressed: what the buyer
+pays, the fee, and what the seller receives. There is no suggested price beside
+the field.
+
+**`/market` is the Bazaar**, a Board rather than the wall of images every other
+marketplace defaults to. Comparison is the job: a member arriving wants to know
+what is for sale and at what price, and prices are read by lining them up. So
+compact density above `md`, right aligned tabular prices, hairline dividers, no
+zebra, ornament budget zero, and a card list below `md` because a five column
+table never scrolls sideways on a phone. The Hoard is where cards are meant to
+look beautiful. The fee is printed on the board itself, for the same reason a
+chest prints its odds before it can be bought.
+
+The honest empty state is the usual one and it is the truthful one: nobody holds
+a card yet, so nothing is listed, and the board says exactly that.
+
+### 45.10 What it waits on
+
+`market_live` ships off, a sixth switch beside `reliquary_live`, `chests_live`,
+`mercer_live`, `mint_live` and `crafting_live`, answering 423 exactly as the
+chest route does. The pay token and the Coffers address are unset, which answers
+503 separately, because a sealed chapter and a missing configuration are
+different situations and a member should never have to interpret the second.
+
+To open it: set `MARKET_CHAIN_ID`, `MARKET_PAY_TOKEN`,
+`MARKET_PAY_TOKEN_SYMBOL`, `MARKET_PAY_TOKEN_DECIMALS` and `MARKET_FEE_WALLET`,
+then flip `market_live`. The decimals are required rather than defaulted on
+purpose: a wrong value does not fail, it succeeds at the wrong magnitude, and
+the buyer meets the result in their own wallet after signing.
+
+Gifting and member to member transfer without a payment are the two pieces of
+mission 4 still absent. Neither is hard on top of this, and both are a different
+flow: no price, no fee, no reservation, one signature.
+
+Migration `20260816090000_the_bazaar.sql`, not applied. It was verified against
+a throwaway PostgreSQL 16 cluster with the whole migration chain replayed onto
+it, exercising every refusal, both triggers, every check constraint, the unique
+indexes and the grants.

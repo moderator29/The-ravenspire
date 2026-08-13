@@ -33,6 +33,18 @@ export type HoardClaim = {
   token_id: string | null;
 };
 
+/* The live listing on a copy, if it has one. Present on the trophy case for
+   the same reason the claim is: a card that is on the Bazaar cannot be burned,
+   cannot be claimed on-chain and cannot be listed again, and a surface that
+   offered any of those and then refused would be lying to a member about their
+   own property. The price rides along because the seller is entitled to see
+   what they asked for it without leaving the case. */
+export type HoardListing = {
+  id: string;
+  status: string;
+  price_minor: number;
+};
+
 export type HoardCard = {
   /* The inventory row: one copy, which is what a claim points at. */
   id: string;
@@ -50,6 +62,7 @@ export type HoardCard = {
      than as a blank. */
   art: string | null;
   claim: HoardClaim | null;
+  listing: HoardListing | null;
 };
 
 export type HoardSummary = {
@@ -62,6 +75,8 @@ export type HoardSummary = {
   byRarity: Record<string, number>;
   /* Copies carried on-chain. Zero until the mint opens, and honest about it. */
   minted: number;
+  /* Copies currently on the Bazaar. Zero until anybody holds anything. */
+  listed: number;
 };
 
 export type Hoard = { cards: HoardCard[]; summary: HoardSummary };
@@ -74,6 +89,7 @@ export const EMPTY_HOARD: Hoard = {
     setSize: SET_ONE.counts.total,
     byRarity: {},
     minted: 0,
+    listed: 0,
   },
 };
 
@@ -93,6 +109,13 @@ type ClaimRow = {
   status: string;
   tx_hash: string | null;
   token_id: string | null;
+};
+
+type ListingRow = {
+  id: string;
+  inventory_id: string | null;
+  status: string;
+  price_minor: number;
 };
 
 /* Read one member's holdings, newest first, with the claim that carried each
@@ -123,15 +146,19 @@ export async function readHoard(
   const rows = (data ?? []) as InventoryRow[];
   if (rows.length === 0) return EMPTY_HOARD;
 
-  const claimByCopy = await readClaims(
-    db,
-    profileId,
-    rows.map((r) => r.id)
-  );
+  const copyIds = rows.map((r) => r.id);
+  /* Two annotations on the collection, read in parallel because neither is the
+     collection itself: whether a copy has been carried on-chain, and whether it
+     is on the Bazaar. Both are absences most of the time. */
+  const [claimByCopy, listingByCopy] = await Promise.all([
+    readClaims(db, profileId, copyIds),
+    readListings(db, profileId, copyIds),
+  ]);
 
   const cards: HoardCard[] = rows.map((copy) => {
     const card = CARDS_BY_SLUG.get(copy.champion_slug);
     const claim = claimByCopy.get(copy.id) ?? null;
+    const listing = listingByCopy.get(copy.id) ?? null;
     return {
       id: copy.id,
       set_slug: copy.set_slug,
@@ -153,6 +180,13 @@ export async function readHoard(
                it on a trophy case would be showing proof of nothing. */
             tx_hash: claim.status === "minted" ? claim.tx_hash : null,
             token_id: claim.token_id,
+          }
+        : null,
+      listing: listing
+        ? {
+            id: listing.id,
+            status: listing.status,
+            price_minor: listing.price_minor,
           }
         : null,
     };
@@ -191,14 +225,45 @@ async function readClaims(
   return byCopy;
 }
 
+/* The live listings on a member's own copies. Live means active or reserved:
+   a settled listing describes a card they no longer hold, and a cancelled one
+   is history. Errors are swallowed for the same reason the claim read swallows
+   them: the collection is the point and a listing is an annotation on it, so
+   the Bazaar being unreadable must never take a trophy case down. */
+async function readListings(
+  db: SupabaseClient,
+  profileId: string,
+  copyIds: string[]
+): Promise<Map<string, ListingRow>> {
+  const byCopy = new Map<string, ListingRow>();
+  const { data, error } = await db
+    .from("market_listings")
+    .select("id, inventory_id, status, price_minor")
+    .eq("seller_profile_id", profileId)
+    .in("status", ["active", "reserved"])
+    .in("inventory_id", copyIds);
+  if (error || !data) return byCopy;
+
+  for (const row of data as ListingRow[]) {
+    if (!row.inventory_id) continue;
+    /* A copy carries at most one live listing, which a partial unique index
+       sees to. Last write wins if that ever stops being true, which is a
+       cosmetic wrong answer rather than a dangerous one. */
+    byCopy.set(row.inventory_id, row);
+  }
+  return byCopy;
+}
+
 function summarise(cards: HoardCard[]): HoardSummary {
   const byRarity: Record<string, number> = {};
   const distinct = new Set<string>();
   let minted = 0;
+  let listed = 0;
   for (const card of cards) {
     byRarity[card.rarity] = (byRarity[card.rarity] ?? 0) + 1;
     distinct.add(`${card.set_slug}:${card.champion_slug}`);
     if (card.claim?.status === "minted") minted += 1;
+    if (card.listing) listed += 1;
   }
   return {
     copies: cards.length,
@@ -206,6 +271,7 @@ function summarise(cards: HoardCard[]): HoardSummary {
     setSize: SET_ONE.counts.total,
     byRarity,
     minted,
+    listed,
   };
 }
 

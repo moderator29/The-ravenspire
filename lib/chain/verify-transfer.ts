@@ -200,6 +200,59 @@ export async function verifyTribute(args: {
   return { verified: true };
 }
 
+/* A market payment leg: the buyer's own wallet moved at least this much of the
+ * pay token to this payee, in this transaction.
+ *
+ * ONE TRANSACTION MAY PROVE BOTH LEGS. A sale has two payees, the seller and
+ * the Coffers, and a plain ERC-20 transfer pays one address, so a buyer
+ * ordinarily signs twice. A wallet that can batch calls pays both in a single
+ * transaction, and then the same hash proves both legs and this is called twice
+ * against the same receipt. That is why the payee is an argument rather than
+ * baked in, and why nothing here assumes a transaction carries exactly one
+ * transfer.
+ *
+ * WHY THE LOGS AND NOT THE TRANSACTION'S OWN `to`. An ERC-20 transfer's
+ * transaction is addressed to the token contract, never to the payee, so the
+ * only place the payment is visible is the token's own Transfer event.
+ * sumTransfersTo already refuses any log that was not emitted by the token
+ * contract itself, which is what stops a buyer pointing at a transaction where
+ * some other contract emitted an event of the same shape. That forgery costs a
+ * few cents of gas and would otherwise buy a card.
+ *
+ * AT LEAST, NOT EXACTLY. A buyer who sends a little more has overpaid, which
+ * is their business and not a reason to refuse them the card. A buyer who
+ * sends less has not paid the price, and the chain says so. */
+export async function verifyMarketLeg(args: {
+  chainId: number;
+  txHash: `0x${string}`;
+  /* The buyer's own wallet, read from their profile. Never from the request. */
+  from: string;
+  /* The seller's own wallet, or the Coffers. Never from the request. */
+  to: string;
+  /* The pay token's contract. Only this contract may speak for the payment. */
+  token: string;
+  /* The leg's amount in the token's base units, derived by exact integer
+     arithmetic from the listing's own minor-unit amounts. */
+  minAmount: bigint;
+}): Promise<TransferVerdict> {
+  const settled = await settledReceipt(args);
+  if (!settled.ok) return settled.verdict;
+
+  const moved = sumTransfersTo(
+    settled.receipt.logs,
+    args.token.toLowerCase(),
+    args.to.toLowerCase()
+  );
+  if (moved < args.minAmount) {
+    return {
+      verified: false,
+      pending: false,
+      reason: "That transaction did not carry the full amount to that address",
+    };
+  }
+  return { verified: true };
+}
+
 /* A trade: the member's own wallet sent a transaction that succeeded on the
    chain they named. That is what a trade record claims and it is what is
    checked.

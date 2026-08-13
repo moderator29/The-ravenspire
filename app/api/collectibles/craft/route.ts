@@ -49,6 +49,14 @@ export const dynamic = "force-dynamic";
 
 const UNDEFINED_TABLE = "42P01";
 
+/* The Bazaar's own refusal, raised by the trigger on public.inventory when a
+   craft tries to burn a card that is listed for sale. It arrives as a database
+   error rather than as a verdict because it comes from a trigger inside the
+   craft transaction, so it is mapped here into the sentence it deserves: the
+   member is not looking at a broken realm, they are looking at their own card
+   being on the board. */
+const LISTED_ON_THE_BAZAAR = "RS001";
+
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -242,6 +250,15 @@ export async function POST(req: Request) {
   if (settleError) {
     if (settleError.code === UNDEFINED_TABLE) {
       return json({ error: "The craft ledger has not been migrated yet" }, 503);
+    }
+    if (settleError.code === LISTED_ON_THE_BAZAAR) {
+      return json(
+        {
+          error:
+            "One of those copies is listed on the Bazaar. Withdraw it before you burn it",
+        },
+        409
+      );
     }
     return json({ error: "unavailable" }, 503);
   }

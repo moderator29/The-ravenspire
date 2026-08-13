@@ -143,9 +143,14 @@ commit, push, then move on. Full reasoning per item is in the strategy doc.
    asserted at module load to destroy floor value and to be no cheaper than the
    chest that sells the rarity. `RAVENSPIRE-V2.md` section 44. The rest of the
    item is untouched.
-4. **Native secondary market.** List, buy, gift, transfer, member to member, each
-   signed by the member's own wallet, a small protocol fee to the Coffers, real
-   print caps for a real floor. Non custodial, never take custody.
+4. **Native secondary market.** The Bazaar is DONE and sealed behind
+   `market_live`: list, reserve, buy, withdraw, with a 5% protocol fee to the
+   Coffers shown in full before anybody signs. A listing is an intent, never a
+   deposit: the card stays the seller's until the moment it becomes the
+   buyer's, and the payment goes wallet to wallet in transactions the buyer
+   signs, so the platform never holds either side. `RAVENSPIRE-V2.md` section
+   45 carries the custody argument in full. Gifting and a payment-free transfer
+   are the two pieces still absent.
 5. **Appointment mechanics and seasons.** A daily Warchest window, a weekly House
    Clash clock with a settlement time, a season finale that banks rank into a
    permanent badge. Give the Chronicle, the Clash and Calls a clock.
@@ -292,5 +297,8 @@ Everything else is yours to decide and build. Start at section 3, item 1.
 - Collectibles sinks: `lib/collectibles/crafting.ts` (the rule, and the two
   assertions that make it a sink), `app/api/collectibles/craft`,
   `components/collectibles/crafting-bench.tsx`.
+- The secondary market: `lib/commerce/market.ts` (the rule, the fee, and the
+  custody argument), `lib/commerce/market-config.ts`, `app/api/market/**`,
+  `components/market/**`.
 - Live database: Supabase project `tqvigouaifbklvajiyoj`. Migrations in
   `supabase/migrations/`.

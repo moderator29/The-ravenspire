@@ -11,6 +11,8 @@ import { Icon } from "@/components/ui/icon";
 import { RarityChip } from "@/components/ui/badge";
 import type { Rarity } from "@/lib/game/champions";
 import { ClaimButton } from "@/components/collectibles/claim-button";
+import { ListButton, type ListTerms } from "@/components/market/list-button";
+import { formatMoney, money } from "@/lib/commerce/money";
 
 /* THE HOARD: the trophy case.
  *
@@ -45,6 +47,12 @@ export interface HoardClaim {
   token_id: string | null;
 }
 
+export interface HoardListing {
+  id: string;
+  status: string;
+  price_minor: number;
+}
+
 export interface HoardCard {
   id: string;
   set_slug: string;
@@ -58,6 +66,7 @@ export interface HoardCard {
   house: string | null;
   art: string | null;
   claim: HoardClaim | null;
+  listing: HoardListing | null;
 }
 
 export interface HoardSummary {
@@ -66,6 +75,7 @@ export interface HoardSummary {
   setSize: number;
   byRarity: Record<string, number>;
   minted: number;
+  listed: number;
 }
 
 export interface MintState {
@@ -81,6 +91,16 @@ export interface MintState {
 export interface CraftState {
   open: boolean;
   steps: { from: string; to: string; burn: number }[];
+}
+
+/* The Bazaar's terms, as the trophy case reads them. The fee and the price
+   bounds, so a listing control can show a member exactly what a sale pays
+   before they commit to one. Present on your own Hoard and absent on somebody
+   else's, because there is nothing here a visitor can act on. Never a floor
+   value: the per rarity floor is what the platform stands behind, not a market
+   price, and the case does not quote it as one. */
+export interface MarketState extends ListTerms {
+  open: boolean;
 }
 
 const sigilByHouse = new Map(houses.map((h) => [h.name, h.sigil] as const));
@@ -108,7 +128,18 @@ type Stack = {
   card: HoardCard;
   copies: HoardCard[];
   minted: number;
+  listed: number;
 };
+
+/* A copy with a live claim is in the member's own wallet, or on its way there.
+   The realm cannot sell it for them: they hold the token, the platform never
+   had custody of it, and moving a ledger row on payment would sell a buyer
+   something the realm cannot deliver. The server refuses it too; the tile
+   refuses first so nobody opens a listing sheet and learns on the last tap. */
+function onChain(copy: HoardCard): boolean {
+  const status = copy.claim?.status;
+  return status === "issued" || status === "submitted" || status === "minted";
+}
 
 /* Group the copies into one tile per card, rarest first, then by collector
    number so the case reads like the printed set rather than like the order
@@ -121,12 +152,14 @@ function stack(cards: HoardCard[]): Stack[] {
     if (existing) {
       existing.copies.push(copy);
       if (copy.claim?.status === "minted") existing.minted += 1;
+      if (copy.listing) existing.listed += 1;
     } else {
       byCard.set(key, {
         key,
         card: copy,
         copies: [copy],
         minted: copy.claim?.status === "minted" ? 1 : 0,
+        listed: copy.listing ? 1 : 0,
       });
     }
   }
@@ -182,22 +215,43 @@ function HoardTile({
   stack: entry,
   own,
   mint,
+  market,
   onClaimed,
+  onListed,
 }: {
   stack: Stack;
   own: boolean;
   mint: MintState | null;
+  market: MarketState | null;
   onClaimed?: () => void;
+  onListed?: () => void;
 }) {
-  const { card, copies, minted } = entry;
+  const { card, copies, minted, listed } = entry;
   /* The first copy with nothing outstanding on it. A copy with an issued or
-     submitted claim is already spoken for, and a minted one is done. */
+     submitted claim is already spoken for, and a minted one is done. A copy on
+     the Bazaar is spoken for too: a listed card cannot be carried on-chain, or
+     a seller could mint it after somebody had already paid for it. */
   const claimable = copies.find(
     (copy) =>
-      !copy.claim ||
-      copy.claim.status === "expired" ||
-      copy.claim.status === "void"
+      !copy.listing &&
+      (!copy.claim ||
+        copy.claim.status === "expired" ||
+        copy.claim.status === "void")
   );
+
+  /* The first copy that is free to sell: not already on the board, and not in
+     the member's own wallet. Acting on the first free copy is the same rule
+     the claim control uses, so a member with four of one card never has to
+     choose between four identical rows. */
+  const sellable = copies.find((copy) => !copy.listing && !onChain(copy));
+
+  /* The price of the copy actually on the board, when there is exactly one, so
+     a seller can see what they asked without leaving the case. Absent when
+     several copies of one card are listed at different prices, because a
+     single figure would then be picking one of them arbitrarily. */
+  const listedCopies = copies.filter((copy) => copy.listing);
+  const listedPrice =
+    listedCopies.length === 1 ? listedCopies[0].listing?.price_minor ?? null : null;
 
   return (
     <li className="flex flex-col gap-2">
@@ -228,18 +282,41 @@ function HoardTile({
               {minted === copies.length ? "In your wallet" : `${minted} on-chain`}
             </span>
           ) : null}
+          {listed > 0 ? (
+            /* Steel, not gold. A card on the board is a fact about what a
+               member is doing with it, not an achievement, and the design
+               system reserves the tile's gold for the on-chain proof. */
+            <span className="text-[10px] uppercase tracking-[0.14em] text-bone-mut">
+              {listedPrice !== null
+                ? `Listed at ${formatMoney(money(listedPrice))}`
+                : `${listed} listed`}
+            </span>
+          ) : null}
         </span>
       </div>
 
-      {/* The claim control, on your own case only, and only once the realm can
-          actually mint. While the contracts are unbuilt this block is absent
-          rather than present and disabled: a dead control is a promise the
-          screen cannot keep. */}
+      {/* The two controls, on your own case only, and each absent rather than
+          present and disabled while its chapter is sealed. A dead control is a
+          promise the screen cannot keep. */}
       {own && mint?.open && claimable ? (
         <ClaimButton
           subject={{ kind: "card", inventoryId: claimable.id }}
           label={copies.length > 1 ? "Claim one" : "Claim to your wallet"}
           onClaimed={onClaimed}
+        />
+      ) : null}
+
+      {own && market?.open && sellable ? (
+        <ListButton
+          copy={{
+            id: sellable.id,
+            name: card.name ?? card.champion_slug,
+            cardNumber: sellable.card_number,
+            rarity: sellable.rarity,
+          }}
+          terms={market}
+          label={copies.length > 1 ? "Sell one" : "Sell on the Bazaar"}
+          onListed={onListed}
         />
       ) : null}
     </li>
@@ -252,8 +329,10 @@ export function Hoard({
   own,
   mint = null,
   craft = null,
+  market = null,
   sealed = false,
   onClaimed,
+  onListed,
 }: {
   cards: HoardCard[];
   summary: HoardSummary;
@@ -261,9 +340,11 @@ export function Hoard({
   own: boolean;
   mint?: MintState | null;
   craft?: CraftState | null;
+  market?: MarketState | null;
   /* The member keeps their collection private. A real state, not an error. */
   sealed?: boolean;
   onClaimed?: () => void;
+  onListed?: () => void;
 }) {
   const stacks = useMemo(() => stack(cards), [cards]);
 
@@ -350,17 +431,33 @@ export function Hoard({
               {summary.minted} on-chain
             </span>
           ) : null}
+          {summary.listed > 0 ? (
+            <span>{summary.listed} on the Bazaar</span>
+          ) : null}
         </p>
 
         {/* The way out of a pile of duplicates, and only when there is one.
             The trophy case is where a member notices they hold four of the
             same rare, so it is where the sink has to be offered. */}
-        {canCraft ? (
-          <Button size="sm" render={<Link href="/reliquary/craft" />}>
-            <Icon name="flame" className="h-3.5 w-3.5 text-gold" />
-            Craft duplicates
-          </Button>
-        ) : null}
+        <span className="flex flex-wrap items-center gap-2">
+          {canCraft ? (
+            <Button size="sm" render={<Link href="/reliquary/craft" />}>
+              <Icon name="flame" className="h-3.5 w-3.5 text-gold" />
+              Craft duplicates
+            </Button>
+          ) : null}
+
+          {/* The way to the market, and only for a keeper who could actually
+              trade there. A permanent link to a board a member cannot use is an
+              advertisement, and the design system is explicit that a card which
+              only announces has not earned its slot. */}
+          {own && market?.open ? (
+            <Button size="sm" render={<Link href="/market" />}>
+              <Icon name="coin" className="h-3.5 w-3.5 text-gold" />
+              The Bazaar
+            </Button>
+          ) : null}
+        </span>
       </Card>
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -370,7 +467,9 @@ export function Hoard({
             stack={entry}
             own={own}
             mint={mint}
+            market={market}
             onClaimed={onClaimed}
+            onListed={onListed}
           />
         ))}
       </ul>
