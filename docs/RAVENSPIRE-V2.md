@@ -3835,3 +3835,263 @@ treasury's own floor of zero, the category constraint in both directions, and
 the grants. Four of the older migrations fail on that replay because the
 baseline already creates the policies they create, which is pre-existing and
 unrelated (section 46.7).
+## 51. Gasless and forgiving, and the wire that turned out not to exist
+
+Rule 6 is the mission, not a constraint on it. Every value transfer is signed by
+the member's own Privy embedded wallet, the platform never takes custody and
+never holds a key, and that is the reason the realm is worth building. It has a
+bill, and the bill arrives at the worst possible moment: a member's first act,
+when a realm that has cost them nothing so far asks them to go and acquire ETH
+on Base before they can carry a card they already own.
+
+Sealed behind `gasless_live` until it is real.
+
+### 51.1 What account abstraction on Privy actually is, which is not what the brief assumed
+
+The brief assumed a paymaster is something this codebase wires up. It is not,
+and finding that out is the most useful thing this mission produced.
+
+Read from the installed SDK rather than from memory. `@privy-io/react-auth`
+ships a `smart-wallets` entry point whose per-network configuration type is
+`{ chainId, bundlerUrl, paymasterUrl?, paymasterContext? }`, and that object
+arrives in the browser inside the **app config Privy sends down**, resolved from
+settings held in Privy's own dashboard. The only knob the SDK exposes to
+application code is `paymasterContext` on `SmartWalletsProvider`.
+
+So there is no environment variable this repository could hold that would turn
+sponsorship on, no module that could point at a bundler, and no server-side check
+that could confirm a paymaster exists. A file here pretending to configure one
+would be describing a wire that does not exist. What the realm owns is the
+**policy**, and the policy is the whole of what was built.
+
+Two further facts, both load bearing:
+
+- **`permissionless` is an optional peer dependency and is not installed.**
+  Importing `@privy-io/react-auth/smart-wallets` today fails typecheck, because
+  its types import from it. Adding it would be a bundle's worth of code behind a
+  feature that cannot function until a dashboard exists elsewhere.
+- **`user.smartWallet` is on the plain user object**, available from `usePrivy()`
+  with no extra dependency at all. That is the observation the whole design hangs
+  off, and it is why the honest half of this could ship now.
+
+### 51.2 What it costs, and whether a free tier carries us
+
+It does, and the answer is more comfortable than expected, with one caveat about
+where these numbers come from.
+
+| Provider | Mainnet sponsorship on the free tier | Surcharge above it |
+| --- | --- | --- |
+| Coinbase CDP Paymaster (Base only) | about $15 of gas per app per month | gas plus 7% |
+| Alchemy Gas Manager | testnet only; mainnet needs a paid tier | gas plus 8% |
+| Pimlico | testnet only; mainnet is usage priced | usage priced |
+
+**CDP is the answer, and it is the answer because of the chain we already
+chose.** The realm mints on Base (section 28.3). CDP's paymaster is Base only,
+which is a limitation everywhere else and is exactly our shape here. Alchemy
+would have been the tidier story, since the existing Alchemy key already covers
+Base reads, but mainnet sponsorship there is a paid tier and rule 19 ends that
+conversation.
+
+The arithmetic that decides whether $15 is a realm or a rounding error:
+
+- An ERC-1155 claim as a 4337 user operation costs roughly 300k to 400k gas
+  including bundler overhead.
+- Base at a typical fee, plus the L1 data cost, puts that at roughly half a cent
+  to two cents.
+- $15 is therefore somewhere around **1,000 to 3,000 sponsored claims a month**.
+
+`SPONSORED_ACTS_PER_REALM` is set to **1,200**, deliberately at the pessimistic
+end of that range, so the realm stops sponsoring before the free tier stops being
+free rather than after. `SPONSORED_ACTS_PER_MEMBER` is **10**, which is under one
+percent of the realm budget, so no single account can drink the month.
+
+Two honest caveats, and the first is about provenance rather than about the
+numbers. **Nobody read these off a pricing page.** The provider domains are
+unreachable from the environment this was built in, so every figure in the table
+came from search results describing those pages, which is a weaker source than
+this table's confident formatting suggests. They are a starting point for a
+conversation with the dashboard, not a basis for flipping anything: a 7%
+surcharge on an unbounded overflow is precisely the surprise invoice rule 19
+exists to prevent, and it is exactly the term a second-hand summary would get
+wrong. The founder confirms them on the CDP dashboard, or they stay unconfirmed
+and nothing turns on. And the gas estimate is a live number: if Base gets
+expensive the act budget should come down, which is one constant in
+`lib/chain/sponsorship.ts`.
+
+There is also a **Base Gasless Campaign** offering up to $15k in paymaster
+credits by application. That is worth an application and it is founder work.
+
+### 51.3 The division that makes the degradation honest
+
+This is the design, and it is forced by 51.1 rather than chosen.
+
+- **The server decides whether sponsorship is PERMITTED.** The `gasless_live`
+  flag, an attested chain, and budget remaining on both counters.
+  `decideSponsorship` in `lib/chain/sponsorship.ts` is one pure function that
+  returns a payer and, when it is the member, one of five named reasons.
+- **The browser decides whether sponsorship is POSSIBLE.** Whether Privy actually
+  created a smart account, which it does only when the dashboard says so.
+  `user.smartWallet` is the whole observation.
+- **A surface may promise "no gas" only when both say yes.**
+
+The case this exists for is the third one: **permitted but not possible.** The
+flag is up, the budget is there, and the member has no smart account because the
+dashboard was never finished. Rendering the server's answer alone would put "no
+gas needed" on the screen and then charge them at the wallet prompt, which is the
+one failure this mission is actually about. `components/wallet/use-sponsorship.ts`
+composes the two and fails toward "you pay": every path that is not an explicit
+yes from both halves says the member pays, because wrongly saying the member pays
+is a pleasant surprise and wrongly saying the realm pays is a broken promise
+about money.
+
+**Nothing about sponsorship gates any control.** `payer` is a label. The claim
+button sends the same transaction it always sent, the ordinary path works exactly
+as it always has, and a member paying their own gas is one sentence worse off
+rather than one button short. `ClaimButton` renders the payer line while the
+control is idle and drops it once the member has committed, because by then their
+own wallet is telling them the fee.
+
+The server also cannot verify the dashboard, and the naming says so:
+`SPONSORSHIP_ATTESTED_CHAIN_ID` is an attestation by whoever set it, not a fact
+any process here checked.
+
+### 51.4 The wallet cap is not the commerce cap, and the answer is no
+
+The mission asked whether an on-chain wallet cap is the same idea as the member
+set cap in `member_commerce_limits`, and asked for an answer rather than two
+features with one name. **It is a different idea.** Three differences, each on
+its own sufficient:
+
+**Unit.** Cents against wei. One is a fixed claim on the realm; the other is a
+quantity of an asset whose fiat value moves while the member reads the screen.
+There is no honest shared column.
+
+**Enforceability.** The commerce cap is *enforced*: `commerce_checkout_guard`
+evaluates it and inserts the order in one transaction under one lock, and it
+works because the realm is the party taking the money. A wallet cap can only ever
+be *observed*. Rule 6 means the realm is never a party to an on-chain transfer
+and holds nothing that could refuse one, so a member can always open Privy's own
+wallet interface, or export the key, and sign whatever they like.
+
+**What it protects against.** The commerce cap protects a member from the realm's
+checkout. This protects a member from the realm's calldata.
+
+So the thing built is named for what it does: a **signing ceiling**, the most any
+Ravenspire surface will build and ask a member to sign. That is genuinely useful,
+it is the guardrail against a fat finger on the Bazaar and against a tampered
+realm surface asking for more than a member intended, and the panel says in the
+panel that it binds Ravenspire and not their keys. A member who read one of these
+and believed they had set the other would be worse off than one who had set
+neither, because they would think they were covered.
+
+The one thing the two share is the asymmetry, and it is shared because the reason
+has nothing to do with money: lowering applies at once, raising waits a day. It
+is copied deliberately rather than factored into a helper, because a shared helper
+across two different units would be the first step back toward one feature with
+two meanings.
+
+**It covers native coin only, and it bites in exactly one place today.** The
+guard is in `components/wallet/wallet-send-flow.tsx`, on the native branch. wei
+is the only quantity the realm can compare without a price feed, and a price feed
+is a paid dependency bought to widen a guardrail. Comparing an ERC-20 amount
+against a wei ceiling would be worse than not comparing: a hundred USDC is
+100,000,000 of its own minor units, comfortably under any sane wei ceiling, so
+the check would silently pass every stablecoin transfer while appearing to have
+run. **A guardrail that looks like it fired and did not is the one failure mode
+worse than an absent guardrail**, so the panel says "native coin only" in the
+panel and says why.
+
+That does mean the Bazaar is not covered, because Bazaar payment legs are ERC-20.
+Covering it honestly needs either a price feed or a per-asset ceiling a member
+would have to reason about in four denominations, and neither is worth it yet.
+
+The genuinely enforced version, a ceiling the wallet itself would refuse to
+exceed, is an on-chain policy on a smart account. That is dark, and it waits on
+the same one thing everything else does.
+
+### 51.5 Recovery: what Privy offers versus what the brief assumed
+
+The brief asked for **social recovery**. Privy does not have it, and the panel
+says so in the panel.
+
+The SDK types the recovery methods as `privy`, `user-passcode`, `google-drive`,
+`icloud` and `icloud-native`. Every one of those is a **backup**: a second copy of
+the recovery material, held either by Privy or by the member. There are no
+guardians, no threshold, no M-of-N, and nothing anywhere in the SDK that lets a
+member nominate another person as a way back in. Social recovery in the sense the
+term usually carries cannot be built on an embedded wallet at all; it needs a
+smart account whose contract implements it.
+
+So `components/wallet/recovery-panel.tsx` sells exactly what exists and states
+the trade rather than recommending a side. The default, `privy`, means a member
+who signs back in gets their wallet back, which is genuinely good and is genuinely
+a dependency on one company. A passcode moves that onto the member: nobody can
+restore it without them, including Privy and including us. And the export sits
+last, because a member holding their own exported key can restore the wallet after
+both companies are gone, and a non-custodial realm that hid the exit would not be
+one.
+
+Anyone who has used a wallet recently arrives expecting guardians. Finding out
+they do not have them at the moment they need them is the worst possible time, so
+the correction is on the surface and not only in this document.
+
+### 51.6 The budget is counted in acts, and why
+
+Pricing gas in fiat needs an ETH price, which needs an oracle, which is a
+dependency bought so a budget can be marginally more precise, and it puts a float
+in the middle of a spending limit, which is the thing `lib/commerce/money.ts`
+exists to prevent. An act is an integer and cannot drift. The conversion from
+dollars to acts is a sum the founder does once, and it is written out in 51.2 so
+the next person can check it.
+
+`wallet_sponsorship_grants` is a ledger and not a counter, because a counter and a
+ledger disagree the first time one is written and the other is not, and the one
+that gets believed is always the wrong one. Reservations are taken before the
+member's wallet is asked to do anything, because the check and the write have to
+be one transaction: ten concurrent claims each reading a budget of zero is the
+same defect the compliance guardrails were built around. The realm-wide counter
+has no row to lock, so the reservation serialises behind one transaction-scoped
+advisory lock, which is a real cost knowingly bought: reservations happen at the
+rate members claim collectibles, and the alternative is a realm budget that is not
+one.
+
+`released` is the status that matters. Most reservations become `spent`; the ones
+that do not are members who closed a wallet prompt, and if those stayed reserved
+the realm would slowly starve its own free tier paying for transactions that never
+happened.
+
+### 51.7 Exactly what is dark, and what each piece waits on
+
+| Dark | Waits on |
+| --- | --- |
+| Routing a claim through a paymaster so it genuinely costs nothing | A CDP account, a paymaster configured for Base in the **Privy dashboard**, and adding `permissionless` to `package.json`. All three, and none is a code decision except the last. |
+| `gasless_live` | The above being true. The flag alone sponsors nothing: `decideSponsorship` needs the flag *and* an attested chain *and* budget. |
+| `SPONSORSHIP_ATTESTED_CHAIN_ID` | The founder setting it to 8453 once the dashboard is real. Absent reads as unconfigured and every member pays their own gas, which is what happens today. |
+| The reserve and settle calls | The routing above. `wallet_sponsorship_reserve` and `wallet_sponsorship_settle` exist and are called by nothing, because reserving budget for a sponsorship that cannot happen would be a ledger of fiction. |
+| A ceiling the wallet itself enforces | A smart account with an on-chain policy. Same dashboard. |
+| Real social recovery | A smart account whose contract implements guardians. Not on offer from Privy at any tier. |
+
+Everything else is live behind the flag: the policy, the two counters, the signing
+ceiling with its asymmetry, the recovery panel, the composed payer verdict, and
+the payer line on the claim control.
+
+**The migration is applied**, as `20260813175339`, advisor clean. Two tables,
+one flag row, four functions, every one revoked from `public`, `anon` and
+`authenticated` and granted to `service_role` alone. It alters nothing that
+already exists, and in particular it does not touch `member_commerce_limits`,
+which is the point of 51.4.
+
+### 51.8 What was found on the way
+
+Two things, neither blocking:
+
+- **The claim path had no way to say what it cost.** Not a bug so much as an
+  absence: `ClaimButton` sent a transaction that costs real money on a real chain
+  and the first mention of a fee a member ever saw was the wallet prompt. That is
+  fixed whether or not sponsorship ever turns on, and it is the part of this
+  mission that would have been worth doing even if every paymaster were paid.
+- **`SpendLimitsPanel` already disclaims the chain** in its footer, correctly, in
+  the course of explaining that it cannot see the Bazaar. That sentence is
+  evidence for 50.4: the commerce cap's own copy already knew it was not a wallet
+  cap, and building one under the same name would have contradicted a paragraph
+  that shipped a mission ago.

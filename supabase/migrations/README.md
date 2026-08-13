@@ -74,6 +74,22 @@ The Bazaar is split into four files (`20260813112210` through `20260813112411`)
 because it was applied in four parts, and the files carry the names and versions
 production recorded so the two listings read the same.
 
+## Nothing is pending
+
+Every file in this directory has been applied and carries the version production
+recorded. `gasless_and_forgiving` was the last outstanding one: applied as
+`20260813175339`, advisor clean, renamed to match. It altered nothing that
+already existed, so the read-the-live-definition rule had nothing to check
+against. In particular it does not touch `member_commerce_limits`: the signing
+ceiling it adds is a different feature from the commerce spend cap, and
+`docs/RAVENSPIRE-V2.md` section 51.4 sets out why at length.
+
+The opposite divergence to the four incidents above (a file here that has not
+run) is much less dangerous but still has to be written down, because a reader
+who assumes every file has run will go looking for a table that is not there.
+There is nothing in that state right now. If you leave a migration written and
+unapplied, say so here.
+
 ## Applied in parts, and why the filenames say so
 
 Two of the recent migrations were applied through the Supabase API in more than
