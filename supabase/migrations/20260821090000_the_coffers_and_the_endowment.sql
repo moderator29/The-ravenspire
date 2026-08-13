@@ -36,7 +36,7 @@
 -- supabase/migrations/README.md requires. The live definition of
 -- points_ledger_category_check was read out of the project first and is
 -- ('social', 'call', 'war', 'stake'), matching
--- 20260815120000_call_stakes_and_house_treasury.sql exactly. The change below
+-- 20260813104201_call_stakes_and_house_treasury.sql exactly. The change below
 -- adds 'house' and removes nothing, so no existing row and no existing writer
 -- can be broken by it. That check is not optional here: this is the fourth
 -- migration in a row to touch this one constraint, and the third one nearly
