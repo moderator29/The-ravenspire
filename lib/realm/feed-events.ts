@@ -58,6 +58,7 @@ export const FEED_EVENT_KINDS = [
   "season.milestone",
   "standings.snapshot",
   "clash.opened",
+  "clash.settled",
   "discussion.trending",
 ] as const;
 

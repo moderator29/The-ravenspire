@@ -30,6 +30,11 @@ export const EVENT_KINDS = [
      already stores, never from a new source invented to fill a card. */
   "standings.snapshot",
   "clash.opened",
+  /* The other half of a Clash, and the half that was missing for as long as
+     Clashes have existed: nothing happened when one closed, so a finished
+     Clash was indistinguishable from an abandoned one. Written by the clock
+     job once per Clash, and on the once-only index for that reason. */
+  "clash.settled",
   "discussion.trending",
 ] as const;
 

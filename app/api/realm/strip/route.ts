@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { getProfile, json } from "@/lib/auth/server";
+import { musterState } from "@/lib/realm/muster";
 
 /* The realm strip.
  *
@@ -110,10 +111,24 @@ export async function GET(req: NextRequest) {
     | { id: number; name: string; ends_at: string }
     | null;
 
+  /* The Muster rides on the strip rather than on a request of its own.
+     The strip is already the row that answers "is something happening, and am
+     I in it", and the daily window is the sharpest answer to that question the
+     realm has. It also means the countdown and the claim control cannot
+     disagree about whether the window is open, because they read one payload.
+
+     Decided entirely from the server's clock. The response carries absolute
+     instants and the server's own `now`, so the surface counts down against a
+     skew it measures once instead of against a browser clock that may be
+     minutes out. A wrong browser clock can then only mis-render a label, never
+     open a window. */
+  const muster = await musterState(db, profile?.id ?? null);
+
   return json({
     streak,
     house,
     openCalls,
+    muster,
     season: season
       ? { id: season.id, name: season.name, endsAt: season.ends_at }
       : null,

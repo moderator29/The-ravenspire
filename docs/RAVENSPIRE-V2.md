@@ -2602,3 +2602,298 @@ Migration `20260816090000_the_bazaar.sql`, not applied. It was verified against
 a throwaway PostgreSQL 16 cluster with the whole migration chain replayed onto
 it, exercising every refusal, both triggers, every check constraint, the unique
 indexes and the grants.
+## 46. The realm gets a clock
+
+Shipped. Mission 5, appointments and seasons, and the plainest retention hole
+in the product: nothing in Ravenspire happened at a time. Every act was
+available at every hour of every day, so no day was different from any other
+and no member ever had a reason to come back on a particular one.
+
+Three appointments, in ascending period. The clock that decides all three is
+`lib/realm/appointments.ts`: pure, server-only, with its own tests and its own
+module load assertions. The settling is in Postgres, because all three have to
+happen exactly once or not at all.
+
+### 46.1 The Muster, the daily window
+
+Two two-hour windows a day, at 01:00 and 13:00 UTC. A member who opens the app
+inside either one claims the day: once per UTC day, either window, never twice.
+
+**Why two.** One realm-wide window is what makes an appointment worth anything,
+because everybody is present at once, which is the difference between an event
+and a daily bonus. But a single fixed UTC window permanently excludes whole
+hemispheres, and a per-member window would fix that by destroying the mechanic:
+if everyone's window is different, nobody is ever present at the same time as
+anybody else. Two windows twelve hours apart cost nothing, because the claim is
+still once a day. That they cover the whole planet is asserted at module load
+against every whole-hour UTC offset from -12 to +14, and tested again, because
+it is the one property of the schedule a well-meaning "let us move it an hour"
+would silently destroy for one hemisphere, and the people it excludes are
+asleep and do not file bugs.
+
+**What it pays, and why the realm can afford it.** This is the part that took
+the longest to get right, because the obvious design is wrong in a way that
+takes a year to show.
+
+`public.award_capped` adds every point of Glory to Renown, and Renown never
+falls. So a daily attendance reward paid in fresh Glory mints permanent
+standing every day forever for opening an app: at sixty a day that is twenty
+two thousand Renown a year, past the King tier at fifteen thousand, without a
+member ever making a Call or fighting a battle. Every ladder in the realm would
+have ended up sorted by attendance.
+
+So the Muster mints nothing at all. It is paid through `award_capped` under the
+same `'social'` category, and therefore out of the same two hundred a day
+ceiling, that likes, cheers, comments and quests already spend. The realm's
+total Renown mint per member per day does not rise by one point. What the
+Muster changes is WHEN a member spends an allowance they already had, which is
+exactly what an appointment mechanic is supposed to do.
+
+The honest consequence is stated on the offer, before the button, rather than
+discovered after it: a member who has already earned their day is paid nothing
+by the Muster, and the vigil holds anyway. That is correct. They have already
+earned their day. The Muster is for the member who would otherwise not have
+come at all.
+
+A pleasant side effect: `points_ledger_category_check`, the constraint this
+repository has twice nearly broken by re-adding it from a stale reading, is not
+touched by this migration at all.
+
+**What is actually earned in the window** is the vigil: a server-kept count of
+consecutive days mustered inside a window, which no amount of scrolling at
+other hours can produce. Thirty consecutive days earns `lord-of-light`.
+
+That crest is the point. It has sat in the catalogue since launch reading "for
+unbroken daily devotion to the realm", marked locked, with a frozen token id
+and a drawn glyph, and nothing anywhere in the product could grant it. It was a
+promise the realm had no mechanism to keep. A badge is the one thing an
+attendance mechanic can pay forever without inflating anything, and the Muster
+is its producer.
+
+The vigil is deliberately a separate count from `profiles.streak`, which
+advances for opening the app at any hour. They measure different things: that
+one is "did you show up", this one is "were you here when the realm was".
+Paying a devotion crest off the plain streak would hand it to somebody who has
+never once caught a window.
+
+Curve: 20 Glory on day one, 5 more per consecutive day, ceiling 60 on day nine.
+The ceiling is asserted at module load to be a whole number of steps above the
+base and to be under half the daily social allowance, because a ceiling near
+the cap would mean a member who catches the window has already spent their day
+and earns nothing for anything they then actually do.
+
+### 46.2 The Clash, the weekly clock
+
+House Clashes shipped with a table, an authoring form and a live scoreboard,
+and no schedule and no ending. Every Clash had to be typed by a steward, which
+in practice meant none was ever called: `house_clashes` is empty in production
+to this day. And nothing happened when one closed, so a finished Clash was
+indistinguishable from an abandoned one.
+
+**The cadence.** The Clash of ISO week N opens on that week's Friday at 18:00
+UTC and closes on the Sunday at 18:00 UTC. Forty eight hours, which is the
+length a Clash has always been, moved off a steward's whim and onto the
+calendar. Friday evening in Europe, Friday afternoon in the Americas, Saturday
+morning in Asia and Oceania, so every member gets two of their own weekend days
+inside it. The row is written as soon as the previous Clash closes, so the
+countdown is visible for the best part of a week before it opens.
+
+It is a THEME Clash, counting every Call sealed inside the window, and never a
+token one. No scheduler can nominate a token without inventing one: picking
+"whatever is trending" would make the realm's own weekly fixture depend on a
+third party price feed, and picking a favourite would be the platform putting
+its thumb on a market. A theme Clash needs nothing invented, because the rule
+is the window itself. Stewards may still call a token Clash by hand; those
+carry no `scheduled_week` and sit beside the weekly one rather than replacing
+it.
+
+**Idempotency, three layers.** A unique partial index on `scheduled_week` means
+one scheduled Clash per ISO week, so a cron that overlaps itself races an index
+rather than a guard written in TypeScript. `public.settle_house_clash` takes
+`FOR UPDATE` on the clash row and re-checks `settled_at` under it, so a second
+invocation blocks and then reads what the first wrote. The primary key on
+`(clash_id, house_slug)` is the third line. And `ends_at` is re-checked against
+the DATABASE clock, never against a time passed in, so a job host whose clock
+is an hour fast cannot close a Clash early and freeze a board that Calls were
+still arriving in.
+
+**Safe to miss a run** falls out of the design rather than being bolted on. The
+scheduler asks "what is the next window a member could still enter", never
+"what has happened since I last ran", so a job that has been down for a month
+comes back and opens exactly one Clash: the real one. Backfilling the weeks it
+missed would have been the obvious answer and the wrong one, because a Clash
+for a week that already closed is a competition nobody could enter. And a job
+that comes back DURING a live window still gets it right, which is a property
+of the original Clash design: entries are derived from `posts.created_at`
+inside the window rather than recorded when the Clash opens, so a row written
+an hour after its own start counts every Call made in that hour.
+
+**Why settlement pays nothing.** The obvious design is a Glory bonus for the
+winning House and it is wrong. A Clash score IS Glory, already earned and
+already paid by the very Calls on the board: every point went through `award()`
+when the verdict job settled that Call. Paying it again at settlement would
+credit one act twice and make winning a Clash the cheapest Glory in the realm.
+It cannot pay POINTS into the House treasury either, because that treasury
+holds real POINTS burned by real members staking real Calls, and minting into
+it would put invented balance beside earned balance in one column.
+
+So a Clash pays a record, permanently. The House that won the Clash of week 33
+won it forever, and nothing anybody does afterwards can move it. That is worth
+more than a bonus that devalues the currency it is paid in.
+
+**Why the finished board is frozen.** `house_clash_contributions` derives the
+board from posts, which is right for a LIVE board and wrong for a finished one.
+A result that keeps recomputing is a result that changes: a member deleting a
+Call in November would silently rewrite who won a Clash in August, and a House
+that lost could be handed a retroactive victory by somebody tidying their
+profile. `house_clash_results` freezes it at settlement, and the surface reads
+the frozen board for a settled Clash and the derived one for a live Clash.
+
+### 46.3 The season finale
+
+**What banks.** Every member's final rank, POINTS, Renown and Glory, frozen
+into `season_settlements`. Each House's board is already derived from
+`points_ledger` within the season window and needs no freezing.
+
+**What resets.** Glory, and Glory alone, on `profiles` and on `houses`.
+
+**What a member keeps forever.** Renown, which never falls. POINTS, an earned
+balance the realm intends to honour. Every card and every crest, held non
+custodially, which the platform could not take back if it wanted to. The
+settlement row itself. And, for the top three on Glory,
+`champion-of-the-season`.
+
+That is the other crest the catalogue has always described and nothing could
+ever grant: legendary, locked, frozen token id, drawn glyph, no producer
+anywhere in the product, because a season had no close. Now it has one. A
+member on zero Glory is never crowned: a season nobody played has no podium,
+and a legendary crest for finishing first among people who all scored nothing
+would be worth nothing.
+
+**Why Glory is the only thing that can reset.** Renown never falls, which is
+the first law of this economy and the reason Renown is worth earning at all.
+POINTS are an earned balance, so confiscating them at a boundary would be
+taking back something a member was told they had kept. Cards and crests are
+property. Glory is the only currency the product has always described as a
+House's SEASONAL standing, and a season in which nothing resets is a
+leaderboard with a name on it: the House that led in month one leads forever,
+because nobody can catch a number that only grows.
+
+**Why the freeze and the reset are one transaction.** The reset destroys
+exactly the numbers the freeze is recording. From a route that is two
+statements, and a crash between them is unrepairable in the worst possible way,
+because the evidence is what was destroyed: either every member's final Glory
+is zeroed with no record of what it was, or the record exists and the new
+season starts with the old scores still on the board.
+
+**Why a second run cannot zero the record.** This is the subtle one.
+`season_settlements` is keyed on `(season_id, profile_id)`, so a second run
+would upsert over the frozen rows, and by then every member's Glory is zero: it
+would overwrite a whole season's record with zeroes and rank the realm
+alphabetically. The status moves to `'settled'` inside the same transaction and
+is re-read under the row lock, so a second run refuses before it reads a single
+profile. `p_force` exists to close a season EARLY and deliberately does not
+bypass the status check. Force means "close it now", never "close it again".
+
+**A rank basis that was wrong.** The admin settle action ranked the season by
+POINTS, a lifetime balance that never resets, so the top of every season's
+table would have been the same people in the same order forever and the rank
+would have measured how long somebody had been here rather than what they did.
+A season is ranked by the season's own currency. The admin route now calls
+`public.close_season` too, so the realm has one settlement path and cannot hold
+two opinions about who won.
+
+**And a member can finally see it.** `season_settlements` has existed since
+launch with RLS denying it to every browser role, correctly, and the only
+reader in the product was the admin console. So the realm has been freezing a
+permanent record of each member's season and showing it to nobody but a
+steward. `GET /api/seasons/record` is the member's own half of it, their rows
+and nobody else's, rendered on `/renown` under "Seasons behind you", absent
+rather than empty until there is a settled season to show.
+
+### 46.4 The surfaces
+
+The **realm strip** leads with the Muster, and it is the only cell that ever
+leads, because it is the only one that expires. The strip stays Ledger: quiet,
+compact, one line. Answering is the Ceremony and takes over a centred Modal
+with the 3D icon at its anchor, one number and one action. That register split
+is the whole point: if the strip glowed, the moment it announces would mean
+nothing. The cell is only a control when there is genuinely something to do,
+because a control that opens a dialog saying "come back later" teaches a member
+to ignore it.
+
+The **Houses Clashes view** gets the cadence above the list, present whether or
+not a Clash exists, which is the honest empty state it never had. Publishing
+the rule ("Clashes open every Friday at 18:00 UTC and run 48 hours") is not
+inventing a record, and a `scheduled` flag keeps it honest in the other
+direction: when the row for the next window has not been written yet the card
+says the Clash is due rather than counting down to something that does not
+exist. A settled Clash reads Final and names the House that took it; a Clash
+that has closed without settling says so, because closed and settled are
+different facts.
+
+The **`clash.settled` card** is Ledger register, deliberately, and it is the
+one interesting judgement in the set. A House winning something is exactly what
+the Forge register exists for, and `house.overtake` already takes it. But a
+Clash settles every single week, forever, and ornament that arrives on a
+schedule is ornament nobody looks at twice. Ornament is earned and never
+ambient, and a weekly fixture is the definition of ambient. So the Clash result
+is quiet and the House overtaking a rival stays loud.
+
+**Every countdown is against the server's clock.** Each payload carries the
+server's own `now` beside the absolute instants, the surface measures the skew
+once on arrival, and every label is drawn against that. A browser twenty
+minutes fast reads the right countdown, and a browser set forward deliberately
+gains nothing at all, because the claim is decided in `public.claim_muster`
+against the database's clock and the surface can only ever render a label.
+
+### 46.5 Cron
+
+`/api/cron/clock`, hourly at five past, authenticated by `CRON_SECRET` exactly
+as the four existing jobs are. One job for all three appointments, because they
+share a clock and three cron entries would let the realm hold three opinions
+about what time it is. One `now` per invocation, for the same reason.
+
+Idempotent, safe to run twice in the same window, and safe to miss a run: every
+question it asks is "what is true now" and never "what happened since I last
+ran". Nothing in it reads a state and writes it from application code; every
+guard is a unique index or a row lock.
+
+### 46.6 Two bugs found on the way
+
+**Seasonal quests have never been verified against their season.**
+`lib/game/quest-verify.ts` read `started_at` from `seasons` and the column is
+`starts_at`. PostgREST fails the whole select on an unknown column, the
+surrounding catch swallowed it, and the fallback is a plausible ninety day
+rolling window rather than an error, so it has been silent since the verifier
+shipped. Every seasonal quest in the realm has been checking activity in the
+last ninety days instead of activity in the season: "win ten duels this season"
+could be completed with duels won in the previous one, and a season shorter
+than ninety days verified its quests against time before it existed. Fixed.
+
+**A module load assertion closed an import cycle.** `points -> crests ->
+appointments -> points`. The cycle had existed harmlessly for as long as points
+and crests have referred to each other, because every use was inside a
+function. A module load assertion is the one thing that cannot wait, so it read
+the binding before the module holding it was evaluated, and the build failed
+with "cannot access before initialization" from a route that touches none of
+it. Typecheck could not see it; `npm run build` could. The two daily allowances
+moved to `lib/economy/allowances.ts`, a leaf with no imports, re-exported from
+`lib/points.ts` so every call site is unchanged.
+
+### 46.7 Repository versus database
+
+Checked before anything was written, as the handoff now requires.
+`points_ledger_category_check` in the live project is
+`('social', 'call', 'war', 'stake')`, which matches
+`20260815120000_call_stakes_and_house_treasury.sql` exactly. Every table,
+column and index this work touches agrees between the two. No divergence found.
+
+The migration was replayed instead: the full chain from
+`00000000000000_baseline_schema.sql` forward was applied to a throwaway
+Postgres 16 cluster and the three functions were exercised against it, which is
+how the behaviour claimed above was checked rather than assumed. Four of the
+older migrations fail on that replay because the baseline already creates the
+policies they create, which is pre-existing and unrelated.
+
+Migration `20260817090000_appointments_and_seasons.sql`, not applied.
