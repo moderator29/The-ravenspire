@@ -1,3 +1,4 @@
+import { siteUrl } from "@/lib/site";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Providers } from "@/components/providers";
@@ -39,7 +40,7 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ravenspire.vercel.app"),
+  metadataBase: new URL(siteUrl()),
   title: {
     default: "The Ravenspire",
     template: "%s · The Ravenspire",
