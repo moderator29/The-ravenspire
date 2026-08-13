@@ -118,7 +118,11 @@ export async function POST(req: Request) {
 
   /* The same server path that seals the Call. A client side approximation would
      hand the Herald a difficulty the member is never scored against. */
-  const draft = await prepareCall(db, profile.id, body);
+  const draft = await prepareCall(
+    db,
+    { id: profile.id, points: profile.points, house_slug: profile.house_slug },
+    body
+  );
   if (!draft.ok) return json({ error: draft.error }, draft.status);
   const call = draft.call;
 

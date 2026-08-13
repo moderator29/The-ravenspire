@@ -8,6 +8,8 @@ import {
   impliedBaseline,
 } from "@/lib/calls/scoring";
 import { normalizeSources } from "@/lib/calls/analytics";
+import { checkStake } from "@/lib/calls/stake";
+import { extraOpenCallSlots } from "@/lib/houses/treasury";
 import { realizedVolatility } from "@/lib/calls/volatility";
 import { pinSubject } from "@/lib/calls/resolvers/price";
 import {
@@ -36,7 +38,12 @@ import {
 /* Anti-farming rule 2 of section 9.5. Without a ceiling a member fires off a
    hundred Calls, lets them all resolve, and shows the winners on their profile
    while the losers scroll away. Five running at once means every Call has to be
-   worth a slot. */
+   worth a slot.
+
+   A House may buy its members a sixth slot for a week (The Long Watch, see
+   lib/houses/perks.ts). That is the only thing in the realm that moves this
+   number, it is bought with points the House's own members burned, and it
+   expires on its own. */
 export const MAX_OPEN_CALLS = 5;
 
 /* Rationale is prose on a card, not an essay. */
@@ -57,6 +64,22 @@ export interface CallInput {
   threshold?: number;
   claim?: unknown;
   sources?: unknown;
+  /* POINTS the member wants to put behind the Call. Optional: every existing
+     client sends nothing and seals exactly the Call it always did. */
+  stake?: number;
+}
+
+/* What sealing a Call needs to know about the member sealing it.
+
+   The balance is here because a stake cannot be validated without it, and the
+   House because the open-Call ceiling can be raised by a House perk. Both come
+   from the session profile the route already holds, so this adds no read: the
+   alternative, fetching the profile again inside prepareCall, would be a
+   second query for figures the caller was handed at authentication. */
+export interface CallAuthor {
+  id: string;
+  points: number;
+  house_slug: string | null;
 }
 
 export type CallDraft =
@@ -90,16 +113,31 @@ export async function openCallCount(
    Renown out of nothing, and Renown is permanent. */
 export async function prepareCall(
   db: SupabaseClient,
-  profileId: string,
+  author: CallAuthor,
   input: CallInput
 ): Promise<CallDraft> {
-  const open = await openCallCount(db, profileId);
-  if (open >= MAX_OPEN_CALLS) {
+  const [open, extraSlots] = await Promise.all([
+    openCallCount(db, author.id),
+    extraOpenCallSlots(db, author.house_slug),
+  ]);
+  const ceiling = MAX_OPEN_CALLS + extraSlots;
+  if (open >= ceiling) {
     return fail(
-      `You already have ${MAX_OPEN_CALLS} Calls running. Let one resolve before sealing another.`,
+      `You already have ${ceiling} Calls running. Let one resolve before sealing another.`,
       429
     );
   }
+
+  /* The stake. Refused rather than clamped, for the same reason an
+     out-of-band confidence is refused: silently turning a stated 5,000 into
+     1,000 would take four times what the member meant to risk, and silently
+     turning it into 0 would seal a Call they thought they had backed.
+
+     The balance test here is courtesy, not the guarantee. Two Calls sealed in
+     the same instant can both pass it and only one can pass the profile row
+     lock inside escrow_call_stake, which is the authority. */
+  const staked = checkStake(input.stake, author.points);
+  if (!staked.ok) return fail(staked.error);
 
   const category: CallCategory = (CALL_CATEGORIES as readonly string[]).includes(
     input.category ?? ""
@@ -172,6 +210,9 @@ export async function prepareCall(
     rationale,
     threshold,
     ...(sources.length > 0 ? { sources } : {}),
+    /* Written into the jsonb only when there is one, so an unstaked Call reads
+       exactly as it did before staking existed. */
+    ...(staked.stake > 0 ? { stake: staked.stake } : {}),
     verdict: "open" as const,
   };
 

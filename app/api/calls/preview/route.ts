@@ -2,6 +2,7 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { prepareCall, type CallInput } from "@/lib/calls/create";
+import { MIN_STAKE, maxStakeFor } from "@/lib/calls/stake";
 import { peerBaselineFor } from "@/lib/calls/peers";
 import { callerRecordFor } from "@/lib/calls/record";
 import { discussionFor, similarCalls } from "@/lib/calls/similar";
@@ -49,7 +50,11 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as CallInput | null;
   if (!body) return json({ error: "bad request" }, 400);
 
-  const draft = await prepareCall(db, profile.id, body);
+  const draft = await prepareCall(
+    db,
+    { id: profile.id, points: profile.points, house_slug: profile.house_slug },
+    body
+  );
   if (!draft.ok) return json({ error: draft.error }, draft.status);
 
   const call = draft.call;
@@ -103,6 +108,20 @@ export async function POST(req: Request) {
       record,
       similar,
       discussion,
+      /* What the member could actually put behind this Call.
+
+         The balance is real and read from their own profile at authentication,
+         never estimated on the client, because a slider whose ceiling is a
+         guess is a slider that lets a member commit to a stake the server then
+         refuses. `max` is already bounded by MAX_STAKE and by what they hold,
+         and is zero when they cannot afford the minimum, which the composer
+         renders as an honest "not yet" rather than a control that moves and
+         then fails. */
+      stake: {
+        balance: profile.points,
+        min: MIN_STAKE,
+        max: maxStakeFor(profile.points),
+      },
     },
   });
 }
