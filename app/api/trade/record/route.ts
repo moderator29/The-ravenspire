@@ -3,6 +3,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { tradeChainById } from "@/lib/trade/config";
 import { notifyFollowers } from "@/lib/notifications";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
+import { verifyTrade } from "@/lib/chain/verify-transfer";
 
 /* The platform-wide trade feed. After a member's own wallet confirms an in-app
    buy, sell or swap (the on-chain transfer is the source of truth), the client
@@ -11,7 +12,17 @@ import { profileKey, rateLimit } from "@/lib/rate-limit";
    route only records what already happened on-chain.
 
    GET returns the recent realm feed (members only). Real data only: no seeded
-   or invented trades ever. */
+   or invented trades ever, and, since the hardening pass, no UNVERIFIED ones
+   either. The feed used to publish whatever hash a client posted, so a script
+   could inject fabricated trades as social proof and fan a notification out to
+   every follower of the account that posted them. The hash is now read off the
+   chain before a trade reaches the feed: the transaction succeeded, it was sent
+   by that member's own wallet, and where the trade names a coin it received,
+   that coin moved into that wallet.
+
+   An unproven trade is still recorded and still shows in the member's own Vault
+   history. It just does not enter the shared feed and rings nobody's ravens,
+   because the thing being defended is the audience, not the record. */
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
@@ -51,6 +62,9 @@ export async function GET(req: Request) {
     .select(
       "id, kind, chain_id, tx_hash, sell_symbol, sell_amount, buy_symbol, buy_amount, buy_contract, usd_value, created_at, trader:profiles!trades_profile_id_fkey (handle, display_name, avatar_url)"
     )
+    /* Verified only. An unproven trade is a claim, and the realm feed is the
+       one surface where a claim reads as a fact about somebody else. */
+    .not("verified_at", "is", null)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -154,6 +168,26 @@ export async function POST(req: Request) {
     .maybeSingle();
   if (prior) return json({ ok: true, trade: prior.id, deduped: true });
 
+  /* Read the chain. A trade with no wallet on file cannot be attributed to
+     anyone, so it is unproven rather than refused: a member whose wallet has
+     not synced yet has done nothing wrong. */
+  const wallet = profile.wallet_address;
+  let verifiedAt: string | null = null;
+  if (wallet) {
+    const verdict = await verifyTrade({
+      chainId,
+      txHash: txHash.toLowerCase() as `0x${string}`,
+      from: wallet,
+      /* A sell ends in the chain's own coin, which leaves no ERC-20 log to
+         check, so only a buy or a swap names a token that must have arrived. */
+      receivedToken: kind === "sell" ? null : cleanContract(body?.buyContract),
+    });
+    if (!verdict.verified && !verdict.pending) {
+      return json({ error: verdict.reason }, 400);
+    }
+    if (verdict.verified) verifiedAt = new Date().toISOString();
+  }
+
   const usdValue =
     typeof body?.usdValue === "number" && Number.isFinite(body.usdValue)
       ? Math.max(0, body.usdValue)
@@ -173,6 +207,7 @@ export async function POST(req: Request) {
       buy_amount: cleanAmount(body?.buyAmount),
       buy_contract: cleanContract(body?.buyContract),
       usd_value: usdValue,
+      verified_at: verifiedAt,
     })
     .select("id")
     .single();
@@ -188,8 +223,14 @@ export async function POST(req: Request) {
     return json({ error: "Could not record the trade" }, 500);
   }
 
-  // Follow alert: tell the trader's followers about the move. The coin contract
-  // rides in ref so the raven opens the right coin page.
+  /* Follow alert, for a verified trade only. The coin contract rides in ref so
+     the raven opens the right coin page. An unproven trade fans out to nobody:
+     a notification to every follower is exactly the amplification that made an
+     unchecked hash worth forging. */
+  if (!verifiedAt) {
+    return json({ ok: true, trade: trade.id, verified: false });
+  }
+
   const buySym = cleanSymbol(body?.buySymbol);
   const sellSym = cleanSymbol(body?.sellSymbol);
   const buyAmt = cleanAmount(body?.buyAmount);
@@ -209,5 +250,5 @@ export async function POST(req: Request) {
     ref: coinRef,
   });
 
-  return json({ ok: true, trade: trade.id });
+  return json({ ok: true, trade: trade.id, verified: true });
 }
