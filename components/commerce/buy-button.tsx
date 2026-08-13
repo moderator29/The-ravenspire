@@ -184,13 +184,27 @@ export function BuyButton({
       {floorMinor !== null ? (
         /* The floor beside the price, always. It is the trust feature of the
            whole program, and a chest that shows one without the other is a
-           worse offer than the realm actually makes. */
+           worse offer than the realm actually makes.
+         *
+         * IT SAYS "AT THE REALM'S OWN VALUATION" AND THAT IS NOT HEDGING. This
+         * read "Guaranteed floor" and it should not have. Nothing in the realm
+         * redeems a card at its floor: there is no buy back, and the only place
+         * a member turns a card into money is the Bazaar, where another member
+         * decides what it is worth. So the number is a valuation the realm
+         * publishes and stands behind as a catalogue value, not a sum anybody
+         * can claim, and the word "guaranteed" beside a dollar figure on a
+         * mystery box reads as exactly the claim it is not.
+         *
+         * lib/collectibles/hoard.ts already said this in a comment ("what the
+         * platform stands behind, not a market price") and declined to quote a
+         * floor on the trophy case for the same reason. The two surfaces
+         * disagreed and this one was the one taking the money. */
         <p className="text-[11px] leading-snug text-bone-faint">
-          Guaranteed floor{" "}
+          Floor{" "}
           <span className="tnum font-semibold text-bone-mut">
             {formatMoney({ minor: floorMinor, currency: "usd" })}
           </span>{" "}
-          of cards in every chest
+          of cards in every chest, at the realm&apos;s own valuation
         </p>
       ) : null}
       {error ? (
