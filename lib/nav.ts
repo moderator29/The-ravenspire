@@ -49,6 +49,12 @@ export const primaryNav: NavItem[] = [
 export const collectionNav: NavItem[] = [
   { slug: "war", href: "/war", themed: "The War", plain: "Battle for the Realm", icon: "swords", icon3d: "crossed-axes" },
   { slug: "reliquary", href: "/reliquary", themed: "The Reliquary", plain: "Cards & relics", icon: "layers", icon3d: "archive", badge: "Soon" },
+  /* Crafting sits directly under the Reliquary because it acts on the same
+     cards. It carries the same Soon badge as its parent chapter and for the
+     same reason: the bench is real and its ratios are printed, but the
+     crafting_live flag is off until members actually hold duplicates to
+     burn. */
+  { slug: "crafting", href: "/reliquary/craft", themed: "Crafting", plain: "Burn duplicates", icon: "flame", icon3d: "forge", badge: "Soon" },
   { slug: "warchests", href: "/warchests", themed: "Warchests", plain: "Mystery boxes", icon: "coin", icon3d: "chest", badge: "Soon" },
   { slug: "mercer", href: "/mercer", themed: "The Mercer", plain: "Official merch", icon: "flag", icon3d: "banner", badge: "Soon" },
   { slug: "renown", href: "/renown", themed: "Crests & Renown", plain: "Reputation", icon: "medal", icon3d: "trophy" },
