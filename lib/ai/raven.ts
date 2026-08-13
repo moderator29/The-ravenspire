@@ -1,5 +1,6 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
+import { MODEL_REASONING, heraldClient } from "@/lib/ai/herald";
 import { splitFollowUps } from "@/lib/ai/followups";
 import {
   RAVEN_SYSTEM_PROMPT,
@@ -14,11 +15,15 @@ import {
   type RavenLanguage,
 } from "@/lib/ai/raven-voice";
 
-const key = process.env.ANTHROPIC_API_KEY;
-const client = key ? new Anthropic({ apiKey: key }) : null;
+/* One client for the whole realm. This module keeps its own call rather than
+   going through heraldProse: a conversation carries a message history, a web
+   search tool and a follow-up block, none of which a one-shot piece of writing
+   over a fact sheet has. */
+const client = heraldClient();
 
-/* The model behind the Herald. Sonnet 5 is the best quality-to-cost balance. */
-const RAVEN_MODEL = "claude-sonnet-5";
+/* The Herald in conversation reads a member's own words and forms a view of
+   them, so it takes the realm's reasoning model rather than the cheaper one. */
+const RAVEN_MODEL = MODEL_REASONING;
 
 export function ravenEnabled() {
   return Boolean(client);

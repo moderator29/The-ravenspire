@@ -103,7 +103,10 @@ function MetaRow({
 }
 
 export interface CardShellProps {
-  event: FeedEvent;
+  /* When the thing happened. A timestamp rather than the whole event, because
+     the shell never needed anything else off one, and the Herald's digest is a
+     system card that is not a spine row at all. */
+  at: string;
   /* The kind, in one word, above the sentence. */
   label: string;
   /* A flat glyph from components/ui/icon. Never an emoji. */
@@ -119,7 +122,7 @@ export interface CardShellProps {
 }
 
 export function SystemCard({
-  event,
+  at,
   label,
   icon,
   rail = "steel",
@@ -145,7 +148,7 @@ export function SystemCard({
           <Icon name={icon} className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <MetaRow label={label} at={event.created_at} trailing={trailing} />
+          <MetaRow label={label} at={at} trailing={trailing} />
           <div className={cx("mt-1 leading-relaxed text-bone-mut", STREAM_BODY)}>
             {children}
           </div>
@@ -162,7 +165,7 @@ export interface ForgeCardProps extends Omit<CardShellProps, "icon"> {
 }
 
 export function ForgeCard({
-  event,
+  at,
   label,
   icon,
   rail = "bright",
@@ -188,7 +191,7 @@ export function ForgeCard({
           <Icon3D name={icon} size="sm" />
         </span>
         <div className="min-w-0 flex-1">
-          <MetaRow label={label} at={event.created_at} trailing={trailing} />
+          <MetaRow label={label} at={at} trailing={trailing} />
           <div className={cx("mt-1 leading-relaxed text-bone-mut", STREAM_BODY)}>
             {children}
           </div>

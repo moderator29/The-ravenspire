@@ -72,7 +72,7 @@ export function ClashOpenedCard({ event }: { event: FeedEvent }) {
 
   return (
     <SystemCard
-      event={event}
+      at={event.created_at}
       icon="swords"
       label="A Clash is called"
       rail="ember"

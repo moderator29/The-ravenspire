@@ -24,7 +24,7 @@ export function DuelOpenedCard({ event }: { event: FeedEvent }) {
   const entry = payloadText(event.payload, "challenger_entry");
 
   return (
-    <SystemCard event={event} icon="swords" label="Duel">
+    <SystemCard at={event.created_at} icon="swords" label="Duel">
       <p>
         <ActorName event={event} /> opened a duel of wits.
       </p>
