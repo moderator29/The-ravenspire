@@ -1,6 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkAndGrantCrests } from "@/lib/crests";
+import {
+  DAILY_SOCIAL_RENOWN_CAP,
+  DAILY_WAR_GLORY_CAP,
+} from "@/lib/economy/allowances";
 
 export const TIERS: { slug: string; name: string; min: number }[] = [
   { slug: "smallfolk", name: "Smallfolk", min: 0 },
@@ -18,31 +22,14 @@ export function tierFor(renown: number) {
   return current;
 }
 
-/* The daily ceiling on Renown drawn from social actions (V2 section 9.5, rule
-   4). Likes, reravens, comments, duel votes and authoring ravens are all
-   unbounded actions that any two accounts can perform on each other forever, so
-   without a ceiling a pair of colluding accounts farms Renown indefinitely and
-   the ladder means nothing. Resolved Calls are deliberately NOT capped: a Call
-   costs a scarce open-Call slot, is scored against a difficulty baseline, and
-   is the one thing the realm actually wants people doing more of.
-
-   Set where a genuinely active member never notices it and a farm hits it
-   inside an hour. */
-export const DAILY_SOCIAL_RENOWN_CAP = 200;
-
-/* The daily ceiling on Glory drawn from the War, and the larger of the two
-   holes, because it does not even need a second account.
-
-   A settled battle pays up to 400 Glory and the route allows twelve settled
-   battles an hour: 4,800 an hour, roughly 115,000 a day, from one member
-   leaving a client running. Glory is not a private score. It is added to the
-   member's House, and it decides the Clash, the Throne and the Season reward
-   vault, so all three were settleable by whoever had the most patience.
-
-   1,500 a day. Ten decisive victories is a long evening in the War and lands
-   under it; a grind crosses it in about ninety minutes and earns nothing
-   beyond. The War stays worth playing and stops being worth farming. */
-export const DAILY_WAR_GLORY_CAP = 1500;
+/* The two daily ceilings now live in lib/economy/allowances.ts, a leaf module
+   with no imports of its own, and are re-exported here so every existing call
+   site is unchanged. They had to move: lib/realm/appointments.ts asserts its
+   reward ceiling against the social allowance at MODULE LOAD, and reading it
+   from here closed a real import cycle (points to crests to appointments and
+   back) that typecheck cannot see and the build fails on. The reasoning behind
+   both numbers travelled with them. */
+export { DAILY_SOCIAL_RENOWN_CAP, DAILY_WAR_GLORY_CAP };
 
 /* Which allowance an award draws from.
      social  counts against the daily social ceiling

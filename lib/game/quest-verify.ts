@@ -37,16 +37,25 @@ export async function computeBounds(
   db: SupabaseClient,
   now = new Date()
 ): Promise<QuestBounds> {
+  /* BUG, FIXED: this read `started_at`, and the column is `starts_at`.
+     PostgREST fails the whole select on an unknown column, the catch below
+     swallowed it, and so EVERY seasonal quest in the realm has been verified
+     against a rolling ninety day window instead of against the season it
+     claims to be about. A member could complete "win ten duels this season"
+     with duels won in the previous one, and a season shorter than ninety days
+     verified its own quests against time before it existed. Silent since the
+     verifier shipped, because the fallback is a plausible number rather than
+     an error. */
   let seasonStart = new Date(now.getTime() - 90 * 86400000).toISOString();
   try {
     const { data } = await db
       .from("seasons")
-      .select("started_at")
+      .select("starts_at")
       .eq("status", "active")
       .order("id", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (data?.started_at) seasonStart = data.started_at as string;
+    if (data?.starts_at) seasonStart = data.starts_at as string;
   } catch {
     /* fall back to a rolling 90-day window */
   }
