@@ -5,14 +5,37 @@ import { Card } from "@/components/ui/card";
 import { motion, useScroll, useTransform, type Variants } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 import { LandingIcon } from "@/components/landing/icons";
-import { CrestRoundel } from "@/components/brand/crests";
-import { RavenMark } from "@/components/brand/raven-mark";
+import { crests, CrestRoundel } from "@/components/brand/crests";
+import { houses } from "@/lib/data/houses";
 
 /*
-  Platform preview. Every surface here is a styled mockup built from divs,
-  no external screenshots, so it renders even when no art is present. It
-  shows the four rooms of the realm: the Ravenry feed, Whispers, Houses,
-  and a Keep.
+  Platform preview: the four rooms of the realm, shown honestly.
+
+  WHAT THIS USED TO BE, AND WHY IT HAD TO CHANGE. This section was a set of
+  styled mockups, and the mockups were populated: a raven from "@aeron · 2m"
+  with 214 likes, 38 replies and 61 reposts, a Whispers thread with invented
+  messages from a member who does not exist, a Season standings table where
+  House Corvane held 4,820 Glory, and a Keep with 8,140 Renown and a duel
+  record of 19-4.
+
+  Every one of those numbers was invented, and they sat on the most public page
+  in the product, next to real claims about a real platform. AGENTS.md rule 4
+  bans exactly this and part two of the plan restates it in the sharpest terms
+  available: previewing the real catalog is honest, and what stays banned is
+  invented owners, invented balances, and any number pretending to be live.
+  A visitor reading "4,820" had no way to know it was decoration, which is
+  precisely what makes it dishonest rather than merely illustrative.
+
+  WHAT IT IS NOW. The same four rooms, the same craft, and not one invented
+  figure. Two of the frames carry genuinely real data: the six Houses are the
+  live roster with their real sigils and real mottos, and the Keep shows the
+  real crest set with its real names. The other two show the chrome of a room
+  with its content deliberately empty, which is what a room looks like before
+  anybody has spoken in it, and is the same honest empty state the product
+  itself renders.
+
+  Live figures are not absent from this page. They are in LiveRealmStats, which
+  reads them from the realm, which is where a number belongs.
 */
 
 const container: Variants = {
@@ -25,18 +48,6 @@ const rise: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" } },
 };
 
-function Chip({ label, tone = "gold" }: { label: string; tone?: "gold" | "ember" }) {
-  const color = tone === "ember" ? "text-ember" : "text-gold";
-  const border = tone === "ember" ? "border-ember/40" : "border-gold/30";
-  return (
-    <span
-      className={`rounded-sm border ${border} px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${color}`}
-    >
-      {label}
-    </span>
-  );
-}
-
 function Frame({
   title,
   icon,
@@ -47,16 +58,11 @@ function Frame({
   children: React.ReactNode;
 }) {
   return (
-    <Card pad="none" className="overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-steel-line/70 bg-void/60 px-4 py-2.5">
+    <Card variant="raised" pad="none" radius="xl" className="overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-steel-line/60 bg-void/50 px-4 py-2.5">
         <Icon name={icon} className="h-3.5 w-3.5 text-gold" />
-        <span className="font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-mut">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-bone-mut">
           {title}
-        </span>
-        <span className="ml-auto flex items-center gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-steel-line" />
-          <span className="h-1.5 w-1.5 rounded-full bg-steel-line" />
-          <span className="h-1.5 w-1.5 rounded-full bg-gold/50" />
         </span>
       </div>
       <div className="p-4">{children}</div>
@@ -64,201 +70,148 @@ function Frame({
   );
 }
 
-function Avatar({ icon = "user" }: { icon?: string }) {
+/* The line every empty frame carries. Said plainly, because a room drawn with
+   nothing in it should explain itself rather than look broken. */
+function EmptyRoom({ children }: { children: React.ReactNode }) {
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gradient-to-b from-panel-warm to-void text-gold">
-      <Icon name={icon} className="h-4 w-4" />
-    </span>
+    <p className="mt-3 text-[11px] leading-relaxed text-bone-faint">{children}</p>
   );
 }
 
-/* ----- The Ravenry: feed ----- */
-function RavenryMock() {
+/* ----- The Ravenry: the composer and the actions, with nothing put in them ----- */
+function RavenryRoom() {
   return (
     <Frame title="The Ravenry" icon="home">
-      <div className="flex flex-col gap-3">
-        <div className="rounded-lg border border-steel-line bg-panel p-3">
-          <div className="flex items-center gap-2.5">
-            <Avatar icon="raven" />
-            <div className="min-w-0">
-              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-bone">
-                Aeron Blackwood <Chip label="Corvane" />
-              </p>
-              <p className="text-[10px] text-bone-faint">@aeron · 2m</p>
-            </div>
-          </div>
-          <p className="mt-2 text-[12px] leading-relaxed text-bone-mut">
-            Sealed a Call on the Season close. If Emberfall goes quiet by the
-            bell, House Corvane takes the Throne. The ravens are watching.
-          </p>
-          <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-gold/20 bg-panel-warm px-3 py-2">
-            <Icon name="target" className="h-4 w-4 text-gold" />
-            <span className="text-[11px] font-semibold text-bone">Call sealed</span>
-            <span className="ml-auto rounded-sm border border-gold/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-gold">
-              Judged live
-            </span>
-          </div>
-          <div className="mt-2.5 flex items-center gap-5 text-bone-faint">
-            <span className="flex items-center gap-1 text-[11px]">
-              <Icon name="heart" className="h-3.5 w-3.5" /> 214
-            </span>
-            <span className="flex items-center gap-1 text-[11px]">
-              <Icon name="reply" className="h-3.5 w-3.5" /> 38
-            </span>
-            <span className="flex items-center gap-1 text-[11px]">
-              <Icon name="repost" className="h-3.5 w-3.5" /> 61
-            </span>
-          </div>
+      <div className="rounded-lg border border-steel-line bg-panel p-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gradient-to-b from-panel-warm to-void text-gold">
+            <Icon name="feather" className="h-4 w-4" />
+          </span>
+          <span className="text-[12px] text-bone-faint">
+            Send a raven to the realm
+          </span>
         </div>
-        <div className="rounded-lg border border-steel-line bg-panel p-3">
-          <div className="flex items-center gap-2.5">
-            <Avatar icon="user" />
-            <div className="min-w-0">
-              <p className="flex items-center gap-1.5 text-[13px] font-semibold text-bone">
-                Mira Stormborn <Chip label="Stormcrest" tone="ember" />
-              </p>
-              <p className="text-[10px] text-bone-faint">@mira · 11m</p>
-            </div>
-          </div>
-          <p className="mt-2 text-[12px] leading-relaxed text-bone-mut">
-            Duel of wits at the crossroads tonight. Bring your sharpest line,
-            leave your excuses at the gate.
-          </p>
+        {/* The action row, real icons, no counts. A count here would be the
+            same invented number in a smaller font. */}
+        <div className="mt-3 flex items-center gap-5 border-t border-steel-line/60 pt-2.5 text-bone-faint">
+          <Icon name="heart" className="h-3.5 w-3.5" />
+          <Icon name="reply" className="h-3.5 w-3.5" />
+          <Icon name="repost" className="h-3.5 w-3.5" />
+          <Icon name="target" className="ml-auto h-3.5 w-3.5 text-gold" />
         </div>
       </div>
+      <EmptyRoom>
+        Post, reply and seal a Call on a live price. The Ravenry judges the
+        call, not the caller.
+      </EmptyRoom>
     </Frame>
   );
 }
 
-/* ----- Whispers: direct messages ----- */
-function WhispersMock() {
+/* ----- Whispers: a thread with nothing in it ----- */
+function WhispersRoom() {
   return (
     <Frame title="Whispers" icon="mail">
-      <div className="flex items-center gap-2.5 border-b border-steel-line/60 pb-2.5">
-        <Avatar icon="user" />
-        <div>
-          <p className="text-[13px] font-semibold text-bone">Lady Ysolde</p>
-          <p className="text-[10px] text-gold">House Goldmane · online</p>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2.5">
+        {/* Two empty bubbles, one each side, which is the shape of a
+            conversation without inventing one. */}
         <div className="flex justify-start">
-          {/* The incoming bubbles carried a radius and a padding and no
-              surface, so only Ysolde's half of the conversation had a bubble
-              and the other half read as loose text floating in the frame. A
-              mock of a chat that does not look like a chat is worse than no
-              mock. `bg-panel` against the outgoing `bg-panel-warm` keeps the
-              two sides distinguishable without introducing a third colour. */}
-          <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel px-3 py-2 text-[12px] text-bone-mut">
-            The Throne shifts this week. Will Goldmane hold the lead?
-          </div>
+          <div className="h-7 w-[62%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel" />
         </div>
         <div className="flex justify-end">
-          <div className="max-w-[80%] rounded-2xl rounded-br-md bg-panel-warm px-3 py-2 text-[12px] text-bone">
-            Only if your knights stop losing duels they start.
-          </div>
+          <div className="h-7 w-[48%] rounded-2xl rounded-br-md bg-panel-warm" />
         </div>
         <div className="flex justify-start">
-          <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel px-3 py-2 text-[12px] text-bone-mut">
-            Bold words. Court at dusk, then. Bring witnesses.
-          </div>
+          <div className="h-7 w-[54%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel" />
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-2 rounded-sm border border-steel-line bg-void px-3 py-2">
-        <span className="text-[11px] text-bone-faint">Send a whisper</span>
+      <div className="mt-3 flex items-center gap-2 rounded-lg border border-steel-line bg-panel px-3 py-2">
+        <span className="text-[12px] text-bone-faint">Whisper something</span>
         <Icon name="send" className="ml-auto h-4 w-4 text-gold" />
       </div>
+      <EmptyRoom>
+        Private, member to member, with images and tribute in the same thread.
+      </EmptyRoom>
     </Frame>
   );
 }
 
-/* ----- Houses: the six banners ----- */
-const houseRows = [
-  { name: "House Corvane", glory: 4820, pct: 100, tone: "gold" as const },
-  { name: "House Emberfall", glory: 4580, pct: 92, tone: "ember" as const },
-  { name: "House Goldmane", glory: 4210, pct: 84, tone: "gold" as const },
-  { name: "House Frosthold", glory: 3960, pct: 78, tone: "gold" as const },
-];
-
-function HousesMock() {
+/* ----- Houses: the six real banners ----- */
+function HousesRoom() {
   return (
     <Frame title="Houses" icon="banner">
-      <p className="mb-3 text-[11px] text-bone-faint">
-        Season I standings · six banners, one Throne
-      </p>
-      <div className="flex flex-col gap-2.5">
-        {houseRows.map((h, i) => (
+      <div className="flex flex-col gap-2">
+        {/* The live roster, names, sigils and mottos exactly as the realm
+            holds them. No standings: Glory is a live figure and belongs on the
+            Houses page, read from the realm rather than typed here. */}
+        {houses.map((house) => (
           <div
-            key={h.name}
-            className="rounded-lg border border-steel-line bg-panel px-3 py-2.5"
+            key={house.name}
+            className="flex items-center gap-2.5 rounded-lg border border-steel-line bg-panel px-3 py-2"
           >
-            <div className="flex items-center gap-2">
-              <span className="font-display text-[11px] font-bold text-bone-faint">
-                {i + 1}
-              </span>
-              <Icon name="banner" className="h-3.5 w-3.5 text-gold" />
-              <span className="text-[12px] font-semibold text-bone">{h.name}</span>
-              <span className="tnum ml-auto text-[12px] font-semibold text-gold-bright">
-                {h.glory.toLocaleString("en-US")}
-              </span>
-            </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-void">
-              <div
-                className={h.tone === "ember" ? "h-full rounded-full" : "gold-metal h-full rounded-full"}
-                style={{
-                  width: `${h.pct}%`,
-                  background: h.tone === "ember" ? "var(--ember)" : undefined,
-                }}
-              />
-            </div>
+            <Icon name={house.sigil} className="h-4 w-4 shrink-0 text-gold" />
+            <span className="truncate text-[12px] font-semibold text-bone">
+              {house.name}
+            </span>
+            <span className="ml-auto truncate text-[10px] italic text-bone-faint">
+              {house.motto}
+            </span>
           </div>
         ))}
       </div>
+      <EmptyRoom>
+        Six banners, one Throne. Standings are live inside the realm and move
+        every day of a Season.
+      </EmptyRoom>
     </Frame>
   );
 }
 
-/* ----- The Keep: a profile ----- */
-function KeepMock() {
+/* ----- The Keep: the real crests ----- */
+function KeepRoom() {
+  /* The first five of the real crest set, in the order the realm lists them.
+     Names and roundels both come from the crest catalog, so this can never
+     advertise a badge that does not exist. */
+  const shown = crests.slice(0, 5);
+
   return (
     <Frame title="The Keep" icon="user">
       <div className="relative -mx-4 -mt-4 h-16 bg-gradient-to-br from-panel-warm via-void to-panel" />
-      {/* `-mt-5`, not `-mt-8`. At 32px the row was pulled far enough into the
-          64px banner that "Aeron Blackwood" sat across its lower edge and read
-          as text clipped by a bug rather than as a header. The avatar tile
-          still breaks the banner line, which is the whole point of a profile
-          header; the name clears it. */}
-      <div className="-mt-5 flex items-end gap-3 px-0">
+      <div className="-mt-5 flex items-end gap-3">
         <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-gold/40 bg-void text-gold">
-          <RavenMark className="h-9 w-9" />
+          {/* `wall` is the Keep glyph the icon set actually ships. Naming an
+              icon that does not exist renders nothing at all, which is how a
+              hole appears on a landing page nobody notices until a founder
+              does. */}
+          <Icon name="wall" className="h-8 w-8" />
         </span>
         <div className="pb-1">
-          <p className="font-display text-[15px] font-semibold text-bone">Aeron Blackwood</p>
-          <p className="text-[11px] text-bone-faint">@aeron · House Corvane</p>
+          <p className="font-display text-[15px] font-semibold text-bone">
+            Your Keep
+          </p>
+          <p className="text-[11px] text-bone-faint">
+            Your name, your House, your deeds
+          </p>
         </div>
-        <span className="mb-1 ml-auto rounded-sm border border-gold/40 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-gold">
-          Warden
-        </span>
       </div>
-      <div className="mt-4 flex items-center gap-3">
-        <CrestRoundel icon="feather" className="h-9 w-9" />
-        <CrestRoundel icon="crossed-swords" className="h-9 w-9" />
-        <CrestRoundel icon="tower-crown" className="h-9 w-9" />
-        <CrestRoundel icon="laurel" dim className="h-9 w-9" />
-        <CrestRoundel icon="key" dim className="h-9 w-9" />
-      </div>
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-        {[
-          { k: "Renown", v: "8,140" },
-          { k: "Calls won", v: "27" },
-          { k: "Duels", v: "19-4" },
-        ].map((s) => (
-          <div key={s.k} className="rounded-lg border border-steel-line bg-panel py-2">
-            <p className="tnum font-display text-sm font-semibold text-gold-bright">{s.v}</p>
-            <p className="text-[9px] uppercase tracking-[0.14em] text-bone-faint">{s.k}</p>
+
+      {/* The real crests, named. A roundel with a name under it is a fact
+          about the realm; the same roundel over an invented Renown total was
+          decoration pretending to be a record. */}
+      <div className="mt-4 grid grid-cols-5 gap-2">
+        {shown.map((crest) => (
+          <div key={crest.slug} className="flex flex-col items-center gap-1">
+            <CrestRoundel icon={crest.icon} className="h-9 w-9" dim />
+            <span className="w-full truncate text-center text-[9px] leading-tight text-bone-faint">
+              {crest.plain}
+            </span>
           </div>
         ))}
       </div>
+      <EmptyRoom>
+        Crests are earned by deed, never bought, and bound to you. Renown and
+        standing are read from the realm, never guessed at.
+      </EmptyRoom>
     </Frame>
   );
 }
@@ -273,7 +226,20 @@ export function PlatformPreview() {
   const yB = useTransform(scrollYProgress, [0, 1], [-24, 24]);
 
   return (
-    <Card render={<motion.section id="realm" ref={ref} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative scroll-mt-28 overflow-hidden p-7 sm:p-9">
+    <Card
+      render={
+        <motion.section
+          id="realm"
+          ref={ref}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={container}
+        />
+      }
+      pad="none"
+      className="relative scroll-mt-28 overflow-hidden p-7 sm:p-9"
+    >
       {/* Ambient premium glow: warm gold meeting a cool steel edge */}
       <div
         aria-hidden="true"
@@ -293,7 +259,7 @@ export function PlatformPreview() {
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-sm border border-gold/25 bg-void/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-bone-mut">
           <span className="h-1.5 w-1.5 rounded-full bg-ember" />
-          Product preview
+          The rooms, not the numbers
         </span>
       </motion.div>
       <motion.h2
@@ -307,18 +273,20 @@ export function PlatformPreview() {
         className="relative mt-3 max-w-prose text-[15px] leading-relaxed text-bone-mut"
       >
         The Ravenry to post and seal Calls. Whispers to plot in private. Houses
-        to rally behind a banner. Your Keep to prove what you have earned. Every
-        surface is built to live in.
+        to rally behind a banner. Your Keep to prove what you have earned. The
+        Houses and the crests below are the realm&rsquo;s own, exactly as it
+        holds them. Everything that moves is read live inside, so you will not
+        find an invented figure on this page.
       </motion.p>
 
       <div className="relative mt-7 grid grid-cols-1 gap-4 md:grid-cols-2">
         <motion.div variants={rise} style={{ y: yA }} className="flex flex-col gap-4">
-          <RavenryMock />
-          <HousesMock />
+          <RavenryRoom />
+          <HousesRoom />
         </motion.div>
         <motion.div variants={rise} style={{ y: yB }} className="flex flex-col gap-4">
-          <WhispersMock />
-          <KeepMock />
+          <WhispersRoom />
+          <KeepRoom />
         </motion.div>
       </div>
     </Card>

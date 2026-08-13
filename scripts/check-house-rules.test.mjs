@@ -631,3 +631,74 @@ describe("the gate always says something", () => {
     expect(output.trim().length).toBeGreaterThan(0);
   });
 });
+
+describe("icon names", () => {
+  /* The failure these two rules exist to close is not a crash. `Icon` falls
+     back to a small empty ring for a name it does not know, so a missing glyph
+     renders as something that looks deliberate, and a page full of them looks
+     populated. Four of the six House sigils shipped that way, which meant four
+     of the six banners were visually identical everywhere in the product. */
+
+  it("catches an Icon name nothing draws", () => {
+    const found = check(
+      "icon-name-exists",
+      "components/thing.tsx",
+      '<Icon name="unicorn" className="h-4 w-4" />'
+    );
+    expect(found.length).toBe(1);
+    expect(found[0].message).toMatch(/blank circle/);
+  });
+
+  it("stays quiet for a name the set actually draws", () => {
+    expect(
+      check(
+        "icon-name-exists",
+        "components/thing.tsx",
+        '<Icon name="raven" className="h-4 w-4" />'
+      ).length
+    ).toBe(0);
+  });
+
+  it("stays quiet for a dynamic name it cannot resolve", () => {
+    /* A variable name is checked by the sigil rule instead. Firing here would
+       make every dynamic icon in the product a violation, and a rule that
+       fires on everything gets disabled within a day. */
+    expect(
+      check("icon-name-exists", "components/thing.tsx", "<Icon name={sigil} />")
+        .length
+    ).toBe(0);
+  });
+
+  it("catches a House sigil nothing draws", () => {
+    const found = check(
+      "sigil-and-crest-glyphs-exist",
+      "lib/data/houses.ts",
+      '    sigil: "wyvern",'
+    );
+    expect(found.length).toBe(1);
+  });
+
+  it("accepts the six real House sigils", () => {
+    for (const sigil of ["raven", "flame", "snowflake", "storm", "moon", "lion"]) {
+      expect(
+        check("sigil-and-crest-glyphs-exist", "lib/data/houses.ts", `  sigil: "${sigil}",`),
+        sigil
+      ).toEqual([]);
+    }
+  });
+
+  it("checks a crest against the map that actually draws it", () => {
+    /* Crests are roundels with their own heavier drawing and their own map.
+       Checking them against the shared icon set was this rule's first bug and
+       it reported nine perfectly good crests as missing. */
+    const file = [
+      '  { slug: "x", icon: "laurel" },',
+      "const crestIcons = {",
+      "  laurel: null,",
+      "};",
+    ].join("\n");
+    expect(
+      check("sigil-and-crest-glyphs-exist", "components/brand/crests.tsx", file)
+    ).toEqual([]);
+  });
+});
