@@ -63,6 +63,27 @@ The Bazaar is split into four files (`20260813112210` through `20260813112411`)
 because it was applied in four parts, and the files carry the names and versions
 production recorded so the two listings read the same.
 
+## Applied in parts, and why the filenames say so
+
+Two of the recent migrations were applied through the Supabase API in more than
+one call, so production recorded more than one version for what was written as
+one file. The files here carry the names and versions production recorded, the
+same way the Bazaar's four do, so the two listings read the same:
+
+- The Bazaar, `20260813112210` through `20260813112411`.
+- The compliance guardrails, `20260813164228` through `20260813164429`: the
+  tables, the checkout guard, the state a member controls, and the Alms with
+  the grants.
+
+`20260813113137_appointments_and_seasons.sql` was written under a later
+filename and applied under this one. It is renamed to what ran.
+
+The compliance guardrails alter one existing object,
+`chest_entitlements_source_kind_check`. Its live definition was read out of the
+project before the migration was written, per the rule above, and was
+`('order', 'redemption')`, matching `20260812224950_commerce_engine.sql`. The
+change adds `'amoe'` and removes nothing. Checked, not assumed.
+
 ## The rest of the posture
 
 Every table is RLS deny-by-default with ownership enforced in the route under

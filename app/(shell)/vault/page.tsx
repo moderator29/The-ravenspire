@@ -14,6 +14,7 @@ import {
 import { WalletSection } from "@/components/wallet/wallet-section";
 import { HoardPanel } from "@/components/collectibles/hoard-panel";
 import { OrdersPanel } from "@/components/commerce/orders-panel";
+import { SpendLimitsPanel } from "@/components/commerce/spend-limits-panel";
 import { RedeemCode } from "@/components/collectibles/redeem-code";
 
 /* The Vault: a Console. Compact above md, zero ornament, and every panel
@@ -100,6 +101,12 @@ export default function VaultPage() {
                   entry stays, because a member can be handed a box by somebody
                   else without ever having ordered one. */}
               <OrdersPanel />
+              {/* What has been charged, against the limits that will actually
+                  stop it, and the control for holding yourself to less. Absent
+                  entirely for a member who has never spent and set no limit,
+                  because telling somebody who has bought nothing how much
+                  headroom they have is an invitation dressed as information. */}
+              <SpendLimitsPanel />
               <RedeemCode />
             </section>
           </>

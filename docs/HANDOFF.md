@@ -160,10 +160,12 @@ commit, push, then move on. Full reasoning per item is in the strategy doc.
    daily Warchest window this item originally asked for is NOT available and
    should not be built: chests cost money and are sealed, so a window handing
    them out would be inventing a reward the realm cannot pay.
-6. **Provably fair as a feature.** A public verifier page and the reveal affordance
-   on the Ceremony, with the floor and expected value published beside the odds.
-   The opening already reveals the seed and nonce; build the surface that lets a
-   member verify a pull, and pre commit a rotating seed for the stronger guarantee.
+6. **Provably fair as a feature.** DONE. `RAVENSPIRE-V2.md` section 47. A public
+   verifier at `/proof`, outside the shell so a stranger with no account can check
+   a draw, plus the reveal affordance on the Ceremony. The roll runs in the
+   member's own browser rather than on the realm's server, because a server that
+   would fake a draw would also return "verified" for it, and the published
+   references let anybody audit an opening they had nothing to do with.
 7. **Phygital authenticity.** NFC or QR on the physical King's Reliquary box tying
    printed cards to their digital twins, provenance that survives resale.
 8. **The Herald as retention brain.** A personal weekly brief grounded in real
@@ -176,8 +178,19 @@ commit, push, then move on. Full reasoning per item is in the strategy doc.
 11. **Gasless, forgiving non custodial UX.** Account abstraction on Privy: a
     paymaster for gasless pulls and claims, social recovery, a member set spending
     cap.
-12. **Compliance guardrails** before commerce takes a dollar: alternative means of
-    entry, age gate, spending caps, cooling off, geo awareness, the verifier page.
+12. **Compliance guardrails** before commerce takes a dollar. DONE.
+    `RAVENSPIRE-V2.md` section 48. The Alms (a real Squire's Chest, given free, same odds and same floor and same
+    proof), a server recorded age gate that stores no date of birth, spend caps
+    of 250 a day and 1,000 a month computed from real orders, a velocity brake,
+    an informed consent interruption, a member set cap that lowers at once and
+    raises only after a day, and geo. All of it decided inside
+    `public.commerce_checkout_guard` in the same transaction that creates the
+    order, because a cap enforced a round trip later is not a cap. Migration
+    Applied in four parts,
+    `20260813164228` through `20260813164429`, advisor clean.
+    Read section 48.6 before believing anything about geo: reliable
+    geolocation needs a paid service the realm does not have, and what is built
+    is the seam plus the one free signal, honestly labelled.
 
 ## 4. The remaining build from this wave (finish these too)
 
@@ -279,9 +292,20 @@ facts.
 ## 8. Founder only decisions (never block on these, build sealed and ready)
 
 - The final yes to set `COMMERCE_PRICES_CONFIRMED=true` and flip `chests_live`.
-  Prices, floors and merch prices are all decided and encoded, and the checkout
-  frontend is built (section 43). What remains is a real Stripe account and the
-  compliance guardrails.
+  Prices, floors and merch prices are all decided and encoded, the checkout
+  frontend is built (section 43), and the compliance guardrails are built
+  (section 48). What remains is a real Stripe account and
+  reading section 48's "what
+  this does not cover" paragraphs with somebody qualified to say what is
+  missing. Nobody who built the guardrails is a lawyer and none of them claims
+  compliance with any law.
+- Whether to buy an IP intelligence provider. Section 47.6 sets out what geo
+  can and cannot establish for nothing, and names the seam a paid provider
+  plugs into. Not buying one is a legitimate choice; believing the free signal
+  is stronger than it is, is not.
+- `COMMERCE_GEO_MODE` and `COMMERCE_BLOCKED_COUNTRIES`. Both unset, and
+  deliberately: a list of countries hardcoded in a source file is a legal
+  position taken by a developer.
 - The mobile dock: five slots, section 29 offers two arrangements and
   recommends the one carrying the Reliquary. Its prerequisite, a top bar
   search, now exists. One array in `lib/nav.ts` when you decide.
@@ -310,5 +334,13 @@ Everything else is yours to decide and build. Start at section 3, item 1.
 - The secondary market: `lib/commerce/market.ts` (the rule, the fee, and the
   custody argument), `lib/commerce/market-config.ts`, `app/api/market/**`,
   `components/market/**`.
+- The compliance guardrails: `lib/commerce/compliance.ts` (every threshold,
+  every justification, and a "what this does not cover" paragraph per
+  guardrail), `lib/commerce/geo.ts` (the honest limits and the paid-provider
+  seam), `supabase/migrations/20260813164228_compliance_guardrails_tables.sql` and the
+  three parts after it (every
+  decision, since a cap enforced outside the transaction that creates the order
+  is not a cap), `app/api/commerce/{checkout,alms,compliance}`,
+  `components/commerce/{alms-panel,guard-interruption,spend-limits-panel}.tsx`.
 - Live database: Supabase project `tqvigouaifbklvajiyoj`. Migrations in
   `supabase/migrations/`.

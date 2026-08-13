@@ -7,29 +7,52 @@ import { chestPrice, merchPrice, pricesConfirmed } from "@/lib/commerce/catalog"
 import { lineTotal, sumMinor } from "@/lib/commerce/money";
 import { paymentProvider } from "@/lib/commerce/payments";
 import type { CheckoutLineItem } from "@/lib/commerce/payments";
+import { checkoutGuardParams, guardReasonMessage, isGuardReason } from "@/lib/commerce/compliance";
+import { geoVerdict, resolveCountry } from "@/lib/commerce/geo";
 
-/* POST /api/commerce/checkout (V2 Part Two, section 33, Phase D).
+/* POST /api/commerce/checkout (V2 Part Two, section 33, Phase D; guardrails in
+ * section 48).
  *
- * Create a payment checkout session for a cart of chests. Server-authoritative
- * throughout: the price and the line total come from the server catalog
- * (lib/commerce/catalog.ts), never from the request, so a client cannot name
- * its own price (rule 6). The order and its items are written before the
+ * Create a payment checkout session for a cart of chests and merch. Server
+ * authoritative throughout: the price and the line total come from the server
+ * catalog (lib/commerce/catalog.ts), never from the request, so a client cannot
+ * name its own price (rule 6). The order and its items are written before the
  * provider is called, so every session is backed by a real, priced order.
  *
- * SEALED UNTIL LAUNCH. While chests_live is false the whole route answers 423,
- * the same sealed posture as the rest of the collectibles realm. And even with
- * the flag flipped, an unconfirmed price does not sell: pricesConfirmed gates
- * the money separately from the chapter (see the catalog header).
+ * SEALED UNTIL LAUNCH. While chests_live is false the chest half of any cart
+ * answers 423, the same sealed posture as the rest of the collectibles realm.
+ * And even with the flag flipped, an unconfirmed price does not sell:
+ * pricesConfirmed gates the money separately from the chapter.
  *
- * Merch sells here too, now that the founder has set its prices. A cart may
- * hold chests, merch, or both, and each kind answers to its own chapter flag:
- * a hoodie does not need the chests unsealed to be bought, and a chest does not
- * need the Mercer. A mixed cart needs both open, because a single checkout
- * session is a single decision to charge.
+ * Merch sells here too. A cart may hold chests, merch, or both, and each kind
+ * answers to its own chapter flag: a hoodie does not need the chests unsealed
+ * to be bought, and a chest does not need the Mercer. A mixed cart needs both
+ * open, because a single checkout session is a single decision to charge.
  *
  * Idempotent: the client sends an idempotency key. The same key from the same
  * member reuses the same order, and the provider's own idempotency key reuses
  * the same session, so a retried or double-clicked checkout is one charge.
+ *
+ * THE COMPLIANCE GUARDRAILS, which is what changed here.
+ * This route used to check three things: the flag, the confirmation gate and
+ * the cart. It now cannot create an order at all except through
+ * public.commerce_checkout_guard, which decides the age gate, the spend caps,
+ * the member's own cap, the velocity brake and the acknowledgement, and inserts
+ * the order in the SAME TRANSACTION under the SAME LOCK that judged it. That
+ * arrangement is not decoration. A cap read here and enforced two round trips
+ * later is not a cap: ten concurrent presses each read a spend of zero and all
+ * ten pass. There is deliberately no code path in this file that writes an
+ * order row, so the guard cannot be bypassed by a future edit that forgets it.
+ *
+ * Geo is the one guardrail decided HERE rather than in the database, because
+ * what it turns on is env policy and a request header rather than stored state.
+ * It is applied before the guard runs and its refusal is written to the same
+ * ledger. Read lib/commerce/geo.ts for the honest size of what it can do, which
+ * is smaller than the word "geo" suggests.
+ *
+ * NOBODY WHO WROTE THIS IS A LAWYER and it claims compliance with no law. What
+ * each guardrail does and does not cover is written out in
+ * lib/commerce/compliance.ts, per guardrail, in plain words.
  */
 
 export const dynamic = "force-dynamic";
@@ -139,39 +162,100 @@ export async function POST(req: Request) {
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  /* Create the order, keyed by the member's idempotency key. On a duplicate
-     key the existing order is reused, so a retry never creates a second. */
-  let orderId: string | null = null;
-  const insert = await db
-    .from("orders")
-    .insert({
-      profile_id: profile.id,
-      status: "pending",
-      total_minor: totalMinor,
-      currency: "usd",
-      idempotency_key: idempotencyKey,
-      provider: provider.name,
-    })
-    .select("id")
-    .single();
+  /* GEO. Resolved from platform-injected headers, and only when those headers
+     came from an edge we control; otherwise the answer is honestly "unknown".
+     The policy is env, the default enforces nothing until the founder names a
+     country, and "strict" is the only setting that refuses an unknown origin.
+     None of the three stops a VPN. See lib/commerce/geo.ts. */
+  const geo = resolveCountry(req.headers);
+  const verdict = geoVerdict(geo);
+  if (!verdict.allowed) {
+    /* Written to the same refusal ledger as every database-side guardrail, so
+       "show me that geo fires" has one place to look rather than two. */
+    await db.rpc("commerce_guard_event", {
+      p_profile_id: profile.id,
+      p_kind: verdict.reason,
+      p_detail: { country: verdict.country, source: verdict.source },
+    });
+    return json(
+      { error: guardReasonMessage(verdict.reason), reason: verdict.reason },
+      403
+    );
+  }
 
-  if (insert.error) {
-    /* Unique violation on (profile_id, idempotency_key): reuse the order. */
-    if (insert.error.code === "23505") {
-      const existing = await db
-        .from("orders")
-        .select("id")
-        .eq("profile_id", profile.id)
-        .eq("idempotency_key", idempotencyKey)
-        .maybeSingle();
-      orderId = (existing.data?.id as string) ?? null;
-    } else if (insert.error.code === "42P01" || insert.error.code === "42703") {
+  /* THE GUARD, and the only way an order comes into existence. It judges and
+     inserts in one transaction under one lock. A refusal carries the member's
+     real numbers so the surface can say what was actually spent rather than
+     "not allowed", which is the difference between an interruption and a dark
+     pattern. */
+  const guard = await db.rpc("commerce_checkout_guard", {
+    p_profile_id: profile.id,
+    p_amount_minor: totalMinor,
+    p_currency: "usd",
+    p_provider: provider.name,
+    p_idempotency_key: idempotencyKey,
+    p_geo_country: geo.country,
+    p_geo_source: geo.source,
+    ...checkoutGuardParams(),
+  });
+
+  if (guard.error) {
+    if (guard.error.code === "42883" || guard.error.code === "42P01") {
+      /* The guardrails are not migrated. FAIL CLOSED. An older version of this
+         route would have created the order anyway, and a commerce route that
+         degrades into "take the money without the guardrails" is the one
+         failure mode this whole file exists to prevent. */
       return json({ error: "commerce is not migrated yet" }, 503);
     }
-    if (!orderId) return json({ error: "unavailable" }, 503);
-  } else {
-    orderId = insert.data.id as string;
-    /* First creation of this order: write its items. */
+    return json({ error: "unavailable" }, 503);
+  }
+
+  const result = (guard.data ?? null) as
+    | {
+        ok?: boolean;
+        reason?: string;
+        order_id?: string;
+        reused?: boolean;
+        state?: Record<string, number | null>;
+        clears_at?: string;
+        cap_minor?: number;
+        threshold_minor?: number;
+        minimum?: number;
+      }
+    | null;
+
+  if (!result) return json({ error: "unavailable" }, 503);
+
+  if (result.ok !== true) {
+    const reason = isGuardReason(result.reason) ? result.reason : null;
+    if (!reason) return json({ error: "unavailable" }, 503);
+    return json(
+      {
+        error: guardReasonMessage(reason),
+        reason,
+        /* The member's own real numbers, handed back so the surface can show
+           them what they have actually spent. This is the interruption doing
+           its job: a refusal with no number in it teaches nobody anything. */
+        state: result.state ?? null,
+        clearsAt: result.clears_at ?? null,
+        capMinor: result.cap_minor ?? null,
+        thresholdMinor: result.threshold_minor ?? null,
+        minimum: result.minimum ?? null,
+      },
+      /* 409, not 403: the request is well formed and the caller is entitled to
+         make it. The realm's state, or the member's own limit, is simply not
+         one in which it can succeed right now. The same reading /api/chests
+         uses for an absent entitlement. */
+      409
+    );
+  }
+
+  const orderId = result.order_id;
+  if (!orderId) return json({ error: "unavailable" }, 503);
+
+  if (result.reused !== true) {
+    /* First creation of this order: write its items. A reused order already
+       has them, and re-inserting would double the cart. */
     const items = lines.map((l) => ({
       order_id: orderId,
       kind: l.kind,
@@ -192,7 +276,7 @@ export async function POST(req: Request) {
   let session;
   try {
     session = await provider.createCheckoutSession({
-      orderId: orderId as string,
+      orderId,
       currency: "usd",
       lineItems: checkoutLines,
       successUrl: `${baseUrl(req)}/vault?order=${orderId}&status=success`,
@@ -206,7 +290,7 @@ export async function POST(req: Request) {
   await db
     .from("orders")
     .update({ provider_session_id: session.id, updated_at: new Date().toISOString() })
-    .eq("id", orderId as string);
+    .eq("id", orderId);
 
   return json({ orderId, url: session.url });
 }
