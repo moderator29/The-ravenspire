@@ -6,6 +6,8 @@ import { normalizeCall, CALL_TIMEFRAMES } from "@/lib/calls/types";
 import { resolvePriceCall } from "@/lib/calls/resolvers/price";
 import { resolveInternalCall } from "@/lib/calls/resolvers/internal";
 import { applyCallScore, scoreResolvedCall } from "@/lib/calls/settle";
+import { NO_STAKE, settleCallStake } from "@/lib/calls/escrow";
+import { stakeBonus } from "@/lib/calls/stake";
 import { difficultyWeight, HORIZON_DAYS } from "@/lib/calls/scoring";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -115,6 +117,36 @@ export async function GET(req: Request) {
     const settledPrice =
       "settledPrice" in resolution ? resolution.settledPrice : undefined;
 
+    /* What the stake, if there is one, is about to do. Computed before the
+       guarded update so the outcome can be written into the same row in the
+       same statement, exactly as the score is, and so a reader of the Call
+       never sees a settled verdict with an unresolved stake beside it.
+
+       This is the deterministic part. The Warden's Pardon is not, because it
+       depends on a House allowance that another settlement in the same sweep
+       may have just drawn down, so it is written afterwards from what the
+       settlement function actually paid. */
+    const stake = typeof call.stake === "number" ? call.stake : 0;
+    const stakeReturn = hit ? stake + stakeBonus(stake, score.score) : 0;
+
+    /* The settled `call` jsonb, built once. The pardon may have to rewrite it a
+       moment later with one more field, and two hand written copies of this
+       object is how the two end up disagreeing about the verdict. */
+    const settledCall = {
+      ...call,
+      verdict: resolution.verdict,
+      ...(settledPrice !== undefined ? { settled_price: settledPrice } : {}),
+      settled_at: new Date().toISOString(),
+      score: score.score,
+      score_basis: score.basis,
+      ...(stake > 0
+        ? {
+            stake_result: hit ? ("returned" as const) : ("burned" as const),
+            stake_return: stakeReturn,
+          }
+        : {}),
+    };
+
     /* The guarded update is the whole race fix. Two overlapping cron runs, or a
        manual invocation racing the scheduled one, both used to read the same
        open Call and both used to award for it. Filtering on verdict = 'open'
@@ -122,16 +154,7 @@ export async function GET(req: Request) {
        one that flipped it goes on to pay anything out. */
     const { data: flipped } = await db
       .from("posts")
-      .update({
-        call: {
-          ...call,
-          verdict: resolution.verdict,
-          ...(settledPrice !== undefined ? { settled_price: settledPrice } : {}),
-          settled_at: new Date().toISOString(),
-          score: score.score,
-          score_basis: score.basis,
-        },
-      })
+      .update({ call: settledCall })
       .eq("id", post.id)
       .filter("call->>verdict", "eq", "open")
       .select("id");
@@ -139,14 +162,59 @@ export async function GET(req: Request) {
 
     settled++;
 
+    /* The stake, settled once and only by the runner that flipped the row.
+
+       Two independent reasons this cannot pay twice: the guarded update above
+       means only one process reaches this line for a given Call, and
+       settle_call_stake locks the escrow row and refuses anything that is not
+       still escrowed. The second is what protects against a replay from any
+       future path, not only from a second cron run.
+
+       Skipped entirely for an unstaked Call, which is nearly all of them. The
+       jsonb copy and the escrow row are written by the same request from the
+       same validated draft, and a failed escrow deletes the post before the
+       sweep can ever see it, so "the jsonb says nothing was staked" and "there
+       is no escrow row" cannot come apart. Asking anyway would be one round
+       trip per Call across a sweep of up to 750. */
+    const stakeSettled =
+      stake > 0
+        ? await settleCallStake(db, {
+            postId: post.id,
+            verdict: resolution.verdict === "hit" ? "hit" : "miss",
+            score: score.score,
+          })
+        : NO_STAKE;
+
+    /* The pardon, if the House had one burning. Written back to the Call only
+       when it actually paid, so an unpardoned burn carries no field claiming
+       otherwise. */
+    if (stakeSettled.pardon > 0) {
+      await db
+        .from("posts")
+        .update({
+          call: { ...settledCall, stake_pardon: stakeSettled.pardon },
+        })
+        .eq("id", post.id);
+    }
+
     const subject = call.token ? `$${call.token}` : "the realm";
+    /* The stake is the part of a verdict a member feels, so it is named in the
+       notification rather than left for them to find in the Vault. */
+    const stakeLine =
+      stakeSettled.returned > 0
+        ? ` ${stakeSettled.returned.toLocaleString()} POINTS came back.`
+        : stakeSettled.burned > 0
+          ? stakeSettled.pardon > 0
+            ? ` ${stakeSettled.burned.toLocaleString()} POINTS burned, and the House pardoned ${stakeSettled.pardon.toLocaleString()}.`
+            : ` ${stakeSettled.burned.toLocaleString()} POINTS burned.`
+          : "";
     await db.from("notifications").insert({
       profile_id: post.author_id,
       kind: "call_verdict",
       subject_id: post.id,
       body: hit
-        ? `Your Call on ${subject} struck true.`
-        : `Your Call on ${subject} missed its mark.`,
+        ? `Your Call on ${subject} struck true.${stakeLine}`
+        : `Your Call on ${subject} missed its mark.${stakeLine}`,
     });
 
     /* The two currencies (section 9.3). Renown takes max(0, S) and never falls;
@@ -199,6 +267,9 @@ export async function GET(req: Request) {
         settled_price: settledPrice ?? null,
         score: score.score,
         score_basis: score.basis,
+        stake: stakeSettled.stake,
+        stake_returned: stakeSettled.returned,
+        stake_burned: stakeSettled.burned,
       },
     });
   }
