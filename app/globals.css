@@ -66,13 +66,15 @@
      next to them made the interface look faded rather than the icons look rich.
 
      Contrast against --panel-warm, the darkest surface we put text on:
-     gold 9.12:1, gold-rich 11.59:1, gold-bright 15.55:1. All clear WCAG AA
-     comfortably, and every one is an improvement on the values they replace.
-     gold-deep is the shadow stop of the gradient and a fill only, never text. */
-  --gold: #d9b040; /* was #c8a24c, 7.78:1 -> 9.12:1 */
-  --gold-bright: #ffe9a3; /* was #f0d68c, the polished highlight */
-  --gold-deep: #8f6717; /* was #8a6a2c, fill only */
-  --gold-rich: #ecc860; /* was #d8b45a, 11.59:1 */
+     gold 7.70:1, gold-rich 9.89:1, gold-bright 15.03:1. All clear WCAG AA
+     comfortably. This ramp was warmed toward the antique gold of the brand art
+     (the raven logo and the reliquary chests): richer and more amber than the
+     earlier yellower gold, with a deep antique shadow stop. gold-deep is that
+     shadow stop of the gradient and a fill only, never text. */
+  --gold: #d99a3c; /* warm antique gold, the text-safe workhorse, 7.70:1 */
+  --gold-bright: #ffe4a0; /* the polished highlight, 15.03:1 */
+  --gold-deep: #7a4310; /* deep antique shadow stop, fill only */
+  --gold-rich: #e8b455; /* 9.89:1 */
 
   /* Ember / fire */
   --ember: #e5702a;
@@ -113,7 +115,7 @@
 
   /* Ink for text sitting on a forged gold fill. The gold button hardcoded
      #171204 in one place and nowhere else, so nothing else could match it.
-     16.9:1 on --gold, so it clears AA on every rung of the gradient. */
+     over 7:1 on the warm --gold, so it clears AA on every rung of the gradient. */
   --gold-ink: #171204;
 
   /* Semantic state. This tier did not exist: success/warning/danger/info were
