@@ -211,18 +211,38 @@ const BACKGROUND_GUARD = [
 
 /* Read one JSX opening tag, balancing braces and skipping strings, so a
    className built from a template literal or a cx() call is seen whole. */
+/* A copy of the source with every block comment blanked to spaces, newlines
+   kept. Scanning this and slicing the original keeps line numbers exact while
+   making markup inside a comment invisible.
+
+   This codebase quotes markup in its comments constantly, because that is how
+   it records what a file used to do and why it stopped: `components/realm/
+   ceremony.tsx` explains that its backdrop is no longer a full bleed
+   `<button aria-label="Dismiss">`. A scanner that reads that finds a button
+   with no touch floor, in a file that deliberately does not have one, and the
+   only way to satisfy it is to edit the comment into a lie. */
+function withoutComments(src) {
+  return src.replace(/\/\*[\s\S]*?\*\//g, (block) =>
+    block.replace(/[^\n]/g, " ")
+  );
+}
+
 function openingTags(src, component) {
   const out = [];
+  const scan = withoutComments(src);
   const re = new RegExp(`<${component}(\\s|\\n)`, "g");
   let m;
-  while ((m = re.exec(src))) {
+  while ((m = re.exec(scan))) {
     let i = m.index + component.length + 1;
     let depth = 0;
     let quote = null;
-    while (i < src.length) {
-      const c = src[i];
+    /* Walked over the blanked copy, sliced from the original: a comment inside
+       an opening tag carries prose, and an apostrophe in it would otherwise
+       open a quote state that never closes and swallow the rest of the file. */
+    while (i < scan.length) {
+      const c = scan[i];
       if (quote) {
-        if (c === quote && src[i - 1] !== "\\") quote = null;
+        if (c === quote && scan[i - 1] !== "\\") quote = null;
       } else if (c === '"' || c === "'" || c === "`") quote = c;
       else if (c === "{") depth++;
       else if (c === "}") depth--;
@@ -243,6 +263,22 @@ function openingTags(src, component) {
    Reading them as this tag's produced eleven false positives the first time
    this check ran. */
 function classNamesIn(tag) {
+  /* Comments are stripped first, and that is not tidiness.
+   *
+   * This walker tracks quotes so it can tell a `"` inside a string from one
+   * that opens an attribute. An apostrophe inside a comment looks exactly like
+   * an opening quote to it, and this codebase writes comments in sentences:
+   * "the strip's other cells" opened a quote state that never closed, so every
+   * className after it became invisible and the function returned an empty
+   * list.
+   *
+   * An empty list reads as "this tag has no classes", which is the SAFE answer
+   * for a rule that forbids a class and the WRONG one for a rule that requires
+   * one. So the same bug made `background-is-a-variant` quietly miss offenders
+   * and made the touch floor rule report a control that already had one. Both
+   * failures are silent, which is why this is worth eleven lines. */
+  tag = tag.replace(/\/\*[\s\S]*?\*\//g, " ");
+
   let depth = 0;
   let quote = null;
   for (let i = 0; i < tag.length; i++) {
@@ -828,6 +864,45 @@ export const RULES = [
               `this one.`,
           });
         }
+      }
+      return found;
+    },
+  },
+  {
+    id: "hand-rolled-button-has-a-touch-floor",
+    title: "Rule 12: a control a finger can miss is not keyboard reachable either",
+    globs: ["*.tsx"],
+    /* The primitives own the floor and are where it is defined, so they cannot
+       be asked to already have it. Everything else in the product is a caller. */
+    skip: (f) => /^components\/ui\//.test(f),
+    check: (file, text) => {
+      const found = [];
+      for (const { text: tag, line } of openingTags(text, "button")) {
+        const classes = classNamesIn(tag).join(" ");
+        /* A full bleed backdrop is a button by role and a whole screen by size.
+           It cannot miss a thumb and it has no business declaring a height. */
+        if (/\binset-0\b/.test(classes)) continue;
+        /* The floor itself, however it is spelled. `touch:` is the variant that
+           lifts a control to 44px on a coarse pointer and leaves the compact
+           scale alone for a mouse, which is what the primitives use. A plain
+           `min-h-11` or a tall fixed height clears the bar on every pointer. */
+        if (/\btouch:min-h-11\b|\bmin-h-11\b|\bh-1[1-9]\b|\bh-2[0-9]\b|\bsize-11\b/.test(classes)) {
+          continue;
+        }
+        /* The other legitimate answer, for a control that cannot itself be
+           44px: an inline word in a line of text, where a min height would
+           grow the line box and stretch the row. INLINE_TOUCH_TARGET in
+           components/ui/button.tsx puts a transparent 44px pseudo element over
+           it instead, so the thumb gets its target and no layout moves. */
+        if (/INLINE_TOUCH_TARGET|touch:before:h-11/.test(tag)) continue;
+        found.push({
+          line,
+          message:
+            "a hand rolled <button> with no touch floor. The 44px minimum " +
+            "lives inside the Button primitive as `touch:min-h-11 " +
+            "touch:min-w-11`, so a raw <button> gets none of it. Use " +
+            "components/ui/button.tsx, or carry the same two classes.",
+        });
       }
       return found;
     },

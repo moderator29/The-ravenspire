@@ -134,7 +134,7 @@ function Section({
         type="button"
         onClick={toggle}
         aria-expanded={shown}
-        className="flex w-full items-center gap-1.5 rounded-sm px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+        className="touch:min-h-11 touch:min-w-11 flex w-full items-center gap-1.5 rounded-sm px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint transition-colors duration-fast hover:text-bone-mut"
       >
         <span className="flex-1 text-left">{label}</span>
         <Icon

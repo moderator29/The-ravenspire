@@ -544,7 +544,8 @@ function BurnGrid({
                   lastCopy ? ", your only copy" : ""
                 }${locked ? ", already in your wallet" : ""}`}
                 className={cx(
-                  "flex w-full flex-col gap-1 rounded-lg text-left",
+                  "touch:min-h-11 touch:min-w-11",
+          "flex w-full flex-col gap-1 rounded-lg text-left",
                   "disabled:cursor-not-allowed",
                   full && "opacity-60"
                 )}
@@ -614,7 +615,8 @@ function TargetPicker({
                 aria-pressed={selected}
                 aria-label={`Forge ${card.champion.name}, number ${card.number}`}
                 className={cx(
-                  "flex w-full flex-col gap-1 rounded-lg text-left",
+                  "touch:min-h-11 touch:min-w-11",
+          "flex w-full flex-col gap-1 rounded-lg text-left",
                   "transition-opacity duration-fast ease-out-quint",
                   !selected && value !== null && "opacity-55"
                 )}

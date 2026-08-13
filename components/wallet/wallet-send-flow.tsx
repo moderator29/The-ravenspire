@@ -10,7 +10,7 @@ import {
   parseUnits,
 } from "viem";
 import { Icon } from "@/components/ui/icon";
-import { Button } from "@/components/ui/button";
+import { Button, INLINE_TOUCH_TARGET } from "@/components/ui/button";
 import { CopyButton } from "@/components/wallet/copy-button";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
@@ -297,7 +297,7 @@ export function WalletSendFlow({
         <button
           type="button"
           onClick={() => setStep("recipient")}
-          className="text-xs font-medium text-gold hover:underline"
+          className={`${INLINE_TOUCH_TARGET} text-xs font-medium text-gold hover:underline`}
         >
           Edit
         </button>
@@ -323,7 +323,7 @@ export function WalletSendFlow({
             <button
               type="button"
               onClick={setMax}
-              className="rounded-lg border border-gold/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-gold transition-colors hover:border-gold/50"
+              className="touch:min-h-11 touch:min-w-11 rounded-lg border border-gold/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-gold transition-colors hover:border-gold/50"
             >
               Max
             </button>

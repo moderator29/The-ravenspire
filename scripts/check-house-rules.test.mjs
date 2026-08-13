@@ -777,3 +777,70 @@ describe("card-padding-is-a-rung", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("hand-rolled-button-has-a-touch-floor", () => {
+  it("catches a raw button with no floor", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button className="px-2 py-1">MAX</button>')
+    ).toHaveLength(1);
+  });
+
+  it("catches one with no className at all", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button type="button">x</button>')
+    ).toHaveLength(1);
+  });
+
+  it("accepts the pointer keyed floor the primitives use", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button className="touch:min-h-11 touch:min-w-11 px-2">x</button>')
+    ).toEqual([]);
+  });
+
+  it("accepts a control already tall enough for a thumb on any pointer", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button className="h-12 w-12">x</button>')
+    ).toEqual([]);
+  });
+
+  it("accepts the inline hit area, for a word inside a line of text", () => {
+    /* A min height on an inline control grows the line box and stretches the
+       row. The pseudo element grows the target instead and moves nothing. */
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", "<button className={`${INLINE_TOUCH_TARGET} text-xs`}>Edit</button>")
+    ).toEqual([]);
+  });
+
+  it("accepts a full bleed backdrop, which cannot miss a thumb", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button className="absolute inset-0" aria-label="Dismiss" />')
+    ).toEqual([]);
+  });
+
+  it("does not read markup quoted inside a comment", () => {
+    /* This codebase records what a file used to do by quoting the old markup.
+       ceremony.tsx explains that its backdrop is no longer a full bleed
+       `<button aria-label="Dismiss">`, and a scanner that reads that reports a
+       violation whose only fix is to edit the comment into a lie. */
+    const file = [
+      "/* The backdrop is Dialog.Backdrop rather than a full bleed",
+      ' * `<button aria-label="Dismiss">`, which had been a tap target. */',
+      "export const x = 1;",
+    ].join("\n");
+    expect(check("hand-rolled-button-has-a-touch-floor", "a.tsx", file)).toEqual([]);
+  });
+
+  it("still reads a real button under a comment holding an apostrophe", () => {
+    /* The other half. Blanking comments must not blank the code after them,
+       and an apostrophe in prose must not open a quote state that swallows the
+       rest of the file: that bug made this rule report a control whose floor
+       was written two lines below the comment. */
+    const file = [
+      "/* Same box as the strip's other cells, so the row reads as one. */",
+      '<button className="px-2 py-1">x</button>',
+    ].join("\n");
+    const found = check("hand-rolled-button-has-a-touch-floor", "a.tsx", file);
+    expect(found).toHaveLength(1);
+    expect(found[0].line).toBe(2);
+  });
+});

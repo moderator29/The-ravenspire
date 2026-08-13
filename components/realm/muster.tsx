@@ -192,8 +192,14 @@ export function MusterCell({
           onClick={() => setOpen(true)}
           /* A rounded rectangle from the scale, never a capsule. Same box as
              the strip's other cells so the row stays one instrument, with the
-             gold reading as the only difference. */
-          className="group flex min-w-0 shrink-0 flex-col justify-center rounded-md px-2.5 py-2 text-left transition-colors duration-fast ease-out-quint hover:bg-panel/60 max-md:min-h-11 md:flex-1 md:shrink"
+             gold reading as the only difference.
+
+             The touch floor keys off the pointer, not the width. This carried
+             `max-md:min-h-11`, which is the test globals.css argues against by
+             name: a 390px viewport can be a desktop window and a 1024px one can
+             be a tablet, so a width breakpoint lifts the wrong controls and
+             misses the right ones. */
+          className="group flex min-w-0 shrink-0 flex-col justify-center rounded-md px-2.5 py-2 text-left transition-colors duration-fast ease-out-quint hover:bg-panel/60 touch:min-h-11 md:flex-1 md:shrink"
         >
           {body}
         </button>

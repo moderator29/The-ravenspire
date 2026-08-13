@@ -642,7 +642,7 @@ function ControlButton({
       onClick={onClick}
       disabled={cooldown > 0}
       aria-label={label}
-      className={`flex ${dim} items-center justify-center rounded-full ${tones[tone]} transition-[transform,opacity] duration-fast ease-out-quint active:scale-95 disabled:opacity-40`}
+      className={`touch:min-h-11 touch:min-w-11 flex ${dim} items-center justify-center rounded-full ${tones[tone]} transition-[transform,opacity] duration-fast ease-out-quint active:scale-95 disabled:opacity-40`}
     >
       {cooldown > 0 ? (
         <span className="tnum text-sm font-bold">{Math.ceil(cooldown)}</span>

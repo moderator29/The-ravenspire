@@ -424,7 +424,7 @@ export function PostCard({ post }: { post: Post }) {
           aria-label={`Open ${a.handle ? `@${a.handle}` : "member"} dossier`}
           /* A 40px avatar with 2px of bleed on every side is a 44px target,
              without the circle itself growing into the name row beside it. */
-          className="-m-0.5 shrink-0 self-start rounded-[var(--radius-full)] p-0.5 transition-opacity duration-fast ease-out-quint hover:opacity-90"
+          className="touch:min-h-11 touch:min-w-11 -m-0.5 shrink-0 self-start rounded-[var(--radius-full)] p-0.5 transition-opacity duration-fast ease-out-quint hover:opacity-90"
         >
           <Avatar author={a} size={40} />
         </button>
