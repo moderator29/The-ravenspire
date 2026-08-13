@@ -50,7 +50,13 @@ The full V2 plan lives in `docs/RAVENSPIRE-V2.md`.
     never true. Setting `--spacing: initial` is what would make it true and it
     breaks every existing `p-4` at once, so it is a dedicated mechanical pass
     tracked in `docs/RAVENSPIRE-V2.md`. Until then the named steps are the
-    scale for new work and nothing stops you leaving it.
+    scale for new work and nothing stops you leaving it. **Card padding is the
+    exception and it is now checked**: `<Card pad="none">` followed by a `p-*`
+    class of your own fails the gate. Forty cards had done exactly that, in
+    twelve different values, so the chassis could be tightened and forty
+    surfaces would not move. Use a rung: `xs` `sm` `md` `lg` `xl`, or `hero` for
+    the few Forge moments rule 21 allows. `pad="none"` on its own is still
+    correct when you are composing with `CardHeader` and `CardBody`.
 11. **Every colour that carries text must clear WCAG AA (4.5:1).** The fill-only
     hues (`--foe`, `--blood`, `--ash`) have `-text` twins for when they must
     carry a label. Never put text on a fill-only hue.

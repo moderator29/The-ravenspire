@@ -172,7 +172,7 @@ export function RealmStrip() {
   if (cells.length === 0) return null;
 
   return (
-    <Card pad="none" className="scrollbar-none mb-3 flex items-stretch gap-1 overflow-x-auto p-1">
+    <Card pad="xs" className="scrollbar-none mb-3 flex items-stretch gap-1 overflow-x-auto">
       {cells}
     </Card>
   );

@@ -565,7 +565,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
       )}
 
       {/* Quote readout */}
-      <Card variant="inset" pad="none" className="mt-3 p-3.5">
+      <Card variant="inset" pad="md" className="mt-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-bone-faint">You pay</span>
           <span className="tnum text-bone">
@@ -596,7 +596,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
       </Card>
 
       {needsTopUp && chain && walletAddress && (
-        <Card variant="warm" pad="none" className="mt-3 flex flex-col gap-2 p-3.5">
+        <Card variant="warm" pad="md" className="mt-3 flex flex-col gap-2">
           <p className="text-xs text-bone-mut">
             To buy {coin.symbol} you need more {chain.native} on {chain.name}.
             Add it with a card in a tap.
@@ -813,7 +813,7 @@ function TradeSuccess({
         </p>
       </div>
       {hash && (
-        <Card variant="inset" pad="none" className="w-full p-3">
+        <Card variant="inset" pad="md" className="w-full">
           <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
             Transaction
           </p>

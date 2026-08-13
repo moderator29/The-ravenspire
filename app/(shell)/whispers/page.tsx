@@ -485,13 +485,17 @@ export default function WhispersPage() {
                     mine ? "items-end" : "items-start"
                   )}
                 >
+                  {/* An image only bubble is a frame around the picture and
+                      takes the tightest rung. A bubble carrying words is a
+                      line of text and wants asymmetric room, which is not a
+                      rung and is not pretending to be one. */}
                   <Card
                     variant={mine ? "warm" : "default"}
-                    pad="none"
+                    pad={m.image_url && !m.body ? "xs" : "none"}
                     className={cx(
                       "overflow-hidden",
                       mine ? "rounded-br-sm" : "rounded-bl-sm",
-                      m.image_url && !m.body ? "p-1" : "px-3.5 py-2"
+                      m.image_url && !m.body ? "" : "px-3.5 py-2"
                     )}
                   >
                     {m.image_url && (
