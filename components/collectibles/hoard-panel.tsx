@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import {
   Hoard,
+  type CraftState,
   type HoardCard,
   type HoardSummary,
   type MintState,
@@ -27,6 +28,9 @@ type Payload = {
   cards?: HoardCard[];
   summary?: HoardSummary;
   mint?: MintState;
+  /* Own reads only. /api/hoard carries no craft rule, because a visitor cannot
+     burn somebody else's duplicates. */
+  craft?: CraftState;
   sealed?: boolean;
 };
 
@@ -101,6 +105,7 @@ export function HoardPanel({
       summary={payload.summary ?? EMPTY_SUMMARY}
       own={own}
       mint={payload.mint ?? null}
+      craft={payload.craft ?? null}
       sealed={payload.sealed === true}
       onClaimed={() => void load()}
     />

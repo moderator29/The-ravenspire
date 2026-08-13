@@ -1,7 +1,9 @@
 import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { getFlag } from "@/lib/flags";
 import { mintGate } from "@/lib/collectibles/claims";
 import { EMPTY_HOARD, readHoard } from "@/lib/collectibles/hoard";
+import { CRAFT_STEPS } from "@/lib/collectibles/crafting";
 
 /* GET /api/inventory: the caller's own Hoard.
  *
@@ -13,7 +15,11 @@ import { EMPTY_HOARD, readHoard } from "@/lib/collectibles/hoard";
  *
  * The mint's state travels with the list because a claim control that renders
  * before the realm knows whether it can mint is a control that promises
- * something it cannot do.
+ * something it cannot do. The craft rule travels with it for the same reason:
+ * the trophy case is where a member finds out their duplicates are worth
+ * something, and it cannot say so without knowing the ratios and whether the
+ * bench is open. Somebody else's Hoard (/api/hoard) carries neither, because
+ * there is nothing on it a visitor can act on.
  */
 
 export const dynamic = "force-dynamic";
@@ -23,6 +29,13 @@ export async function GET(req: Request) {
      caller holds nothing, which is both the safe answer and the true one. */
   const profile = await getProfile(req);
   const gate = await mintGate();
+  const craft = {
+    open: await getFlag("crafting_live"),
+    /* Ratios only. The per rarity floor these are derived from is server only
+       by design (lib/commerce/catalog.ts) and is not a number any customer
+       surface renders. */
+    steps: CRAFT_STEPS.map((s) => ({ from: s.from, to: s.to, burn: s.burn })),
+  };
   /* What the client is told about the mint: whether it is open, and on which
      chain, so a claim button can render honestly. Never the contracts and
      never anything derived from the signing key. */
@@ -34,13 +47,13 @@ export async function GET(req: Request) {
       }
     : { open: false, reason: gate.reason };
 
-  if (!profile) return json({ ...EMPTY_HOARD, mint });
+  if (!profile) return json({ ...EMPTY_HOARD, mint, craft });
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
   try {
     const hoard = await readHoard(db, profile.id);
-    return json({ ...hoard, mint });
+    return json({ ...hoard, mint, craft });
   } catch {
     return json({ error: "unavailable" }, 503);
   }
