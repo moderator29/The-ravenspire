@@ -456,6 +456,7 @@ export const champions: Champion[] = [
     stats: { attack: 3250, defense: 1200, health: 12100, speed: 455 },
     lore: "Corvus knows every secret in the realm because his ravens are terrible gossips. He pays them in shiny buttons.",
     unlocked: false,
+    art: "/game/champions/corvus-ashwing.png",
   },
   {
     slug: "thessaly-quill",
@@ -476,6 +477,7 @@ export const champions: Champion[] = [
     stats: { attack: 2450, defense: 750, health: 8600, speed: 465 },
     lore: "Thessaly keeps a ledger of everyone's debts, favors, and embarrassments. Page one is blank, reserved, she says, for optimists.",
     unlocked: false,
+    art: "/game/champions/thessaly-quill.png",
   },
   {
     slug: "ser-oswic-crane",
@@ -496,6 +498,7 @@ export const champions: Champion[] = [
     stats: { attack: 1750, defense: 950, health: 8900, speed: 395 },
     lore: "Oswic plans his duels like chess and his chess like duels. Nobody enjoys playing either with him.",
     unlocked: false,
+    art: "/game/champions/ser-oswic-crane.png",
   },
   {
     slug: "ravenna-holt",
@@ -536,6 +539,7 @@ export const champions: Champion[] = [
     stats: { attack: 1650, defense: 650, health: 7800, speed: 470 },
     lore: "Finch once stole the crown, the throne, and the argument for keeping either. He returned them all, plus interest, in embarrassment.",
     unlocked: false,
+    art: "/game/champions/finch-the-younger.png",
   },
   {
     slug: "maren-darkfeather",
@@ -576,6 +580,7 @@ export const champions: Champion[] = [
     stats: { attack: 3100, defense: 1250, health: 11900, speed: 435 },
     lore: "Lucan sold a bridge to the man who built it, twice. The realm's merchants now negotiate with him by letter, from far away.",
     unlocked: false,
+    art: "/game/champions/lucan-vayle.png",
   },
   {
     slug: "pyrra-flameheart",
@@ -596,6 +601,7 @@ export const champions: Champion[] = [
     stats: { attack: 3350, defense: 1100, health: 11700, speed: 460 },
     lore: "Pyrra lights the great beacons of Emberfall with a snap of her fingers, mostly because matches bore her.",
     unlocked: false,
+    art: "/game/champions/pyrra-flameheart.png",
   },
   {
     slug: "ser-caldus-brand",
@@ -616,6 +622,7 @@ export const champions: Champion[] = [
     stats: { attack: 2650, defense: 1050, health: 10100, speed: 425 },
     lore: "Caldus has never lost a joust, partly through skill and partly because his lance is on fire and horses have opinions about that.",
     unlocked: false,
+    art: "/game/champions/ser-caldus-brand.png",
   },
   {
     slug: "ashka-emberveil",
@@ -636,6 +643,7 @@ export const champions: Champion[] = [
     stats: { attack: 2550, defense: 800, health: 9100, speed: 485 },
     lore: "Ashka learned to dance in the festival fires of the south. Her performances are unforgettable and mildly hazardous.",
     unlocked: false,
+    art: "/game/champions/ashka-emberveil.png",
   },
   {
     slug: "brom-coalbeard",
@@ -656,6 +664,7 @@ export const champions: Champion[] = [
     stats: { attack: 1500, defense: 1150, health: 9800, speed: 335 },
     lore: "Brom forged half the famous blades in the realm and complains loudly about how the other half were made.",
     unlocked: false,
+    art: "/game/champions/brom-coalbeard.png",
   },
   {
     slug: "seraphine-dawnash",
@@ -696,6 +705,7 @@ export const champions: Champion[] = [
     stats: { attack: 3550, defense: 1300, health: 12400, speed: 390 },
     lore: "Varek carries the last ember of a burned kingdom in his sword's hilt. He is saving it for something, and no one asks what.",
     unlocked: false,
+    art: "/game/champions/varek-hollowflame.png",
   },
   {
     slug: "roderic-tallow",
@@ -736,6 +746,7 @@ export const champions: Champion[] = [
     stats: { attack: 3150, defense: 1500, health: 13200, speed: 325 },
     lore: "Helga swims in frozen lakes for fun and describes blizzards as refreshing. Her enemies find her exactly as pleasant.",
     unlocked: false,
+    art: "/game/champions/helga-winterborn.png",
   },
   {
     slug: "ser-jorund-pale",
@@ -756,6 +767,7 @@ export const champions: Champion[] = [
     stats: { attack: 2200, defense: 1550, health: 11500, speed: 315 },
     lore: "Jorund has guarded the White Pass for twenty years. Nothing has gotten through, including, famously, one very determined goat.",
     unlocked: false,
+    art: "/game/champions/ser-jorund-pale.png",
   },
   {
     slug: "eira-coldsong",
@@ -796,6 +808,7 @@ export const champions: Champion[] = [
     stats: { attack: 1800, defense: 1050, health: 10400, speed: 345 },
     lore: "Bjorn wrestled a bear once, and they have been fishing partners ever since. The bear tells the story better.",
     unlocked: false,
+    art: "/game/champions/bjorn-frostfell.png",
   },
   {
     slug: "sigrid-hoarfrost",
@@ -836,6 +849,7 @@ export const champions: Champion[] = [
     stats: { attack: 3050, defense: 1600, health: 14000, speed: 305 },
     lore: "Ulfar has been declared dead four times and attended two of his own funerals. He brought snacks and mild corrections.",
     unlocked: false,
+    art: "/game/champions/ulfar-the-stalwart.png",
   },
   {
     slug: "tempest-kael",
@@ -856,6 +870,7 @@ export const champions: Champion[] = [
     stats: { attack: 3200, defense: 1050, health: 11600, speed: 500 },
     lore: "Kael raced the wind across the Bone Cliffs and won by a nose. The wind demanded a rematch. It is still pending.",
     unlocked: false,
+    art: "/game/champions/tempest-kael.png",
   },
   {
     slug: "wren-galecaller",
@@ -896,6 +911,7 @@ export const champions: Champion[] = [
     stats: { attack: 1850, defense: 750, health: 8400, speed: 480 },
     lore: "Darrow's duels end so quickly that spectators demand refunds. He now sells tickets by the second, at a discount.",
     unlocked: false,
+    art: "/game/champions/ser-darrow-swift.png",
   },
   {
     slug: "petra-boneweather",
@@ -936,6 +952,7 @@ export const champions: Champion[] = [
     stats: { attack: 2750, defense: 1100, health: 10600, speed: 420 },
     lore: "Cormac's handshake has been outlawed in three provinces. He considers this a compliment and shakes hands anyway.",
     unlocked: false,
+    art: "/game/champions/cormac-thunderhide.png",
   },
   {
     slug: "lyra-windmere",
@@ -956,6 +973,7 @@ export const champions: Champion[] = [
     stats: { attack: 3300, defense: 1000, health: 11300, speed: 500 },
     lore: "Lyra was raised alongside the falcons of the high crags and learned their two great lessons, strike first and never apologize to a pigeon.",
     unlocked: false,
+    art: "/game/champions/lyra-windmere.png",
   },
   {
     slug: "umbra-veilwalker",
@@ -976,6 +994,7 @@ export const champions: Champion[] = [
     stats: { attack: 3400, defense: 1050, health: 11800, speed: 495 },
     lore: "Umbra's shadow arrives places before she does and reports back. They disagree occasionally, which is unsettling for everyone nearby.",
     unlocked: false,
+    art: "/game/champions/umbra-veilwalker.png",
   },
   {
     slug: "ser-mordane",
@@ -996,6 +1015,7 @@ export const champions: Champion[] = [
     stats: { attack: 3100, defense: 1250, health: 12300, speed: 410 },
     lore: "Mordane swore an oath so secret even he will not say what it was. He keeps it anyway, meticulously, at midnight.",
     unlocked: false,
+    art: "/game/champions/ser-mordane.png",
   },
   {
     slug: "nyx-emberdim",
@@ -1016,6 +1036,7 @@ export const champions: Champion[] = [
     stats: { attack: 1600, defense: 700, health: 8100, speed: 455 },
     lore: "Nyx collects candle stubs from every place she has infiltrated. Her collection is enormous and deeply incriminating.",
     unlocked: false,
+    art: "/game/champions/nyx-emberdim.png",
   },
   {
     slug: "silas-duskbane",
@@ -1036,6 +1057,7 @@ export const champions: Champion[] = [
     stats: { attack: 1800, defense: 600, health: 7700, speed: 485 },
     lore: "Silas maps the places that do not want to be found. The places have filed several complaints, all of which got lost.",
     unlocked: false,
+    art: "/game/champions/silas-duskbane.png",
   },
   {
     slug: "vespera-crow",
@@ -1076,6 +1098,7 @@ export const champions: Champion[] = [
     stats: { attack: 3450, defense: 1350, health: 12700, speed: 415 },
     lore: "Leonar has never lost, according to Leonar. The record keepers agree, mostly because he pays the record keepers.",
     unlocked: false,
+    art: "/game/champions/leonar-goldmane.png",
   },
   {
     slug: "octavia-gilt",
@@ -1096,6 +1119,7 @@ export const champions: Champion[] = [
     stats: { attack: 2450, defense: 900, health: 9500, speed: 440 },
     lore: "Octavia never carries a weapon into negotiations. Technically the fans are accounting equipment, and her ledgers agree.",
     unlocked: false,
+    art: "/game/champions/octavia-gilt.png",
   },
   {
     slug: "ser-percival-vane",
@@ -1116,6 +1140,7 @@ export const champions: Champion[] = [
     stats: { attack: 2250, defense: 1500, health: 11200, speed: 355 },
     lore: "Percival polishes his armor for three hours daily. His enemies see themselves in it, which he insists is the point.",
     unlocked: false,
+    art: "/game/champions/ser-percival-vane.png",
   },
   {
     slug: "magnus-aurelian",
@@ -1136,6 +1161,7 @@ export const champions: Champion[] = [
     stats: { attack: 3500, defense: 1400, health: 13100, speed: 350 },
     lore: "Magnus broke into the realm's grandest vault just to prove he could, then left a donation. The bank framed his apology note.",
     unlocked: false,
+    art: "/game/champions/magnus-aurelian.png",
   },
   {
     slug: "cressida-lorne",
@@ -1176,6 +1202,7 @@ export const champions: Champion[] = [
     stats: { attack: 2400, defense: 1000, health: 9900, speed: 395 },
     lore: "Hadrian once auctioned a castle while it was under siege, twice, to both sides. The margins were spectacular.",
     unlocked: false,
+    art: "/game/champions/hadrian-voss.png",
   },
   {
     slug: "elowen-brightshield",
@@ -1216,6 +1243,7 @@ export const champions: Champion[] = [
     stats: { attack: 1550, defense: 1000, health: 9200, speed: 365 },
     lore: "Fenwick keeps the only lit lantern in Nightvale, which makes him either the bravest man there or the worst at stealth.",
     unlocked: false,
+    art: "/game/champions/fenwick-mothbane.png",
   },
   {
     slug: "orin-blackbriar",
@@ -1236,6 +1264,7 @@ export const champions: Champion[] = [
     stats: { attack: 2350, defense: 1050, health: 9800, speed: 400 },
     lore: "Orin planted a hedge maze around his tower forty years ago. Tax collectors enter regularly. None have reached the door.",
     unlocked: false,
+    art: "/game/champions/orin-blackbriar.png",
   },
   {
     slug: "runa-stormveil",
@@ -1276,5 +1305,6 @@ export const champions: Champion[] = [
     stats: { attack: 3000, defense: 1450, health: 12900, speed: 360 },
     lore: "Godfrey retired three times and was un-retired by three separate wars. He now refuses to buy a rocking chair on principle.",
     unlocked: false,
+    art: "/game/champions/godfrey-the-gray.png",
   },
 ];
