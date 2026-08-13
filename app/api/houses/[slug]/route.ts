@@ -10,7 +10,18 @@ import {
   perkIsActive,
   perkPrice,
 } from "@/lib/houses/perks";
-import { loadHousePerks, loadTreasuryLedger } from "@/lib/houses/treasury";
+import {
+  endowedToday,
+  loadHousePerks,
+  loadTreasuryLedger,
+  reconcileTreasury,
+} from "@/lib/houses/treasury";
+import {
+  DAILY_ENDOWMENT_CAP,
+  MIN_ENDOWMENT,
+  maxEndowmentFor,
+} from "@/lib/houses/endowment";
+import { getFlag } from "@/lib/flags";
 import {
   buildStandings,
   loadCumulative,
@@ -110,10 +121,27 @@ export async function GET(
      spend_house_treasury, under the House row lock, and a client that lied
      about its own role would get a 403 from the RPC. */
   const viewer = await getProfile(req);
-  const [houseRow, perks, treasuryLedger] = await Promise.all([
+  const [houseRow, perks, treasuryLedger, recon] = await Promise.all([
     db.from("houses").select("treasury").eq("slug", slug).maybeSingle(),
     loadHousePerks(db, slug),
     loadTreasuryLedger(db, slug),
+    /* The cached balance against the ledger under it. Summed in the database,
+       never by reading the rows back and adding them up: a partial read would
+       report a drift that is only its own truncation, and "this House's
+       treasury does not add up" is far too serious a claim to make from an
+       incomplete count. */
+    reconcileTreasury(db, slug),
+  ]);
+
+  /* A gift is only offered to somebody who could actually make one, and the
+     terms are priced against their real balance and their real running total
+     for the day. A reader who is not sworn here gets null and no control, not a
+     control that refuses. The oath that governs the gift is re-read inside
+     endow_house_treasury under the profile row lock; this is presentation. */
+  const viewerSworn = viewer?.house_slug === slug;
+  const [endowmentOpen, givenToday] = await Promise.all([
+    viewerSworn ? getFlag("endowment_live") : Promise.resolve(false),
+    viewerSworn && viewer ? endowedToday(db, viewer.id) : Promise.resolve(0),
   ]);
 
   const treasury = Number(houseRow.data?.treasury) || 0;
@@ -193,6 +221,20 @@ export async function GET(
       /* Whether THIS viewer may open it. Null when nobody is signed in. */
       may_spend: maySpendTreasury(viewerRole),
       viewer_role: viewerRole,
+      reconciled: recon.reconciled,
+      reconciliation_known: recon.known,
+      reconciliation_drift: recon.drift,
+      endowment:
+        viewerSworn && viewer
+          ? {
+              open: endowmentOpen,
+              min: MIN_ENDOWMENT,
+              daily_cap: DAILY_ENDOWMENT_CAP,
+              balance: viewer.points,
+              given_today: givenToday,
+              max: maxEndowmentFor(viewer.points, givenToday),
+            }
+          : null,
     },
     board,
     roster,
