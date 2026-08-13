@@ -3,7 +3,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { rateLimit, profileKey } from "@/lib/rate-limit";
 import { getFlag } from "@/lib/flags";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
-import { activeCommitment } from "@/lib/collectibles/seeds";
+import { activeCommitment, nextCommitment } from "@/lib/collectibles/seeds";
 import { rollChest } from "@/lib/collectibles/pulls";
 
 /* POST /api/chests/[sku]/open (V2 Part Two, section 28.2).
@@ -22,21 +22,26 @@ import { rollChest } from "@/lib/collectibles/pulls";
  *      order, or a redemption code from a physical box). No entitlement, no
  *      chest, and the answer says so plainly.
  *   3. The commitment. The member's server seed was committed, hash published,
- *      before they ever got here. If somehow it was not, this refuses rather
- *      than committing one now, because a seed committed at open time is the
- *      exact dishonesty the whole scheme exists to prevent.
+ *      before they ever got here, and they answered it with a client seed of
+ *      their own after seeing that hash. If somehow no commitment exists, this
+ *      refuses rather than committing one now: a seed committed at open time is
+ *      the exact dishonesty the whole scheme exists to prevent.
  *   4. The roll, in lib/collectibles/pulls.ts: a pure function of the server
  *      seed, the member's client seed, and the entitlement id as the nonce.
  *      The odds it rolls against are the odds printed on the box, the same
  *      object, not a copy.
- *   5. The settle, in one transaction (public.chest_open): the entitlement is
- *      spent, the opening is recorded with its proof, and the cards land in
+ *   5. The settle and the reveal, in one transaction (public.chest_open): the
+ *      commitment is published and retired, a fresh one is committed for the
+ *      next chest, the entitlement is spent, the opening is recorded with the
+ *      revealed seed beside the hash that preceded it, and the cards land in
  *      the holdings ledger. All of it or none of it. A crash halfway used to
  *      mean either a paid chest that granted nothing or cards granted twice,
  *      and neither is distinguishable afterwards.
  *
- * The response is the Ceremony's script: the cards, and the proof that they
- * were not chosen after the fact.
+ * The response is the Ceremony's script: the cards, the seed that produced
+ * them, the hash that was published before they were drawn, and the commitment
+ * for the chest after this one. A member walks away able to check the roll
+ * without asking the realm for anything further.
  */
 
 export const dynamic = "force-dynamic";
@@ -124,11 +129,21 @@ export async function POST(
     nonce,
   });
 
+  /* The commitment for the chest AFTER this one, generated here so that the
+     reveal and the recommit reach the database together. A member is never
+     left without a live commitment, and so can never be asked to open a chest
+     against a seed they have already been shown. */
+  const next = nextCommitment();
+
   const { data: openingId, error: settleError } = await db.rpc("chest_open", {
     p_profile_id: profile.id,
     p_entitlement_id: nonce,
+    p_seed_id: commitment.id,
     p_server_seed_hash: roll.proof.server_seed_hash,
+    p_server_seed: commitment.seed,
     p_client_seed: roll.proof.client_seed,
+    p_next_seed: next.seed,
+    p_next_seed_hash: next.seedHash,
     p_result: { v: 1, cards: roll.cards, proof: roll.proof },
     p_cards: roll.cards,
   });
@@ -136,18 +151,24 @@ export async function POST(
   if (settleError) return json({ error: "unavailable" }, 503);
 
   if (!openingId) {
-    /* The entitlement was spent between the read and the lock. The roll is a
-       pure function of inputs that have not changed, so the chest that was
-       opened is this same chest; read it back rather than rolling again. */
+    /* Either the entitlement was spent between the read and the lock, or the
+       commitment was revealed by another opening that got there first. The
+       first case has an opening to read back; the second means this roll was
+       computed against a seed the member may now have seen, so it is thrown
+       away rather than recorded and the caller opens again against the fresh
+       commitment. */
     const { data: prior } = await db
       .from("chest_openings")
-      .select("id, result, server_seed_hash, client_seed, opened_at")
+      .select("id, result, server_seed_hash, server_seed, client_seed, opened_at")
       .eq("entitlement_id", nonce)
       .maybeSingle();
     if (prior) {
       return json({ opening: prior, already_opened: true });
     }
-    return json({ error: "That chest is already open" }, 409);
+    return json(
+      { error: "Another chest was opening at the same moment. Try again." },
+      409
+    );
   }
 
   return json({
@@ -155,11 +176,14 @@ export async function POST(
       id: openingId,
       chest_sku: sku,
       cards: roll.cards,
-      /* The proof, returned with the cards so the Ceremony can show it and a
-         member can check it without asking for anything else. The seed itself
-         stays secret until they rotate their commitment, which is what keeps
-         the chests still to come unpredictable. */
-      proof: roll.proof,
+      /* The reveal. The seed that drew these cards, published now that it is
+         spent, beside the hash that was published before they were drawn.
+         Hash the one, compare it to the other, rerun the roll: the member can
+         check this chest without asking the realm for anything further. */
+      proof: { ...roll.proof, server_seed: commitment.seed },
     },
+    /* And the commitment for the next chest, so the member is already holding
+       the promise for it before they decide to buy one. */
+    next_commitment: { seed_hash: next.seedHash },
   });
 }

@@ -2114,7 +2114,7 @@ to be one bug seen from two angles: the realm could not honestly promise what
 came out of a chest, and it could not promise that opening one happened
 exactly once.
 
-### 42.1 The commitment came too late
+### 42.1 Both halves, in the order that makes them mean something
 
 The planned design generated a server seed at open time and stored its hash.
 That is the version of provably fair that proves nothing. A server that picks
@@ -2122,12 +2122,35 @@ its seed after the member has committed can roll a thousand seeds and publish
 the hash of whichever one pays out least, and every published hash still
 verifies. The proof has to exist before the member can act on it.
 
-So the seed is generated and committed the first time a member looks at the
-chests, kept in `chest_seeds`, and revealed only when they rotate it. By the
-time an opening happens the hash is already in their hands and the seed behind
-it cannot change. `/api/chests/seed` is deliberately not flag gated: a member
-is entitled to hold the realm to its promise before the chests are live and
-long after.
+The first pass fixed that half and left the other one open: a seed was
+published only if the member chose to rotate it, so a member who never rotated
+could never check a single one of their openings. A proof nobody can run is a
+promise, not a proof.
+
+Both halves now:
+
+1. **The realm commits.** A seed is generated and its hash published the first
+   time a member looks at the chests, kept in `chest_seeds`. The realm goes
+   first, before it knows what the member will choose.
+2. **The member answers.** They set a client seed of their own, having already
+   seen the hash. The realm cannot know it in advance, so it cannot pick a seed
+   to suit it. `POST /api/chests/seed`.
+3. **The chest reveals.** Opening publishes the seed that drew it, commits a
+   fresh one for the next chest, spends the entitlement and grants the cards,
+   all in one transaction. The member walks away holding everything needed to
+   rerun the draw, without having to know a rotation feature exists.
+
+`/api/chests/seed` is deliberately not flag gated: a member is entitled to hold
+the realm to its promise before the chests are live and long after. The
+`FairnessPanel` on `/warchests` is where the three steps are shown, using the
+member's own live commitment and never a specimen.
+
+A correction worth recording. The first pass refused to let a member edit their
+client seed under a live commitment, reasoning that it would let them re-roll a
+chest they had already seen. That was wrong: a roll cannot be seen without
+consuming an entitlement, and the entitlement is consumed in the same
+transaction that reveals the seed, so there is no "already seen" to exploit.
+Editing is what makes step two possible at all.
 
 ### 42.2 The three inputs
 
