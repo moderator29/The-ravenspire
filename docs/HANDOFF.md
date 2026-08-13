@@ -138,7 +138,11 @@ commit, push, then move on. Full reasoning per item is in the strategy doc.
 3. **Sinks and stakes (the Spend beat).** Crafting duplicates up a rarity, Call
    entries with a stake, House treasury contributions that buy House perks,
    cosmetic Crest frames. Server authoritative throughout. This gives Glory and
-   POINTS somewhere to go.
+   POINTS somewhere to go. Crafting is DONE and sealed behind `crafting_live`:
+   4 rare make an epic, 4 epic a legendary, 10 legendary a mythic, every ratio
+   asserted at module load to destroy floor value and to be no cheaper than the
+   chest that sells the rarity. `RAVENSPIRE-V2.md` section 43. The rest of the
+   item is untouched.
 4. **Native secondary market.** List, buy, gift, transfer, member to member, each
    signed by the member's own wallet, a small protocol fee to the Coffers, real
    print caps for a real floor. Non custodial, never take custody.
@@ -281,5 +285,8 @@ Everything else is yours to decide and build. Start at section 3, item 1.
 - Design law: `docs/DESIGN-SYSTEM.md`. Rules: `AGENTS.md`.
 - Commerce backend: `lib/commerce/**`, `app/api/commerce/**`,
   `app/api/chests/[sku]/open`, `app/api/reliquary/redeem`.
+- Collectibles sinks: `lib/collectibles/crafting.ts` (the rule, and the two
+  assertions that make it a sink), `app/api/collectibles/craft`,
+  `components/collectibles/crafting-bench.tsx`.
 - Live database: Supabase project `tqvigouaifbklvajiyoj`. Migrations in
   `supabase/migrations/`.
