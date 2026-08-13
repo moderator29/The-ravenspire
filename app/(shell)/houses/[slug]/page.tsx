@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -26,14 +26,18 @@ import {
 } from "@/components/dossier/dossier-shell";
 import { Avatar } from "@/components/social/avatar";
 import { PostCard } from "@/components/social/post-card";
+import { realmFetch } from "@/lib/auth/api";
 import { fetchFeed } from "@/lib/social/queries";
 import type { Post } from "@/lib/social/types";
 import { houseBySlug, houseIcon } from "@/lib/data/houses";
 import { roleMeta } from "@/lib/houses/roles";
 import type {
   HouseHall,
+  HouseTreasuryView,
   MemberIdentityView,
+  PerkOfferView,
   RosterEntryView,
+  TreasuryEntryView,
 } from "@/lib/houses/view";
 import { seasonCountdown } from "@/lib/houses/view";
 
@@ -47,7 +51,7 @@ import { seasonCountdown } from "@/lib/houses/view";
  * named, churning, public list, and it is the single strongest signal that a
  * House is a place rather than a label on a profile. */
 
-type Tab = "board" | "roster" | "hall";
+type Tab = "board" | "roster" | "treasury" | "hall";
 
 export default function HousePage({
   params,
@@ -70,11 +74,21 @@ function HouseHallView({ slug }: { slug: string }) {
   const [tab, setTab] = useState<Tab>("board");
   const showSkeleton = useDelayedLoading(loading);
 
+  /* The hall read, as a callback rather than an inline effect, because buying
+     a perk changes the treasury, the catalogue and the ledger at once and the
+     honest way to show that is to ask the server again rather than to patch
+     three numbers on the client and hope they match. */
+  const loadHall = useCallback(async (): Promise<HouseHall | null> => {
+    const res = await realmFetch<HouseHall>(
+      `/api/houses/${encodeURIComponent(slug)}`
+    );
+    return res.ok ? (res.data ?? null) : null;
+  }, [slug]);
+
   useEffect(() => {
     let live = true;
-    void fetch(`/api/houses/${encodeURIComponent(slug)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((payload: HouseHall | null) => {
+    void loadHall()
+      .then((payload) => {
         if (!live) return;
         setHall(payload);
         setLoading(false);
@@ -91,7 +105,7 @@ function HouseHallView({ slug }: { slug: string }) {
     return () => {
       live = false;
     };
-  }, [slug]);
+  }, [slug, loadHall]);
 
   if (!meta)
     return (
@@ -130,6 +144,11 @@ function HouseHallView({ slug }: { slug: string }) {
             count: hall?.board.length ?? 0,
           },
           { value: "roster", label: "Roster", count: hall?.roster.length ?? 0 },
+          {
+            value: "treasury",
+            label: "Treasury",
+            count: hall?.treasury.active.length ?? 0,
+          },
           { value: "hall", label: "The hall", count: posts?.length ?? 0 },
         ]}
       >
@@ -138,6 +157,13 @@ function HouseHallView({ slug }: { slug: string }) {
         </DossierTabPanel>
         <DossierTabPanel value="roster">
           <Roster hall={hall} />
+        </DossierTabPanel>
+        <DossierTabPanel value="treasury">
+          <Treasury
+            slug={slug}
+            treasury={hall?.treasury ?? null}
+            onSpent={() => void loadHall().then((next) => next && setHall(next))}
+          />
         </DossierTabPanel>
         <DossierTabPanel value="hall">
           <HallFeed posts={posts} />
@@ -590,6 +616,308 @@ function Roster({ hall }: { hall: HouseHall | null }) {
       ) : null}
     </BoardStack>
   );
+}
+
+/* ------------------------------------------------------------------
+   The treasury
+   ------------------------------------------------------------------ */
+
+/* What a House holds, what it has bought, and every movement of both.
+ *
+ * Ledger register throughout, deliberately. A treasury is an instrument: a
+ * balance, a price list and an audit trail. The Forge belongs to the moment a
+ * House wins something, not to the page where it does its accounts.
+ *
+ * Real data or an honest zero. No House has a treasury on the day this ships,
+ * so the first thing almost every reader will see is a balance of zero and a
+ * sentence explaining where the money comes from. That is the correct first
+ * impression and it is never dressed up as anything else.
+ *
+ * Responsive by layout rather than by scale: the catalogue is a two column
+ * grid of cards on a wide screen and a single column below, and the movements
+ * list is a table above md and a card list under it, which is what the Board
+ * primitive already does.
+ */
+function Treasury({
+  slug,
+  treasury,
+  onSpent,
+}: {
+  slug: string;
+  treasury: HouseTreasuryView | null;
+  onSpent: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!treasury)
+    return (
+      <Card>
+        <EmptyState
+          title="The coffers cannot be read"
+          body="The realm could not reach this House's treasury just now."
+        />
+      </Card>
+    );
+
+  const buy = async (perk: string) => {
+    if (busy) return;
+    setBusy(perk);
+    setError(null);
+    const res = await realmFetch<{ error?: string }>(
+      `/api/houses/${encodeURIComponent(slug)}/treasury`,
+      { method: "POST", json: { perk } }
+    );
+    setBusy(null);
+    if (!res.ok) {
+      setError(res.data?.error ?? "The treasury would not open.");
+      return;
+    }
+    onSpent();
+  };
+
+  return (
+    <BoardStack>
+      <Card variant="warm" pad="lg">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-bone-faint">
+          House treasury
+        </p>
+        <p className="tnum mt-1 font-display text-3xl font-semibold text-gold">
+          {treasury.balance.toLocaleString()}
+          <span className="ml-2 align-middle text-xs font-normal uppercase tracking-[0.16em] text-bone-faint">
+            points
+          </span>
+        </p>
+        <p className="mt-2 max-w-prose text-sm leading-relaxed text-bone-mut">
+          {treasury.balance > 0
+            ? "Every point here came from a Call that went wrong. Half of a burned stake leaves the realm and half pools under the banner."
+            : "Nothing yet. A treasury fills when a sworn member stakes POINTS on a Call and the Call misses: half of the burn leaves the realm for good, and half pools here."}
+        </p>
+        <p className="mt-3 text-[11px] leading-relaxed text-bone-faint">
+          The Lord and the Hand of the House may spend it. Both titles are
+          earned by contribution and turn over when the season does, so nobody
+          holds the keys for long. Every movement is listed below.
+        </p>
+      </Card>
+
+      {treasury.active.length > 0 ? (
+        <>
+          <SectionHeader title="Burning now" />
+          <div className="grid gap-3 lg:grid-cols-2">
+            {treasury.active.map((perk) => {
+              const offer = treasury.catalogue.find((c) => c.slug === perk.slug);
+              return (
+                <Card key={`${perk.slug}-${perk.starts_at}`} tone="gold">
+                  <div className="flex items-start gap-2.5">
+                    <Icon
+                      name={offer?.icon ?? "shield"}
+                      className="mt-0.5 h-4 w-4 shrink-0 text-gold"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display text-sm font-semibold text-bone">
+                        {offer?.name ?? perk.slug}
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-bone-mut">
+                        {offer?.effect ?? ""}
+                      </p>
+                      <p className="tnum mt-2 text-[11px] text-bone-faint">
+                        {expiryLine(perk.expires_at)}
+                        {perk.allowance_remaining !== null
+                          ? ` · ${perk.allowance_remaining.toLocaleString()} POINTS left in the pot`
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
+
+      <SectionHeader
+        title="What a treasury buys"
+        hint={`Priced per sworn member (${treasury.sworn})`}
+      />
+      <p className="-mt-1 px-1 text-xs leading-relaxed text-bone-mut">
+        Every perk is priced by headcount. A House with sixty members burns
+        roughly three times the stakes a House with twenty does, so a flat price
+        would hand the big House three perks for every one the small House
+        could afford, and the size-neutral scoring would quietly stop being
+        size neutral.
+      </p>
+
+      {error ? (
+        <p role="alert" className="px-1 text-xs text-state-danger">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        {treasury.catalogue.map((offer) => (
+          <PerkCard
+            key={offer.slug}
+            offer={offer}
+            maySpend={treasury.may_spend}
+            busy={busy === offer.slug}
+            onBuy={() => void buy(offer.slug)}
+          />
+        ))}
+      </div>
+
+      <SectionHeader title="Movements" hint="Every point in and every point out" />
+      {treasury.ledger.length === 0 ? (
+        <Card>
+          <EmptyState
+            size="sm"
+            title="The treasury has never moved"
+            body="The first staked Call to miss under this banner opens the ledger."
+          />
+        </Card>
+      ) : (
+        <Board
+          label="Every movement of this House's treasury"
+          rows={treasury.ledger}
+          rowKey={(entry) => `${entry.created_at}-${entry.reason}-${entry.delta}`}
+          columns={[
+            {
+              key: "when",
+              header: "When",
+              className: "w-32 whitespace-nowrap",
+              cell: (entry) => (
+                <span className="text-bone-faint">{movedOn(entry)}</span>
+              ),
+            },
+            {
+              key: "reason",
+              header: "Movement",
+              cell: (entry) => (
+                <span className="text-bone">{movementLabel(entry.reason)}</span>
+              ),
+            },
+            {
+              key: "delta",
+              header: "Points",
+              numeric: true,
+              className: "whitespace-nowrap font-semibold",
+              cell: (entry) => <Delta value={entry.delta} />,
+            },
+          ]}
+          card={(entry) => (
+            <BoardCard
+              title={movementLabel(entry.reason)}
+              subtitle={movedOn(entry)}
+              trailing={<Delta value={entry.delta} />}
+            />
+          )}
+        />
+      )}
+    </BoardStack>
+  );
+}
+
+function PerkCard({
+  offer,
+  maySpend,
+  busy,
+  onBuy,
+}: {
+  offer: PerkOfferView;
+  maySpend: boolean;
+  busy: boolean;
+  onBuy: () => void;
+}) {
+  /* One reason, the most useful one, rather than a stack of disabled states.
+     A member who cannot buy is told why in the same place the price is. */
+  const blocked = offer.burning
+    ? "Already burning"
+    : !maySpend
+      ? "Only the Lord and the Hand may spend"
+      : !offer.affordable
+        ? "The treasury cannot cover this yet"
+        : null;
+
+  return (
+    <Card className="flex flex-col gap-2.5">
+      <div className="flex items-start gap-2.5">
+        <Icon name={offer.icon} className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-sm font-semibold text-bone">
+            {offer.name}
+          </p>
+          <p className="mt-0.5 text-xs italic text-gold/80">{offer.blurb}</p>
+        </div>
+        <span className="tnum shrink-0 text-sm font-semibold text-gold">
+          {offer.price.toLocaleString()}
+        </span>
+      </div>
+
+      <p className="text-xs leading-relaxed text-bone-mut">{offer.effect}</p>
+
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+        <Button
+          variant="gold"
+          size="md"
+          onClick={onBuy}
+          loading={busy}
+          disabled={busy || blocked !== null}
+        >
+          {busy ? "Opening" : `Spend ${offer.price.toLocaleString()} POINTS`}
+        </Button>
+        {blocked ? (
+          <span className="text-[11px] text-bone-faint">{blocked}</span>
+        ) : (
+          <span className="tnum text-[11px] text-bone-faint">
+            Burns for {offer.duration_days} days
+          </span>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/* Trading up is gold and down is ember, which is the one place the palette
+   allows a direction to carry colour. A treasury inflow is a member's loss, so
+   it is not celebrated: both are stated flatly and the sign does the talking. */
+function Delta({ value }: { value: number }) {
+  return (
+    <span className={value >= 0 ? "tnum text-chart-up" : "tnum text-chart-down"}>
+      {value >= 0 ? "+" : ""}
+      {value.toLocaleString()}
+    </span>
+  );
+}
+
+/* The ledger's reason codes, in the realm's words. An unknown code renders as
+   itself rather than as a guess, so a movement written by something newer than
+   this page is still legible instead of silently mislabelled. */
+function movementLabel(reason: string): string {
+  if (reason === "call_stake_burned") return "A staked Call missed";
+  if (reason === "wardens_pardon") return "The Warden's Pardon paid out";
+  if (reason.startsWith("perk_")) {
+    const slug = reason.slice(5);
+    if (slug === "wardens-pardon") return "Bought The Warden's Pardon";
+    if (slug === "the-standard") return "Bought The Standard";
+    if (slug === "long-watch") return "Bought The Long Watch";
+    return `Bought ${slug}`;
+  }
+  return reason;
+}
+
+function movedOn(entry: TreasuryEntryView): string {
+  return new Date(entry.created_at).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function expiryLine(expiresAt: string): string {
+  const ms = Date.parse(expiresAt) - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return "spent";
+  const hours = Math.floor(ms / 3.6e6);
+  if (hours >= 48) return `${Math.floor(hours / 24)} days left`;
+  if (hours >= 1) return `${hours} hours left`;
+  return `${Math.max(1, Math.floor(ms / 6e4))} minutes left`;
 }
 
 /* ------------------------------------------------------------------

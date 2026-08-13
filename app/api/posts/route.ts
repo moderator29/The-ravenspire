@@ -7,6 +7,7 @@ import { notifyMentions, notifyFollowers } from "@/lib/notifications";
 import { emit } from "@/lib/realm/events";
 import { screenAndFlag } from "@/lib/moderation/screen";
 import { prepareCall, type CallInput } from "@/lib/calls/create";
+import { escrowCallStake } from "@/lib/calls/escrow";
 
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
@@ -93,7 +94,11 @@ export async function POST(req: Request) {
       body.call.resolver === "internal" ||
       body.call.category === "realm");
   if (wantsCall) {
-    const draft = await prepareCall(db, profile.id, body.call as CallInput);
+    const draft = await prepareCall(
+      db,
+      { id: profile.id, points: profile.points, house_slug: profile.house_slug },
+      body.call as CallInput
+    );
     if (!draft.ok) return json({ error: draft.error }, draft.status);
     kind = "call";
     call = draft.call as unknown as Record<string, unknown>;
@@ -127,6 +132,44 @@ export async function POST(req: Request) {
     )
     .single();
   if (error || !post) return json({ error: "Could not send the raven" }, 500);
+
+  /* The stake, escrowed the instant the Call exists.
+
+     ORDER, AND WHY IT IS THIS WAY ROUND. The post id is the escrow's primary
+     key and therefore its idempotency guarantee, so the post has to exist
+     first. That leaves one window: the post is written and the escrow refuses.
+     The compensation is to remove the post, which is visible, recoverable and
+     leaves the member exactly where they started. The other order has a worse
+     window: escrow first, then fail to insert the post, and the member's
+     points are held against a Call that does not exist, silently, with no row
+     anywhere naming what happened to them. An orphaned post is a bug someone
+     can see. An orphaned escrow is a bug that eats a balance.
+
+     prepareCall already refused a stake larger than the balance it was handed,
+     so this path is the concurrency case and the "balance moved since
+     authentication" case, not the ordinary one. */
+  const sealedStake = call?.stake;
+  const stake = typeof sealedStake === "number" ? sealedStake : 0;
+  if (stake > 0) {
+    const held = await escrowCallStake(db, {
+      postId: post.id as string,
+      profileId: profile.id,
+      stake,
+      houseSlug: profile.house_slug,
+    });
+    if (!held.ok) {
+      await db.from("posts").update({ deleted: true }).eq("id", post.id);
+      return json(
+        {
+          error:
+            held.reason === "insufficient"
+              ? "You no longer hold enough POINTS for that stake, so the Call was not sealed."
+              : "The stake could not be held, so the Call was not sealed.",
+        },
+        409
+      );
+    }
+  }
 
   /* Authoring is a social action, so it draws on the daily social allowance
      (V2 section 9.5, rule 4). What a Call is actually worth is not decided
@@ -210,6 +253,7 @@ export async function POST(req: Request) {
         pi_0?: number;
         entry_price?: number;
         claim?: unknown;
+        stake?: number;
       };
       const tf = sealed.timeframe ?? "the window";
       const subject = sealed.token ? `$${sealed.token}` : "the realm";
@@ -242,6 +286,9 @@ export async function POST(req: Request) {
           pi_0: sealed.pi_0 ?? null,
           entry_price: sealed.entry_price ?? null,
           claim: sealed.claim ?? null,
+          /* A Call with POINTS behind it is a different event to read than one
+             without, so the card can say so without going back for it. */
+          stake: sealed.stake ?? 0,
         },
       });
     }
@@ -262,6 +309,33 @@ export async function DELETE(req: Request) {
   const body = (await req.json().catch(() => null)) as { id?: unknown } | null;
   const id = typeof body?.id === "string" ? body.id : null;
   if (!id) return json({ error: "bad request" }, 400);
+
+  /* A Call with POINTS still held cannot be withdrawn.
+
+     The settlement sweep only reads posts that are not deleted, so a deleted
+     Call is a Call that never settles, and its escrow would sit at 'escrowed'
+     forever: the member's points are gone, the House never receives its share
+     of the burn, and the realm carries a liability nothing will ever clear.
+
+     There is no profit in it (the points left the balance at seal time either
+     way, so deleting a losing Call saves nothing and deleting a winning one
+     forfeits the return), which is exactly why this is a correctness fix
+     rather than an exploit fix. A stake is a commitment, and a commitment you
+     can quietly take off the table is not one. */
+  const { data: held } = await db
+    .from("call_stakes")
+    .select("post_id")
+    .eq("post_id", id)
+    .eq("status", "escrowed")
+    .maybeSingle();
+  if (held)
+    return json(
+      {
+        error:
+          "That Call has POINTS behind it. It stands until the realm settles it.",
+      },
+      409
+    );
 
   const { data, error } = await db
     .from("posts")
