@@ -5,6 +5,7 @@ import { PostCard } from "@/components/social/post-card";
 import { CallResolvedCard } from "@/components/stream/cards/call-resolved";
 import { ChronicleCard } from "@/components/stream/cards/chronicle";
 import { ClashOpenedCard } from "@/components/stream/cards/clash-opened";
+import { ClashSettledCard } from "@/components/stream/cards/clash-settled";
 import { CrestEarnedCard } from "@/components/stream/cards/crest-earned";
 import { DiscussionTrendingCard } from "@/components/stream/cards/discussion-trending";
 import { DuelOpenedCard } from "@/components/stream/cards/duel-opened";
@@ -84,6 +85,7 @@ export const CARD_REGISTRY: Record<
   "raven.chronicle": ChronicleCard,
   "standings.snapshot": StandingsSnapshotCard,
   "clash.opened": ClashOpenedCard,
+  "clash.settled": ClashSettledCard,
   "season.milestone": SeasonMilestoneCard,
   "discussion.trending": DiscussionTrendingCard,
 };

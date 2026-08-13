@@ -182,8 +182,32 @@ export interface ClashRow {
   ends_at: string;
   season_id: number | null;
   phase: "upcoming" | "live" | "closed";
+  /* The ISO week the calendar opened this Clash for. Null for one a steward
+     called by hand, which is still allowed and sits beside the weekly one. */
+  scheduled_week: string | null;
+  /* Set once the result has been frozen into house_clash_results. A closed
+     Clash that is not settled has closed but has no result yet, and the two
+     are different things a surface has to be able to tell apart. */
+  settled_at: string | null;
   houses: ClashHouseRow[];
   contributors: ClashContributorRow[];
+}
+
+/* The weekly cadence, sent whether or not a row exists for the next window.
+ *
+ * "Clashes open every Friday evening and run for 48 hours" is a rule the realm
+ * operates by, not a record of something that happened, so publishing it on an
+ * empty surface is not inventing data. `scheduled` is the honest other half:
+ * false means the window is due and its row has not been written yet, and the
+ * surface says exactly that rather than showing a countdown to a Clash that
+ * does not exist. */
+export interface ClashCadence {
+  week: string;
+  opensAt: string;
+  closesAt: string;
+  hours: number;
+  now: string;
+  scheduled: boolean;
 }
 
 export interface OathEntryView {
@@ -228,4 +252,31 @@ export function clashCountdown(clash: {
     day: "numeric",
     month: "short",
   })}`;
+}
+
+/* When the next window opens, against the server's own clock rather than the
+   browser's. The offset between the two is measured once from the `now` the
+   route sent, so a member whose machine is minutes out still reads the right
+   figure. It can only ever be a label: nothing about a Clash is decided here. */
+export function cadenceCountdown(cadence: ClashCadence): string {
+  const skew = Date.parse(cadence.now) - Date.now();
+  const at = Date.now() + (Number.isFinite(skew) ? skew : 0);
+
+  const opens = Date.parse(cadence.opensAt);
+  const closes = Date.parse(cadence.closesAt);
+  if (!Number.isFinite(opens) || !Number.isFinite(closes)) return "";
+
+  if (at >= opens && at < closes) {
+    const left = closes - at;
+    const hours = Math.floor(left / 3.6e6);
+    if (hours >= 1) return `running, ${hours} ${hours === 1 ? "hour" : "hours"} left`;
+    return `running, ${Math.max(1, Math.floor(left / 6e4))} minutes left`;
+  }
+
+  const until = opens - at;
+  if (until <= 0) return "opening";
+  const hours = Math.floor(until / 3.6e6);
+  if (hours >= 48) return `opens in ${Math.floor(hours / 24)} days`;
+  if (hours >= 1) return `opens in ${hours} ${hours === 1 ? "hour" : "hours"}`;
+  return `opens in ${Math.max(1, Math.floor(until / 6e4))} minutes`;
 }

@@ -4,6 +4,7 @@ import { HOUSE_TOP_N, houseBySlug, houses } from "@/lib/data/houses";
 import { loadIdentities } from "@/lib/houses/members";
 import { loadSeasonWindow } from "@/lib/houses/oath";
 import { emit } from "@/lib/realm/events";
+import { CLASH_HOURS, nextClashWindow } from "@/lib/realm/appointments";
 
 /* House Clashes (V2 section 11.3).
  *
@@ -23,11 +24,7 @@ import { emit } from "@/lib/realm/events";
 export const dynamic = "force-dynamic";
 
 const CLASH_SELECT =
-  "id, title, token, theme, starts_at, ends_at, season_id, created_at";
-
-/* A Clash runs for 48 hours. Fixed, because a bounded window is the mechanic:
-   a Clash you can enter whenever is just the leaderboard again. */
-const CLASH_HOURS = 48;
+  "id, title, token, theme, starts_at, ends_at, season_id, created_at, scheduled_week, settled_at";
 
 interface ClashRow {
   id: string;
@@ -38,6 +35,21 @@ interface ClashRow {
   ends_at: string;
   season_id: number | null;
   created_at: string;
+  /* Set for a Clash the calendar opened, null for one a steward called. */
+  scheduled_week: string | null;
+  /* Set once the result has been frozen. See scoreboard(). */
+  settled_at: string | null;
+}
+
+interface ResultRow {
+  house_slug: string;
+  rank: number;
+  score: number;
+  counted: number;
+  mean: number;
+  contributor_count: number;
+  calls: number;
+  hits: number;
 }
 
 interface ContributionRow {
@@ -58,9 +70,52 @@ function phaseOf(clash: ClashRow, now = Date.now()) {
   return "closed" as const;
 }
 
-async function scoreboard(
+/* The frozen board of a settled Clash, read out of house_clash_results.
+ *
+ * A live Clash derives its board from posts and points_ledger, which is right
+ * for a live one: a deleted or edited Call is reflected immediately and the
+ * board can never drift from the Calls engine. It is wrong for a finished one.
+ * A result that keeps recomputing is a result that changes, and a member
+ * deleting a Call in November would silently rewrite who won a Clash in
+ * August. History stops moving when it becomes history, so the moment a Clash
+ * settles its board is copied out of the derivation and never derived again. */
+async function frozenBoard(
   db: NonNullable<ReturnType<typeof adminClient>>,
   clashId: string
+) {
+  const { data } = await db
+    .from("house_clash_results")
+    .select(
+      "house_slug, rank, score, counted, mean, contributor_count, calls, hits"
+    )
+    .eq("clash_id", clashId)
+    .order("rank", { ascending: true });
+
+  return ((data ?? []) as ResultRow[]).map((row) => {
+    const meta = houseBySlug(row.house_slug);
+    return {
+      slug: row.house_slug,
+      name: meta?.name ?? row.house_slug,
+      color: meta?.color ?? "#D9B040",
+      score: Number(row.score) || 0,
+      mean: Number(row.mean) || 0,
+      calls: row.calls,
+      hits: row.hits,
+      /* The frozen board does not keep the open count, and it should not: by
+         the time a Clash settles, an open Call inside its window has either
+         settled and counted or is a Call the Clash never scored. Zero is the
+         honest figure for a finished competition. */
+      open: 0,
+      contributor_count: row.contributor_count,
+      rank: row.rank,
+    };
+  });
+}
+
+async function scoreboard(
+  db: NonNullable<ReturnType<typeof adminClient>>,
+  clashId: string,
+  settled = false
 ) {
   const { data, error } = await db.rpc("house_clash_contributions", {
     p_clash_id: clashId,
@@ -126,7 +181,12 @@ async function scoreboard(
       member: identities.get(r.profile_id) ?? null,
     }));
 
-  return { houses: board, contributors };
+  /* A settled Clash shows the frozen House result, and the derived roll of who
+     has Calls on record inside its window. Those are two different claims and
+     only the first is a result: the board says who won, permanently, and the
+     roll says who currently has entries in the ledger. A member who deletes
+     their own Call afterwards leaves the roll and cannot change the outcome. */
+  return { houses: settled ? await frozenBoard(db, clashId) : board, contributors };
 }
 
 export async function GET(req: Request) {
@@ -145,7 +205,7 @@ export async function GET(req: Request) {
     const clash = data as ClashRow;
     return json({
       clash: { ...clash, phase: phaseOf(clash) },
-      ...(await scoreboard(db, clash.id)),
+      ...(await scoreboard(db, clash.id, clash.settled_at !== null)),
     });
   }
 
@@ -160,7 +220,7 @@ export async function GET(req: Request) {
     rows.map(async (clash) => ({
       ...clash,
       phase: phaseOf(clash),
-      ...(await scoreboard(db, clash.id)),
+      ...(await scoreboard(db, clash.id, clash.settled_at !== null)),
     }))
   );
 
@@ -173,7 +233,31 @@ export async function GET(req: Request) {
       Date.parse(b.starts_at) - Date.parse(a.starts_at)
   );
 
-  return json({ clashes: withBoards });
+  /* THE CADENCE, sent whether or not a row exists for it.
+   *
+   * "Clashes open every Friday evening and run to Sunday evening" is a fact
+   * about how the realm works, not a record of a competition, so saying it is
+   * not inventing data: it is publishing the rule. That distinction is what
+   * lets the surface be useful when house_clashes is empty. A member arriving
+   * at an empty Clashes tab used to be told only that no Clash had been called
+   * and given no reason to ever look again.
+   *
+   * `scheduled` is the honest other half: whether the row for that window
+   * actually exists yet. When it is false the surface says a Clash is due and
+   * does not pretend one has been called. Computed from the server clock and
+   * sent with the server's own `now` so a countdown never depends on the
+   * browser's. */
+  const window = nextClashWindow(new Date());
+  const cadence = {
+    week: window.week,
+    opensAt: window.opensAt.toISOString(),
+    closesAt: window.closesAt.toISOString(),
+    hours: CLASH_HOURS,
+    now: new Date().toISOString(),
+    scheduled: rows.some((row) => row.scheduled_week === window.week),
+  };
+
+  return json({ clashes: withBoards, cadence });
 }
 
 export async function POST(req: Request) {

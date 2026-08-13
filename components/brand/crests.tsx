@@ -20,10 +20,17 @@ export const crests: CrestDef[] = [
   { slug: "blood-of-the-dragon", name: "Blood of the Dragon", plain: "Dragonlord", rarity: "mythic", status: "locked", earn: "Legendary status reserved for the realm's rarest achievers.", icon: "dragon-wing" },
   { slug: "hand-of-the-king", name: "Hand of the King", plain: "Top contributor", rarity: "legendary", status: "locked", earn: "For the realm's greatest contributors and stewards.", icon: "hand" },
   { slug: "master-of-whispers", name: "Master of Whispers", plain: "Best creators", rarity: "epic", status: "locked", earn: "For the sharpest and most loved creators of the Ravenry.", icon: "crest-eye" },
-  { slug: "lord-of-light", name: "Lord of Light", plain: "Devotion streak", rarity: "rare", status: "locked", earn: "For unbroken daily devotion to the realm.", icon: "flame-drop" },
+  /* Live as of the realm getting a clock. This crest sat locked from launch
+     describing "unbroken daily devotion" with nothing in the product able to
+     grant it; the Muster is its producer, and the rule below is the real one
+     checked in lib/crests.ts. */
+  { slug: "lord-of-light", name: "Lord of Light", plain: "Devotion streak", rarity: "rare", status: "live", earn: "Answer the Muster thirty days running. The realm musters twice a day for two hours, and only a claim inside a window counts.", icon: "flame-drop" },
   { slug: "bannerlord", name: "Bannerlord", plain: "Top referrers", rarity: "epic", status: "locked", earn: "For those who raise the most banners and bring the realm to life.", icon: "banner-crest" },
   { slug: "keeper-of-the-vault", name: "Keeper of the Vault", plain: "Long-term staker", rarity: "legendary", status: "locked", earn: "For oaths sworn long in The Forge.", icon: "key" },
-  { slug: "champion-of-the-season", name: "Champion of the Season", plain: "Season winner", rarity: "legendary", status: "locked", earn: "For those who stood highest when the Season closed.", icon: "laurel" },
+  /* Also live as of the clock. Same story: described from launch, granted by
+     nothing, because a season had no close. The season finale is its
+     producer, and a season nobody scored in crowns nobody. */
+  { slug: "champion-of-the-season", name: "Champion of the Season", plain: "Season winner", rarity: "legendary", status: "live", earn: "Finish in the top three on Glory when a season closes. Ranked on the season's own currency, frozen at the close, and kept forever.", icon: "laurel" },
 ];
 
 const crestIcons: Record<string, ReactNode> = {
