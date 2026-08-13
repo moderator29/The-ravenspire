@@ -1865,13 +1865,170 @@ planned supplies per rarity before anything mints.
 5. The realm lexicon holds. Every new surface gets a realm name and a plain
    label, same as every existing one.
 
-## 35. The ownership loop
+---
+
+# Part Three: Commerce shipped, and the consolidated upgrade todo
+
+The full strategic reasoning behind this part lives in
+`docs/RAVENSPIRE-V2-STRATEGY.md` (the co-founder research read). This part is
+the consolidated, actionable todo: what just shipped, what research says to add,
+what our own features say to upgrade, and the exact remaining work handed to the
+next session. Everything obeys AGENTS.md without exception.
+
+## 35. What shipped this wave (done, integrated, on the branch)
+
+Branch `claude/ravenspire-v2-living-realm-a5b06e`, all four gates green, pushed.
+
+- **3D icon pack fixed at the source.** The dense sheet seated icons low so the
+  grid slice chopped every plinth. `scripts/slice-icons.mjs` now recovers the
+  full board and selects the subject by distance to cell centre. The roomier
+  sheets are byte identical; only the sixty odd cut icons moved.
+- **Commerce engine, backend, end to end** (sealed behind `chests_live` plus a
+  separate `COMMERCE_PRICES_CONFIRMED` gate, both off): integer minor unit money,
+  a Stripe provider built on REST and Node crypto (webhook signature verified,
+  five minute replay window, secret server only), a server authoritative checkout
+  that prices from a server only catalog, a provably fair commit reveal chest
+  opening drawing against the printed odds with the guarantee floor enforced,
+  non custodial redemption of single use hashed codes into an off chain holdings
+  ledger, a swappable fulfillment vendor abstraction (Gelato primary), and the
+  additive migration `20260812130000_commerce_engine.sql`. The migration is
+  applied to the live database; the security advisor shows only the expected deny
+  by default lints, no exposure.
+- **Money safety pass.** The two write routes that record an unverified on chain
+  tx hash (`/api/tips`, `/api/trade/record`) were the only mutating writes without
+  a rate limit; both now carry one. Full adversarial audit found no unfixed fund
+  stealing vulnerability; the prior SECURITY DEFINER exploit is confirmed closed
+  against the live database.
+- **Confirmed already done** (verified, not rebuilt): the `cx` override precedence
+  defect is fixed (`components/ui/merge.ts` is conflict aware, primitives carry
+  explicit props, the checker fails on conflicts), durable Postgres backed rate
+  limiting exists and is wired into `/api/raven`, and CI already runs all four
+  gates.
+
+## 36. Recommendations from research (new, ecosystem driven)
+
+Grounded in the mid 2026 ecosystem (see the strategy doc): phygital utility is
+the one growing NFT corner, extractive points only SocialFi is dying, mystery
+boxes face real regulation, wallets went invisible via account abstraction.
+Ordered by leverage.
+
+1. **Close the ownership loop.** Wallet backed, non custodial, eventually
+   tradeable cards, with a soulbound tier for earned Crests. The single highest
+   leverage move: it turns a sealed set into a real collection.
+2. **Native secondary market.** List, buy, gift, transfer, member to member,
+   signed by their own wallets, a protocol fee to the Coffers, real print caps for
+   a real floor. The resale premium is the documented reason phygital retains.
+3. **Sinks and stakes.** Craft duplicates up a rarity, Call entries with a stake,
+   House treasury perks, cosmetic Crest frames. Give status somewhere to go, or it
+   inflates to nothing. This is the honest answer to "what is the token for"
+   without a token sale.
+4. **Appointment mechanics and seasons.** Daily Warchest drop window, a weekly
+   House Clash clock, a season finale and a rank banked into a permanent badge.
+   Habits need a clock.
+5. **Provably fair as a marketed feature.** A public commit reveal seed, a working
+   verifier page, and the floor and expected value published beside the odds. It
+   also buys most of the compliance posture for free.
+6. **Phygital authenticity.** NFC or QR on the physical box, tying printed cards
+   to their digital twins and carrying provenance on resale.
+7. **The Herald as the retention brain.** A personal weekly brief grounded in real
+   data, surfaced as a notification. Same real AI over real data, aimed at loyalty.
+8. **Creator and House economies.** House treasuries that accrue a slice of market
+   fees, Renown that unlocks issuing Calls others follow.
+9. **Native distribution wedges.** Shareable real artifacts (a Call result, a pull
+   reveal, a season rank), each carrying an invite. Zero budget growth.
+10. **Gasless, forgiving non custodial UX.** Account abstraction on Privy: a
+    paymaster for gasless pulls and claims, social recovery, a member set spending
+    cap.
+11. **Compliance guardrails, before we take a dollar.** Alternative means of entry,
+    age gate, spending caps, cooling off, geo awareness, the verifier page.
+
+## 37. Recommendations from current platform features (upgrade, and why)
+
+1. **The loop is open, so close it.** We mint Renown, Glory, Crests, POINTS with no
+   sink and no market. Add spend and trade or the numbers stop mattering.
+2. **Cards are sealed with no ownership, so make them owned.** Wallet backed
+   ownership turns the Reliquary preview into a collection.
+3. **The Keep and Vault do not show what you own or won, so build the trophy
+   case.** The "Show" beat is the cheapest retention we are leaving unbuilt.
+4. **Calls settle but carry nothing at stake, so let members stake.** A prediction
+   with something on it is felt, and it wires the sink into a surface we built.
+5. **Houses Clash but on no clock, so give the Clash a season and a settlement
+   time.** Appointments form the habit.
+6. **The Herald reads Calls but does not chase retention, so aim it there.**
+7. **The Ceremony is our one Forge moment, so make it the best screen we have,**
+   and put the provably fair verifier on it.
+8. **Money surfaces are newest and thinnest, so keep auditing them hardest** as
+   commerce grows a frontend.
+
+## 38. Remaining build handed to the next session
+
+From the commerce agent's report, ordered. All sealed while the flag is off.
+
+1. **Commerce frontend** (largest piece): purchase and checkout UI in Warchests,
+   order history in The Vault (`GET /api/commerce/orders` is ready), the pack
+   opening Ceremony in the Forge register, redemption code UI. Distinct mobile and
+   desktop layouts.
+2. **Redemption code creation** (admin or pack time): generate a code, store its
+   hash plus the specific granted cards plus the chest sku. The redeem route
+   already consumes codes; nothing mints them yet.
+3. **Physical fulfillment completion:** collect a shipping address at checkout for
+   physical orders, and a worker that calls the fulfillment vendor on the pending
+   `fulfillments` row.
+4. **Refunds:** `payments.status` supports `refunded`, but there is no refund route
+   or webhook branch.
+5. **P2 remainder:** error monitoring (Sentry free), structured logging, a Supabase
+   backup and PITR verification note, an image CDN policy for card art.
+6. **P3 remainder:** onboarding steps 0 and 1, Whispers realtime UI, image
+   attachment flows.
+
+## 39. Security residuals and re-audit findings (not blocking, for the todo)
+
+From the security audit and my re-audit of the commerce code:
+
+1. **[MED] Tips and trades record an unverified on chain `tx_hash`.** Proper fix
+   is to verify the receipt (token, amount, recipient, confirmations) before
+   recording. Needs an EVM RPC provider, an infra decision. Rate limit mitigation
+   is in place.
+2. **[LOW to MED] War Glory is self reported and not bounded by a daily ceiling.**
+   Only the twelve battles per hour rate limit bounds it. Recommend a server side
+   daily war Glory cap, mirroring the two hundred per day social cap, or seed based
+   replay verification (the deterministic seed groundwork exists). A game economy
+   decision.
+3. **[LOW] Chest entitlement is marked opened before the opening row is written,**
+   so a database error in between burns a paid chest with no cards. Fix by moving
+   claim, roll, grant into one transactional RPC, or reset `opened_at` on failure.
+4. **[LOW] One shot provably fair.** The server generates the seed and rolls in one
+   request, so a hostile server could grind seeds. Pre commit a rotating seed in a
+   prior request for the stronger guarantee. No fund loss; only house favor, which
+   we do not want anyway.
+5. **[TRIVIAL] The redeem route comment mentions bumping `attempts`,** which the
+   code does not do. Align the two.
+6. **[LOW] `profile/sync` sets `wallet_address` from unverified client input**
+   (set once, self only). Limited to the setter's own inbound tips.
+
+## 40. Item 7 decided, and founder only decisions still pending
+
+Decided (co-founder recommendation, stored server side, off customer surfaces
+until confirmed): chest pricing 4.99 / 14.99 / 59.99 USD, one print on demand
+vendor Gelato with Printful and Prodigi fallbacks behind a swappable abstraction,
+per card mint caps Rare 5,000 / Epic 1,500 / Legendary 400 / Mythic 75, art print
+edition 250 per champion.
+
+Founder only, do not block on these, keep building sealed:
+- Confirm or adjust the prices, then set `COMMERCE_PRICES_CONFIRMED`.
+- Compute real floor valuations per card before confirming (the guardrail forces
+  floor at least price).
+- Merch prices (checkout rejects merch until they exist).
+- On chain mint: deployed contracts and a platform voucher signer (the mint
+  phase, deliberately last).
+- The print on demand vendor contract and the payment provider account.
+## 41. The ownership loop
 
 Shipped. The first of the twelve V2 missions, and the one everything else in
 the collectibles realm rests on: what you earn or buy is yours, in your own
 wallet, and the platform cannot take it back.
 
-### 35.1 What was already there, and what was missing
+### 41.1 What was already there, and what was missing
 
 The holdings ledger existed. `public.inventory`, from the commerce engine, is
 one row per copy of a card, written by chest opening and redemption,
@@ -1888,7 +2045,7 @@ repository had no record of. It is recovered as
 exists only in production is a schema nobody can review, test against or
 rebuild. Check the two agree before writing a migration, every time.
 
-### 35.2 The loop, end to end
+### 41.2 The loop, end to end
 
 1. A server flow grants a copy and writes `inventory`. Already built.
 2. The member asks to claim it. `POST /api/claims` resolves the holding
@@ -1910,7 +2067,7 @@ rebuild. Check the two agree before writing a migration, every time.
 `GET /api/inventory` is the Hoard, and `GET /api/claims` is the claim history
 and the mint's state in one read.
 
-### 35.3 The rules the loop is built on
+### 41.3 The rules the loop is built on
 
 - **One claim is one copy.** The holdings ledger is per copy, so a claim
   points at exactly one row and mints exactly one token. There is never a
@@ -1931,7 +2088,7 @@ and the mint's state in one read.
 - **A hash proven wrong is never persisted.** It would otherwise squat the
   unique index and block the real one.
 
-### 35.4 Sealed until the founder says otherwise
+### 41.4 Sealed until the founder says otherwise
 
 Three things are founder-only and all three are absent: the deployed
 contracts, the voucher signing key, and the chain. `mint_live` ships off
@@ -1950,14 +2107,14 @@ To open the mint: deploy the two contracts on Base, set `MINT_CHAIN_ID`,
 `MINT_CARD_CONTRACT`, `MINT_CREST_CONTRACT` and `MINT_VOUCHER_SIGNER_KEY`,
 then flip `mint_live`. No deploy is needed for any of it.
 
-## 36. The chest, and why anyone should believe it
+## 42. The chest, and why anyone should believe it
 
 Shipped, sealed. Two of the section 39 security residuals, and they turned out
 to be one bug seen from two angles: the realm could not honestly promise what
 came out of a chest, and it could not promise that opening one happened
 exactly once.
 
-### 36.1 The commitment came too late
+### 42.1 The commitment came too late
 
 The planned design generated a server seed at open time and stored its hash.
 That is the version of provably fair that proves nothing. A server that picks
@@ -1972,7 +2129,7 @@ it cannot change. `/api/chests/seed` is deliberately not flag gated: a member
 is entitled to hold the realm to its promise before the chests are live and
 long after.
 
-### 36.2 The three inputs
+### 42.2 The three inputs
 
 | Input | Who chooses it | What it stops |
 | --- | --- | --- |
@@ -1992,7 +2149,7 @@ what makes it checkable: anyone holding a revealed seed can rerun it. Nine
 tests cover the count, the floor, the odds, determinism, and that a chest can
 only ever deal cards that exist in the roster.
 
-### 36.3 The opening was four writes
+### 42.3 The opening was four writes
 
 Consume the entitlement, record the opening, grant the cards, link the two.
 Four round trips from a serverless route, and a crash between any two either
@@ -2002,7 +2159,7 @@ afterwards. `public.chest_open` does all four under a row lock in one
 transaction, or none of them, and a partial unique index on the entitlement is
 the second line of defence.
 
-### 36.4 What it waits on
+### 42.4 What it waits on
 
 Nothing grants an entitlement yet. Checkout and redemption codes are the two
 writers and both are founder-gated on pricing, so `chest_entitlements` is

@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* Tips are REAL, non-custodial, wallet-to-wallet transfers. The transfer
    itself is signed and broadcast client-side from the tipper's Privy embedded
@@ -44,6 +45,22 @@ export async function POST(req: Request) {
     return json({ error: "Complete your rites before sending tribute" }, 403);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* Anti-automation. This route writes a tribute row and rings the recipient's
+     ravens off a client-supplied tx hash the server does not verify on-chain, so
+     without a ceiling a script can spray fabricated tributes and notification
+     spam at any member. A real tipper sends a handful an hour; this is far above
+     genuine use and well below abuse. Keyed on the account, like every other
+     mutating route (social, comments, oath). */
+  const rl = await rateLimit(profileKey("tips", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "You pour tribute faster than the ravens can carry it. Rest a moment.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     to?: string;

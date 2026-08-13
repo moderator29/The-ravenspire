@@ -60,6 +60,13 @@ export async function POST(
   const tier = CHEST_TIERS.find((t) => t.sku === sku);
   if (!tier) return json({ error: "unknown chest" }, 404);
 
+  if (tier.kind === "physical") {
+    /* A physical chest is opened by hand. Its digital twins come from the code
+       printed inside it, redeemed at /api/reliquary/redeem, so there is nothing
+       to roll here. Kept from the commerce wave's version of this route. */
+    return json({ error: "This chest opens by its printed code" }, 409);
+  }
+
   const live = await getFlag("chests_live");
   if (!live) {
     /* 423 Locked: the resource exists, the caller is known, the door is
