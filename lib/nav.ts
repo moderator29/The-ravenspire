@@ -89,6 +89,11 @@ export const toolsNav: NavItem[] = [
 export const accountNav: NavItem[] = [
   { slug: "ravens", href: "/ravens", themed: "Ravens", plain: "Notifications", icon: "bell", icon3d: "notifications" },
   { slug: "vault", href: "/vault", themed: "The Vault", plain: "Wallet", icon: "wallet", icon3d: "vault" },
+  /* Beside the Vault, deliberately. The Vault is what you hold; the Coffers is
+     what you earned and what has been paid to you, which is the same shelf. It
+     carries Soon because coffers_live is off: the statement is real and reads
+     real rows, and it opens with the chapters that fill it. */
+  { slug: "coffers", href: "/coffers", themed: "The Coffers", plain: "Earnings", icon: "ledger", icon3d: "analytics", badge: "Soon" },
   { slug: "chronicle", href: "/chronicle", themed: "The Chronicle", plain: "Docs", icon: "scroll", icon3d: "chronicle" },
   { slug: "settings", href: "/settings", themed: "Settings", plain: "Preferences", icon: "sliders", icon3d: "settings" },
 ];

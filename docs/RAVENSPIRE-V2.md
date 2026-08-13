@@ -3061,3 +3061,389 @@ false. No divergence found.
 
 **No migration.** This work adds no table, no column, no constraint and no
 function. Both new endpoints read existing columns through the service role.
+
+## 48. The Coffers, and a House a member can be inside
+
+Shipped, sealed. Mission 9, the creator and House economies, and it is the first
+piece of work in this document whose main output is a refusal.
+
+Two economies half existed. A member who brought people in, called a coin that
+resolved well, or sold a card, earned, and every one of those settled its own
+way and added up nowhere a member could read. A House had a treasury, a
+catalogue and two spenders, and a member could take part in none of it.
+
+### 48.1 An earned balance cannot exist, and that is the answer
+
+"Payouts are non-custodial" reads like a constraint on how money leaves. It is
+not. It is a constraint on whether an earned balance may exist at all, and
+working that through decided the whole mission.
+
+An earned balance denominated in money is a debt: the platform saying "we owe
+you fourteen dollars". For the platform to pay it later, the platform has to be
+holding it now. **Holding money that is owed to a member is custody**, whether
+it is called a balance, a float, an accrual or a pending payout, and whether it
+is held for a month or for an hour. Rule 6 has no exception for short holds and
+neither does anybody who regulates this.
+
+There are exactly three ways to pay a member a share of revenue.
+
+| | Verdict |
+| --- | --- |
+| The platform receives the gross and forwards the member's share later | Custody. What every creator platform ships. Refused |
+| The platform receives the gross and pays the member from its own funds on a schedule | The money is the platform's own, and between the sale and the payment the member is owed money the platform is holding. The accrual IS the custody. Refused |
+| The payer pays the member directly, at the moment of the event, in the payer's own signed transaction | Chosen |
+
+**Split at source, never accrue.** Nothing accrues because nothing is owed: the
+value went from the payer's wallet to the member's wallet and was never anywhere
+else. It is what the Bazaar already does with the seller's ninety five percent
+and what a tribute already does with the whole amount, and this section is the
+recognition that those two were never conveniences. They were the only shape
+allowed.
+
+The rule is enforced mechanically rather than remembered. `lib/economy/revenue.ts`
+refuses to load if any stream declares a member share that is not settled at
+source, the same posture `lib/commerce/market.ts` takes with a fee split that
+does not add up, and for the same reason: by the time anybody notices in
+production, the platform is holding money it told a member it owed them, and
+there is no clean way back from that.
+
+**What it costs, written down because it is not free.**
+
+- **A signature per payee.** Two payees means the buyer signs twice, which is
+  the price section 45.3 already paid. A third payee is a third prompt at the
+  exact moment somebody is committing money, and every prompt is real drop off.
+- **No accrual means no aggregation.** A share worth a fraction of a cent can
+  never be paid, because there is no balance for it to accumulate in. Any share
+  small enough to round to nothing at a single sale is a share that does not
+  exist, and the register may not declare one.
+- **It cannot cross rails.** A payment arriving on a card cannot pay a member on
+  chain in the same act, so a card paid surface shares nothing at all until its
+  processor can itself split the payment. That is a paid integration and a
+  regulatory posture, not a feature.
+- **The compensation is large.** There is no minimum payout threshold, no payout
+  schedule, no pending column, no reconciliation between what was promised and
+  what was sent, and no support queue for a payout that did not arrive. None of
+  those can exist, because the thing they all manage does not.
+
+### 48.2 Which streams are real, and the one that is real and still pays nothing
+
+`lib/economy/revenue.ts` is the register, and The Coffers renders it verbatim,
+including the streams that pay nothing and the sentence saying why.
+
+**Tributes. Real, open today, ten thousand basis points to the member.** One
+member paying another, wallet to wallet, with the realm reading the receipt off
+the chain afterwards. The platform takes nothing, so there is nothing to share
+and nothing to withhold, and there has never been a balance anywhere in it. This
+is the only stream paying a member real value right now with no flag on it.
+
+**A Bazaar sale. Real, sealed, nine thousand five hundred basis points to the
+member.** Ninety five percent of a sale, paid by the buyer's wallet to the
+seller's wallet, in the buyer's own signed transaction. That is a creator
+revenue share settled at source and it has been built since section 45. Naming
+it as one is most of the work: the product had a genuine ninety five percent
+revenue share and no surface that said so.
+
+**Nothing is shared out of the five percent, and this is the decision a reviewer
+should push on.** The obvious extension is a slice of the venue fee for the
+buyer's referrer, the seller's referrer, or a curator. Every version costs the
+buyer a third wallet prompt while they are handing over money, and section 45.3
+spent its argument establishing that two signatures is the price of never
+touching a seller's funds. A third has no comparable justification: nobody in
+that list created the card, the listing or the sale. And re-cutting the venue
+fee is a decision about the business, not about the code.
+
+**Chests and the Mercer. Real revenue, and they share nothing.** This is the
+stream that proves the rule is doing work rather than describing what already
+happened. A share for the member whose banner brought that customer is the most
+obviously fair creator payment in the product, and this design cannot make it.
+The payment arrives on a card, through a processor, into the platform's own
+account. Splitting it at source needs the processor's connected accounts
+product, which is a paid integration (rule 19), makes the platform a payment
+facilitator, and carries a compliance posture nobody here has. Every other way
+of paying it is an accrual, and an accrual is custody. So it pays zero, and the
+surface says zero and says why, in terms of custody rather than of effort.
+
+**A Call that lands. Not revenue at all**, and listed anyway so nobody has to
+guess. The single most valuable thing a member can do in this product pays no
+money, because the realm sells nothing when a Call resolves and so has nothing
+to share. Writing that down is the point: the pressure to invent a revenue
+stream lands hardest on the surface that most deserves one.
+
+**No creator revenue share was invented.** There is no third party creator whose
+work this platform monetises. The seller in the Bazaar is the closest thing to
+one and already receives ninety five percent at source. Anything else would have
+been a stream conjured to have something to share, which is the rule 4 line.
+
+### 48.3 The statement, and the four ways the old one was wrong
+
+`/api/profile/earnings` was the closest thing to an earnings record and it was
+quietly wrong in four places at once. None of them were careless. They are what
+a derived total does when nothing ever checks it against the balance it claims
+to explain.
+
+1. **Tips were structurally zero.** It summed `tips.points`, a column that has
+   been null on every row since tributes became on chain transfers, and added
+   the result into a headline figure. Every profile in the realm reported zero
+   tips, for a payment that is not denominated in POINTS in the first place.
+2. **Referrals were structurally zero.** It looked for a reason beginning
+   `referral`. Nothing has ever written one: a referral pays through
+   `banner_raised`. Every referral reward in the realm reported as zero and fell
+   into Other.
+3. **Staking made earnings fall.** It added the negative row a staked Call
+   writes at escrow into a figure labelled "points earned", and the positive row
+   a won stake writes. So sealing a staked Call reduced a member's lifetime
+   earnings, and getting your own points back read as earning them.
+4. **The breakdown could not add up to its own total.** Slices were filtered to
+   positives and the total was not, so the percentages beside them could not
+   reach a hundred and nothing said why.
+
+And under the panel, in the product's own copy: **"Points convert to $RSP at
+TGE".** A conversion this product has never committed to, on an earnings
+surface, under a number. Rule 7 says show POINTS for an earned balance and never
+an amount of $RSP; a promised rate is the same claim with the arithmetic left
+out. Gone.
+
+`lib/economy/earnings.ts` is now the single fold and both surfaces call it, so
+there cannot be two answers to "what has this member earned".
+
+**Two ledgers, in two units, never added together.**
+
+POINTS are a realm score. Not money, not $RSP, not redeemable, and there is no
+rate at which they become anything. VALUE is money that has already moved, on a
+public chain, into the member's own wallet: a tribute counts only once
+`verifyTribute` has read it off the chain, a Bazaar sale only once the buyer's
+leg is proven from the pay token's own logs by `verifyMarketLeg`. Summing the
+two would produce one number meaning nothing, which is the failure this module
+exists to close.
+
+**No USD figure is put on a token.** A tribute of 0.01 of a chain's native coin
+is reported as 0.01 of that coin. The realm did not record a price at the moment
+of the tribute and cannot recover one, and a rate read today applied to a
+payment made in March is an invented number with a currency symbol on it. Bazaar
+proceeds are in dollars, because the market quotes and settles in dollars.
+
+The amounts are summed with `sumDecimal` in `lib/commerce/money.ts`, on the
+decimal strings themselves, aligned and added as BigInt. `Number("0.1") +
+Number("0.2")` is exactly the mistake that module's header exists to prevent,
+and it would have been made on a figure a member reads as what they were paid.
+Grouped by chain and token before anything is added, because summing two
+different assets produces a number with no unit.
+
+**There is no claim button anywhere on the surface, and its absence is the
+feature.** A claim button implies a balance the realm is sitting on. It is
+sitting on nothing. That is said in words on the surface rather than left to be
+noticed, because a member who has used any other creator platform will look for
+it.
+
+### 48.4 Reconciliation, said out loud
+
+`points_ledger` is the source of truth and `profiles.points` is a cached total.
+`house_treasury_ledger` is the source of truth and `houses.treasury` is a cached
+total. That is the right shape twice, and it is also the shape that drifts in
+silence, because nothing in this product has ever compared the two.
+
+Now both do, and both tell the member. `public.reconcile_member_points` and
+`public.reconcile_house_treasury` sum in the database and return the cached
+figure beside the ledger figure.
+
+**The sum is in the database and not in the route, and that is the load bearing
+part.** The surface being replaced read two thousand ledger rows into Node and
+added them up, which is wrong twice over: a full page of somebody's financial
+history over the wire to produce one integer, and it silently stops being the
+whole sum at row two thousand and one. A statement folded from the first page of
+a long ledger will always disagree with the balance, so a drift computed that
+way is mostly its own truncation. **A truncated read is never reported as
+reconciled**, even when the numbers happen to agree, because a tick nobody
+checked is worse than no tick. "The realm has lost some of your POINTS" is far
+too serious a sentence to produce from an incomplete count.
+
+A House's drift is shown only when there is one. A green tick on every healthy
+treasury teaches everybody to stop reading the line.
+
+### 48.5 The endowment, and what a treasury may do
+
+A House already received (half of every burned Call stake), spent (a fixed
+catalogue, priced per sworn member) and decided (the Lord and the Hand, who are
+the top two contributors and rotate with the season). What a member could not do
+was take part. A treasury filled only by other people's losses and spent only by
+the two members at the top of a board is a thing that happens near a member
+rather than a thing they are in.
+
+**The endowment is the missing verb.** A sworn member may commit POINTS from
+their own balance to their House. Half reaches the banner and half is destroyed.
+
+**Why half is burned, which is the only real design choice here.** The obvious
+version is a straight transfer, and it is wrong for two reasons, only one of
+them obvious. The obvious one is supply: the Warden's Pardon pays POINTS back
+OUT of a treasury, so at a hundred percent in and fifty percent out a House
+becomes a laundry and the realm's supply never contracts. The stake tithe
+already answers exactly this question at exactly this ratio, and answering it
+differently at a second door would only tell everybody which door to use. The
+less obvious one is that a cheap endowment is a purchase: the Long Watch is the
+one perk that can move a House's standing, and a member with a deep balance
+could simply buy their House a competitive advantage. At half, an endowment is
+strictly worse than staking the same POINTS, because a stake can also come back
+and win. Endowing has to be a gift rather than an optimisation, or it stops
+being one.
+
+The remainder on an odd amount goes to the burn, never to the treasury, so a gift
+always errs toward destroying one more POINT than it pools: the direction that
+cannot inflate anything. Asserted exhaustively at module load across every legal
+amount, and again by a database check constraint, because a split that quietly
+loses a POINT shorts somebody on every gift forever and nothing ever fails.
+
+**A member gives at most a thousand POINTS a day**, deliberately identical to
+`MAX_STAKE`. The realm already has an opinion about how much of a balance may
+move in one act, arrived at against the two daily allowances, and an endowment
+moves a balance in exactly the same way. Per day rather than per act, so the
+ceiling cannot be walked around by sending it in ten pieces, and counted across
+every House, so a member cannot multiply it by the number of banners they have
+sworn to.
+
+**What a member gets for it, and what they deliberately do not.** They get the
+permanent public record: every treasury inflow from a burned stake carries a
+null actor because nobody decided it, and an endowment carries the giver's id,
+so the House's audit trail names its benefactors and keeps naming them. They get
+the perks their House can then afford.
+
+They do not get Renown, which never falls and would therefore be permanent
+standing bought with a balance. They do not get Glory. And this is the one that
+matters most:
+
+**AN ENDOWMENT MUST NEVER MOVE A MEMBER TOWARD LORD OR HAND.** Those two titles
+are the only thing in the realm that can spend a treasury, and `deriveLeadership`
+ranks them on Glory. A member who could buy their way up that ranking could buy
+the right to spend the treasury they had just filled, which is "no House mints
+value out of nothing" applied to power rather than to points, and it is the
+failure that would end the whole design. The mechanism is that an endowment
+writes a `glory_delta` of exactly zero, so there is no path from giving to
+ranking at all. It is a property nobody can see by reading the SQL, so it is
+asserted in `lib/houses/endowment.ts` and exercised against a real cluster.
+
+**What a treasury can and cannot do**, printed on the hall rather than left in a
+document nobody opens, from the same list the tests assert:
+
+- It can receive half of a burned stake, receive half of a gift, buy a perk from
+  a fixed catalogue, and pay a member back part of a burned stake out of a
+  Warden's Pardon that was bought and ring-fenced in advance.
+- It cannot be created, seeded, topped up or estimated. It cannot pay POINTS to
+  any member outside a ring-fenced pardon, so it cannot be shared out. It cannot
+  move to another House or leave with a member who leaves. It cannot be
+  withdrawn to a wallet, converted, or quoted in any currency, because it is not
+  money and never was. It cannot buy Renown or Glory, so no House can spend its
+  way up the standings. And it cannot go below zero, enforced by
+  `houses_treasury_check` rather than by the code that spends it.
+
+### 48.6 The transaction, and the request id
+
+`public.endow_house_treasury`, `security definer`, `service_role` only, one
+transaction, two locks, **taken in the same order `settle_call_stake` takes
+them**: the profile first, then the House. Deadlock is not hypothetical here. A
+member's stake settling and the same member endowing touch exactly the same two
+rows, and two functions that disagreed about the order would eventually meet in
+the middle and one of them would be killed.
+
+The balance, the day's running total and the oath are all read under the profile
+row lock and none of them is trusted from the route. A balance read in one round
+trip and spent in the next is not a balance, and a daily cap checked in
+TypeScript is a cap two concurrent requests both pass. The day is the DATABASE's
+day, never one passed in, because the cap is the only thing bounding how fast a
+balance becomes a House's capability and a host with a fast clock would get a
+second day's allowance free.
+
+**The request id is the member's protection, not the realm's.** Unlike an
+escrow, which is keyed on the post being staked, an endowment has no natural
+idempotency key: the same member may give the same House the same amount twice
+in a minute and both are real gifts. So the client mints one uuid per gift and
+carries it through every retry, and the function claims it under a unique index
+before anything moves. Without it, a client retrying a timed out request debits
+a member twice for one gift, and nothing anywhere can tell that apart from a
+member who meant to give twice.
+
+### 48.7 The surfaces
+
+**`/coffers` is a Console**, and every Console rule applies without exception:
+compact above `md`, right aligned tabular figures, hairline dividers, ornament
+budget zero. Nothing on it glows. A member reading what they have earned is
+operating an instrument, not being congratulated, and a surface that celebrated
+a balance would be selling it to them.
+
+Three views, because there are three questions and they have different answers:
+what the realm owes you in standing, what has actually reached your wallet, and
+what each surface pays. The register is the third one, printed in full, with the
+sealed streams carrying their padlock and the stream that pays nothing carrying
+its reason.
+
+The panel on the Keep stays where it is. It answers "how am I doing", which is a
+different question from "show me the record", and the two coexist the way the
+Vault and the Ledger do.
+
+**The endowment is a Modal on the House hall's treasury tab**, Ledger register,
+no gold. Three figures are printed before the button can be pressed, in the order
+the arithmetic runs: what you commit, what reaches the banner, what is destroyed.
+They come from the same pure module the server calls rather than from a copy, so
+the number promised and the number charged are one function. A member destroying
+half of something they earned, on purpose, should not be congratulated for it
+while they are deciding.
+
+There is no control at all when the chapter is sealed or the member has nothing
+left to give today, rather than a disabled one. A dead button is a promise the
+screen cannot keep.
+
+### 48.8 What it waits on
+
+`coffers_live` and `endowment_live`, both off, a seventh and eighth switch beside
+the six that exist. They are separate because reading your own earnings and
+committing your balance to a House are different decisions, and a member should
+be able to have the first without the second.
+
+Neither is waiting on a build. The Coffers waits on there being something in it:
+the value ledger is empty until `market_live` opens or somebody sends a tribute,
+and the honest empty state says exactly that rather than pretending. The
+endowment waits on Houses having treasuries worth filling, which waits on staked
+Calls settling, which is live.
+
+What is genuinely absent and would be the next thing: **a share of the venue fee
+paid at source to a third party**, if the founder decides the business should
+carry one. It is a third transfer and a third signature, and it is a founder
+decision rather than an engineering one. And **gifting a card**, which section
+45.10 already names, is the other half of member to member value and needs no
+fee, no reservation and one signature.
+
+### 48.9 Repository versus database
+
+Checked before a line of SQL was written, as `supabase/migrations/README.md`
+requires. The live definition of `points_ledger_category_check` is
+`('social', 'call', 'war', 'stake')`, matching
+`20260815120000_call_stakes_and_house_treasury.sql` exactly. The change adds
+`'house'` and removes nothing, so no existing row and no existing writer can be
+broken by it. That check was not optional: this is the fourth migration in a row
+to touch that one constraint, and the third nearly took every War award in the
+realm offline by re-adding it from a stale reading of this directory.
+
+`tips`, `market_listings`, `houses`, `house_treasury_ledger`, `house_members`
+and `realm_flags` all agree between the two, column for column. The six realm
+flags in the live project are the six this directory describes, all false.
+
+**A fifth divergence, found on the way and worth recording**, because the README
+says this directory has lied four times and the count is now higher. The live
+project has applied `appointments_and_seasons` as version `20260813113137`,
+while section 46.7 and the README both say `20260817090000_appointments_and_seasons.sql`
+is written and not yet applied. It is applied. And four migrations named
+`compliance_guardrails_*` (`20260813164228` through `20260813164429`) are applied
+in production with no file in this directory at all, which is the exact invariant
+the README says broke four times: **every applied version has a file here.** The
+work they came from exists on a branch, as a single file with a different name,
+so the file that describes them is neither in this directory nor a match for
+what actually ran.
+
+Migration `20260821090000_the_coffers_and_the_endowment.sql`, **not applied.**
+It was verified against a throwaway PostgreSQL 16 cluster with the whole
+migration chain replayed onto it, exercising the happy path, a replayed request
+id, the daily cap counting what has already gone, the floor, a negative amount,
+an outsider, terms that would pool more than they destroy, an insufficient
+balance, both reconciliations, a deliberately drifted cached total, the
+treasury's own floor of zero, the category constraint in both directions, and
+the grants. Four of the older migrations fail on that replay because the
+baseline already creates the policies they create, which is pre-existing and
+unrelated (section 46.7).

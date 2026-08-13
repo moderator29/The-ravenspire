@@ -40,6 +40,7 @@ import type {
   TreasuryEntryView,
 } from "@/lib/houses/view";
 import { seasonCountdown } from "@/lib/houses/view";
+import { EndowPanel, TreasuryPowers } from "@/components/houses/endow-panel";
 
 /* One House hall.
  *
@@ -161,6 +162,7 @@ function HouseHallView({ slug }: { slug: string }) {
         <DossierTabPanel value="treasury">
           <Treasury
             slug={slug}
+            houseName={hall?.house.name ?? "the House"}
             treasury={hall?.treasury ?? null}
             onSpent={() => void loadHall().then((next) => next && setHall(next))}
           />
@@ -640,10 +642,12 @@ function Roster({ hall }: { hall: HouseHall | null }) {
  */
 function Treasury({
   slug,
+  houseName,
   treasury,
   onSpent,
 }: {
   slug: string;
+  houseName: string;
   treasury: HouseTreasuryView | null;
   onSpent: () => void;
 }) {
@@ -690,15 +694,41 @@ function Treasury({
         </p>
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-bone-mut">
           {treasury.balance > 0
-            ? "Every point here came from a Call that went wrong. Half of a burned stake leaves the realm and half pools under the banner."
-            : "Nothing yet. A treasury fills when a sworn member stakes POINTS on a Call and the Call misses: half of the burn leaves the realm for good, and half pools here."}
+            ? "Every point here was given up by a member. A staked Call that missed, or a gift: either way half reaches the banner and half leaves the realm for good."
+            : "Nothing yet. A treasury fills two ways, and both cost a member half of what they put in: a staked Call that misses, and a gift from a sworn member."}
         </p>
         <p className="mt-3 text-[11px] leading-relaxed text-bone-faint">
           The Lord and the Hand of the House may spend it. Both titles are
           earned by contribution and turn over when the season does, so nobody
           holds the keys for long. Every movement is listed below.
         </p>
+        {/* The cached balance against the ledger under it. Said out loud only
+            when they disagree: a House's members fund this, so they are the
+            people entitled to know when it stops adding up, and a tick on every
+            healthy treasury would teach everybody to stop reading the line. */}
+        {treasury.reconciliation_known && !treasury.reconciled ? (
+          <p
+            role="alert"
+            className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-state-danger"
+          >
+            <Icon name="alert" className="mt-0.5 h-3 w-3 shrink-0" />
+            <span>
+              This balance and the movements below disagree by{" "}
+              {Math.abs(treasury.reconciliation_drift).toLocaleString()} POINTS.
+              The movements are the record; the balance above is a cached total.
+            </span>
+          </p>
+        ) : null}
       </Card>
+
+      {treasury.endowment ? (
+        <EndowPanel
+          slug={slug}
+          houseName={houseName}
+          endowment={treasury.endowment}
+          onGiven={onSpent}
+        />
+      ) : null}
 
       {treasury.active.length > 0 ? (
         <>
@@ -764,6 +794,9 @@ function Treasury({
           />
         ))}
       </div>
+
+      <SectionHeader title="What a treasury may do" />
+      <TreasuryPowers />
 
       <SectionHeader title="Movements" hint="Every point in and every point out" />
       {treasury.ledger.length === 0 ? (
@@ -893,6 +926,7 @@ function Delta({ value }: { value: number }) {
    this page is still legible instead of silently mislabelled. */
 function movementLabel(reason: string): string {
   if (reason === "call_stake_burned") return "A staked Call missed";
+  if (reason === "house_endowed") return "A member endowed the House";
   if (reason === "wardens_pardon") return "The Warden's Pardon paid out";
   if (reason.startsWith("perk_")) {
     const slug = reason.slice(5);
