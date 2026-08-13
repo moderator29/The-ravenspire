@@ -104,6 +104,8 @@ const MERCH_PRICE_BY_KIND: Partial<Record<MercerKind, number>> = {
   hoodie: 35,
   cap: 10,
   "long-sleeve": 31,
+  shorts: 17,
+  joggers: 22,
   tracksuit: 69,
   belt: 14.49,
   sleeveless: 21.49,
@@ -111,8 +113,6 @@ const MERCH_PRICE_BY_KIND: Partial<Record<MercerKind, number>> = {
   "deck-box": 8,
   playmat: 25,
   binder: 22,
-  /* shorts and joggers are not priced yet, so they are not sellable and are
-     left out here rather than guessed (real-data rule). */
 };
 
 export interface MerchCatalogEntry {
