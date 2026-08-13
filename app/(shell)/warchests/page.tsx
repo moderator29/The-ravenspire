@@ -1,15 +1,23 @@
 import type { Metadata } from "next";
 import { CHEST_TIERS, type ChestTier } from "@/lib/collectibles/warchests";
+import { getFlag } from "@/lib/flags";
+import { pricesConfirmed } from "@/lib/commerce/catalog";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { BackButton } from "@/components/shell/back-button";
+import { WarchestsStore } from "@/components/commerce/warchests-store";
 
 export const metadata: Metadata = {
   title: "Warchests",
   description:
     "Mystery boxes of the realm. Exact odds printed on every chest, sealed until launch.",
 };
+
+/* Flag-dependent: read the chapter flag and the price gate at request time, so
+   opening day is a flag flip and not a deploy, the same posture as GET
+   /api/chests. */
+export const dynamic = "force-dynamic";
 
 /* WARCHESTS (V2 Part Two, section 26.2). Plain label: mystery boxes.
  *
@@ -86,9 +94,20 @@ function TierCard({ tier }: { tier: ChestTier }) {
   );
 }
 
-export default function WarchestsPage() {
+export default async function WarchestsPage() {
+  /* Two independent switches, both server-read: the chapter flag and the price
+     confirmation gate. The store is shown only when the chapter is live AND
+     prices are confirmed, which is exactly the pair the checkout route enforces.
+     While either is off the page stays sealed, and no price is rendered because
+     none is exposed. */
+  const [live, confirmed] = await Promise.all([
+    getFlag("chests_live"),
+    Promise.resolve(pricesConfirmed()),
+  ]);
+  const open = live && confirmed;
+
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-3 py-4 sm:px-4 sm:py-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-3 py-4 sm:px-4 sm:py-6">
       <div className="flex">
         <BackButton />
       </div>
@@ -108,20 +127,25 @@ export default function WarchestsPage() {
             keys, and a chest never hides its odds.
           </p>
         </div>
-        <NotifyMe feature="warchests" size="md" className="self-start" />
+        {!open && (
+          <NotifyMe feature="warchests" size="md" className="self-start" />
+        )}
       </header>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {CHEST_TIERS.map((tier) => (
-          <TierCard key={tier.sku} tier={tier} />
-        ))}
-      </div>
+      {open ? (
+        <WarchestsStore tiers={CHEST_TIERS} />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          {CHEST_TIERS.map((tier) => (
+            <TierCard key={tier.sku} tier={tier} />
+          ))}
+        </div>
+      )}
 
       <p className="max-w-2xl text-xs leading-relaxed text-bone-faint">
-        Prices do not exist yet, so none are shown. Odds are the planned
-        specification and are final before launch; every chest carries its
-        guarantee in writing. Chest openings settle on the server, and every
-        pull is auditable.
+        {open
+          ? "Your exact total is confirmed at secure checkout. Odds are printed on every chest, every chest carries its guarantee in writing, and every pull settles on the server and is auditable."
+          : "Prices do not exist yet, so none are shown. Odds are the planned specification and are final before launch; every chest carries its guarantee in writing. Chest openings settle on the server, and every pull is auditable."}
       </p>
     </div>
   );
