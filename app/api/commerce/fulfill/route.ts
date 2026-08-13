@@ -2,10 +2,8 @@ import { json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
 import { fulfillmentVendor } from "@/lib/commerce/fulfillment";
-import type {
-  FulfillmentLineItem,
-  ShippingAddress,
-} from "@/lib/commerce/fulfillment";
+import type { FulfillmentLineItem } from "@/lib/commerce/fulfillment";
+import { normalizeShipping } from "@/lib/commerce/shipping";
 import { logger } from "@/lib/observability/log";
 
 /* GET /api/commerce/fulfill (V2 Part Three, section 38).
@@ -35,50 +33,6 @@ const log = logger("commerce.fulfill");
 /* How many pending fulfillments one run drains. A guard, not a page: the pending
    set is small by construction and the worker runs on a schedule. */
 const BATCH = 25;
-
-interface OrderShipping {
-  name?: unknown;
-  line1?: unknown;
-  line2?: unknown;
-  city?: unknown;
-  region?: unknown;
-  state?: unknown;
-  postalCode?: unknown;
-  postal_code?: unknown;
-  country?: unknown;
-  email?: unknown;
-}
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-/* Parse an order's shipping jsonb into a vendor ShippingAddress, or null when a
-   required field is missing. Accepts both camelCase and snake_case for the two
-   fields that differ, so whatever the checkout writes at launch is read here. */
-function parseShipping(raw: unknown): ShippingAddress | null {
-  if (!raw || typeof raw !== "object") return null;
-  const s = raw as OrderShipping;
-  const name = str(s.name);
-  const line1 = str(s.line1);
-  const city = str(s.city);
-  const postalCode = str(s.postalCode) || str(s.postal_code);
-  const country = str(s.country);
-  if (!name || !line1 || !city || !postalCode || !country) return null;
-  const line2 = str(s.line2);
-  const region = str(s.region) || str(s.state);
-  const email = str(s.email);
-  return {
-    name,
-    line1,
-    ...(line2 ? { line2 } : {}),
-    city,
-    ...(region ? { region } : {}),
-    postalCode,
-    country,
-    ...(email ? { email } : {}),
-  };
-}
 
 /* Which order lines are physical and therefore shipped: merch always, and a
    chest only when its tier is physical. A digital chest is opened in the app and
@@ -154,7 +108,7 @@ export async function GET(req: Request) {
       continue;
     }
 
-    const shipping = parseShipping(order.shipping);
+    const shipping = normalizeShipping(order.shipping);
     if (!shipping) {
       /* Waiting on an address. Leave it pending. */
       skipped++;
