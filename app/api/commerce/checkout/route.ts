@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { siteUrl } from "@/lib/site";
 import { getFlag } from "@/lib/flags";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
@@ -70,7 +71,7 @@ function baseUrl(req: Request): string {
   if (env) return env.replace(/\/$/, "");
   const origin = req.headers.get("origin");
   if (origin) return origin.replace(/\/$/, "");
-  return "https://ravenspire.app";
+  return siteUrl();
 }
 
 export async function POST(req: Request) {
