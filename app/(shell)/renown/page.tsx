@@ -326,8 +326,8 @@ export default function RenownPage() {
                 <Card
                   variant={isEarned ? "warm" : "raised"}
                   radius="lg"
-                  pad="none"
-                  className={`flex w-full flex-col items-center p-4 text-center ${
+                  pad="md"
+                  className={`flex w-full flex-col items-center text-center ${
                     isEarned ? `rarity-${c.rarity} rarity-frame` : ""
                   }`}
                 >

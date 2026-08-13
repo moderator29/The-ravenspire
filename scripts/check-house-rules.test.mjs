@@ -702,3 +702,78 @@ describe("icon names", () => {
     ).toEqual([]);
   });
 });
+
+describe("card-padding-is-a-rung", () => {
+  it("catches a card that sets its own padding after opting out of the scale", () => {
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="none" className="p-6">x</Card>')
+    ).toHaveLength(1);
+  });
+
+  it("catches it inside a multi line tag, which is how most of them were written", () => {
+    const file = [
+      "<Card",
+      '  variant="warm"',
+      '  pad="none"',
+      '  className="mt-5 p-6"',
+      ">",
+      "  x",
+      "</Card>",
+    ].join("\n");
+    expect(check("card-padding-is-a-rung", "a.tsx", file)).toHaveLength(1);
+  });
+
+  it("leaves pad=none alone when the caller adds no padding of its own", () => {
+    /* The legitimate use: composing with CardHeader and CardBody, which carry
+       their own. A rule that flagged this would push callers back to hand
+       padding, which is the opposite of the point. */
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="none" className="overflow-hidden" />')
+    ).toEqual([]);
+  });
+
+  it("allows asymmetric padding, which is not a rung and does not pretend to be", () => {
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="none" className="px-3.5 py-2" />')
+    ).toEqual([]);
+  });
+
+  it("allows a responsive or state variant, which lives in its own bucket", () => {
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="none" className="md:p-2" />')
+    ).toEqual([]);
+  });
+
+  it("does not police a named rung", () => {
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="lg" className="p-6" />')
+    ).toEqual([]);
+  });
+
+  it("leaves the Forge register out of it", () => {
+    /* The landing page and the Ceremony are where section 21 allows ornament,
+       so a padding chosen there is a decision rather than a card that forgot
+       the scale. Driven through runRules rather than the check helper, because
+       the exemption lives in the rule's `skip` and the helper calls `check`
+       straight through. */
+    expect(
+      runRules({
+        rules: [rule("card-padding-is-a-rung")],
+        list: () => ["components/landing/hero.tsx"],
+        read: () => '<Card pad="none" className="p-10" />',
+      })
+    ).toEqual([]);
+  });
+
+  it("still polices a Ledger surface through the same path", () => {
+    /* The other half of the exemption test. Without this, deleting the whole
+       rule body would leave the one above passing. */
+    expect(
+      runRules({
+        rules: [rule("card-padding-is-a-rung")],
+        list: () => ["app/(shell)/keep/page.tsx"],
+        read: () => '<Card pad="none" className="p-10" />',
+      })
+    ).toHaveLength(1);
+  });
+});

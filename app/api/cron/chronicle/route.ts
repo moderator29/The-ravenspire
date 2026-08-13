@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rate-limit";
+import { MODEL_REASONING, heraldAvailable, heraldProse } from "@/lib/ai/herald";
 import { emit } from "@/lib/realm/events";
 import { houseBySlug } from "@/lib/data/houses";
 import {
@@ -42,9 +42,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const key = process.env.ANTHROPIC_API_KEY;
-const client = key ? new Anthropic({ apiKey: key }) : null;
-
 const WINDOW_HOURS = 24;
 const EVENT_LIMIT = 1000;
 
@@ -76,18 +73,6 @@ Rules, all absolute:
 - No emoji, no hashtags, no headings, no lists, no preamble. Two or three sentences of plain prose, under 70 words.
 - Address the House as you.`;
 
-/* Model output, with the punctuation the house rules forbid taken back out.
-   The prompt already forbids it; this is the belt to that pair of braces. */
-function clean(res: Anthropic.Message): string {
-  const block = res.content.find((b) => b.type === "text");
-  if (!block || block.type !== "text") return "";
-  return block.text
-    .trim()
-    .replace(/^["']|["']$/g, "")
-    .replace(/\s*[—–]\s*/g, ", ")
-    .trim();
-}
-
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (secret) {
@@ -100,7 +85,7 @@ export async function GET(req: Request) {
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  if (!client) {
+  if (!heraldAvailable()) {
     return json(
       {
         error:
@@ -163,27 +148,13 @@ export async function GET(req: Request) {
     );
   }
 
-  let text = "";
-  try {
-    const res = await client.messages.create({
-      model: "claude-sonnet-5",
-      max_tokens: 400,
-      /* A short read over counts already computed. Thinking would buy nothing
-         here and the realm's budget is zero. */
-      thinking: { type: "disabled" },
-      output_config: { effort: "low" },
-      system: SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: `Write the realm's Chronicle for today. Here is everything the realm recorded, and it is all you may use:\n\n${facts.join("\n")}`,
-        },
-      ],
-    });
-    text = clean(res);
-  } catch {
-    return json({ error: "The Herald could not be reached." }, 502);
-  }
+  const text = await heraldProse({
+    model: MODEL_REASONING,
+    system: SYSTEM,
+    user: `Write the realm's Chronicle for today. Here is everything the realm recorded, and it is all you may use:\n\n${facts.join("\n")}`,
+    maxTokens: 400,
+    effort: "low",
+  });
   if (!text) return json({ error: "The Herald had nothing to say." }, 502);
 
   await emit(db, {
@@ -234,23 +205,18 @@ export async function GET(req: Request) {
       `Across the whole realm in the same window: ${digest.events} acts, ${digest.callsSealed} Calls sealed and ${digest.callsResolved} settled.`,
     ];
 
-    try {
-      const res = await client.messages.create({
-        model: "claude-sonnet-5",
-        max_tokens: 300,
-        thinking: { type: "disabled" },
-        output_config: { effort: "low" },
-        system: HOUSE_SYSTEM,
-        messages: [
-          {
-            role: "user",
-            content: `Write this House's entry for today. Here is everything the realm recorded about it, and it is all you may use:\n\n${houseFacts.join("\n")}`,
-          },
-        ],
-      });
-      const houseText = clean(res);
-      if (!houseText) continue;
+    const houseText = await heraldProse({
+      model: MODEL_REASONING,
+      system: HOUSE_SYSTEM,
+      user: `Write this House's entry for today. Here is everything the realm recorded about it, and it is all you may use:\n\n${houseFacts.join("\n")}`,
+      maxTokens: 300,
+      effort: "low",
+    });
+    /* No entry rather than an invented one. The realm entry is already written
+       and the next run will find this House still unwritten. */
+    if (!houseText) continue;
 
+    try {
       await emit(db, {
         kind: "raven.chronicle",
         actorId: null,

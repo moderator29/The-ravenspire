@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/commerce/money";
 import { realmFetch } from "@/lib/auth/api";
 import { useCommerceCatalog } from "@/components/commerce/use-commerce-catalog";
+import {
+  GuardInterruption,
+  type GuardRefusal,
+} from "@/components/commerce/guard-interruption";
 
 /* The buy control, and the four honest things it can say.
  *
@@ -31,6 +35,21 @@ import { useCommerceCatalog } from "@/components/commerce/use-commerce-catalog";
  * press, so a double tap, a slow network or a retried request all resolve to
  * one order and one charge. The key is minted here rather than on the server
  * precisely because the server cannot tell a retry from a second purchase.
+ *
+ * THE FIFTH STATE, added with the compliance guardrails: refused. Checkout can
+ * now answer 409 with a named reason, because a member may be short of the age
+ * gate, past a spending limit, inside the velocity brake or owed a look at
+ * their own 30 day total before they spend more. None of that is decided here
+ * and none of it can be: every one of those decisions is made inside
+ * public.commerce_checkout_guard, in the same transaction that would have
+ * created the order. This control's only job is to show the member what the
+ * server said, with the real numbers the server sent, and to offer the single
+ * action that clears it where one exists.
+ *
+ * A CLEARED INTERRUPTION RETRIES THE PURCHASE, on the same idempotency key.
+ * Sending a member back to find the chest again after they answered the
+ * question would be a worse product and no safer, and the key means the retry
+ * is the same order rather than a second one.
  */
 
 export function BuyButton({
@@ -47,35 +66,67 @@ export function BuyButton({
   const catalog = useCommerceCatalog();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<GuardRefusal | null>(null);
+  /* Held across a refusal so that clearing an interruption retries the SAME
+     order rather than opening a second one. */
+  const [key, setKey] = useState<string | null>(null);
 
-  const buy = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    const res = await realmFetch<{ url?: string; error?: string }>(
-      "/api/commerce/checkout",
-      {
+  const buy = useCallback(
+    async (idempotencyKey: string) => {
+      setBusy(true);
+      setError(null);
+      setRefusal(null);
+      const res = await realmFetch<{
+        url?: string;
+        error?: string;
+        reason?: string;
+        state?: GuardRefusal["state"];
+        clearsAt?: string | null;
+        capMinor?: number | null;
+        thresholdMinor?: number | null;
+        minimum?: number | null;
+      }>("/api/commerce/checkout", {
         method: "POST",
-        json: {
-          items: [{ kind, sku, qty: 1 }],
-          /* One key per press. crypto.randomUUID is in every browser this
-             product supports and needs no dependency. */
-          idempotencyKey: crypto.randomUUID(),
-        },
+        json: { items: [{ kind, sku, qty: 1 }], idempotencyKey },
+      });
+      if (res.status === 401) {
+        window.location.assign("/signin");
+        return;
       }
-    );
-    if (res.status === 401) {
-      window.location.assign("/signin");
-      return;
-    }
-    if (res.ok && res.data?.url) {
-      /* The hosted page owns the card details. No card data ever touches the
-         realm, which is why the checkout is a redirect and not a form. */
-      window.location.assign(res.data.url);
-      return;
-    }
-    setBusy(false);
-    setError(res.data?.error ?? "The checkout could not be opened");
-  }, [kind, sku]);
+      if (res.ok && res.data?.url) {
+        /* The hosted page owns the card details. No card data ever touches the
+           realm, which is why the checkout is a redirect and not a form. */
+        window.location.assign(res.data.url);
+        return;
+      }
+      setBusy(false);
+      /* A guardrail refusal is a different thing from a failure and is said
+         differently. It carries the member's own numbers and, sometimes, a
+         single action that clears it. */
+      if (res.data?.reason) {
+        setRefusal({
+          reason: res.data.reason,
+          error: res.data.error ?? "The realm is pausing this purchase",
+          state: res.data.state ?? null,
+          clearsAt: res.data.clearsAt ?? null,
+          capMinor: res.data.capMinor ?? null,
+          thresholdMinor: res.data.thresholdMinor ?? null,
+          minimum: res.data.minimum ?? null,
+        });
+        return;
+      }
+      setError(res.data?.error ?? "The checkout could not be opened");
+    },
+    [kind, sku]
+  );
+
+  const press = useCallback(() => {
+    /* One key per press. crypto.randomUUID is in every browser this product
+       supports and needs no dependency. */
+    const next = crypto.randomUUID();
+    setKey(next);
+    void buy(next);
+  }, [buy]);
 
   if (catalog.state === "loading") return null;
 
@@ -119,9 +170,17 @@ export function BuyButton({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Button variant="gold" size={size} disabled={busy} onClick={() => void buy()}>
+      <Button variant="gold" size={size} disabled={busy} onClick={press}>
         {busy ? "Opening checkout" : `${label} ${formatMoney({ minor: entry.priceMinor, currency: "usd" })}`}
       </Button>
+      <GuardInterruption
+        refusal={refusal}
+        onDismiss={() => setRefusal(null)}
+        onCleared={() => {
+          setRefusal(null);
+          if (key) void buy(key);
+        }}
+      />
       {floorMinor !== null ? (
         /* The floor beside the price, always. It is the trust feature of the
            whole program, and a chest that shows one without the other is a

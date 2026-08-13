@@ -1,11 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
-import Anthropic from "@anthropic-ai/sdk";
-
-/* Client setup and env var copied from lib/ai/raven.ts: the realm speaks to
-   Anthropic through a single key, and stays silent when it is absent. */
-const key = process.env.ANTHROPIC_API_KEY;
-const client = key ? new Anthropic({ apiKey: key }) : null;
+import { MODEL_REASONING, heraldAvailable, heraldProse } from "@/lib/ai/herald";
 
 const COMPOSE_SYSTEM = `You write a single, ready-to-post message (a "raven") for a member of The Ravenspire, a social realm where six great Houses compete in games of wit, prediction, and glory. The member will post your words as their own, so write in first person as a sharp, warm member of the realm.
 
@@ -23,7 +18,7 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   if (!profile.onboarded)
     return json({ error: "Finish onboarding first" }, 403);
-  if (!client)
+  if (!heraldAvailable())
     return json({ error: "The rookery is quiet. Try again later." }, 503);
 
   /* C4: every call here is a paid Anthropic call and the composer can fire it
@@ -50,22 +45,15 @@ export async function POST(req: Request) {
     ? `The member is working from this draft. Polish it or build on it, keeping their intent and their voice:\n\n${draft}`
     : `The member has no draft yet. Offer one sharp, postable raven that opens a good conversation in the realm.`;
 
-  try {
-    const res = await client.messages.create({
-      model: "claude-sonnet-5",
-      max_tokens: 300,
-      system: `${COMPOSE_SYSTEM}${houseLine}`,
-      messages: [{ role: "user", content: userMsg }],
-    });
-    const block = res.content.find((b) => b.type === "text");
-    /* Strip stray wrapping quotes and any em-dash that slipped through. */
-    const text =
-      block && block.type === "text"
-        ? block.text.trim().replace(/^["']|["']$/g, "").replace(/\s*[—–]\s*/g, ", ").trim()
-        : "";
-    if (!text) return json({ error: "No words came. Try again." }, 502);
-    return json({ ok: true, text });
-  } catch {
-    return json({ error: "The words would not come. Try again." }, 502);
-  }
+  /* Wrapping quotes and any em dash that slipped through are stripped by
+     heraldProse, so every AI surface inherits house rule 1 rather than each
+     one carrying its own copy of the filter. */
+  const text = await heraldProse({
+    model: MODEL_REASONING,
+    system: `${COMPOSE_SYSTEM}${houseLine}`,
+    user: userMsg,
+    maxTokens: 300,
+  });
+  if (!text) return json({ error: "The words would not come. Try again." }, 502);
+  return json({ ok: true, text });
 }

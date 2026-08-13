@@ -251,11 +251,11 @@ export default function BattlePreparePage() {
               <Card
                 key={b.slug}
                 interactive
-                pad="none"
+                pad="md"
                 render={<button type="button" />}
                 aria-pressed={isSelected}
                 onClick={() => setField(b.slug)}
-                className={`w-full border-l-2 p-4 text-left ${
+                className={`w-full border-l-2 text-left ${
                   isSelected
                     ? "border-l-gold bg-panel-warm/40"
                     : "border-l-transparent"

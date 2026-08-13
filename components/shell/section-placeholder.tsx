@@ -28,7 +28,7 @@ export function SectionPlaceholder({
         {plain}
       </p>
       <p className="mt-5 max-w-prose text-bone-mut">{description}</p>
-      <Card pad="none" className="mt-8 p-6 text-center">
+      <Card pad="xl" className="mt-8 text-center">
         <p className="text-sm text-bone-mut">
           {emptyNote ?? "The builders are at work on this hall."}
         </p>
