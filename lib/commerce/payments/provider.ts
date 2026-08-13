@@ -1,11 +1,12 @@
 /* The payment provider abstraction (V2 Part Two, section 33, Phase D).
  *
  * One interface, so the choice of processor is a swap and not a rewrite. The
- * launch provider is Stripe (lib/commerce/payments/stripe.ts): pay per
- * transaction, so zero fixed cost, which is rule 19, and PCI scope is offloaded
- * to Stripe Checkout so no card data ever touches the platform. The abstraction
- * exists anyway because a payment processor is exactly the kind of dependency a
- * platform must be able to change without touching its order logic.
+ * provider is Coinbase Commerce (lib/commerce/payments/coinbase.ts): a
+ * non-custodial crypto checkout that accepts ETH on mainnet and ETH or USDC on
+ * Base and settles to the merchant's own wallet, which is the platform's
+ * non-custodial law and fits a crypto platform. The abstraction exists anyway
+ * because a payment processor is exactly the kind of dependency a platform must
+ * be able to change without touching its order logic.
  *
  * Everything here speaks integer minor units (lib/commerce/money.ts). No float
  * ever reaches a provider.

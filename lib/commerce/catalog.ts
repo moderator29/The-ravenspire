@@ -1,5 +1,6 @@
 import "server-only";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
+import { MERCER_SKUS, type MercerKind } from "@/lib/collectibles/mercer";
 import { majorToMinor } from "@/lib/commerce/money";
 import type { Rarity } from "@/lib/game/champions";
 
@@ -93,15 +94,54 @@ export const RARITY_SUPPLY: Record<PackRarity, number> = {
 /* Set One art prints are numbered to this edition per champion (item 7). */
 export const SET_ONE_PRINT_EDITION = 250;
 
+/* Merch prices, set by the founder, in USD major units, keyed by product kind.
+   Server only, never rendered until confirmed, same posture as the chests. Only
+   the kinds the founder has priced appear here; an unpriced kind is simply not
+   sellable yet, which keeps the real-data rule (no invented price). Launch is a
+   curated subset of the priced pieces. */
+const MERCH_PRICE_BY_KIND: Partial<Record<MercerKind, number>> = {
+  tee: 25,
+  hoodie: 35,
+  cap: 10,
+  sleeves: 10,
+  "deck-box": 8,
+  playmat: 25,
+  binder: 22,
+  pin: 12,
+  coin: 10,
+  banner: 25,
+  mug: 20,
+};
+
+export interface MerchCatalogEntry {
+  sku: string;
+  priceMinor: number;
+}
+
+/* One priced entry per Mercer SKU whose kind the founder has set. Derived from
+   the catalog so a new SKU of a priced kind is priced automatically and an
+   unpriced kind is left out rather than guessed. */
+export const MERCH_CATALOG: MerchCatalogEntry[] = MERCER_SKUS.flatMap((s) => {
+  const major = MERCH_PRICE_BY_KIND[s.kind];
+  return major === undefined
+    ? []
+    : [{ sku: s.sku, priceMinor: majorToMinor(major) }];
+});
+
+export function merchPrice(sku: string): MerchCatalogEntry | null {
+  return MERCH_CATALOG.find((m) => m.sku === sku) ?? null;
+}
+
 /* True only when a human has confirmed the provisional prices. Defaults to
    false: an unconfirmed price is never charged, even behind an open flag. */
 export function pricesConfirmed(): boolean {
   return process.env.COMMERCE_PRICES_CONFIRMED === "true";
 }
 
-/* The chosen payment provider, defaulting to Stripe. See lib/commerce/payments. */
+/* The chosen payment provider, defaulting to Coinbase Commerce (crypto, ETH on
+   mainnet and ETH or USDC on Base). See lib/commerce/payments. */
 export function paymentProviderName(): string {
-  return process.env.PAYMENT_PROVIDER?.trim().toLowerCase() || "stripe";
+  return process.env.PAYMENT_PROVIDER?.trim().toLowerCase() || "coinbase";
 }
 
 /* The chosen fulfillment vendor, defaulting to Gelato. See

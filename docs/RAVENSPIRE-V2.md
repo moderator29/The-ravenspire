@@ -1885,7 +1885,7 @@ Branch `claude/ravenspire-v2-living-realm-a5b06e`, all four gates green, pushed.
   sheets are byte identical; only the sixty odd cut icons moved.
 - **Commerce engine, backend, end to end** (sealed behind `chests_live` plus a
   separate `COMMERCE_PRICES_CONFIRMED` gate, both off): integer minor unit money,
-  a Stripe provider built on REST and Node crypto (webhook signature verified,
+  a Coinbase Commerce crypto provider (ETH, and ETH or USDC on Base) built on REST and Node crypto (webhook signature verified,
   five minute replay window, secret server only), a server authoritative checkout
   that prices from a server only catalog, a provably fair commit reveal chest
   opening drawing against the printed odds with the guarantee floor enforced,

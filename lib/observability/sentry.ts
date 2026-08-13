@@ -9,7 +9,7 @@ import "server-only";
  * every function is a no op.
  *
  * Deliberately built with fetch against Sentry's ingestion (store) endpoint,
- * not the @sentry/node SDK. Same reasoning as the Stripe and Gelato clients: the
+ * not the @sentry/node SDK. Same reasoning as the Coinbase and Gelato clients: the
  * SDK is a large dependency that patches the runtime, and everything needed here
  * is one HTTP POST of a JSON event. The secret half of the DSN never exists,
  * because Sentry ingestion authenticates with the public key alone, so nothing
