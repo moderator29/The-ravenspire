@@ -52,7 +52,7 @@ export async function GET(req: Request) {
     );
 
   const [points, value] = await Promise.all([
-    loadPointsSide(db, profile.id),
+    loadPointsSide(db, profile.id, profile.points),
     loadValueSide(db, profile.id),
   ]);
 
