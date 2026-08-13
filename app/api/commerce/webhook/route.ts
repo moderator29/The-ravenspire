@@ -180,6 +180,12 @@ export async function POST(req: Request) {
   let hasPhysical = false;
 
   for (const item of items) {
+    if (item.kind === "merch") {
+      /* Every merch piece is a physical good, so a paid merch line puts the
+         order into fulfillment. No digital entitlement is granted. */
+      hasPhysical = true;
+      continue;
+    }
     if (item.kind !== "chest") continue;
     const tier = CHEST_TIERS.find((t) => t.sku === item.sku);
     if (!tier) continue;
