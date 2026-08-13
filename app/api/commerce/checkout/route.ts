@@ -7,6 +7,7 @@ import { chestPrice, pricesConfirmed } from "@/lib/commerce/catalog";
 import { lineTotal, sumMinor } from "@/lib/commerce/money";
 import { paymentProvider } from "@/lib/commerce/payments";
 import type { CheckoutLineItem } from "@/lib/commerce/payments";
+import { normalizeShipping } from "@/lib/commerce/shipping";
 import { logger } from "@/lib/observability/log";
 
 /* POST /api/commerce/checkout (V2 Part Two, section 33, Phase D).
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as {
     items?: unknown;
     idempotencyKey?: unknown;
+    shipping?: unknown;
   } | null;
 
   const idempotencyKey =
@@ -89,6 +91,7 @@ export async function POST(req: Request) {
   /* Validate and price every line against the server catalog. A chest kind is
      the only sellable line today. */
   const lines: (CartLine & { unitMinor: number; name: string })[] = [];
+  let hasPhysical = false;
   for (const raw of body.items as unknown[]) {
     const line = raw as Partial<CartLine>;
     if (line.kind === "merch") {
@@ -104,6 +107,7 @@ export async function POST(req: Request) {
     const price = chestPrice(line.sku);
     const tier = CHEST_TIERS.find((t) => t.sku === line.sku);
     if (!price || !tier) return json({ error: "unknown chest" }, 400);
+    if (tier.kind === "physical") hasPhysical = true;
     lines.push({
       kind: "chest",
       sku: line.sku,
@@ -111,6 +115,15 @@ export async function POST(req: Request) {
       unitMinor: price.priceMinor,
       name: tier.name,
     });
+  }
+
+  /* A physical chest (the King's Reliquary) ships a box, so it needs a real
+     address. Validated and normalised server-side; a physical order with no
+     usable address is rejected honestly rather than sold with nowhere to ship.
+     A digital-only order takes no address, and one sent along is ignored. */
+  const shipping = normalizeShipping(body?.shipping);
+  if (hasPhysical && !shipping) {
+    return json({ error: "a shipping address is required for a physical order" }, 400);
   }
 
   const totalMinor = sumMinor(lines.map((l) => lineTotal(l.unitMinor, l.qty)));
@@ -130,6 +143,9 @@ export async function POST(req: Request) {
       currency: "usd",
       idempotency_key: idempotencyKey,
       provider: provider.name,
+      /* Stored on the order for the fulfillment worker, which reads it back
+         through the same normaliser. Empty jsonb for a digital-only order. */
+      ...(shipping ? { shipping } : {}),
     })
     .select("id")
     .single();
