@@ -13,6 +13,8 @@ import {
 } from "@/components/console/console-shell";
 import { WalletSection } from "@/components/wallet/wallet-section";
 import { HoardPanel } from "@/components/collectibles/hoard-panel";
+import { OrdersPanel } from "@/components/commerce/orders-panel";
+import { RedeemCode } from "@/components/collectibles/redeem-code";
 
 /* The Vault: a Console. Compact above md, zero ornament, and every panel
    inside it on the shared Card chassis. */
@@ -91,6 +93,14 @@ export default function VaultPage() {
                 </Link>
               </div>
               <HoardPanel handle={null} own />
+
+              {/* What the realm owes, and the bridge from a printed box. Both
+                  belong beside the Hoard because both end in it. Orders are
+                  absent for a member who has never bought anything; the code
+                  entry stays, because a member can be handed a box by somebody
+                  else without ever having ordered one. */}
+              <OrdersPanel />
+              <RedeemCode />
             </section>
           </>
         )}
