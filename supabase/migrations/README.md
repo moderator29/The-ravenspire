@@ -1,4 +1,4 @@
-# Migrations, and the four times this directory lied
+# Migrations, and the five times this directory lied
 
 Read this before writing a migration that touches anything that already exists.
 
@@ -22,7 +22,7 @@ select version, name from supabase_migrations.schema_migrations order by version
 
 ## Why the rule exists
 
-This repository and the live project (`tqvigouaifbklvajiyoj`) have diverged four
+This repository and the live project (`tqvigouaifbklvajiyoj`) have diverged five
 times, every one of them the same way: a branch reached `main` with its code and
 without its migration file, so production carried schema that no file described.
 
@@ -35,7 +35,7 @@ without its migration file, so production carried schema that no file described.
    `SECURITY DEFINER` functions existed only in production. Recovered as
    `20260813084440_commerce_hardening.sql`. Two of its functions were duplicates
    of work another branch built at the same time, and are dropped by
-   `20260815090000_retire_the_superseded_rpcs.sql`.
+   `20260813103924_retire_the_superseded_rpcs.sql`.
 4. **The one that nearly broke the War.** `points_ledger_category_check` allows
    `'war'` in production because incident 3 added it. This directory said
    `('social', 'call')`. A later migration re-added the constraint from that
@@ -44,6 +44,17 @@ without its migration file, so production carried schema that no file described.
    realm would have started failing its check constraint. It was caught in
    review by diffing against production, not by any test, because **no test can
    see a constraint that exists in only one place.**
+5. **The guardrails and the calendar, in the same week as this document.**
+   `appointments_and_seasons` was applied as `20260813113137` while this file
+   said it was written and not yet applied, and four `compliance_guardrails_*`
+   versions were applied with no file here at all. Both were found by two
+   different missions reading `schema_migrations` on the same day, and both are
+   recovered above. That it happened again, immediately, in the same way, while
+   a document explaining the failure was already in the directory, is the
+   argument for the rule at the top of this file: **reading the live
+   `schema_migrations` before writing SQL is the only thing that has ever caught
+   one of these.** Nothing else can. A test cannot see a table that exists in
+   only one place either.
 
 ## Filenames and versions do not match, and cannot
 
@@ -55,7 +66,7 @@ That mismatch is inherent and is not itself a bug.
 What matters is the pair of properties this directory has to keep:
 
 - **Every applied version has a file here**, so the schema can be reviewed and
-  rebuilt. This is the property that broke four times.
+  rebuilt. This is the property that broke five times.
 - **The file's content is what ran.** Where a file was recovered from
   production, its header says so and the text is verbatim.
 
@@ -83,6 +94,21 @@ The compliance guardrails alter one existing object,
 project before the migration was written, per the rule above, and was
 `('order', 'redemption')`, matching `20260812224950_commerce_engine.sql`. The
 change adds `'amoe'` and removes nothing. Checked, not assumed.
+
+## Nothing is pending
+
+Every migration in this directory has been applied and carries the version
+production recorded. The Coffers and the Endowment was the last outstanding one:
+applied as `20260813172956`, advisor clean, and renamed to match.
+
+It altered one existing object, `points_ledger_category_check`. Its live
+definition was read out of the project both before the migration was written and
+again immediately before it ran, and was `('social', 'call', 'war', 'stake')`.
+The change adds `'house'` and removes nothing; the constraint was read back
+afterwards to confirm all four earlier values survived. That is the fourth
+migration to touch this one constraint, and an earlier one nearly took every War
+award in the realm offline by re-adding it from a stale reading of this
+directory, which is why it is checked three times rather than once.
 
 ## The rest of the posture
 
