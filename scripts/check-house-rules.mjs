@@ -812,7 +812,21 @@ export function runRules({
   for (const rule of rules) {
     for (const f of list(rule.globs)) {
       if (rule.skip && rule.skip(f)) continue;
-      for (const { line, message } of rule.check(f, read(f)) ?? []) {
+      /* `git ls-files` reports what the index tracks, which is not always what
+         is on disk: a file deleted or renamed but not yet staged is listed and
+         cannot be opened. That crashed the entire gate with ENOENT, taking
+         sixteen rules down because of one file the author was midway through
+         moving. A file that is not there cannot violate anything, so it is
+         skipped. This is the second time an unreadable path has killed the
+         whole run; the first was a rule reaching outside the working
+         directory. */
+      let text;
+      try {
+        text = read(f);
+      } catch {
+        continue;
+      }
+      for (const { line, message } of rule.check(f, text) ?? []) {
         problems.push(`${f}:${line}  ${message}`);
       }
     }

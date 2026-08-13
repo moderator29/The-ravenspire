@@ -37,6 +37,15 @@ export const dynamic = "force-dynamic";
 const UNDEFINED_TABLE = "42P01";
 const UNIQUE_VIOLATION = "23505";
 
+/* The Bazaar's own refusal, raised by the trigger on public.collectible_claims
+   when a member tries to carry a card they have listed for sale to their own
+   wallet. That is the one move that would let a seller take a buyer's money
+   and keep the card: the buyer pays, the seller mints the token, and the
+   settlement finds a copy the chain says is the seller's. The trigger is what
+   makes it impossible rather than merely checked, and this maps it into a
+   sentence. */
+const LISTED_ON_THE_BAZAAR = "RS002";
+
 /* Issuing a voucher is a signature and a database write, and a member has at
    most a few dozen holdings, so this is generous for every honest use and
    still closes the door on a loop hammering the signer. */
@@ -256,6 +265,15 @@ export async function POST(req: Request) {
     }
     if (insertError.code === UNDEFINED_TABLE) {
       return json({ error: "The claim ledger has not been migrated yet" }, 503);
+    }
+    if (insertError.code === LISTED_ON_THE_BAZAAR) {
+      return json(
+        {
+          error:
+            "That card is listed on the Bazaar. Withdraw the listing before you carry it to your wallet",
+        },
+        409
+      );
     }
     return json({ error: "unavailable" }, 503);
   }
