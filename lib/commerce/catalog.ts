@@ -24,6 +24,20 @@ import type { Rarity } from "@/lib/game/champions";
  * because unsealing a chapter and committing to a price are two different
  * decisions and must be made separately.
  *
+ * WHAT THE FLOOR IS, AND THE ONE THING IT IS NOT
+ * It is a valuation the realm publishes and stands behind as a catalogue value.
+ * It is NOT redeemable and there is no buy back: nothing anywhere in this
+ * codebase pays a member RARITY_FLOOR_USD for a card, and the only place a card
+ * becomes money is the Bazaar, where another member decides what it is worth.
+ *
+ * That distinction has to survive contact with the copy, because every chest
+ * here is priced BELOW its own floor and a member reading "guaranteed floor $38"
+ * on a $34.99 box will read a promise the realm cannot fund. The buy control
+ * says "at the realm's own valuation" for that reason, and the trophy case
+ * declines to quote a floor at all. If the realm ever does buy a card back at
+ * its floor, that is a funded liability and a founder decision, and this comment
+ * is where it stops being true.
+ *
  * THE FLOOR GUARANTEE
  * The founder's guardrail is that the guaranteed floor value of a chest is at
  * least its price, so a buyer never loses money opening one: it is a

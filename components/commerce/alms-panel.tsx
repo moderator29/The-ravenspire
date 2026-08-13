@@ -17,7 +17,7 @@ import { attestAge } from "@/components/commerce/compliance-actions";
  * enter". A free path buried three screens deep is a free path in name.
  *
  * WHAT IT SAYS, AND WHAT IT REFUSES TO SAY. The chest the Alms grant is a real
- * Squire's Chest with the same printed odds, the same guaranteed floor and the
+ * Squire's Chest with the same printed odds, the same guaranteed rarity floor and the
  * same provable reveal, so the copy says exactly that and nothing softer. It
  * does not say "a chance to win", it does not dress the grant up as a prize,
  * and it never renders a number the server did not send: how many the realm has
@@ -139,7 +139,7 @@ export function AlmsPanel() {
         <Card radius="xl" className="flex flex-col gap-2">
           <p className="text-sm leading-relaxed text-bone-mut">
             The realm gives one Squire&apos;s Chest, free, to a member who asks.
-            Same cards, same printed odds, same guaranteed floor, same proof.
+            Same cards, same printed odds, same guaranteed rarity floor, same proof.
             Sign in to take it.
           </p>
         </Card>
@@ -191,7 +191,7 @@ export function AlmsPanel() {
             {policy.perMemberDays} days the realm hands any member a real{" "}
             {policy.chestName}, free, and it is the same chest in every respect
             that matters: the same cards, the printed odds above, the same
-            guaranteed floor, and the same reveal you can check afterwards.
+            guaranteed rarity floor, and the same reveal you can check afterwards.
             There is no separate table of odds for a chest that was given.
           </p>
 
