@@ -17,6 +17,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/chronicle", changeFrequency: "monthly", priority: 0.6 },
     { path: "/renown", changeFrequency: "weekly", priority: 0.6 },
     { path: "/houses", changeFrequency: "daily", priority: 0.7 },
+    /* The chest verifier. Listed because it is one of the few pages here that
+       is genuinely useful to somebody who does not have an account and does not
+       want one, which is exactly who a fairness proof is written for. */
+    { path: "/proof", changeFrequency: "monthly", priority: 0.6 },
   ];
 
   return routes.map((r) => ({

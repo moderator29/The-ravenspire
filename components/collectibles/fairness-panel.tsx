@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { realmFetch } from "@/lib/auth/api";
 import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
@@ -178,6 +179,17 @@ export function FairnessPanel() {
             one for the next. Hash the revealed seed, check it against the hash
             you were shown first, and rerun the draw yourself.
           </p>
+          {/* The promise is made on this panel, so the place to keep it is on
+              this panel too. Three steps that a member cannot act on are a
+              description of a scheme, not a scheme they can hold anyone to. */}
+          <Button
+            size="sm"
+            className="mt-1 self-start"
+            render={<Link href="/proof" />}
+          >
+            <Icon name="shield" className="h-4 w-4" />
+            Check a draw yourself
+          </Button>
         </li>
       </ol>
 

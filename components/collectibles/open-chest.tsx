@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Dialog } from "@base-ui/react/dialog";
 import { motion, useReducedMotion } from "framer-motion";
 import { realmFetch } from "@/lib/auth/api";
@@ -98,6 +99,11 @@ export function OpenChest({ sku, name }: { sku: string; name: string }) {
   const [phase, setPhase] = useState<"idle" | "opening" | "revealed">("idle");
   const [cards, setCards] = useState<PulledCard[]>([]);
   const [proof, setProof] = useState<Proof | null>(null);
+  /* The opening's own id, which is the draw reference the verifier at /proof
+     takes. Held so the Ceremony can hand a member straight to the check with
+     their chest already loaded: a proof that requires copying a uuid out of a
+     dialog by hand is a proof nobody ever runs. */
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const [shown, setShown] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -146,6 +152,7 @@ export function OpenChest({ sku, name }: { sku: string; name: string }) {
     );
     setCards(drawn);
     setProof(res.data.opening.proof ?? null);
+    setOpeningId(res.data.opening.id ?? null);
     setShown(0);
     setPhase("revealed");
     void loadEntitlements();
@@ -155,6 +162,7 @@ export function OpenChest({ sku, name }: { sku: string; name: string }) {
     setPhase("idle");
     setCards([]);
     setProof(null);
+    setOpeningId(null);
     setShown(0);
   };
 
@@ -279,6 +287,22 @@ export function OpenChest({ sku, name }: { sku: string; name: string }) {
                           </div>
                         ))}
                       </dl>
+                      {/* The promise is made here, at the moment the cards
+                          land, so this is where it has to be keepable. Handing
+                          over four strings and expecting a member to find a
+                          verifier for them is the same as not having one: the
+                          reference travels in the link and the check is loaded
+                          and run for them. */}
+                      {openingId ? (
+                        <Button
+                          size="sm"
+                          className="mt-3"
+                          render={<Link href={`/proof?draw=${openingId}`} />}
+                        >
+                          <Icon name="shield" className="h-4 w-4" />
+                          Check this draw
+                        </Button>
+                      ) : null}
                     </div>
                   ) : null}
 
