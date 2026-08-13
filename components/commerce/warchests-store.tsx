@@ -201,6 +201,19 @@ function TierCard({
       radius="xl"
       className="flex flex-col gap-4"
     >
+      <div className="flex items-center justify-center py-1">
+        {/* The chest itself, the store hero. Sits on obsidian, so the art's
+            dark ground blends into the card. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={tier.art.closed}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="h-32 w-auto max-w-full object-contain"
+          style={{ filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.55))" }}
+        />
+      </div>
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-bone-faint">
           {tier.kind === "physical" ? "Physical box" : "Digital chest"} &middot;{" "}

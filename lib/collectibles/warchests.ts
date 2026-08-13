@@ -23,6 +23,10 @@ export interface ChestTier {
   odds: Record<Exclude<Rarity, "common">, number>;
   /* The floor every buyer is guaranteed, printed beside the odds. */
   guarantee: string;
+  /* Chest art, sliced from the brand renders. `closed` is the store hero,
+     `open` is the burst shown in the pack-opening Ceremony. Physical tiers also
+     carry `box`, the shipping packaging plate. All sit on obsidian. */
+  art: { closed: string; open: string; box?: string };
 }
 
 export const CHEST_TIERS: ChestTier[] = [
@@ -34,6 +38,10 @@ export const CHEST_TIERS: ChestTier[] = [
     contents: ["3 cards from Set One"],
     odds: { rare: 74, epic: 20, legendary: 5.4, mythic: 0.6 },
     guarantee: "At least one Epic or better in every chest",
+    art: {
+      closed: "/brand/chests/squire-closed.png",
+      open: "/brand/chests/squire-open.png",
+    },
   },
   {
     sku: "knights-warchest",
@@ -43,6 +51,10 @@ export const CHEST_TIERS: ChestTier[] = [
     contents: ["5 cards from Set One"],
     odds: { rare: 55, epic: 30, legendary: 13, mythic: 2 },
     guarantee: "At least one Legendary or better in every chest",
+    art: {
+      closed: "/brand/chests/knight-closed.png",
+      open: "/brand/chests/knight-open.png",
+    },
   },
   {
     sku: "kings-reliquary",
@@ -56,6 +68,11 @@ export const CHEST_TIERS: ChestTier[] = [
     ],
     odds: { rare: 45, epic: 33, legendary: 19, mythic: 3 },
     guarantee: "At least one Legendary or better, and one full-art print",
+    art: {
+      closed: "/brand/chests/king-closed.png",
+      open: "/brand/chests/king-open.png",
+      box: "/brand/chests/king-box.png",
+    },
   },
 ];
 

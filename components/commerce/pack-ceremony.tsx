@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
-import { Icon3D } from "@/components/ui/icon-3d";
 import {
   ChampionCardFace,
   type ChampionCardSubject,
@@ -281,7 +280,17 @@ function IntroFace({
             : { type: "spring", visualDuration: 0.6, bounce: 0.34 }
         }
       >
-        <Icon3D name="chest" size="hero" priority />
+        {/* The real chest: closed at rest, the gold-burst open art while it
+            draws. Sits on obsidian so the art's dark ground blends in. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={opening ? tier.art.open : tier.art.closed}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="h-40 w-auto max-w-full object-contain"
+          style={{ filter: "drop-shadow(0 10px 28px rgba(0,0,0,0.6))" }}
+        />
       </motion.div>
 
       <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
