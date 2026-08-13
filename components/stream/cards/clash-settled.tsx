@@ -50,7 +50,7 @@ export function ClashSettledCard({ event }: { event: FeedEvent }) {
 
   return (
     <SystemCard
-      event={event}
+      at={event.created_at}
       icon="swords"
       label="A Clash is decided"
       rail="steel"
