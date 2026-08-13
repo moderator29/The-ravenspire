@@ -2897,3 +2897,263 @@ older migrations fail on that replay because the baseline already creates the
 policies they create, which is pre-existing and unrelated.
 
 Migration `20260817090000_appointments_and_seasons.sql`, not applied.
+
+## 47. The compliance guardrails, and the size of what they are not
+
+Mission 12, and the last piece of code standing between the realm and
+`COMMERCE_PRICES_CONFIRMED`. What remains after this is a real payment account,
+which is not code.
+
+Nobody who built this is a lawyer and none of it claims compliance with any
+law. Every guardrail below carries an explicit "what this does not cover"
+paragraph, in `lib/commerce/compliance.ts`, written so a real adviser can read
+it and say what is missing. That list is the important half of the work.
+
+### 47.1 Where the decisions live, and why not in the route
+
+Section 34 named four answers to the gambling optics of a mystery box. Two were
+already built and enforced at module load: exact printed odds validated to sum
+to 100, and a guaranteed floor validated against the worst a chest can actually
+deal. The other two, no cash-out promises and no invented scarcity, were prose.
+This wave is the rest of the posture.
+
+Every decision is made inside Postgres, in the same transaction that creates
+the order, under the same lock. That is not a preference. A spend cap read in
+one round trip and enforced in the next is not a cap: ten concurrent presses
+each read a spend of zero and all ten pass. `public.commerce_checkout_guard`
+judges and inserts together or does neither, and the checkout route has no code
+path left that writes an order, so a future edit cannot forget the guard.
+
+Every threshold, though, lives in `lib/commerce/compliance.ts` and is passed in
+as a REQUIRED parameter with no SQL default. A default in the function body
+would be a second copy of a number that also lives in TypeScript, and two
+copies of a threshold drift the first time somebody tunes one of them, quietly,
+in the direction of taking more money. A required parameter cannot drift
+because it cannot exist twice. A test reads the migration file and asserts the
+declared parameters are exactly the ones the TypeScript bundle supplies, and
+that none of them carries a default, because that joint is invisible to
+typecheck.
+
+### 47.2 The Alms, the free method of entry
+
+The one that mattered most. A paid random-reward mechanic commonly needs a
+genuinely free path to the same reward, of equal dignity, and the realm's is
+called the Alms: a real Squire's Chest, given.
+
+Not a token, not a coupon, not a quieter chest wearing the same name. It is a
+row in `chest_entitlements` differing from a purchased one only in
+`source_kind`, and it opens through the same route, against the same committed
+seed, on the same printed odds, with the same guaranteed floor and the same
+provable reveal. No code path anywhere reads `source_kind` and rolls
+differently, and a test asserts the opening route does not mention it at all.
+
+The property that decides whether this is an entry or a consolation prize is
+that the free chest can win the rarest thing the realm mints. The Squire's
+Chest deals three cards at 0.6% mythic each, so it can. That is asserted at
+module load rather than argued, because an odds retune that zeroed mythic on
+the entry tier for perfectly good economic reasons would destroy it silently
+and nothing else in the codebase would notice.
+
+**Abuse, which is the whole difficulty.** A free entry one person can take a
+thousand times is not compliance, it is a faucet, and a faucet pointed at a
+capped-supply collectible is worse than no free path at all. Four defences,
+none individually sufficient: one per member per 30 days; an account at least
+seven days old, onboarded, carrying a handle; the same age gate as the paid
+path; and a realm-wide ceiling of twenty five a day under a transaction-scoped
+advisory lock, because a ceiling two requests can race past is not a ceiling.
+
+The account age floor is the cheap one: registration is free and instant, so
+seven days converts "make a thousand accounts now" into "make a thousand
+accounts a week ago and keep them", and costs an honest member nothing they
+notice. The realm-wide ceiling is the one that actually contains an attacker,
+because it bounds the damage however many accounts they hold.
+
+**It does not stop sybil.** One person with fifty aged accounts gets fifty
+entries. Only identity verification changes that and identity verification is a
+paid service. The ceiling is containment, not prevention, and the distinction
+is worth saying out loud rather than leaving for somebody to discover.
+
+**The ceiling cuts both ways.** A ceiling reached every day has stopped being a
+free method of entry and become a lottery for one. The exhaustion is written to
+the refusal ledger and the remaining count is on the panel, precisely so this
+is visible, and if it is regularly hit the founder must raise it. That is an
+operating commitment; no code can enforce it.
+
+Also not covered: merch and the physical King's Reliquary, which has real
+per-unit printing and shipping cost, have no free path. Whether the free entry
+must reach the top tier rather than the entry tier is exactly the question that
+needs an adviser and not a developer.
+
+The Alms are gated on `chests_live` and deliberately NOT on
+`COMMERCE_PRICES_CONFIRMED`, so the free path can never be narrower than the
+paid one. A test reads the route and asserts it.
+
+### 47.3 The age gate
+
+One question, "are you at least eighteen", answered once. What is stored is
+that it was answered, when, and against which minimum. **There is no date of
+birth column and there must never be one:** a birth date is identifying data
+the realm would then owe a duty of care over, and it answers a question nobody
+asked. The minimum in force is stored beside the answer so raising it later
+re-asks everybody rather than grandfathering them silently.
+
+It lives in its own table rather than on `profiles`, and the reason is not
+tidiness. `public.profiles` carries column-level grants to `anon` on a dozen
+columns because a profile is a public object. Putting a compliance fact on that
+table would leave it one accidental grant from a public read.
+
+It is a SELF DECLARATION and nothing in the product describes it as more. A
+member who types the wrong answer passes. Real verification needs a document or
+credit check provider, which is a paid service; the seam is `age_verified_at`
+and `age_verification_method`, which nothing writes.
+
+It gates the paid paths and the Alms, and nothing else. The realm does not ask
+a member's age to read the Ravenry.
+
+### 47.4 Spend caps
+
+250 in 24 hours, 1,000 in 30 days, computed at checkout from real order
+history. The dearest thing in the realm is the King's Reliquary at 54.86, so
+250 a day is four of them plus merch: past any honest collecting session, short
+of the kind of day somebody regrets. 1,000 a month is roughly eighteen top
+chests. Both are deliberately low for a launch, because the directions are not
+symmetrical: raising a cap later is a decision made calmly, and lowering one
+after members have been allowed to spend past it is a decision made inside a
+complaint.
+
+Paid and fulfilled orders count, dated by `paid_at` so a slow webhook does not
+date a charge to the wrong window. Refunded and cancelled never count. Pending
+orders count for sixty minutes, because a live checkout session is money the
+member can still spend and a cap ignoring them could be walked through by
+opening twenty sessions before paying any; after an hour an abandoned cart
+stops holding a member's ceiling hostage.
+
+A module load assertion refuses a day cap below the dearest single item,
+because that is not a cap, it is a closure that quietly makes one product
+unbuyable.
+
+They are per member, keyed on the profile: one person with three accounts has
+three ceilings. And they see only what the realm charged. They cannot see the
+Bazaar, where payment goes wallet to wallet and the platform is not a party to
+it, which the panel says on its own face.
+
+### 47.5 Cooling off, and the one asymmetry that matters
+
+Three mechanisms, none of which can be clicked past, which is the only test of
+whether an interruption is real.
+
+**The velocity brake.** Four paid orders inside sixty minutes and checkout
+stops until the oldest falls out of the window. Three is reachable by an
+ordinary member buying a chest, liking what came out, and buying two more; four
+inside an hour is a pattern rather than a purchase. It is a pause, it clears
+itself, and the answer says exactly when.
+
+**The informed consent interruption.** Once real 30 day spend would pass 150,
+checkout refuses and hands back the member's actual total; continuing needs an
+explicit acknowledgement that expires after 24 hours. 150 is set against the
+DAY cap rather than the month cap, and that is the correction worth recording:
+at 250 it would have equalled the 24 hour ceiling, so a member spending fast
+inside one day would have been stopped dead without ever having been shown
+their own running total, and the consent step would only ever have fired across
+days. The relationship is now asserted at module load.
+
+The number recorded is the one the SERVER computed. The route has no way to
+pass a total and must never be given one, so the row is evidence of what the
+member was actually shown rather than of what a client claimed to have shown
+them.
+
+**The member set cap**, and the asymmetry is the entire point: lowering it
+applies immediately, raising it waits 24 hours, and the pending value is
+visible so nobody is surprised by their own decision. A limit a member can
+raise in the moment they want to raise it is not a limit, it is a speed bump
+they installed and then removed. The delay is in
+`public.commerce_set_self_cap`, not in a route, because a delay a route
+computes is a delay a route can be edited to skip.
+
+What none of it does: it cannot tell distress from enthusiasm, it sees a rate
+and not a person, there is no self-exclusion register and no way to lock
+oneself out for a term, and nobody is paged, because there is no human on a
+rota to page.
+
+### 47.6 Geo, and the honest answer
+
+**Reliable geolocation needs a paid service and the realm does not have one.**
+Everything else here is a qualification of that sentence.
+
+What is free and real: Vercel injects `x-vercel-ip-country` and Cloudflare
+`cf-ipcountry`, both part of hosting rather than a new paid service. Why it is
+still only a hint: a VPN defeats it in ten seconds, mobile carrier routing puts
+honest members in neighbouring countries, and corporate egress is attributed
+badly. And the header is read ONLY when we know we are behind that edge, because
+off it the value is a string the caller typed, and a caller who can type their
+own country has defeated the gate by typing. Same reasoning as `clientIp`.
+
+Three modes. `advisory` is the default and enforces nothing until the founder
+names a country in `COMMERCE_BLOCKED_COUNTRIES`, which is the honest starting
+state rather than an oversight. `strict` additionally refuses an unknown
+origin, which is the only setting a plain VPN does not simply walk through, and
+also the setting that refuses every honest member when the deployment is not
+behind a trusted edge. `off` is a single switch rather than an emptied list.
+There is no hardcoded country list anywhere: a list of countries in a source
+file is a legal position taken by a developer.
+
+**What would actually be needed, so it can be costed.** An IP intelligence
+provider (MaxMind GeoIP2, IPinfo, IP2Location) returning a country AND a VPN,
+proxy and hosting-provider flag. The flag is the part that matters and the part
+no free source gives. `resolveCountry` is the single function it plugs into.
+And separately, the payment provider's own card-issuing country and billing
+address, which cost nothing extra because they arrive with the payment and are
+a materially stronger signal than an IP, but arrive AFTER the charge, so they
+inform refunds and reporting rather than the decision to sell. `orders` carries
+`geo_country` and `geo_source` so the two can never be flattened into one
+confidence.
+
+### 47.7 The refusal ledger
+
+Every guardrail that turns a member away writes `commerce_guard_events`. This
+is the half of a compliance posture that is easy to omit and impossible to
+reconstruct later: a guardrail that refuses and keeps no record cannot answer
+the only question anybody will ever ask it, which is "show me that it fires".
+It records the decision and the numbers it turned on, never a cart, a card or
+an address.
+
+### 47.8 The surfaces
+
+The Alms sit on `/warchests`, full width, directly under the three chests,
+because a free path harder to find than the purchase it stands beside is one in
+name. The interruption is a Base UI `Dialog` rather than a line of text,
+because an interruption that can be scrolled past is not one, and it always
+carries the member's real figures: "you cannot do that right now" is the shape
+of a dark pattern and "you have spent 140 in the last 30 days" is not. Spending
+and the self-limit control are in the Vault, absent entirely for a member who
+has never spent and set no limit, because telling somebody who has bought
+nothing how much headroom they have is an invitation dressed as information.
+
+All of it is the Ledger register. No gold gradient, no 3D icon, no glow. The
+Forge on a spending limit would be the product celebrating the fact that
+somebody is about to spend more, which is the thing these exist to interrupt.
+
+Two refusals carry an action and three do not, and the asymmetry is honest: the
+age gate and the acknowledgement are answered by the member, a spending cap and
+the velocity brake are answered by time. There is no override and no route that
+would accept one.
+
+### 47.9 Repository versus database, and how this was checked
+
+Read before anything was written, per `supabase/migrations/README.md`. One
+existing object is altered: `chest_entitlements_source_kind_check`, whose live
+definition was read out of the project as `('order', 'redemption')` and matches
+`20260812224950_commerce_engine.sql` exactly. The change adds `'amoe'` and
+removes nothing. Repository and database agree on every other object touched.
+
+The migration was NOT applied. It was replayed instead against a throwaway
+Postgres 16 cluster carrying stand-ins for the five tables it depends on,
+applied twice to prove it is idempotent, and then exercised: 39 behavioural
+assertions covering the age gate, idempotency that is never re-judged, the
+pending-order grace, the acknowledgement and its expiry, both spend windows,
+refunds counting for nothing, the self cap in both directions and its delay,
+the velocity brake and its self-clearing, and the Alms through every refusal
+they can give. A two-session test confirmed a concurrent checkout blocks on the
+limits row lock rather than racing past it.
+
+Migration `20260819090000_compliance_guardrails.sql`, not applied.

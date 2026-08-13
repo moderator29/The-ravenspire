@@ -63,6 +63,24 @@ The Bazaar is split into four files (`20260813112210` through `20260813112411`)
 because it was applied in four parts, and the files carry the names and versions
 production recorded so the two listings read the same.
 
+## Written and not yet applied
+
+Two files here describe schema the live project does not have. Both are
+deliberate: they were written for a human to audit before applying, which is
+the opposite of the failure this document records and does not create it. The
+invariant that broke four times is "every APPLIED version has a file", and it
+still holds.
+
+- `20260817090000_appointments_and_seasons.sql`
+- `20260819090000_compliance_guardrails.sql`
+
+The second alters one existing object, `chest_entitlements_source_kind_check`.
+Its live definition was read out of the project first, per the rule above, and
+is `('order', 'redemption')`, matching `20260812224950_commerce_engine.sql`.
+The change adds `'amoe'` and removes nothing. It was replayed against a
+throwaway Postgres 16 cluster twice, to prove both that it runs and that it is
+idempotent, rather than against production.
+
 ## The rest of the posture
 
 Every table is RLS deny-by-default with ownership enforced in the route under
