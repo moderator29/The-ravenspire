@@ -74,6 +74,15 @@ export interface MintState {
   reason?: string;
 }
 
+/* The craft rule, as the trophy case reads it. Ratios only: the per rarity
+   floor they are derived from is server only and is not a number any customer
+   surface renders. Present on your own Hoard and absent on somebody else's,
+   because there is nothing here a visitor can act on. */
+export interface CraftState {
+  open: boolean;
+  steps: { from: string; to: string; burn: number }[];
+}
+
 const sigilByHouse = new Map(houses.map((h) => [h.name, h.sigil] as const));
 
 /* The ledger's rarity is a text column, constrained in the database to the
@@ -242,6 +251,7 @@ export function Hoard({
   summary,
   own,
   mint = null,
+  craft = null,
   sealed = false,
   onClaimed,
 }: {
@@ -250,11 +260,27 @@ export function Hoard({
   /* The viewer is the keeper. Decides whether anything here can be acted on. */
   own: boolean;
   mint?: MintState | null;
+  craft?: CraftState | null;
   /* The member keeps their collection private. A real state, not an error. */
   sealed?: boolean;
   onClaimed?: () => void;
 }) {
   const stacks = useMemo(() => stack(cards), [cards]);
+
+  /* Whether this collection actually holds enough of one rarity to craft with.
+     Computed from the real holdings against the real ratios, so the way to the
+     bench appears when there is genuinely something to burn and stays absent
+     otherwise. A permanent link to a bench a member cannot use is an
+     advertisement, and the design system is explicit that a card which only
+     announces has not earned its slot. */
+  const canCraft = useMemo(() => {
+    if (!own || !craft?.open) return false;
+    const byRarity = new Map<string, number>();
+    for (const copy of cards) {
+      byRarity.set(copy.rarity, (byRarity.get(copy.rarity) ?? 0) + 1);
+    }
+    return craft.steps.some((s) => (byRarity.get(s.from) ?? 0) >= s.burn);
+  }, [own, craft, cards]);
 
   if (sealed) {
     return (
@@ -298,7 +324,12 @@ export function Hoard({
       {/* The set line, computed from the collection so it cannot drift from
           the tiles below it. Numbers line up: this is a count, and counts are
           read by comparison. */}
-      <Card variant="raised" pad="none" radius="lg" className="px-4 py-3">
+      <Card
+        variant="raised"
+        pad="none"
+        radius="lg"
+        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3"
+      >
         <p className="tnum flex flex-wrap gap-x-4 gap-y-1 text-xs text-bone-mut">
           <span className="font-semibold text-bone">
             {summary.distinct} of {summary.setSize} cards
@@ -320,6 +351,16 @@ export function Hoard({
             </span>
           ) : null}
         </p>
+
+        {/* The way out of a pile of duplicates, and only when there is one.
+            The trophy case is where a member notices they hold four of the
+            same rare, so it is where the sink has to be offered. */}
+        {canCraft ? (
+          <Button size="sm" render={<Link href="/reliquary/craft" />}>
+            <Icon name="flame" className="h-3.5 w-3.5 text-gold" />
+            Craft duplicates
+          </Button>
+        ) : null}
       </Card>
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
