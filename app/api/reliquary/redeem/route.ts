@@ -4,6 +4,7 @@ import { getFlag } from "@/lib/flags";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { SET_ONE } from "@/lib/collectibles/set-one";
 import { hashCode, isWellFormed } from "@/lib/commerce/redemption";
+import { logger } from "@/lib/observability/log";
 
 /* POST /api/reliquary/redeem (V2 Part Two, section 34).
  *
@@ -30,6 +31,8 @@ import { hashCode, isWellFormed } from "@/lib/commerce/redemption";
 
 export const dynamic = "force-dynamic";
 
+const log = logger("commerce.redeem");
+
 interface Grant {
   cards?: { number?: number; slug?: string; rarity?: string }[];
 }
@@ -53,8 +56,15 @@ export async function POST(req: Request) {
 
   const codeHash = hashCode(code);
 
-  /* Claim the code atomically: set the redeemer only while unredeemed. Also
-     bump attempts, so a code being hammered is visible. */
+  /* Record the attempt against the matching code, whether or not the claim
+     below succeeds. bump_redemption_attempt increments the row with this hash
+     (used or not), so a real code presented over and over accumulates a visible
+     attempts count. A hash that matches no row increments nothing, which is
+     correct: an unknown code has no row to count against, and this reveals
+     nothing to a guesser (the response is the same either way). */
+  await db.rpc("bump_redemption_attempt", { p_code_hash: codeHash });
+
+  /* Claim the code atomically: set the redeemer only while unredeemed. */
   const claim = await db
     .from("redemptions")
     .update({
@@ -68,6 +78,7 @@ export async function POST(req: Request) {
 
   if (claim.error) {
     if (claim.error.code === "42P01") return json({ error: "not migrated" }, 503);
+    log.error("redemption claim failed", { profileId: profile.id, err: claim.error });
     return json({ error: "unavailable" }, 503);
   }
   if (!claim.data) {
