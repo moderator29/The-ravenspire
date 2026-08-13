@@ -9,20 +9,28 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import { useDelayedLoading } from "@/components/ui/skeleton";
 import {
-  StatStrip,
-  StatStripSkeleton,
-  WarHeader,
-  WarPage as WarFrame,
-} from "@/components/war/war-chrome";
+  BoardHeader,
+  BoardPage,
+  BoardStack,
+  BoardStrip,
+  BoardStripSkeleton,
+} from "@/components/board/board-shell";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 
 /* The War, its front door.
 
-   Archetype: Dossier. A hero band, then panels, always that order. The hero is
-   the one place in a Dossier where the Forge register is allowed, so the
-   lineup art and the gold title live there and every panel below it is flat
-   Ledger. There are no tabs because there is only one subject, The War itself.
+   A hero band, then panels, always that order, which is the Dossier reading of
+   a hub: the hero is the one place ornament is allowed, so the lineup art and
+   the gold title live there and every panel below it is flat Ledger. There are
+   no tabs because there is only one subject, The War itself.
+
+   It draws the Board frame rather than the Dossier one for a single reason
+   worth stating rather than leaving as a puzzle: the Dossier frame caps at
+   `4xl` because a Dossier is one subject read top to bottom, and this hub is a
+   band across a grid of ways in. `full` is the only rung wide enough and it
+   exists for this page. Everything else here obeys the Dossier's rule about
+   where ornament may sit.
 
    Real data only: the standing strip renders your actual gold, Glory, battles
    and wins, or nothing at all. It never shows a zero it has not read. */
@@ -112,125 +120,127 @@ export default function WarPage() {
   }, [ready, authenticated]);
 
   return (
-    <WarFrame width="wide">
-      <WarHeader title="The War" kicker="Battle for the realm" backHref="/home" />
+    <BoardPage width="full">
+      <BoardStack>
+        <BoardHeader title="The War" kicker="Battle for the realm" backHref="/home" />
 
-      {/* The hero band. The one Forge moment on this page. */}
-      <Card pad="none" className="overflow-hidden">
-        <div className="relative h-40 w-full sm:h-56 lg:h-64">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/game/lineup.png"
-            alt="Champions of the realm standing in line for battle"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/40 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
-            <p className="gold-text font-display text-2xl font-semibold sm:text-3xl">
-              Break the enemy host
-            </p>
-            <p className="mt-1 text-sm text-bone-mut">
-              Every foe felled is Glory, and Glory is kept.
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {showSkeleton ? (
-        <StatStripSkeleton />
-      ) : state ? (
-        <StatStrip
-          stats={[
-            { label: "Gold", value: state.gold, icon: "coin" },
-            { label: "War Glory", value: state.war_glory, icon: "medal" },
-            { label: "Battles", value: state.battles, icon: "swords" },
-            { label: "Wins", value: state.wins, icon: "crown" },
-          ]}
-        />
-      ) : ready && !authenticated ? (
-        <Card>
-          <EmptyState
-            size="sm"
-            icon="user"
-            title="Your record is not being kept"
-            body="Enter the realm and every battle banks gold, Glory and victories against your name."
-            action={
-              <Button
-                variant="gold"
-                size="md"
-                render={<Link href="/signin" />}
-              >
-                Enter the realm
-              </Button>
-            }
-          />
-        </Card>
-      ) : null}
-
-      <SectionHeader title="Choose your battlefield" />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {openModes.map((mode) => (
-          <Card
-            key={mode.name}
-            interactive
-            pad="none"
-            render={<Link href={mode.href} />}
-            className="block p-4"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-panel-warm text-gold">
-                <Icon name={mode.icon} className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                {/* Not truncated. The grid is three up from `lg`, which gives
-                    each card a 232px column at 1024 and 264px at 1440, and
-                    "Rewards and Progression" needs 212px for its own line
-                    inside a 146px box there: measured, the desktop card read
-                    "Rewards and Progr...". A mode's name is the one thing the
-                    card exists to say, so it wraps and the row equalises. */}
-                <p className="font-display text-[15px] font-semibold text-bone">
-                  {mode.name}
-                </p>
-                <p className="truncate text-xs text-bone-faint">{mode.plain}</p>
-              </div>
+        {/* The hero band. The one Forge moment on this page. */}
+        <Card pad="none" className="overflow-hidden">
+          <div className="relative h-40 w-full sm:h-56 lg:h-64">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/game/lineup.png"
+              alt="Champions of the realm standing in line for battle"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/40 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+              <p className="gold-text font-display text-2xl font-semibold sm:text-3xl">
+                Break the enemy host
+              </p>
+              <p className="mt-1 text-sm text-bone-mut">
+                Every foe felled is Glory, and Glory is kept.
+              </p>
             </div>
-            <p className="mt-3 text-sm text-bone-mut">{mode.desc}</p>
-          </Card>
-        ))}
+          </div>
+        </Card>
 
-        {/* A battlefield you cannot enter is structurally lower energy than one
-            you can, per section 5. `raised` is the flat plate: no backdrop
-            blur, no gold wash, a steel hairline and the quiet `edge` light.
-            Before this both sets were the same lit chassis, so the four modes
-            that are actually open competed for attention with the three that
-            are not, and only a small badge told them apart. */}
-        {lockedModes.map((mode) => (
-          <Card key={mode.name} variant="raised" pad="none" className="p-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-panel text-bone-faint">
-                <Icon name={mode.icon} className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                {/* Same three up column, and the Soon badge sits on the name's
-                    own row, so the name has less of it. Measured at 1024:
-                    "Campaign" lost 11px and "House War" 18px to the ellipsis.
-                    The badge drops to a second row rather than eating the
-                    name. */}
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <p className="font-display text-[15px] font-semibold text-bone-mut">
+        {showSkeleton ? (
+          <BoardStripSkeleton />
+        ) : state ? (
+          <BoardStrip
+            stats={[
+              { label: "Gold", value: state.gold, icon: "coin" },
+              { label: "War Glory", value: state.war_glory, icon: "medal" },
+              { label: "Battles", value: state.battles, icon: "swords" },
+              { label: "Wins", value: state.wins, icon: "crown" },
+            ]}
+          />
+        ) : ready && !authenticated ? (
+          <Card>
+            <EmptyState
+              size="sm"
+              icon="user"
+              title="Your record is not being kept"
+              body="Enter the realm and every battle banks gold, Glory and victories against your name."
+              action={
+                <Button
+                  variant="gold"
+                  size="md"
+                  render={<Link href="/signin" />}
+                >
+                  Enter the realm
+                </Button>
+              }
+            />
+          </Card>
+        ) : null}
+
+        <SectionHeader title="Choose your battlefield" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {openModes.map((mode) => (
+            <Card
+              key={mode.name}
+              interactive
+              pad="none"
+              render={<Link href={mode.href} />}
+              className="block p-4"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-panel-warm text-gold">
+                  <Icon name={mode.icon} className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  {/* Not truncated. The grid is three up from `lg`, which gives
+                      each card a 232px column at 1024 and 264px at 1440, and
+                      "Rewards and Progression" needs 212px for its own line
+                      inside a 146px box there: measured, the desktop card read
+                      "Rewards and Progr...". A mode's name is the one thing the
+                      card exists to say, so it wraps and the row equalises. */}
+                  <p className="font-display text-[15px] font-semibold text-bone">
                     {mode.name}
                   </p>
-                  <Badge variant="beta" icon="lock">
-                    Soon
-                  </Badge>
+                  <p className="truncate text-xs text-bone-faint">{mode.plain}</p>
                 </div>
-                <p className="truncate text-xs text-bone-faint">{mode.plain}</p>
               </div>
-            </div>
-            <p className="mt-3 text-sm text-bone-mut">{mode.desc}</p>
-          </Card>
-        ))}
-      </div>
-    </WarFrame>
+              <p className="mt-3 text-sm text-bone-mut">{mode.desc}</p>
+            </Card>
+          ))}
+
+          {/* A battlefield you cannot enter is structurally lower energy than one
+              you can, per section 5. `raised` is the flat plate: no backdrop
+              blur, no gold wash, a steel hairline and the quiet `edge` light.
+              Before this both sets were the same lit chassis, so the four modes
+              that are actually open competed for attention with the three that
+              are not, and only a small badge told them apart. */}
+          {lockedModes.map((mode) => (
+            <Card key={mode.name} variant="raised" pad="none" className="p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-panel text-bone-faint">
+                  <Icon name={mode.icon} className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  {/* Same three up column, and the Soon badge sits on the name's
+                      own row, so the name has less of it. Measured at 1024:
+                      "Campaign" lost 11px and "House War" 18px to the ellipsis.
+                      The badge drops to a second row rather than eating the
+                      name. */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="font-display text-[15px] font-semibold text-bone-mut">
+                      {mode.name}
+                    </p>
+                    <Badge variant="beta" icon="lock">
+                      Soon
+                    </Badge>
+                  </div>
+                  <p className="truncate text-xs text-bone-faint">{mode.plain}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-bone-mut">{mode.desc}</p>
+            </Card>
+          ))}
+        </div>
+      </BoardStack>
+    </BoardPage>
   );
 }

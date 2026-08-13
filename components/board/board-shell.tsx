@@ -4,6 +4,7 @@ import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { cx } from "@/components/ui/cx";
+import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BackButton } from "@/components/shell/back-button";
 
@@ -24,6 +25,22 @@ import { BackButton } from "@/components/shell/back-button";
    supplied card list below it, and it will not compile without the card
    renderer, so the mobile case cannot be forgotten.
 
+   TWO BODIES, ONE ARCHETYPE. `Board` is the columnar body, for rows that are
+   genuinely comparable down a column. `BoardList` below is the list body, for
+   rows that carry a portrait, a bar and a control rather than figures worth
+   lining up. Both sit in the same frame, at the same density, under the same
+   header, which is the whole point of them living in one file.
+
+   The list body arrived here from `components/war/war-chrome.tsx`, which was
+   the second Board implementation this comment used to name as a defect. It
+   was not a bad implementation; it was a divergent one. Seven War routes drew
+   their frame at one width, their heading at one size and their section rhythm
+   at one gap, and the other nine boards in the realm drew all three
+   differently, so a fix to either was a fix to half the product. The War now
+   draws from here. What stayed behind in `war-chrome.tsx` is the part that is
+   actually about The War: champion art, the four combat stats and the scale
+   they are measured against.
+
    Density, from section 4: 44px comfortable, 36px compact, compact being the
    desktop default. Rank or identity first, metrics right aligned and tabular so
    numbers line up down the column. Hairline dividers and a hover response, and
@@ -43,6 +60,15 @@ import { BackButton } from "@/components/shell/back-button";
      meta text    text-xs md:text-[11px]
      section gap  gap-4 md:gap-3
 
+   The section gap is one rung tighter than the table in section 4 of the
+   design system first printed, and it is deliberate. That table was written
+   before the founder read the product on a real phone and found the containers
+   oversized, which is the same reading that tightened the Card padding scale by
+   a quarter. The two had to move together: a tightened card inside an untouched
+   gap reads as a card that shrank rather than a page that sharpened. The War's
+   own frame was still at the untightened rhythm, which is one of the things
+   that made the two halves of the product look like two products.
+
    Mobile is never compact: the card list keeps 44px targets whatever density
    the table above `md` declares.
    ------------------------------------------------------------------------- */
@@ -52,13 +78,24 @@ export const BOARD_BODY = "text-sm md:text-[13px]";
 export const BOARD_META = "text-xs md:text-[11px]";
 export const BOARD_GAP = "gap-4 md:gap-3";
 
-type BoardWidth = "narrow" | "wide";
+/* The list body's row rung: the height above, plus the padding and inline gap
+   a row of portrait, name and control needs. One string, because a row that
+   sets its own padding is a row that will one day set it differently. */
+export const BOARD_LIST_ROW =
+  "flex min-h-11 items-center gap-3 px-3 py-2 md:min-h-9 md:gap-2.5 md:py-1.5";
+
+type BoardWidth = "narrow" | "wide" | "full";
 
 /* A Board expands to fill, but only as far as its widest column set can use.
-   Four columns do not get more readable by being given a 1200px line. */
+   Four columns do not get more readable by being given a 1200px line.
+
+   `full` is the widest rung and exists for one surface: a hub that is mostly
+   hero band and navigation rather than rows. It is not a licence to widen a
+   board, and a board of columns should never reach for it. */
 const WIDTH: Record<BoardWidth, string> = {
   narrow: "max-w-2xl lg:max-w-3xl",
   wide: "max-w-2xl lg:max-w-4xl",
+  full: "max-w-2xl lg:max-w-5xl",
 };
 
 export function BoardPage({
@@ -92,6 +129,7 @@ export function BoardHeader({
   lede,
   actions,
   backHref,
+  backLabel,
   className,
 }: {
   title: ReactNode;
@@ -99,11 +137,23 @@ export function BoardHeader({
   lede?: ReactNode;
   actions?: ReactNode;
   backHref?: string;
+  /* Names where back goes, when the destination is not obvious from the page
+     you are on. A board reached from a hub says "The War" rather than "Back",
+     which is the difference between a control you can aim and one you have to
+     try. */
+  backLabel?: string;
   className?: string;
 }) {
   return (
     <div className={cx("flex flex-col gap-3 md:gap-2", className)}>
-      <BackButton {...(backHref ? { href: backHref } : {})} />
+      {/* Sized to its label. Left bare in a `flex-col` it would stretch the
+          full width of the page. */}
+      <div className="flex">
+        <BackButton
+          {...(backHref ? { href: backHref } : {})}
+          {...(backLabel ? { label: backLabel } : {})}
+        />
+      </div>
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-display text-xl font-semibold text-bone sm:text-2xl md:text-lg">
@@ -391,6 +441,138 @@ export function BoardCard({
       {body}
     </Card>
   );
+}
+
+/* -------------------------------------------------------------------------
+   The list body
+
+   For a board whose rows are not columns: a champion with a portrait and a
+   mastery bar, a weapon with a price, a crest with a claim control. Putting
+   those in a table would give every row four headings that describe nothing,
+   and putting them in a second archetype is what The War did for seven routes.
+   Same frame, same header, same density, different body.
+
+   No `md:hidden` twin here, and that is not an oversight. A list row is
+   already vertical: it holds one identity and one control, so it survives a
+   phone by wrapping rather than by becoming a different component. The
+   columnar body needs the twin because columns do not.
+   ------------------------------------------------------------------------- */
+
+export function BoardList({
+  label,
+  className,
+  children,
+}: {
+  /* Names the list for screen readers, for example "Champion roster". */
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card pad="none" className={cx("overflow-hidden", className)}>
+      <ul aria-label={label} className="divide-y divide-steel-line">
+        {children}
+      </ul>
+    </Card>
+  );
+}
+
+/* One row of a list board. A thin wrapper over the row rung, so a caller
+   never writes the padding themselves and rows across the realm agree. */
+export function BoardListRow({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return <li className={cx(BOARD_LIST_ROW, className)}>{children}</li>;
+}
+
+/* Shaped like a list board, not a generic grey slab. */
+export function BoardListSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <Card pad="none" className="overflow-hidden">
+      <div className="divide-y divide-steel-line">
+        {Array.from({ length: rows }, (_, i) => (
+          <div key={i} className={BOARD_LIST_ROW}>
+            <Skeleton radius="md" className="h-9 w-9 shrink-0" />
+            <Skeleton radius="sm" className="h-3 w-40 max-w-[45%]" />
+            <Skeleton radius="sm" className="ml-auto h-3 w-16" />
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/* -------------------------------------------------------------------------
+   The standing strip
+
+   The figures a board is read against, above the board itself: your gold, your
+   Glory, your victories. Up to four numbers wide, right aligned and tabular so
+   the column of figures lines up whatever the values are.
+
+   The strip takes exactly as many columns as it has real numbers to put in
+   them. An empty cell in a divided grid reads as data that failed to load,
+   which is a lie the Ledger register cannot afford to tell.
+   ------------------------------------------------------------------------- */
+
+export interface BoardStat {
+  label: string;
+  value: number;
+  /* An `Icon` name. Flat glyph, never a 3D icon: this is a dense strip. */
+  icon: string;
+}
+
+/* Static class strings, because Tailwind cannot see a template literal. */
+const STRIP_COLS: Record<number, string> = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-4",
+};
+
+export function BoardStrip({ stats }: { stats: BoardStat[] }) {
+  return (
+    <Card pad="none" className="overflow-hidden">
+      <dl
+        className={cx(
+          "grid grid-cols-2 divide-x divide-y divide-steel-line sm:divide-y-0",
+          STRIP_COLS[stats.length] ?? "sm:grid-cols-4"
+        )}
+      >
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="flex min-h-11 items-center gap-2.5 px-3 py-2.5 md:min-h-9 md:py-2"
+          >
+            <Icon
+              name={stat.icon}
+              className="h-4 w-4 shrink-0 text-gold md:h-[17px] md:w-[17px]"
+            />
+            <div className="min-w-0 flex-1">
+              <dt
+                className={cx(
+                  "uppercase tracking-[0.16em] text-bone-faint",
+                  BOARD_META
+                )}
+              >
+                {stat.label}
+              </dt>
+              <dd className="tnum font-display text-base font-semibold text-bone md:text-[15px]">
+                {stat.value.toLocaleString()}
+              </dd>
+            </div>
+          </div>
+        ))}
+      </dl>
+    </Card>
+  );
+}
+
+/* Shaped like the strip it stands in for. */
+export function BoardStripSkeleton() {
+  return <Skeleton radius="xl" className="h-[104px] sm:h-[60px] md:h-[52px]" />;
 }
 
 /* Shaped like the board it stands in for: a header rule, then rows at the
