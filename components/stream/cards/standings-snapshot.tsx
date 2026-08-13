@@ -66,7 +66,7 @@ export function StandingsSnapshotCard({ event }: { event: FeedEvent }) {
 
   return (
     <SystemCard
-      event={event}
+      at={event.created_at}
       icon="medal"
       label={week ? `Standings, ${week}` : "Standings"}
       action={

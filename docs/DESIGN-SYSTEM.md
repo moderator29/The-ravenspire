@@ -148,11 +148,29 @@ arrives as a sparse desktop page. Responsive is not a resize.
 | | Comfortable | Compact |
 | --- | --- | --- |
 | Row height | 44px | 36px |
-| Card padding | `--spacing-4` (16) | `--spacing-3` (12) |
-| Section gap | `--spacing-5` (24) | `--spacing-4` (16) |
+| Card padding | 14px (`p-3.5`) | 12px (`p-3`) |
+| Section gap | 16px (`gap-4`) | 12px (`gap-3`) |
 | Body text | 14px | 13px |
 | Meta text | 12px | 11px |
 | Icon | 20px | 17px |
+
+Padding and section gap were each tightened about a quarter after the founder
+read the product on a real phone and found the containers oversized: a 390px
+screen was spending 32px on the left and right padding of every card before a
+single word, and stacked cards were spending 40px between one card's last line
+and the next card's first. This table used to print the untightened numbers,
+which meant the written scale and the shipped scale disagreed and each new
+surface picked whichever it had read last. The two had to move together, since
+a tightened card inside an untouched gap reads as a card that shrank rather
+than a page that sharpened.
+
+The token names are gone from these two rows on purpose. `--space-4` and
+`--space-5` are still the named scale for new work, and they are still 16 and
+24, but the shipped padding and gap no longer land on them, so naming them here
+would be the same disagreement in a different font. Row height, text and icon
+sizes were never tightened: on a coarse pointer a row height is a 44px
+accessibility floor rather than a style choice, and density comes out of the
+space around things, never out of the thing you tap.
 
 **Which archetype gets which:**
 

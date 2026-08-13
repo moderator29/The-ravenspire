@@ -10,11 +10,16 @@ import {
   parseUnits,
 } from "viem";
 import { Icon } from "@/components/ui/icon";
-import { Button } from "@/components/ui/button";
+import { Button, INLINE_TOUCH_TARGET } from "@/components/ui/button";
 import { CopyButton } from "@/components/wallet/copy-button";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
 import type { TxRecord } from "@/components/wallet/wallet-prefs";
+import { useSigningCeiling } from "@/components/wallet/wallet-guardrails-actions";
+import {
+  overCeilingSentence,
+  withinCeiling,
+} from "@/lib/chain/signing-ceiling";
 import {
   shortAddress,
   txExplorerUrlFor,
@@ -81,6 +86,30 @@ export function WalletSendFlow({
   const overBalance = parsedAmount !== null && parsedAmount > balanceRaw;
   const availableText = formatUnits(balanceRaw, token.decimals);
 
+  /* THE MEMBER'S OWN SIGNING CEILING, and this is the one place in the realm
+   * where it currently bites.
+   *
+   * NATIVE ONLY, DELIBERATELY. The ceiling is denominated in wei because that
+   * is the only quantity the realm can compare without a price feed, and a
+   * price feed is a paid dependency bought to make a guardrail slightly wider
+   * (rule 19). Comparing an ERC-20 amount against a wei ceiling would be worse
+   * than not comparing at all: a hundred USDC is 100,000,000 of its own minor
+   * units, which sits far under any sane wei ceiling, so the check would
+   * silently pass every stablecoin transfer while appearing to have run. A
+   * guardrail that looks like it fired and did not is the one failure mode
+   * worse than an absent guardrail. components/wallet/signing-limit-panel.tsx
+   * says "native" in the panel for exactly this reason.
+   *
+   * The control waits for `ready` rather than assuming no ceiling while the
+   * read is in flight, because assuming no ceiling for that moment is a gap a
+   * transaction could go through. */
+  const ceiling = useSigningCeiling();
+  const overCeiling =
+    token.isNative &&
+    ceiling.ready &&
+    parsedAmount !== null &&
+    !withinCeiling(parsedAmount, ceiling.ceilingWei);
+
   const usdPreview =
     parsedAmount !== null && token.priceUsd > 0
       ? Number(formatUnits(parsedAmount, token.decimals)) * token.priceUsd
@@ -94,10 +123,21 @@ export function WalletSendFlow({
     recipientValid &&
     parsedAmount !== null &&
     !overBalance &&
+    !overCeiling &&
+    /* A native send waits for the ceiling to be read. One cached request, and
+       the alternative is sending before the realm knows whether it was allowed
+       to ask. */
+    (!token.isNative || ceiling.ready) &&
     balanceRaw > 0n;
 
   const submit = async () => {
     if (!wallet || parsedAmount === null || !recipientValid) return;
+    /* Re-checked here and not only in `canSend`, because `canSend` disables a
+       button and a disabled button is a rendering decision. This is the last
+       statement before a real transfer of real value, and a guardrail that
+       exists only in the disabled state of a control is one stray keyboard
+       activation away from not existing. */
+    if (overCeiling) return;
     setError(null);
     setPending(true);
     try {
@@ -297,7 +337,7 @@ export function WalletSendFlow({
         <button
           type="button"
           onClick={() => setStep("recipient")}
-          className="text-xs font-medium text-gold hover:underline"
+          className={`${INLINE_TOUCH_TARGET} text-xs font-medium text-gold hover:underline`}
         >
           Edit
         </button>
@@ -323,7 +363,7 @@ export function WalletSendFlow({
             <button
               type="button"
               onClick={setMax}
-              className="rounded-lg border border-gold/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-gold transition-colors hover:border-gold/50"
+              className="touch:min-h-11 touch:min-w-11 rounded-lg border border-gold/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-gold transition-colors hover:border-gold/50"
             >
               Max
             </button>
@@ -348,6 +388,13 @@ export function WalletSendFlow({
           <span className="text-xs text-ember">
             That is more than your {token.symbol} balance on{" "}
             {chain?.name ?? token.chainName}.
+          </span>
+        ) : null}
+        {/* Only when the balance is fine, so a member is never handed two
+            refusals for one amount and left guessing which to fix first. */}
+        {!overBalance && overCeiling && ceiling.ceilingWei !== null ? (
+          <span className="text-xs text-ember">
+            {overCeilingSentence(parsedAmount as bigint, ceiling.ceilingWei)}
           </span>
         ) : null}
       </label>

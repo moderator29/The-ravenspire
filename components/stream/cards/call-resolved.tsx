@@ -56,7 +56,7 @@ export function CallResolvedCard({ event }: { event: FeedEvent }) {
 
   return (
     <SystemCard
-      event={event}
+      at={event.created_at}
       rail="ember"
       icon="target"
       label="Verdict"

@@ -223,7 +223,7 @@ export function WalletLive({ address }: { address?: string }) {
       </Card>
 
       {/* Action row */}
-      <Card pad="none" render={<section />} className="p-3 md:p-2">
+      <Card pad="sm" render={<section />}>
         <div className="flex items-start justify-between gap-2 sm:justify-around">
           <ActionButton
             icon="send"
@@ -463,7 +463,7 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-1 flex-col items-center gap-1.5"
+      className="touch:min-h-11 touch:min-w-11 group flex flex-1 flex-col items-center gap-1.5"
     >
       <span
         aria-hidden

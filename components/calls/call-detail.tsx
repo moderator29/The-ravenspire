@@ -6,6 +6,7 @@ import { Avatar } from "@/components/social/avatar";
 import { CommentThread } from "@/components/social/comment-thread";
 import { RichBody } from "@/components/social/rich-body";
 import { Badge } from "@/components/ui/badge";
+import { ShareButton } from "@/components/share/share-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -415,16 +416,29 @@ export function CallDetailView({ id }: { id: string }) {
               : "No settled Calls yet"}
           </p>
         </div>
-        {handle && (
-          <Button
-            variant="glass"
-            size="sm"
-            className="ml-auto"
-            render={<Link href={`/calls/caller/${handle}`} />}
-          >
-            The record
-          </Button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {/* A resolved Call is the one thing this realm makes that a stranger
+              can judge without joining: a claim made in public before the fact,
+              with a number on it, scored by something other than the person who
+              made it. It sits beside the caller because that is the identity it
+              belongs to, and the banner rides only when the viewer IS the
+              caller. */}
+          <ShareButton
+            target={{ kind: "call", id }}
+            subjectHandle={handle ?? null}
+            title={`${claimSentence(data)} · The Ravenspire`}
+          />
+          {handle && (
+            <Button
+              variant="glass"
+              size="sm"
+              dense
+              render={<Link href={`/calls/caller/${handle}`} />}
+            >
+              The record
+            </Button>
+          )}
+        </div>
       </Card>
 
       <Tabs defaultValue="case">

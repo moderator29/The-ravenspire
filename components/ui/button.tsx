@@ -336,3 +336,27 @@ function Spinner({ size }: { size: ButtonSize }) {
     />
   );
 }
+
+/* The 44px floor for a control that cannot be 44px.
+ *
+ * An inline text control ("MAX" beside a balance, "Edit" beside an address,
+ * "Show all chains" under a chip rail) sits inside a line of text. Giving it
+ * `min-h-11` grows the line box and visibly stretches the row it lives in, so
+ * the honest fix is not to make the control bigger but to make the TARGET
+ * bigger: a transparent pseudo element centred on the control, which a thumb
+ * can hit and which changes no layout at all.
+ *
+ * This was already the answer in one place, on the Switch in
+ * components/ui/field.tsx, where a 24px track cannot become 44px without
+ * ceasing to read as a switch. It is exported here rather than copied a fourth
+ * time, because four copies of a hit area is four chances for one of them to be
+ * 40px.
+ *
+ * The parent must establish a positioning context. Every current caller is
+ * already `relative` or sits inside a `relative` row; a caller that is not gets
+ * a hit area centred on the nearest positioned ancestor, which is wrong in a
+ * way that is invisible, so check it. */
+export const INLINE_TOUCH_TARGET =
+  "relative touch:before:absolute touch:before:inset-x-0 touch:before:top-1/2 " +
+  "touch:before:h-11 touch:before:min-w-11 touch:before:-translate-y-1/2 " +
+  "touch:before:content-['']";

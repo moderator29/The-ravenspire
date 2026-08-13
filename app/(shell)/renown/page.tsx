@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
@@ -9,10 +9,12 @@ import { crests, CrestRoundel } from "@/components/brand/crests";
 import { Badge, RarityChip } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
+import { Icon } from "@/components/ui/icon";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/meter";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { BackButton } from "@/components/shell/back-button";
+import { ClaimButton } from "@/components/collectibles/claim-button";
 
 /* Crests and Renown.
 
@@ -48,8 +50,29 @@ import { BackButton } from "@/components/shell/back-button";
 
 interface MeProfile {
   id: string;
+  /* The handle is here for one reason: an earned crest gets its own shareable
+     address at /u/<handle>/crest/<slug>, and this page is where a member finds
+     out they have earned one. A crest nobody can link to is a trophy in a
+     drawer. */
+  handle: string | null;
   tier: string;
   renown: number;
+}
+
+/* What the realm says about the mint, and what the member has already carried
+   on-chain. Both arrive from GET /api/claims in one read, because a claim
+   control that renders before the realm knows whether it can mint is a control
+   that promises something it cannot do. */
+interface ClaimState {
+  status: string;
+  item_slug: string;
+  subject_kind: string;
+  tx_hash: string | null;
+}
+
+interface MintState {
+  open: boolean;
+  explorer?: string;
 }
 
 const TIERS = [
@@ -75,6 +98,34 @@ export default function RenownPage() {
   const [me, setMe] = useState<MeProfile | null>(null);
   const [earned, setEarned] = useState<Set<string> | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const [mint, setMint] = useState<MintState | null>(null);
+  const [claims, setClaims] = useState<Map<string, ClaimState>>(new Map());
+
+  /* Read the claim state once per visit. Refreshed by the claim control's own
+     callback rather than by polling: the only thing that changes it is the
+     member claiming something on this very screen. */
+  const loadClaims = useCallback(async () => {
+    const res = await realmFetch<{ claims?: ClaimState[]; mint?: MintState }>(
+      "/api/claims"
+    );
+    if (!res.ok) return;
+    setMint(res.data?.mint ?? { open: false });
+    const next = new Map<string, ClaimState>();
+    for (const claim of res.data?.claims ?? []) {
+      if (claim.subject_kind !== "crest") continue;
+      /* A settled claim outranks an open one, and an open one outranks the
+         expired history a slug can accumulate. */
+      const held = next.get(claim.item_slug);
+      if (held?.status === "minted") continue;
+      next.set(claim.item_slug, claim);
+    }
+    setClaims(next);
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    void loadClaims();
+  }, [ready, authenticated, loadClaims]);
 
   useEffect(() => {
     if (!ready || !authenticated) return;
@@ -217,13 +268,19 @@ export default function RenownPage() {
         </Card>
       ) : null}
 
+      {authenticated ? <SeasonRecord /> : null}
+
       {/* The promise is a sentence, so it is a paragraph. Passed as the
           header's `hint` it competed with the heading for the same row and
           wrapped "The Crests" onto two lines at 390px: that slot is sized for
           a count, not for prose. */}
       <SectionHeader title="The Crests" />
+      {/* The line has to stay true in both states of the mint. A crest that a
+          member carries to their own wallet is still earned, still unbuyable,
+          and still unsellable, because the crest contract refuses every
+          transfer after the mint. What it stops being is only ours. */}
       <p className="-mt-1 px-1 text-xs text-bone-faint">
-        Earned, never bought. Never NFTs, never for sale.
+        Earned, never bought. Bound to you, never for sale.
       </p>
 
       {/* Three mutually exclusive views of the same collection, switched in
@@ -275,8 +332,8 @@ export default function RenownPage() {
                 <Card
                   variant={isEarned ? "warm" : "raised"}
                   radius="lg"
-                  pad="none"
-                  className={`flex w-full flex-col items-center p-4 text-center ${
+                  pad="md"
+                  className={`flex w-full flex-col items-center text-center ${
                     isEarned ? `rarity-${c.rarity} rarity-frame` : ""
                   }`}
                 >
@@ -306,6 +363,48 @@ export default function RenownPage() {
                   <p className="mt-2 text-xs leading-relaxed text-bone-mut">
                     {c.earn}
                   </p>
+                  {/* The ownership loop, on the only collectible in the realm
+                      anybody holds today. It appears for a crest you have
+                      earned, and only once the realm can actually mint: while
+                      the contracts are unbuilt `mint.open` is false and this
+                      whole block is absent rather than present and disabled,
+                      because a dead control is a promise the screen cannot
+                      keep. */}
+                  {/* A crest you hold has an address of its own, and this is
+                      the only place in the realm you would go looking for it.
+                      Absent for a crest you have not earned, because that page
+                      does not exist for you: the reader answers 404 rather
+                      than rendering an achievement nobody made. */}
+                  {isEarned && me?.handle ? (
+                    <div className="mt-3 flex w-full justify-center">
+                      <Button
+                        variant="glass"
+                        size="sm"
+                        dense
+                        render={
+                          <Link href={`/u/${me.handle}/crest/${c.slug}`} />
+                        }
+                      >
+                        <Icon name="share" className="h-3.5 w-3.5" />
+                        Show it to somebody
+                      </Button>
+                    </div>
+                  ) : null}
+                  {isEarned && mint?.open ? (
+                    <div className="mt-3 w-full border-t border-hair pt-3">
+                      {claims.get(c.slug)?.status === "minted" ? (
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-gold">
+                          In your wallet
+                        </p>
+                      ) : (
+                        <ClaimButton
+                          subject={{ kind: "crest", crestSlug: c.slug }}
+                          label="Claim to your wallet"
+                          onClaimed={() => void loadClaims()}
+                        />
+                      )}
+                    </div>
+                  ) : null}
                 </Card>
               </li>
             );
@@ -313,5 +412,104 @@ export default function RenownPage() {
         </ul>
       )}
     </div>
+  );
+}
+
+/* WHAT A MEMBER KEEPS WHEN A SEASON CLOSES.
+ *
+ * The season close freezes every member's rank and figures into
+ * season_settlements and then resets Glory to zero, on the reasoning that a
+ * season in which nothing resets is a leaderboard with a name on it. That
+ * makes this the answer to the obvious next question: if the score goes, what
+ * did the season leave me?
+ *
+ * Renown, which never falls and is the ladder at the top of this very page.
+ * POINTS, which are an earned balance and are never confiscated. The crest, if
+ * they finished on the podium. And this row: where they stood when it closed,
+ * frozen at that instant and never recomputed, so nothing anybody does
+ * afterwards can move it.
+ *
+ * It belongs here rather than on the Houses board because it is a personal
+ * record and that board is a public one, and because this page is already the
+ * page that answers "what have I earned". season_settlements is denied to
+ * every browser role, so it reaches the member through a route that resolves
+ * them from a verified token and reads their rows and nobody else's.
+ *
+ * Absent until there is a settled season to show, and absent rather than
+ * empty. A member in the realm's first season has no record yet, and a card
+ * saying "no seasons" would be a permanent piece of furniture explaining the
+ * absence of something they have not had the chance to earn.
+ *
+ * Board rules: ranked rows, right aligned figures on tnum, hairline dividers,
+ * no zebra. It stays a list at every width rather than becoming a table,
+ * because three facts per row do not need columns and a table would be a
+ * desktop layout squeezed onto a phone. */
+
+interface SeasonRecordRow {
+  season_id: number;
+  name: string | null;
+  rank: number;
+  points: number;
+  renown: number;
+  glory: number;
+}
+
+function SeasonRecord() {
+  const [rows, setRows] = useState<SeasonRecordRow[] | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void realmFetch<{ seasons?: SeasonRecordRow[] }>("/api/seasons/record").then(
+      (res) => {
+        if (live && res.ok) setRows(res.data?.seasons ?? []);
+      }
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  if (!rows || rows.length === 0) return null;
+
+  return (
+    <>
+      <SectionHeader title="Seasons behind you" />
+      <p className="-mt-1 px-1 text-xs text-bone-faint">
+        Frozen when each season closed. Glory resets, this does not.
+      </p>
+      <Card pad="none" className="overflow-hidden">
+        <ul>
+          {rows.map((row, i) => (
+            <li
+              key={row.season_id}
+              className={`flex items-center gap-3 px-4 py-3 ${
+                i > 0 ? "border-t border-hair" : ""
+              }`}
+            >
+              <span className="tnum w-8 shrink-0 text-center font-display text-base text-gold">
+                {row.rank}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-semibold text-bone">
+                  {row.name ?? `Season ${row.season_id}`}
+                </span>
+                <span className="block truncate text-[11px] text-bone-faint">
+                  {/* POINTS, never a $RSP figure. Rule 7. */}
+                  {row.points.toLocaleString()} POINTS held at the close
+                </span>
+              </span>
+              <span className="tnum shrink-0 text-right text-xs text-bone-mut">
+                <span className="block font-semibold text-bone">
+                  {row.glory.toLocaleString()}
+                </span>
+                <span className="block text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                  Glory
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </>
   );
 }

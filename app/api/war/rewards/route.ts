@@ -52,8 +52,16 @@ export async function POST(req: Request) {
     });
     if (claimed !== true)
       return json({ error: "Today's tribute is already claimed. Return with the dawn." }, 409);
-    await award(db, profile.id, { glory: 10, reason: "war_daily" });
-    return json({ ok: true, gold, chest, glory: 10 });
+    /* The daily muster draws on the same War allowance as a battle does. Ten
+       Glory will never reach the ceiling on its own, and it is categorised
+       anyway so that the day's total is the whole day's War, not the part of
+       it somebody remembered to count. */
+    const granted = await award(db, profile.id, {
+      glory: 10,
+      reason: "war_daily",
+      category: "war",
+    });
+    return json({ ok: true, gold, chest, glory: granted.glory });
   }
 
   if (body.action === "open_chest") {

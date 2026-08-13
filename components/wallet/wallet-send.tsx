@@ -219,7 +219,7 @@ export function WalletSend({
               <button
                 type="button"
                 onClick={setMax}
-                className="rounded-lg border border-gold/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-gold transition-colors hover:border-gold/50"
+                className="touch:min-h-11 touch:min-w-11 rounded-lg border border-gold/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-gold transition-colors hover:border-gold/50"
               >
                 Max
               </button>

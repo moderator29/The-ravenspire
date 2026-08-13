@@ -54,7 +54,8 @@ export function InlineComposer({
     <Card
       pad="sm"
       interactive
-      render={<button type="button" onClick={() => setOpen(true)} />}
+      render={<button
+          className="touch:min-h-11 touch:min-w-11" type="button" onClick={() => setOpen(true)} />}
       className="flex w-full items-center gap-3 text-left"
     >
       <Avatar author={author} size={34} />

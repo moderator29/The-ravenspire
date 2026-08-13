@@ -31,6 +31,7 @@ interface MeProfile {
 interface Prefs {
   publicPositions: boolean;
   pnlVisible: boolean;
+  hoardVisible: boolean;
   discoverable: boolean;
   notifyMentions: boolean;
   notifyReplies: boolean;
@@ -54,6 +55,7 @@ interface Prefs {
 const DEFAULT_PREFS: Prefs = {
   publicPositions: true,
   pnlVisible: true,
+  hoardVisible: true,
   discoverable: true,
   notifyMentions: true,
   notifyReplies: true,
@@ -79,6 +81,7 @@ const PREF_MAP: Record<
 > = {
   publicPositions: { bucket: "privacy", key: "publicPositions" },
   pnlVisible: { bucket: "privacy", key: "pnlVisible" },
+  hoardVisible: { bucket: "privacy", key: "hoardVisible" },
   discoverable: { bucket: "privacy", key: "discoverable" },
   notifyMentions: { bucket: "notifications", key: "mentions" },
   notifyReplies: { bucket: "notifications", key: "replies" },
@@ -380,6 +383,17 @@ export default function SettingsPage() {
                     onChange={setPref("pnlVisible")}
                     disabled={toggleDisabled}
                     label="PnL visibility"
+                  />
+                </Row>
+                <Row
+                  title="Show my Hoard"
+                  desc="Show the cards you hold on your Keep. Your own Hoard is always visible to you"
+                >
+                  <Toggle
+                    on={prefs.hoardVisible}
+                    onChange={setPref("hoardVisible")}
+                    disabled={toggleDisabled}
+                    label="Hoard visibility"
                   />
                 </Row>
                 <Row

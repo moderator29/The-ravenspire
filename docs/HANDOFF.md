@@ -45,7 +45,8 @@ These bind every file, every commit, every subagent you spawn.
    docs. Use commas, periods, colons, or restructure.
 2. No emoji as icons. Use the `Icon` component. Never label a 3D icon with its name.
 3. Realm lexicon: The Ravenry (feed), The Crossroads (explore), The Rookery
-   (live), Whispers (DMs), The Vault (wallet), The Coffers (earnings), The Ledger
+   (live), Whispers (DMs), The Vault (wallet), The Coffers (a member's earnings),
+   The Exchequer (the platform's own fee wallet, never called the Coffers), The Ledger
    (portfolio), The Scrying Glass (coin discovery), The War (game), @raven (the
    Herald AI), Houses, Renown, Glory, Calls, Crests, Keeps.
 4. **Real data only.** No mock, placeholder, seeded, demo, or invented data. Every
@@ -107,7 +108,7 @@ commerce engine backend is complete and sealed behind two switches, the
 `chests_live` realm flag and the `COMMERCE_PRICES_CONFIRMED` env gate, both off.
 
 **What shipped this wave** (detail in `RAVENSPIRE-V2.md` section 35): the 3D icon
-slice fix, the commerce engine (Coinbase Commerce crypto provider (ETH on mainnet, ETH or USDC on Base), server authoritative checkout,
+slice fix, the commerce engine (Stripe provider, server authoritative checkout,
 provably fair opening, non custodial redemption, fulfillment abstraction, the
 `20260812130000_commerce_engine.sql` migration applied to the live database), and
 a money safety pass. The `cx` defect, durable rate limiting, and four gate CI
@@ -138,17 +139,34 @@ commit, push, then move on. Full reasoning per item is in the strategy doc.
 3. **Sinks and stakes (the Spend beat).** Crafting duplicates up a rarity, Call
    entries with a stake, House treasury contributions that buy House perks,
    cosmetic Crest frames. Server authoritative throughout. This gives Glory and
-   POINTS somewhere to go.
-4. **Native secondary market.** List, buy, gift, transfer, member to member, each
-   signed by the member's own wallet, a small protocol fee to the Coffers, real
-   print caps for a real floor. Non custodial, never take custody.
-5. **Appointment mechanics and seasons.** A daily Warchest window, a weekly House
-   Clash clock with a settlement time, a season finale that banks rank into a
-   permanent badge. Give the Chronicle, the Clash and Calls a clock.
-6. **Provably fair as a feature.** A public verifier page and the reveal affordance
-   on the Ceremony, with the floor and expected value published beside the odds.
-   The opening already reveals the seed and nonce; build the surface that lets a
-   member verify a pull, and pre commit a rotating seed for the stronger guarantee.
+   POINTS somewhere to go. Crafting is DONE and sealed behind `crafting_live`:
+   4 rare make an epic, 4 epic a legendary, 10 legendary a mythic, every ratio
+   asserted at module load to destroy floor value and to be no cheaper than the
+   chest that sells the rarity. `RAVENSPIRE-V2.md` section 44. The rest of the
+   item is untouched.
+4. **Native secondary market.** The Bazaar is DONE and sealed behind
+   `market_live`: list, reserve, buy, withdraw, with a 5% protocol fee to the
+   Exchequer shown in full before anybody signs. A listing is an intent, never a
+   deposit: the card stays the seller's until the moment it becomes the
+   buyer's, and the payment goes wallet to wallet in transactions the buyer
+   signs, so the platform never holds either side. `RAVENSPIRE-V2.md` section
+   45 carries the custody argument in full. Gifting and a payment-free transfer
+   are the two pieces still absent.
+5. **Appointment mechanics and seasons.** DONE. `RAVENSPIRE-V2.md` section 46.
+   The Muster (two two-hour windows a day, paid out of the social allowance
+   that already exists so it mints nothing, earning `lord-of-light` at a thirty
+   day vigil), a weekly Clash on the calendar with an idempotent settlement and
+   a frozen result, and a season close that banks rank, resets Glory alone and
+   crowns `champion-of-the-season`. One hourly cron, `/api/cron/clock`. The
+   daily Warchest window this item originally asked for is NOT available and
+   should not be built: chests cost money and are sealed, so a window handing
+   them out would be inventing a reward the realm cannot pay.
+6. **Provably fair as a feature.** DONE. `RAVENSPIRE-V2.md` section 47. A public
+   verifier at `/proof`, outside the shell so a stranger with no account can check
+   a draw, plus the reveal affordance on the Ceremony. The roll runs in the
+   member's own browser rather than on the realm's server, because a server that
+   would fake a draw would also return "verified" for it, and the published
+   references let anybody audit an opening they had nothing to do with.
 7. **Phygital authenticity.** NFC or QR on the physical King's Reliquary box tying
    printed cards to their digital twins, provenance that survives resale.
 8. **The Herald as retention brain.** A personal weekly brief grounded in real
@@ -161,8 +179,19 @@ commit, push, then move on. Full reasoning per item is in the strategy doc.
 11. **Gasless, forgiving non custodial UX.** Account abstraction on Privy: a
     paymaster for gasless pulls and claims, social recovery, a member set spending
     cap.
-12. **Compliance guardrails** before commerce takes a dollar: alternative means of
-    entry, age gate, spending caps, cooling off, geo awareness, the verifier page.
+12. **Compliance guardrails** before commerce takes a dollar. DONE.
+    `RAVENSPIRE-V2.md` section 48. The Alms (a real Squire's Chest, given free, same odds and same floor and same
+    proof), a server recorded age gate that stores no date of birth, spend caps
+    of 250 a day and 1,000 a month computed from real orders, a velocity brake,
+    an informed consent interruption, a member set cap that lowers at once and
+    raises only after a day, and geo. All of it decided inside
+    `public.commerce_checkout_guard` in the same transaction that creates the
+    order, because a cap enforced a round trip later is not a cap. Migration
+    Applied in four parts,
+    `20260813164228` through `20260813164429`, advisor clean.
+    Read section 48.6 before believing anything about geo: reliable
+    geolocation needs a paid service the realm does not have, and what is built
+    is the seam plus the one free signal, honestly labelled.
 
 ## 4. The remaining build from this wave (finish these too)
 
@@ -183,40 +212,25 @@ Sealed while the flag is off. Detail in `RAVENSPIRE-V2.md` section 38.
 
 ## 5. Security residuals to fix as you pass through (from the audit and re-audit)
 
-Detail in `RAVENSPIRE-V2.md` section 39. Highest value first. Items 1, 2 and 5
-are being handled in the parallel hardening pass this wave; confirm they landed
-on the branch before you start, and if they did not, they are yours.
+Detail in `RAVENSPIRE-V2.md` section 39. Highest value first:
 
 1. Move chest claim, roll and grant into one transactional RPC, or reset
    `opened_at` on failure, so a database error mid open never burns a paid chest.
+   DONE. `public.chest_open`, one transaction under a row lock.
 2. A server side daily War Glory cap (mirroring the two hundred per day social cap),
-   or seed based replay verification, since War Glory is self reported.
+   or seed based replay verification, since War Glory is self reported. DONE.
+   1,500 a day on its own allowance, `public.award_capped`.
+3. On chain verification of the `tx_hash` on tips and trades before recording.
+   DONE. `lib/chain/verify-transfer.ts`, free tier over the existing Alchemy
+   key. An unproven transfer is recorded but kept out of the shared feed and
+   rings nobody, because what is defended is the audience, not the record.
+4. Pre commit a rotating seed for chest opening (stronger provably fair). DONE,
+   both halves: `RAVENSPIRE-V2.md` section 42.1.
 5. Align the redeem route comment with its code (the `attempts` bump).
-
-### Deliberately deferred this wave, now queued for YOU (build both)
-
-These two were held back on purpose and handed to you. They are real work, not
-optional notes.
-
-A. **Pre committed, rotating provably fair seed.** Today the chest open generates
-   the server seed and rolls in one request, so a hostile server could grind
-   seeds. Redesign it as a true commit reveal across two steps: the server
-   commits `sha256(serverSeed)` for the member's next open in one request (a seed
-   is reserved per entitlement and its hash shown before the client seed is
-   fixed), then the open request reveals it and rolls. This changes the open UX
-   contract into two steps, which is exactly why it was not done beside the
-   Ceremony UI: coordinate the contract change with the Ceremony you inherit.
-   Acceptance: a member sees the commitment hash before they choose their client
-   seed, and can still replay and verify after.
-
-B. **On chain verification of `tx_hash` on tips and trades.** `/api/tips` and
-   `/api/trade/record` record a client supplied transaction hash the server never
-   verifies, so within the rate limit a script can post fabricated trades and
-   tributes as fake social proof. Verify the receipt (correct token, amount,
-   recipient, confirmations) against an EVM RPC before recording. This needs an
-   RPC provider: prefer a free tier (rule 19), and gate the verification on the
-   provider env so it degrades honestly when absent. Until it lands the rate
-   limit is the only mitigation.
+6. Seasonal quest verification. FIXED. `lib/game/quest-verify.ts` read
+   `started_at` from `seasons` and the column is `starts_at`, so a swallowed
+   PostgREST error meant every seasonal quest had silently been verified
+   against a rolling ninety day window instead of against the season.
 
 ## 6. How the money and security code is shaped (so you extend it safely)
 
@@ -225,7 +239,7 @@ B. **On chain verification of `tx_hash` on tips and trades.** `/api/tips` and
 - Prices, supply caps and the confirmation gate live server only in
   `lib/commerce/catalog.ts`. Never render a price a client can read until it is
   confirmed. Checkout prices from the catalog, never from the request.
-- The Coinbase Commerce provider (`lib/commerce/payments/coinbase.ts`) verifies the webhook
+- The Stripe provider (`lib/commerce/payments/stripe.ts`) verifies the webhook
   signature over the raw body with a five minute replay window, secret server only.
   Any new provider implements the same `PaymentProvider` interface.
 - Chest opening (`lib/commerce/chest-open.ts`) is a pure, deterministic commit
@@ -242,41 +256,67 @@ B. **On chain verification of `tx_hash` on tips and trades.** `/api/tips` and
 ## 7. Item 7, decided
 
 Stored server side in `lib/commerce/catalog.ts`, off customer surfaces until
-confirmed. Chest pricing 34.99, 41.00, 54.86 USD. One print on demand vendor,
-Gelato, with Printful and Prodigi fallbacks behind a swappable abstraction. Per
-card mint caps Rare 5,000, Epic 1,500, Legendary 400, Mythic 75. Art print edition
-250 per champion.
+confirmed. One print on demand vendor, Gelato, with Printful and Prodigi
+fallbacks behind a swappable abstraction. Per card mint caps Rare 5,000, Epic
+1,500, Legendary 400, Mythic 75. Art print edition 250 per champion.
 
-## 8. Founder decisions (values now provided, encode and keep sealed)
+**Prices, final, set by the founder.** These supersede the 4.99 / 14.99 / 59.99
+placeholders this section used to carry.
 
-The founder has set the numbers below. Encode them server side in
-`lib/commerce/catalog.ts` (chest floors) and a merch catalog, keep them off every
-customer surface, and leave `COMMERCE_PRICES_CONFIRMED` false until the checkout
-frontend, a real Coinbase Commerce account, and the compliance guardrails are all in place.
-These floors are a platform committed guaranteed value (the no downside promise),
-not a scraped market price, so they are honest to state as our commitment.
+| Chest | Price | Guaranteed floor |
+| --- | --- | --- |
+| Squire's Chest | 34.99 | 38 |
+| Knight's Warchest | 41.00 | 92 |
+| King's Reliquary | 54.86 | 192 |
 
-**Per rarity guaranteed floor value** (the value the platform stands behind per
-card, conservative): Rare 8, Epic 22, Legendary 60, Mythic 275, all USD.
+Per rarity guaranteed floor: Rare 8, Epic 22, Legendary 60, Mythic 275. This is
+the value the PLATFORM commits to standing behind, not a market price, not an
+appraisal, and not a promise about what anyone else will pay. Nothing may render
+it as one, and the secondary market must never quote it.
 
-**Per chest guaranteed floor** (minimum guaranteed contents, which clears the
-floor at least price guardrail on every chest): Squire's 38.00 (one Epic plus two
-Rare), Knight's 92.00 (one Legendary plus four Rare), King's Reliquary 192.00
-(merch plus a full art print plus one Legendary plus nine Rare). Encode these as
-the chest `floorMinor` values, replacing the placeholder that equals price.
+The chest floors are not typed in as three magic numbers: the module derives
+the worst a chest can open from the per rarity floor, its card count and its
+printed guarantee, and refuses to load if a digital chest's promised floor and
+its dealt floor stop matching. Both digital floors fall out exactly (two rares
+and an epic is 38, four rares and a legendary is 92). The King's Reliquary sits
+above its card floor because it also ships merch and a print.
 
-**Merch prices** for the five Mercer SKUs, USD: The Obsidian Tee 32, The Rookery
-Hoodie 68, The Banner Cap 30, Set One Art Print 42 (numbered giclee, edition 250),
-The War Playmat 48. Wire a server side merch catalog and enable the merch line in
-checkout (today it is rejected honestly because no price existed).
+Merch, final: Obsidian Tee 32, Rookery Hoodie 68, Banner Cap 30, Set One Art
+Print 42 (numbered giclee, edition 250), War Playmat 48. The merch line is live
+in checkout and answers to `mercer_live`, separately from `chests_live`.
 
-Still genuinely founder only, do not block, build sealed and ready:
-- On chain mint: two deployed contracts on Base and a platform voucher signing key
-  (the interface is stubbed at `lib/chain/claim-abi.ts`). The mint phase, last.
-- The Gelato fulfillment account and the Coinbase Commerce payment account (keys go in env,
-  never in the bundle or a commit).
-- The final yes to flip `COMMERCE_PRICES_CONFIRMED` and the `chests_live` flag,
-  once everything above is real.
+`COMMERCE_PRICES_CONFIRMED` is still off, and deliberately so: it waits on the
+checkout frontend, a real payment account, and the compliance guardrails. A
+number being decided and a realm being ready to take money are two different
+facts.
+
+## 8. Founder only decisions (never block on these, build sealed and ready)
+
+- The final yes to set `COMMERCE_PRICES_CONFIRMED=true` and flip `chests_live`.
+  Prices, floors and merch prices are all decided and encoded, the checkout
+  frontend is built (section 43), and the compliance guardrails are built
+  (section 48). What remains is a real Stripe account and
+  reading section 48's "what
+  this does not cover" paragraphs with somebody qualified to say what is
+  missing. Nobody who built the guardrails is a lawyer and none of them claims
+  compliance with any law.
+- Whether to buy an IP intelligence provider. Section 47.6 sets out what geo
+  can and cannot establish for nothing, and names the seam a paid provider
+  plugs into. Not buying one is a legitimate choice; believing the free signal
+  is stronger than it is, is not.
+- `COMMERCE_GEO_MODE` and `COMMERCE_BLOCKED_COUNTRIES`. Both unset, and
+  deliberately: a list of countries hardcoded in a source file is a legal
+  position taken by a developer.
+- The mobile dock: five slots, section 29 offers two arrangements and
+  recommends the one carrying the Reliquary. Its prerequisite, a top bar
+  search, now exists. One array in `lib/nav.ts` when you decide.
+- On chain mint: two deployed contracts on Base and the platform voucher signer.
+  The interface the contracts must implement is recorded in
+  `lib/chain/claim-abi.ts` and cannot be edited apart from the voucher, since a
+  struct that differs by one field produces a signature that verifies against
+  nothing and the member meets that failure in their own wallet after paying
+  gas. Deliberately last, never faked.
+- The Gelato and Stripe accounts. Keys go in env, never in a commit.
 
 Everything else is yours to decide and build. Start at section 3, item 1.
 
@@ -289,5 +329,19 @@ Everything else is yours to decide and build. Start at section 3, item 1.
 - Design law: `docs/DESIGN-SYSTEM.md`. Rules: `AGENTS.md`.
 - Commerce backend: `lib/commerce/**`, `app/api/commerce/**`,
   `app/api/chests/[sku]/open`, `app/api/reliquary/redeem`.
+- Collectibles sinks: `lib/collectibles/crafting.ts` (the rule, and the two
+  assertions that make it a sink), `app/api/collectibles/craft`,
+  `components/collectibles/crafting-bench.tsx`.
+- The secondary market: `lib/commerce/market.ts` (the rule, the fee, and the
+  custody argument), `lib/commerce/market-config.ts`, `app/api/market/**`,
+  `components/market/**`.
+- The compliance guardrails: `lib/commerce/compliance.ts` (every threshold,
+  every justification, and a "what this does not cover" paragraph per
+  guardrail), `lib/commerce/geo.ts` (the honest limits and the paid-provider
+  seam), `supabase/migrations/20260813164228_compliance_guardrails_tables.sql` and the
+  three parts after it (every
+  decision, since a cap enforced outside the transaction that creates the order
+  is not a cap), `app/api/commerce/{checkout,alms,compliance}`,
+  `components/commerce/{alms-panel,guard-interruption,spend-limits-panel}.tsx`.
 - Live database: Supabase project `tqvigouaifbklvajiyoj`. Migrations in
   `supabase/migrations/`.

@@ -49,6 +49,18 @@ export const primaryNav: NavItem[] = [
 export const collectionNav: NavItem[] = [
   { slug: "war", href: "/war", themed: "The War", plain: "Battle for the Realm", icon: "swords", icon3d: "crossed-axes" },
   { slug: "reliquary", href: "/reliquary", themed: "The Reliquary", plain: "Cards & relics", icon: "layers", icon3d: "archive", badge: "Soon" },
+  /* Crafting sits directly under the Reliquary because it acts on the same
+     cards. It carries the same Soon badge as its parent chapter and for the
+     same reason: the bench is real and its ratios are printed, but the
+     crafting_live flag is off until members actually hold duplicates to
+     burn. */
+  { slug: "crafting", href: "/reliquary/craft", themed: "Crafting", plain: "Burn duplicates", icon: "flame", icon3d: "forge", badge: "Soon" },
+  /* The Bazaar sits with the cards rather than with the Vault, because what a
+     member trades here is a card and the decision to sell one is made looking
+     at a collection. It carries the same Soon badge as the rest of the chapter
+     and for the same reason: the market is real and its fee is printed, but
+     market_live is off until members actually hold cards to trade. */
+  { slug: "market", href: "/market", themed: "The Bazaar", plain: "Trade cards", icon: "coin", icon3d: "scales", badge: "Soon" },
   { slug: "warchests", href: "/warchests", themed: "Warchests", plain: "Mystery boxes", icon: "coin", icon3d: "chest", badge: "Soon" },
   { slug: "mercer", href: "/mercer", themed: "The Mercer", plain: "Official merch", icon: "flag", icon3d: "banner", badge: "Soon" },
   { slug: "renown", href: "/renown", themed: "Crests & Renown", plain: "Reputation", icon: "medal", icon3d: "trophy" },
@@ -77,6 +89,11 @@ export const toolsNav: NavItem[] = [
 export const accountNav: NavItem[] = [
   { slug: "ravens", href: "/ravens", themed: "Ravens", plain: "Notifications", icon: "bell", icon3d: "notifications" },
   { slug: "vault", href: "/vault", themed: "The Vault", plain: "Wallet", icon: "wallet", icon3d: "vault" },
+  /* Beside the Vault, deliberately. The Vault is what you hold; the Coffers is
+     what you earned and what has been paid to you, which is the same shelf. It
+     carries Soon because coffers_live is off: the statement is real and reads
+     real rows, and it opens with the chapters that fill it. */
+  { slug: "coffers", href: "/coffers", themed: "The Coffers", plain: "Earnings", icon: "ledger", icon3d: "analytics", badge: "Soon" },
   { slug: "chronicle", href: "/chronicle", themed: "The Chronicle", plain: "Docs", icon: "scroll", icon3d: "chronicle" },
   { slug: "settings", href: "/settings", themed: "Settings", plain: "Preferences", icon: "sliders", icon3d: "settings" },
 ];

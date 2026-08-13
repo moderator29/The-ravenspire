@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Feed } from "@/components/social/feed";
 import { TourMount } from "@/components/onboarding/tour-mount";
+import { HeraldDigest } from "@/components/raven/digest-card";
 import { RealmStrip } from "@/components/social/realm-strip";
 import { StreamColumn } from "@/components/stream/stream-shell";
 
@@ -23,6 +24,10 @@ export default function HomePage() {
       </h1>
       <TourMount />
       <RealmStrip />
+      {/* Below the strip and above the feed. The strip answers "is something
+          happening"; the digest answers "what happened while I was gone", and
+          it renders nothing at all when the answer is nothing. */}
+      <HeraldDigest />
       {/* The Feed reads the view out of the query string so the dock's
           contextual strip actually drives it, and useSearchParams() opts a
           component out of static rendering. Without this boundary the whole

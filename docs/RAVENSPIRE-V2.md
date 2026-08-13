@@ -1885,7 +1885,7 @@ Branch `claude/ravenspire-v2-living-realm-a5b06e`, all four gates green, pushed.
   sheets are byte identical; only the sixty odd cut icons moved.
 - **Commerce engine, backend, end to end** (sealed behind `chests_live` plus a
   separate `COMMERCE_PRICES_CONFIRMED` gate, both off): integer minor unit money,
-  a Coinbase Commerce crypto provider (ETH, and ETH or USDC on Base) built on REST and Node crypto (webhook signature verified,
+  a Stripe provider built on REST and Node crypto (webhook signature verified,
   five minute replay window, secret server only), a server authoritative checkout
   that prices from a server only catalog, a provably fair commit reveal chest
   opening drawing against the printed odds with the guarantee floor enforced,
@@ -1916,7 +1916,7 @@ Ordered by leverage.
    tradeable cards, with a soulbound tier for earned Crests. The single highest
    leverage move: it turns a sealed set into a real collection.
 2. **Native secondary market.** List, buy, gift, transfer, member to member,
-   signed by their own wallets, a protocol fee to the Coffers, real print caps for
+   signed by their own wallets, a protocol fee to the Exchequer, real print caps for
    a real floor. The resale premium is the documented reason phygital retains.
 3. **Sinks and stakes.** Craft duplicates up a rarity, Call entries with a stake,
    House treasury perks, cosmetic Crest frames. Give status somewhere to go, or it
@@ -2009,7 +2009,7 @@ From the security audit and my re-audit of the commerce code:
 ## 40. Item 7 decided, and founder only decisions still pending
 
 Decided (co-founder recommendation, stored server side, off customer surfaces
-until confirmed): chest pricing 34.99 / 41.00 / 54.86 USD, one print on demand
+until confirmed): chest pricing 4.99 / 14.99 / 59.99 USD, one print on demand
 vendor Gelato with Printful and Prodigi fallbacks behind a swappable abstraction,
 per card mint caps Rare 5,000 / Epic 1,500 / Legendary 400 / Mythic 75, art print
 edition 250 per champion.
@@ -2022,37 +2022,2283 @@ Founder only, do not block on these, keep building sealed:
 - On chain mint: deployed contracts and a platform voucher signer (the mint
   phase, deliberately last).
 - The print on demand vendor contract and the payment provider account.
+## 41. The ownership loop
 
-## 41. Second commerce wave shipped (done, integrated, on the branch)
+Shipped. The first of the twelve V2 missions, and the one everything else in
+the collectibles realm rests on: what you earn or buy is yours, in your own
+wallet, and the platform cannot take it back.
 
-Two more agents ran and their work was re-audited, integrated, gated green, and
-the second migration applied to the live database (advisor clean, only the
-expected deny by default lints, no SECURITY DEFINER exposure).
+### 41.1 What was already there, and what was missing
 
-Frontend, sealed: the one champion card chassis (rarity in the frame, never a
-caption), the pack opening Ceremony with an in browser provably fair verifier
-(re-hashes the seed and replays the exact draw over Web Crypto), the Warchests
-store (cart, checkout, shipping collection, no price ever rendered client side),
-and Vault order history plus redemption. Onboarding steps 0 and 1, Whispers
-realtime and image attachments were found already built and were not duplicated.
+The holdings ledger existed. `public.inventory`, from the commerce engine, is
+one row per copy of a card, written by chest opening and redemption,
+server-authoritative under the same law as points. What had never existed was
+the mechanism that takes a row in that ledger and turns it into a token the
+member holds themselves.
 
-Backend hardening and security: the transactional `open_chest_tx` RPC (a paid
-chest can no longer be burned by a mid open failure), a server side daily War
-Glory cap (`award_war_glory_capped`, 5000 a day, closing the self reported Glory
-gap), admin redemption code creation, refunds (provider refund plus webhook
-branch plus admin route, never clawing back an opened pull), the physical
-fulfillment worker, env gated Sentry plus a structured logger, checkout shipping
-persistence, and the redeem attempts counter. Migration
-`20260813120000_commerce_hardening.sql`, four `service_role` only functions.
+A note on how that was found, because it matters more than the feature. The
+commerce engine migration had been applied to the live project by a session
+whose branch never reached `main`, so production carried five tables the
+repository had no record of. It is recovered as
+`supabase/migrations/20260812224950_commerce_engine.sql`, read back out of
+`supabase_migrations.schema_migrations` and committed verbatim. A schema that
+exists only in production is a schema nobody can review, test against or
+rebuild. Check the two agree before writing a migration, every time.
 
-Security residuals now fixed: the chest open burn (39.3), the War Glory ceiling
-(39.2), and the redeem attempts counter (39.5). Still open and queued for the
-next session: the pre committed rotating seed (39.4, deferred so it can be
-designed with the Ceremony) and on chain `tx_hash` verification (39.1, needs an
-EVM RPC account).
+### 41.2 The loop, end to end
 
-Remaining commerce build for the next session: the onboarding first card grant
-(needs a backend inventory grant), a public provably fair verifier page with
-published floor and expected value, an order detail drill down, an unopened
-entitlements endpoint so the open affordance can show a count, and adding
-`/api/commerce/fulfill` to the cron schedule. None blocks the big work.
+1. A server flow grants a copy and writes `inventory`. Already built.
+2. The member asks to claim it. `POST /api/claims` resolves the holding
+   against the ledger that owns the fact (`inventory` for cards,
+   `user_crests` for crests), derives the frozen token id, signs an EIP-712
+   voucher naming the member's own wallet and a deadline, and records it in
+   `collectible_claims`. The client names a holding and nothing else: not a
+   token id, not a contract, not an amount, not a wallet.
+3. The member's own wallet executes the mint and pays its own gas. The
+   platform never holds a key, never holds a token, and never takes custody
+   for a moment in between. An unspent voucher would still work if the
+   platform vanished, which is the honest test of whether a thing is
+   custodial.
+4. `POST /api/claims/[id]/confirm` reads the receipt off the chain: the
+   transaction landed, it was sent by that member's wallet, it reached our
+   contract, and it minted that exact token to them. Only then is the claim
+   `minted`. The client asserts a hash and nothing else.
+
+`GET /api/inventory` is the Hoard, and `GET /api/claims` is the claim history
+and the mint's state in one read.
+
+### 41.3 The rules the loop is built on
+
+- **One claim is one copy.** The holdings ledger is per copy, so a claim
+  points at exactly one row and mints exactly one token. There is never a
+  question of how much of a holding has been carried on-chain.
+- **Token ids are frozen forever.** `lib/collectibles/token-ids.ts` is the
+  only place they are decided. Cards derive theirs from the collector number
+  already printed on the card; crests carry a hand written table, because
+  reordering a display list must never renumber a token somebody owns. Its
+  test is a tripwire on both tables.
+- **Crests are soulbound.** A separate contract, and the voucher says so in
+  its own signed payload. A crest is a record of something a member did, and
+  one that can be sold is a record of something somebody paid for, which is a
+  different object with the same picture. The secondary market (mission 4)
+  reads `isSoulbound` and must never list one.
+- **Four replay guards.** A unique nonce inside the signed payload, a
+  deadline, a wallet the voucher is bound to, and a partial unique index so
+  one copy carries one live claim.
+- **A hash proven wrong is never persisted.** It would otherwise squat the
+  unique index and block the real one.
+
+### 41.4 Sealed until the founder says otherwise
+
+Three things are founder-only and all three are absent: the deployed
+contracts, the voucher signing key, and the chain. `mint_live` ships off
+beside `reliquary_live`, `chests_live` and `mercer_live`. Both the flag and
+the configuration must be present before a single voucher is signed, and they
+report differently because they are different situations: 423 for a sealed
+chapter, 503 for a missing signer.
+
+`lib/chain/claim-abi.ts` records the interface the deployed contract must
+implement, field for field with the signed voucher. The two cannot be edited
+alone. A struct that differs by one field or one ordering produces a
+signature that verifies against nothing, and the member meets that failure in
+the worst possible place: in their own wallet, after paying gas.
+
+To open the mint: deploy the two contracts on Base, set `MINT_CHAIN_ID`,
+`MINT_CARD_CONTRACT`, `MINT_CREST_CONTRACT` and `MINT_VOUCHER_SIGNER_KEY`,
+then flip `mint_live`. No deploy is needed for any of it.
+
+## 42. The chest, and why anyone should believe it
+
+Shipped, sealed. Two of the section 39 security residuals, and they turned out
+to be one bug seen from two angles: the realm could not honestly promise what
+came out of a chest, and it could not promise that opening one happened
+exactly once.
+
+### 42.1 Both halves, in the order that makes them mean something
+
+The planned design generated a server seed at open time and stored its hash.
+That is the version of provably fair that proves nothing. A server that picks
+its seed after the member has committed can roll a thousand seeds and publish
+the hash of whichever one pays out least, and every published hash still
+verifies. The proof has to exist before the member can act on it.
+
+The first pass fixed that half and left the other one open: a seed was
+published only if the member chose to rotate it, so a member who never rotated
+could never check a single one of their openings. A proof nobody can run is a
+promise, not a proof.
+
+Both halves now:
+
+1. **The realm commits.** A seed is generated and its hash published the first
+   time a member looks at the chests, kept in `chest_seeds`. The realm goes
+   first, before it knows what the member will choose.
+2. **The member answers.** They set a client seed of their own, having already
+   seen the hash. The realm cannot know it in advance, so it cannot pick a seed
+   to suit it. `POST /api/chests/seed`.
+3. **The chest reveals.** Opening publishes the seed that drew it, commits a
+   fresh one for the next chest, spends the entitlement and grants the cards,
+   all in one transaction. The member walks away holding everything needed to
+   rerun the draw, without having to know a rotation feature exists.
+
+`/api/chests/seed` is deliberately not flag gated: a member is entitled to hold
+the realm to its promise before the chests are live and long after. The
+`FairnessPanel` on `/warchests` is where the three steps are shown, using the
+member's own live commitment and never a specimen.
+
+A correction worth recording. The first pass refused to let a member edit their
+client seed under a live commitment, reasoning that it would let them re-roll a
+chest they had already seen. That was wrong: a roll cannot be seen without
+consuming an entitlement, and the entitlement is consumed in the same
+transaction that reveals the seed, so there is no "already seen" to exploit.
+Editing is what makes step two possible at all.
+
+### 42.2 The three inputs
+
+| Input | Who chooses it | What it stops |
+| --- | --- | --- |
+| Server seed | The realm, committed as a hash beforehand | The member predicting the roll |
+| Client seed | The member, any text | The realm choosing the roll |
+| Nonce | The entitlement being spent, a uuid | The same pair of seeds dealing the same chest twice |
+
+The nonce is fixed before the roll rather than counted during it, which is
+what makes a retried open recompute the same cards instead of rerolling into a
+better chest. Changing the client seed is a rotation, never an edit, because a
+client seed changed under a live commitment would let a member re-roll a chest
+whose odds they had already seen.
+
+The roll (`lib/collectibles/pulls.ts`) is a pure function of those three. It
+reads no clock, no database and no random number generator, which is exactly
+what makes it checkable: anyone holding a revealed seed can rerun it. Nine
+tests cover the count, the floor, the odds, determinism, and that a chest can
+only ever deal cards that exist in the roster.
+
+### 42.3 The opening was four writes
+
+Consume the entitlement, record the opening, grant the cards, link the two.
+Four round trips from a serverless route, and a crash between any two either
+ate a paid chest and granted nothing or granted the cards and left the
+entitlement to be spent again. Neither is distinguishable from the other
+afterwards. `public.chest_open` does all four under a row lock in one
+transaction, or none of them, and a partial unique index on the entitlement is
+the second line of defence.
+
+### 42.4 What it waits on
+
+Nothing grants an entitlement yet. Checkout and redemption codes are the two
+writers and both are founder-gated on pricing, so `chest_entitlements` is
+empty and the route answers honestly that you have no unopened chest of that
+kind. `chests_live` is off as well, so the door is shut on both counts.
+
+The verifier page (mission 6) is the surface this was built for: the revealed
+seeds, the openings under them, and a rerun anybody can check. It shipped, at
+`/proof`. See section 47.
+
+## 43. The commerce frontend, and two things it turned up
+
+Shipped. The last of the three things `COMMERCE_PRICES_CONFIRMED` was waiting
+on. What remains is a real payment account and the compliance guardrails,
+neither of which is code.
+
+### 43.1 Prices come through one door
+
+`lib/commerce/catalog.ts` is server-only so a price cannot leak into a bundle,
+and `GET /api/commerce/catalog` is the single controlled exception. While the
+confirmation gate is shut it carries no money at all: not a rounded figure, not
+a "from" price, not a placeholder. The buy control says "priced at launch"
+instead.
+
+The buy control has four states and most of its job is refusing correctly:
+sealed, open but unpriced, priced and ready, and payments not configured. Each
+is a different truth and each is said in words. The guaranteed floor rides
+beside every chest price, because a chest that shows its price without its
+floor is a worse offer than the realm actually makes.
+
+Merch sells now and answers to `mercer_live`, checked after the cart is parsed
+so a merch-only order is not turned away by a sealed chest chapter it never
+touched.
+
+### 43.2 The opening, and the Reliquary as a checklist
+
+The opening is the Forge register: full bleed, cards landing one at a time
+rarest last, the card the printed guarantee lifted named as such, and the proof
+on the same screen. Card names and art come from the roster rather than from
+the response, so the two can never disagree.
+
+The Reliquary now knows what you hold. A card you own is unsealed and wears its
+rarity frame, which is the existing rule read correctly: the seal was always
+about a card you have not pulled yet, never about a chapter being closed. The
+progress line and the Held/Missing filter are absent until the holdings read
+lands, so the page never spends a moment claiming you own nothing before it
+knows.
+
+### 43.3 Two bugs the work turned up
+
+**An invented feed on the landing page.** `platform-preview.tsx` shipped a
+raven with 214 likes from a member who does not exist, a Season table where
+House Corvane held 4,820 Glory, and a Keep with 8,140 Renown. Every figure
+invented, on the most public page in the product, beside real claims about a
+real platform. Rebuilt with the same four rooms and no invented figure: the six
+Houses and the crest set are real, and the two social rooms show chrome with
+their content honestly empty.
+
+**Four of the six House sigils were blank circles.** `Icon` falls back to a
+small empty ring for a name it does not know, so a missing glyph reads as
+deliberate. `snowflake`, `storm`, `moon` and `lion` had never been drawn, so
+Frosthold, Stormcrest, Nightvale and Goldmane wore identical circles everywhere
+a banner appears. Six banners that look the same are not six banners. Drawn
+now, and checked: `scripts/check-house-rules.mjs` gained two rules, one for
+literal `Icon` names and one for the sigils and crest glyphs that reach `Icon`
+through a variable, which are exactly the ones that went missing because they
+are written once in a data file and rendered everywhere.
+
+### 43.4 One decision unblocked, and left for the founder
+
+Section 29 offers two mobile docks and recommends the one that drops the
+Crossroads for the Reliquary, on the premise that the Crossroads stays
+reachable from a top bar search. There was no top bar search, so the premise
+was false and the dock could not honestly move. There is one now. The dock
+itself is untouched: which five destinations a member gets on a phone is the
+founder's call, and it is one array in `lib/nav.ts` when they make it.
+## 44. Crafting, the card sink
+
+Shipped, sealed. The first half of mission 3, the Spend beat. The collectibles
+realm could mint a card and had no way to destroy one, so duplicates piled up
+and meant nothing. Crafting is the sink: burn copies of one rarity, forge one
+card of the rarity above.
+
+### 44.1 The ratios, and why each one is that number
+
+| Step | Burn | Floor burned | Floor forged | Destroyed |
+| --- | --- | --- | --- | --- |
+| rare to epic | 4 | 32 | 22 | 31% |
+| epic to legendary | 4 | 88 | 60 | 32% |
+| legendary to mythic | 10 | 600 | 275 | 54% |
+
+Two bars, both asserted at module load in `lib/collectibles/crafting.ts` rather
+than argued in a comment, so a bad ratio breaks the build instead of reaching a
+member.
+
+**It destroys floor value.** N copies of the lower rarity must be worth
+strictly more than the card they produce, against the real per rarity floor in
+`lib/commerce/catalog.ts`, and at least a fifth of what is burned has to
+disappear. A ratio that clears the floor by a dollar is arithmetically a sink
+and economically not one: a single revision to a floor would turn it into a
+printer with nothing failing.
+
+**It is never cheaper than the box.** In a chest the two rarities already
+arrive together at a rate the odds table fixes. The Squire's Chest deals 3.70
+rares per epic, 3.70 epics per legendary and 9.0 legendaries per mythic. A
+craft below those rates would be a strictly better chest with no variance at
+all, and nobody would open a box for that rarity again. Every ratio strictly
+exceeds the most generous co-drop rate any tier offers, read off
+`CHEST_TIERS.odds` rather than a copy of it, so a retuned odds table breaks the
+build rather than quietly turning crafting into arbitrage.
+
+Ten is the number worth explaining. The Knight's Warchest deals five cards at
+2% mythic, so ten of them are one mythic in expectation, and because every
+Knight's chest guarantees a legendary floor those same ten chests also
+guarantee the ten legendaries a craft costs. The two paths cost the same, which
+is exactly right: crafting is the floor under bad luck, never a cheaper route
+than good luck. Six or seven would have made the craft the dominant way to
+reach the top rarity, which is how a collectibles economy inflates to nothing.
+
+Chained end to end the ladder costs 160 rares, 1,280 dollars of floor, for a
+275 dollar mythic. A per step check alone would have missed that.
+
+### 44.2 Crafting is a choice, not a roll
+
+The member names the card they are forging. That is what the premium above the
+chest's own rate buys: the chest sells randomness cheaply, crafting sells
+certainty dearly. A bench that rolled would be a strictly worse chest and
+nobody would feed it. It also means there is nothing here to distrust: no seed,
+no commitment, no reveal, because there is no randomness to prove fair.
+
+### 44.3 The transaction
+
+`public.craft_cards` deletes N rows and inserts one, under a row lock, or does
+neither. From a route that is three round trips and a crash between any two is
+unrecoverable and undiagnosable afterwards: either the member's cards are gone
+with nothing to show, or a card was forged and the copies that paid for it are
+still in the ledger, which is a printer. Same lesson as `public.chest_open`,
+applied to the other end of the same ledger.
+
+What it re-checks under the lock, never trusting the route's read: ownership,
+the set, the rarity, the count, the absence of a repeated id, the absence of a
+live claim, and that the forged rarity is exactly one rung above the burned one.
+The last of those is the important one: a bug in a route could otherwise mint a
+mythic out of four rares, and a minted card is not retractable once a member has
+claimed it to their own wallet.
+
+**A card carried on-chain cannot be burned.** A copy with an issued, submitted
+or minted claim is refused. The member holds that token and the platform never
+had custody of it, so deleting the ledger row would put the database and the
+chain into permanent disagreement with the chain being right. Two independent
+mechanisms enforce it. The explicit status check catches a claim that exists.
+A claim being issued at the same moment is caught by the row lock itself:
+inserting a row that references `public.inventory` takes a `FOR KEY SHARE` lock
+on the referenced row, which conflicts with the `FOR UPDATE` the craft takes, so
+a concurrent issuance blocks until the craft commits and then fails its own
+foreign key. Without that a voucher could be signed against a copy being
+destroyed, and the member would meet the failure in their own wallet after
+paying gas. `FOR UPDATE` rather than `FOR NO KEY UPDATE` is load bearing.
+
+**Burned rows are deleted, not flagged.** A `burned_at` column was the other
+option and it is the worse one: every read of the holdings ledger would need to
+filter on it, and the day one forgets is the day a member sees a card they
+burned and can act on it. A deleted row cannot be misread by a query nobody
+updated. `craft_events` keeps the history, denormalised, because the rows it
+describes no longer exist to be joined against.
+
+### 44.4 The surface
+
+`/reliquary/craft`, a Console. Choosing what to destroy is Ledger work: dense,
+flat, one tile per copy rather than per card, because a member burning four
+rares is choosing four specific rows and a stacked tile would hide which ones.
+The one Forge moment is the card coming out, in a modal. Desktop puts the fire
+and the choice of what comes out of it side by side; a phone stacks them in the
+order the decision is made and pins the action to the thumb.
+
+A member may burn their only copy of a card. The bench marks it and does not
+stop them, because it is their card, and refusing would be the platform
+deciding what somebody may do with their own property.
+
+The Hoard grows one control, and only when the collection actually holds enough
+of one rarity to craft with. The trophy case is where a member notices they hold
+four of the same rare, so it is where the sink has to be offered.
+
+### 44.5 What it waits on
+
+`crafting_live` ships off, a fifth switch beside `reliquary_live`,
+`chests_live`, `mercer_live` and `mint_live`. Nothing grants a card yet, so
+every Hoard is empty and the bench renders its honest empty state. The ratios
+are printed while sealed, for the same reason a chest prints its odds before it
+can be bought: a member is entitled to read the terms of a trade before the
+trade exists.
+
+Migration `20260813103404_crafting_the_card_sink.sql`, applied.
+
+## 45. The Bazaar, the non-custodial secondary market
+
+Shipped, sealed. Mission 4. Members held real cards and there was nowhere to
+trade one, so a collection could only ever grow: it had a floor the platform
+stands behind and no price anybody had ever paid, which makes a collectibles
+economy a subscription with pictures.
+
+### 45.1 Why this is not custody, in full
+
+The platform never holds a card and never holds a payment. That constraint is
+not a feature of the design, it is the design, and everything else falls out of
+it.
+
+**The card never moves to the platform.** A listing is an intent, not a deposit.
+`inventory.profile_id` stays the seller's for the entire life of the listing.
+There is no escrow row and no platform-owned profile. The card moves exactly
+once, in `public.market_record_payment`, straight from the seller to the buyer,
+in the same transaction that records the payment. At every instant the answer to
+"who owns this copy" is one member, and it is either the seller or the buyer.
+
+**The money never touches the platform.** The buyer's own Privy wallet pays the
+seller's own wallet and pays the fee to the Exchequer. Nothing in the schema holds
+a balance because there is no balance to hold: the payment columns record hashes
+of transactions that happened between two other parties, which is bookkeeping.
+The honest test the ownership loop uses applies here too. If the platform
+vanished halfway through a trade, the seller would already have been paid, in
+full, because the payment went directly to them and never anywhere else.
+
+**The fee is revenue, not custody.** The Exchequer receives it from the buyer, in
+the buyer's own transaction, as a disclosed charge for running the venue.
+Receiving your own fee is not holding somebody else's asset.
+
+### 45.2 The ordering problem, and the reservation that solves it
+
+An off-chain ledger row and an on-chain payment cannot settle atomically. One of
+them has to move first, and there are exactly three orderings.
+
+| Ordering | Verdict |
+| --- | --- |
+| The platform escrows the payment | Atomic, and custody. Refused |
+| The card moves first, then the buyer pays | The seller carries the whole risk with no recourse |
+| The buyer pays into a frozen reservation, then the ledger moves on proof | Chosen |
+
+The reservation is what makes the third one safe. While a listing is reserved to
+one buyer, the seller cannot cancel it, re-price it, sell it to anybody else,
+burn the card at the crafting bench, or carry it to their own wallet. The last
+two are enforced by triggers on the tables rather than by a route remembering to
+check. So the buyer pays into a trade the realm has already committed to
+completing, and the only failure left is the realm failing to record a payment
+that is on a public chain forever, which is retryable and idempotent rather than
+a loss.
+
+Said plainly, because a member is owed the plain version: the buyer takes a
+short window of risk against the realm's bookkeeping. They never take custody
+risk, because nobody has custody.
+
+**Expiry is a deadline on exclusivity, never on settlement.** The moment a
+single payment leg is proven, the reservation stops being releasable at all, no
+matter how long ago it was made. A buyer told their money arrived too late would
+be the worst sentence in this product.
+
+### 45.3 Two transfers, and why not one
+
+A sale has two payees and a plain ERC-20 transfer pays one address. The
+single-signature version is the buyer paying the platform, which then forwards
+the seller's share, and that is the custody this design refuses. So the buyer
+signs twice, or once if their wallet can batch the two calls, and the server
+records whichever legs each receipt actually proves. Two signatures is the price
+of never touching a seller's money.
+
+The seller leg is asked for first on purpose. A member who abandons the flow
+between the two prompts has paid the seller and owes only the fee, which leaves
+the seller whole and the trade completable. The other order would take a fee for
+a trade that never happened.
+
+Settlement is in a dollar stablecoin on Base, quoted in USD minor units and
+converted to token base units by exact integer arithmetic. That is the whole
+reason the pay token is a stablecoin: a floating asset would need an exchange
+rate, a rate needs an oracle, and a rate read at listing time and honoured at
+settlement is an invented number wearing a price tag.
+
+### 45.4 The fee
+
+**500 basis points, five percent, to the Exchequer.** Small, explicit, and shown
+in full before anybody commits: the seller sees what they will receive before
+they list, and the buyer sees the price and the fee before they sign. It is
+never taken out of a spread and never described as network costs.
+
+Five percent is where it sits because of what it sits between. eBay takes about
+thirteen percent of a collectibles sale and StockX about nine, both on an
+inventory the seller has to ship. An NFT marketplace takes two and a half and
+provides no floor, no authentication and no venue beyond a contract. This market
+authenticates every card by construction, because the realm printed it. Five is
+defensible between those, and it is a number a member can check in their head.
+
+The arithmetic is integer minor units throughout (`splitFee` in
+`lib/commerce/money.ts`), rounded half up, with the seller's share derived by
+subtraction rather than by a second rounding, so the two halves can never
+disagree with the whole. That invariant is asserted at module load, tested
+exhaustively across every price the market allows, and checked again by a
+database constraint, because a split that quietly loses a cent shorts a seller
+on every sale forever and nothing ever fails.
+
+Price bounds are a dollar to a hundred thousand. The floor is what keeps the fee
+from rounding to nothing; the ceiling is a fat finger guard.
+
+### 45.5 A crest is never listable
+
+`isSoulbound` in `lib/collectibles/token-ids.ts` is the single answer to that
+question and the market reads it rather than re-deriving it, because a market
+that has to ask a second module whether a listing is legal will one day forget
+to. The database says it independently: `market_listings.subject_kind` is
+constrained to `card`. Two mechanisms, because a soulbound token sold to a buyer
+takes their money and delivers something that cannot be transferred to them, and
+there is no honest way to unwind that afterwards.
+
+### 45.6 A card carried on-chain, and the rule nobody would have written
+
+**A copy with a live claim cannot be listed.** The member holds the token in
+their own wallet and the ledger row is no longer the whole truth. Moving the row
+on payment would sell a buyer something the realm cannot deliver, with the chain
+saying the seller still owns it and the chain being right. Refused, exactly as
+`public.craft_cards` refuses it, with the same verdict name, because it is the
+same fact.
+
+Trading a card that is genuinely on-chain is a real feature and it is
+deliberately absent. The only honest way to do it is on-chain: the seller signs
+the transfer and it settles atomically against the payment in a contract both
+parties call. That needs a deployed marketplace contract, which is founder-gated
+and unbuilt, and the alternative of having the seller send the token to the
+platform to forward is the exact custody this design refuses.
+
+**The reciprocal rule is the one that actually protects a buyer's money, and a
+route would have forgotten it.** Without it a seller could list a card, wait for
+somebody to pay, and mint the token to their own wallet before the settlement
+landed. So a card with a live listing cannot be claimed on-chain, and cannot be
+burned at the bench either. Both are triggers on the tables. The claim trigger
+takes `FOR UPDATE` on the inventory row before it reads the listing table, which
+is what makes it race-proof rather than usually right: it forces the claim
+insert and `market_list` or `market_reserve` into a strict order, so whichever
+commits first is seen by the other. A plain `SELECT` there would be an MVCC
+snapshot taken beside an uncommitted listing, which reads as no listing at all.
+
+The triggers raise custom SQLSTATEs, `RS001` for the burn and `RS002` for the
+claim, which the craft route and the claim route map into sentences rather than
+reporting the realm as unavailable for something entirely of the member's doing.
+
+### 45.7 The floor is not a price, and the market never quotes it
+
+`lib/commerce/catalog.ts` is deliberately not imported by any market module.
+`RARITY_FLOOR_USD` is what the platform commits to standing behind, not a market
+price and not an appraisal. A board that showed it beside a listing would be
+quoting it as one, whatever the label said. The only number on a row is the
+price its seller named: no floor, no last sold, no estimate, no suggestion. The
+realm does not know what a card is worth and is not going to invent a figure.
+
+### 45.8 The transaction, and what it re-checks
+
+`public.market_list`, `market_cancel`, `market_reserve` and
+`market_record_payment`, all `security definer`, all `service_role` only, all
+under a row lock. Same lesson as `public.chest_open` and `public.craft_cards`,
+applied to the third end of the same ledger: a settlement from a route is five
+round trips, and a crash between any two leaves a buyer who has paid and holds
+nothing, or a card moved with the listing still open for a second buyer.
+
+What they re-check under the lock, never trusting the route's read: ownership,
+the absence of a live claim, the absence of another live listing, the buyer not
+being the seller, the reservation being this buyer's, and that the fee and the
+proceeds still add up to the price.
+
+**The wallets are read inside the function, never passed in.** If a route could
+name the payee, then a bug or a forged request in a route could redirect a
+sale's proceeds, which is the single most valuable thing anybody could do to
+this system. The chain, the pay token and the Coffers address do come from the
+caller, because they are the platform's own configuration, and they are frozen
+onto the listing at reservation time so a config change mid-flow cannot move
+where a buyer was told to pay.
+
+A listing cannot sell twice by three independent mechanisms: a partial unique
+index means a copy carries at most one live listing, the settlement is guarded
+on the status still being `reserved` under the row lock, and the update that
+moves the card is scoped to the seller still holding it.
+
+### 45.9 The surfaces
+
+**The Hoard grows a listing control**, on a copy that is neither on the board
+nor in the member's own wallet. Selling starts where a member is looking at what
+they own, which is the same argument that put the crafting bench there. The
+sheet prints three numbers before the button can be pressed: what the buyer
+pays, the fee, and what the seller receives. There is no suggested price beside
+the field.
+
+**`/market` is the Bazaar**, a Board rather than the wall of images every other
+marketplace defaults to. Comparison is the job: a member arriving wants to know
+what is for sale and at what price, and prices are read by lining them up. So
+compact density above `md`, right aligned tabular prices, hairline dividers, no
+zebra, ornament budget zero, and a card list below `md` because a five column
+table never scrolls sideways on a phone. The Hoard is where cards are meant to
+look beautiful. The fee is printed on the board itself, for the same reason a
+chest prints its odds before it can be bought.
+
+The honest empty state is the usual one and it is the truthful one: nobody holds
+a card yet, so nothing is listed, and the board says exactly that.
+
+### 45.10 What it waits on
+
+`market_live` ships off, a sixth switch beside `reliquary_live`, `chests_live`,
+`mercer_live`, `mint_live` and `crafting_live`, answering 423 exactly as the
+chest route does. The pay token and the Coffers address are unset, which answers
+503 separately, because a sealed chapter and a missing configuration are
+different situations and a member should never have to interpret the second.
+
+To open it: set `MARKET_CHAIN_ID`, `MARKET_PAY_TOKEN`,
+`MARKET_PAY_TOKEN_SYMBOL`, `MARKET_PAY_TOKEN_DECIMALS` and `MARKET_FEE_WALLET`,
+then flip `market_live`. The decimals are required rather than defaulted on
+purpose: a wrong value does not fail, it succeeds at the wrong magnitude, and
+the buyer meets the result in their own wallet after signing.
+
+Gifting and member to member transfer without a payment are the two pieces of
+mission 4 still absent. Neither is hard on top of this, and both are a different
+flow: no price, no fee, no reservation, one signature.
+
+Applied in four parts, `20260813112210` through `20260813112411`, and the four
+files carry the names and versions production recorded. It was verified against
+a throwaway PostgreSQL 16 cluster with the whole migration chain replayed onto
+it, exercising every refusal, both triggers, every check constraint, the unique
+indexes and the grants.
+## 46. The realm gets a clock
+
+Shipped. Mission 5, appointments and seasons, and the plainest retention hole
+in the product: nothing in Ravenspire happened at a time. Every act was
+available at every hour of every day, so no day was different from any other
+and no member ever had a reason to come back on a particular one.
+
+Three appointments, in ascending period. The clock that decides all three is
+`lib/realm/appointments.ts`: pure, server-only, with its own tests and its own
+module load assertions. The settling is in Postgres, because all three have to
+happen exactly once or not at all.
+
+### 46.1 The Muster, the daily window
+
+Two two-hour windows a day, at 01:00 and 13:00 UTC. A member who opens the app
+inside either one claims the day: once per UTC day, either window, never twice.
+
+**Why two.** One realm-wide window is what makes an appointment worth anything,
+because everybody is present at once, which is the difference between an event
+and a daily bonus. But a single fixed UTC window permanently excludes whole
+hemispheres, and a per-member window would fix that by destroying the mechanic:
+if everyone's window is different, nobody is ever present at the same time as
+anybody else. Two windows twelve hours apart cost nothing, because the claim is
+still once a day. That they cover the whole planet is asserted at module load
+against every whole-hour UTC offset from -12 to +14, and tested again, because
+it is the one property of the schedule a well-meaning "let us move it an hour"
+would silently destroy for one hemisphere, and the people it excludes are
+asleep and do not file bugs.
+
+**What it pays, and why the realm can afford it.** This is the part that took
+the longest to get right, because the obvious design is wrong in a way that
+takes a year to show.
+
+`public.award_capped` adds every point of Glory to Renown, and Renown never
+falls. So a daily attendance reward paid in fresh Glory mints permanent
+standing every day forever for opening an app: at sixty a day that is twenty
+two thousand Renown a year, past the King tier at fifteen thousand, without a
+member ever making a Call or fighting a battle. Every ladder in the realm would
+have ended up sorted by attendance.
+
+So the Muster mints nothing at all. It is paid through `award_capped` under the
+same `'social'` category, and therefore out of the same two hundred a day
+ceiling, that likes, cheers, comments and quests already spend. The realm's
+total Renown mint per member per day does not rise by one point. What the
+Muster changes is WHEN a member spends an allowance they already had, which is
+exactly what an appointment mechanic is supposed to do.
+
+The honest consequence is stated on the offer, before the button, rather than
+discovered after it: a member who has already earned their day is paid nothing
+by the Muster, and the vigil holds anyway. That is correct. They have already
+earned their day. The Muster is for the member who would otherwise not have
+come at all.
+
+A pleasant side effect: `points_ledger_category_check`, the constraint this
+repository has twice nearly broken by re-adding it from a stale reading, is not
+touched by this migration at all.
+
+**What is actually earned in the window** is the vigil: a server-kept count of
+consecutive days mustered inside a window, which no amount of scrolling at
+other hours can produce. Thirty consecutive days earns `lord-of-light`.
+
+That crest is the point. It has sat in the catalogue since launch reading "for
+unbroken daily devotion to the realm", marked locked, with a frozen token id
+and a drawn glyph, and nothing anywhere in the product could grant it. It was a
+promise the realm had no mechanism to keep. A badge is the one thing an
+attendance mechanic can pay forever without inflating anything, and the Muster
+is its producer.
+
+The vigil is deliberately a separate count from `profiles.streak`, which
+advances for opening the app at any hour. They measure different things: that
+one is "did you show up", this one is "were you here when the realm was".
+Paying a devotion crest off the plain streak would hand it to somebody who has
+never once caught a window.
+
+Curve: 20 Glory on day one, 5 more per consecutive day, ceiling 60 on day nine.
+The ceiling is asserted at module load to be a whole number of steps above the
+base and to be under half the daily social allowance, because a ceiling near
+the cap would mean a member who catches the window has already spent their day
+and earns nothing for anything they then actually do.
+
+### 46.2 The Clash, the weekly clock
+
+House Clashes shipped with a table, an authoring form and a live scoreboard,
+and no schedule and no ending. Every Clash had to be typed by a steward, which
+in practice meant none was ever called: `house_clashes` is empty in production
+to this day. And nothing happened when one closed, so a finished Clash was
+indistinguishable from an abandoned one.
+
+**The cadence.** The Clash of ISO week N opens on that week's Friday at 18:00
+UTC and closes on the Sunday at 18:00 UTC. Forty eight hours, which is the
+length a Clash has always been, moved off a steward's whim and onto the
+calendar. Friday evening in Europe, Friday afternoon in the Americas, Saturday
+morning in Asia and Oceania, so every member gets two of their own weekend days
+inside it. The row is written as soon as the previous Clash closes, so the
+countdown is visible for the best part of a week before it opens.
+
+It is a THEME Clash, counting every Call sealed inside the window, and never a
+token one. No scheduler can nominate a token without inventing one: picking
+"whatever is trending" would make the realm's own weekly fixture depend on a
+third party price feed, and picking a favourite would be the platform putting
+its thumb on a market. A theme Clash needs nothing invented, because the rule
+is the window itself. Stewards may still call a token Clash by hand; those
+carry no `scheduled_week` and sit beside the weekly one rather than replacing
+it.
+
+**Idempotency, three layers.** A unique partial index on `scheduled_week` means
+one scheduled Clash per ISO week, so a cron that overlaps itself races an index
+rather than a guard written in TypeScript. `public.settle_house_clash` takes
+`FOR UPDATE` on the clash row and re-checks `settled_at` under it, so a second
+invocation blocks and then reads what the first wrote. The primary key on
+`(clash_id, house_slug)` is the third line. And `ends_at` is re-checked against
+the DATABASE clock, never against a time passed in, so a job host whose clock
+is an hour fast cannot close a Clash early and freeze a board that Calls were
+still arriving in.
+
+**Safe to miss a run** falls out of the design rather than being bolted on. The
+scheduler asks "what is the next window a member could still enter", never
+"what has happened since I last ran", so a job that has been down for a month
+comes back and opens exactly one Clash: the real one. Backfilling the weeks it
+missed would have been the obvious answer and the wrong one, because a Clash
+for a week that already closed is a competition nobody could enter. And a job
+that comes back DURING a live window still gets it right, which is a property
+of the original Clash design: entries are derived from `posts.created_at`
+inside the window rather than recorded when the Clash opens, so a row written
+an hour after its own start counts every Call made in that hour.
+
+**Why settlement pays nothing.** The obvious design is a Glory bonus for the
+winning House and it is wrong. A Clash score IS Glory, already earned and
+already paid by the very Calls on the board: every point went through `award()`
+when the verdict job settled that Call. Paying it again at settlement would
+credit one act twice and make winning a Clash the cheapest Glory in the realm.
+It cannot pay POINTS into the House treasury either, because that treasury
+holds real POINTS burned by real members staking real Calls, and minting into
+it would put invented balance beside earned balance in one column.
+
+So a Clash pays a record, permanently. The House that won the Clash of week 33
+won it forever, and nothing anybody does afterwards can move it. That is worth
+more than a bonus that devalues the currency it is paid in.
+
+**Why the finished board is frozen.** `house_clash_contributions` derives the
+board from posts, which is right for a LIVE board and wrong for a finished one.
+A result that keeps recomputing is a result that changes: a member deleting a
+Call in November would silently rewrite who won a Clash in August, and a House
+that lost could be handed a retroactive victory by somebody tidying their
+profile. `house_clash_results` freezes it at settlement, and the surface reads
+the frozen board for a settled Clash and the derived one for a live Clash.
+
+### 46.3 The season finale
+
+**What banks.** Every member's final rank, POINTS, Renown and Glory, frozen
+into `season_settlements`. Each House's board is already derived from
+`points_ledger` within the season window and needs no freezing.
+
+**What resets.** Glory, and Glory alone, on `profiles` and on `houses`.
+
+**What a member keeps forever.** Renown, which never falls. POINTS, an earned
+balance the realm intends to honour. Every card and every crest, held non
+custodially, which the platform could not take back if it wanted to. The
+settlement row itself. And, for the top three on Glory,
+`champion-of-the-season`.
+
+That is the other crest the catalogue has always described and nothing could
+ever grant: legendary, locked, frozen token id, drawn glyph, no producer
+anywhere in the product, because a season had no close. Now it has one. A
+member on zero Glory is never crowned: a season nobody played has no podium,
+and a legendary crest for finishing first among people who all scored nothing
+would be worth nothing.
+
+**Why Glory is the only thing that can reset.** Renown never falls, which is
+the first law of this economy and the reason Renown is worth earning at all.
+POINTS are an earned balance, so confiscating them at a boundary would be
+taking back something a member was told they had kept. Cards and crests are
+property. Glory is the only currency the product has always described as a
+House's SEASONAL standing, and a season in which nothing resets is a
+leaderboard with a name on it: the House that led in month one leads forever,
+because nobody can catch a number that only grows.
+
+**Why the freeze and the reset are one transaction.** The reset destroys
+exactly the numbers the freeze is recording. From a route that is two
+statements, and a crash between them is unrepairable in the worst possible way,
+because the evidence is what was destroyed: either every member's final Glory
+is zeroed with no record of what it was, or the record exists and the new
+season starts with the old scores still on the board.
+
+**Why a second run cannot zero the record.** This is the subtle one.
+`season_settlements` is keyed on `(season_id, profile_id)`, so a second run
+would upsert over the frozen rows, and by then every member's Glory is zero: it
+would overwrite a whole season's record with zeroes and rank the realm
+alphabetically. The status moves to `'settled'` inside the same transaction and
+is re-read under the row lock, so a second run refuses before it reads a single
+profile. `p_force` exists to close a season EARLY and deliberately does not
+bypass the status check. Force means "close it now", never "close it again".
+
+**A rank basis that was wrong.** The admin settle action ranked the season by
+POINTS, a lifetime balance that never resets, so the top of every season's
+table would have been the same people in the same order forever and the rank
+would have measured how long somebody had been here rather than what they did.
+A season is ranked by the season's own currency. The admin route now calls
+`public.close_season` too, so the realm has one settlement path and cannot hold
+two opinions about who won.
+
+**And a member can finally see it.** `season_settlements` has existed since
+launch with RLS denying it to every browser role, correctly, and the only
+reader in the product was the admin console. So the realm has been freezing a
+permanent record of each member's season and showing it to nobody but a
+steward. `GET /api/seasons/record` is the member's own half of it, their rows
+and nobody else's, rendered on `/renown` under "Seasons behind you", absent
+rather than empty until there is a settled season to show.
+
+### 46.4 The surfaces
+
+The **realm strip** leads with the Muster, and it is the only cell that ever
+leads, because it is the only one that expires. The strip stays Ledger: quiet,
+compact, one line. Answering is the Ceremony and takes over a centred Modal
+with the 3D icon at its anchor, one number and one action. That register split
+is the whole point: if the strip glowed, the moment it announces would mean
+nothing. The cell is only a control when there is genuinely something to do,
+because a control that opens a dialog saying "come back later" teaches a member
+to ignore it.
+
+The **Houses Clashes view** gets the cadence above the list, present whether or
+not a Clash exists, which is the honest empty state it never had. Publishing
+the rule ("Clashes open every Friday at 18:00 UTC and run 48 hours") is not
+inventing a record, and a `scheduled` flag keeps it honest in the other
+direction: when the row for the next window has not been written yet the card
+says the Clash is due rather than counting down to something that does not
+exist. A settled Clash reads Final and names the House that took it; a Clash
+that has closed without settling says so, because closed and settled are
+different facts.
+
+The **`clash.settled` card** is Ledger register, deliberately, and it is the
+one interesting judgement in the set. A House winning something is exactly what
+the Forge register exists for, and `house.overtake` already takes it. But a
+Clash settles every single week, forever, and ornament that arrives on a
+schedule is ornament nobody looks at twice. Ornament is earned and never
+ambient, and a weekly fixture is the definition of ambient. So the Clash result
+is quiet and the House overtaking a rival stays loud.
+
+**Every countdown is against the server's clock.** Each payload carries the
+server's own `now` beside the absolute instants, the surface measures the skew
+once on arrival, and every label is drawn against that. A browser twenty
+minutes fast reads the right countdown, and a browser set forward deliberately
+gains nothing at all, because the claim is decided in `public.claim_muster`
+against the database's clock and the surface can only ever render a label.
+
+### 46.5 Cron
+
+`/api/cron/clock`, hourly at five past, authenticated by `CRON_SECRET` exactly
+as the four existing jobs are. One job for all three appointments, because they
+share a clock and three cron entries would let the realm hold three opinions
+about what time it is. One `now` per invocation, for the same reason.
+
+Idempotent, safe to run twice in the same window, and safe to miss a run: every
+question it asks is "what is true now" and never "what happened since I last
+ran". Nothing in it reads a state and writes it from application code; every
+guard is a unique index or a row lock.
+
+### 46.6 Two bugs found on the way
+
+**Seasonal quests have never been verified against their season.**
+`lib/game/quest-verify.ts` read `started_at` from `seasons` and the column is
+`starts_at`. PostgREST fails the whole select on an unknown column, the
+surrounding catch swallowed it, and the fallback is a plausible ninety day
+rolling window rather than an error, so it has been silent since the verifier
+shipped. Every seasonal quest in the realm has been checking activity in the
+last ninety days instead of activity in the season: "win ten duels this season"
+could be completed with duels won in the previous one, and a season shorter
+than ninety days verified its quests against time before it existed. Fixed.
+
+**A module load assertion closed an import cycle.** `points -> crests ->
+appointments -> points`. The cycle had existed harmlessly for as long as points
+and crests have referred to each other, because every use was inside a
+function. A module load assertion is the one thing that cannot wait, so it read
+the binding before the module holding it was evaluated, and the build failed
+with "cannot access before initialization" from a route that touches none of
+it. Typecheck could not see it; `npm run build` could. The two daily allowances
+moved to `lib/economy/allowances.ts`, a leaf with no imports, re-exported from
+`lib/points.ts` so every call site is unchanged.
+
+### 46.7 Repository versus database
+
+Checked before anything was written, as the handoff now requires.
+`points_ledger_category_check` in the live project is
+`('social', 'call', 'war', 'stake')`, which matches
+`20260813104201_call_stakes_and_house_treasury.sql` exactly. Every table,
+column and index this work touches agrees between the two. No divergence found.
+
+The migration was replayed instead: the full chain from
+`00000000000000_baseline_schema.sql` forward was applied to a throwaway
+Postgres 16 cluster and the three functions were exercised against it, which is
+how the behaviour claimed above was checked rather than assumed. Four of the
+older migrations fail on that replay because the baseline already creates the
+policies they create, which is pre-existing and unrelated.
+
+Migration `20260813113137_appointments_and_seasons.sql`, applied.
+
+## 47. Provably fair, as a feature
+
+Shipped. Mission 6, and the gap it closes is not a missing property but a
+missing surface. The chest has been provably fair since section 42: the server
+seed is committed before the member can act, revealed when the chest opens, and
+the roll is a pure function of three inputs with nine tests on it. What did not
+exist was anywhere a person could actually check a draw. A property nobody can
+exercise is a claim, and the realm was making it in prose.
+
+### 47.1 The verification runs in the browser, and that was the decision
+
+The obvious build is a route: post the three inputs, the server imports
+`rollChest`, reruns, compares, answers. Simpler, honest, and worthless against
+the only adversary a fairness feature has. A verifier hosted by the house is the
+house grading its own examination paper: the same server that faked a draw
+returns "verified" for the faked draw, and nothing a member can observe
+separates that from the truthful case. Nearly every provably fair scheme on the
+internet fails at exactly this point, by shipping a verify button that asks the
+house whether the house was honest.
+
+So the rerun happens on the member's machine, from source they can read. The
+server's role is reduced to handing over the record it already published, and it
+is never asked whether the numbers agree.
+
+**What that cost, and how the cost was contained.** The roll lived behind
+`server-only` and `node:crypto`, and neither can reach a browser.
+`crypto.subtle` can, but every digest it offers is a promise, and `rollChest` is
+synchronous and called from the opening route; making it async to suit the
+browser would have rippled through the settle path for a requirement none of it
+has.
+
+The dangerous fix would have been a second implementation for the client. Two
+implementations of one algorithm is the trap: the day they disagree, the
+verifier calls an honest opening a forgery, and nothing distinguishes that from
+the opposite error. So there is exactly one. `lib/collectibles/sha256.ts` is a
+hand written SHA-256 and HMAC-SHA256 in plain TypeScript, synchronous,
+isomorphic, no dependency. `lib/collectibles/roll.ts` holds the algorithm and
+uses it. `lib/collectibles/pulls.ts` is now a `server-only` re-export, so every
+existing server import is unchanged and the browser runs the same bytes the
+realm runs.
+
+A hand written hash is exactly the code that is right for the inputs its author
+tried, so `sha256.test.ts` pins it against `node:crypto` over the empty string,
+the NIST vectors, every length from 0 to 130 bytes across the padding seam,
+UTF-8 beyond ascii, keys either side of the 64 byte HMAC block boundary (which
+is the length the realm's seeds actually are), and 320 random cases. The nine
+existing roll tests pass unchanged, which is the proof that the swap did not
+move a single card.
+
+**The residual trust is stated on the page, not hidden.** The realm could still
+lie about the record. The hash is what closes that, and it is why it is
+published before the member acts: a member who kept the hash they were shown and
+pastes it in is trusting nothing at all, because a swapped seed fails the first
+check in their own browser.
+
+### 47.2 What is public
+
+A settled opening's proof is not a secret. Once a chest is opened its seed has
+been revealed, its commitment is retired and can never draw again, and the cards
+are in a ledger. Two public endpoints, neither requiring an account:
+
+- `GET /api/chests/openings/[id]` returns one settled opening: the chest, the
+  time, the revealed seed, the hash that preceded it, the client seed, the
+  nonce, and the cards recorded.
+- `GET /api/chests/openings` returns recent settled openings as reference, chest
+  and time only.
+
+The list is the half that makes this about the house rather than about one
+member. If the only findable reference were your own, the only draws ever
+audited would be the ones the house had no reason to fear, and a house cheating
+one opening in a thousand would never be caught, because the member who was
+cheated is precisely the one who cannot tell.
+
+**What is deliberately absent, and each omission is load bearing.** No
+`profile_id` and no join to `profiles`, on either endpoint: the draw is public,
+the drawer is not. No filter by member, so the audit log cannot be turned into a
+surveillance feed. No unrevealed seed, ever: both queries require `server_seed`
+to be present and neither reads `chest_seeds` at all. No holdings, no
+entitlements, no other openings. Both projections are explicit column lists
+rather than `select *`, because the service role client is what reads them and a
+`select *` would ship `profile_id` the first time somebody widened the table.
+
+The entitlement id is published, as the nonce, because the draw cannot be rerun
+without it. It confers nothing: `chest_entitlements` is RLS denied, the opening
+route selects an entitlement by profile as well as by id, and the row is
+permanently spent by the time it appears.
+
+The honest residual: on a small realm an opening's timestamp could in principle
+be correlated with a member's public activity. That is a real cost and a smaller
+one than an unauditable house.
+
+### 47.3 Real data only, and this is where it bit
+
+Nobody has ever opened a chest. `chests_live` is off, nothing grants an
+entitlement, and `chest_openings` is empty in production. So the verifier has
+nothing to verify, and the whole temptation of this mission was to demonstrate
+it with a plausible looking sample opening. A fabricated proof is
+indistinguishable from a real one, which makes it the single worst thing this
+page could contain.
+
+There is no worked example anywhere in it. The list of openings renders "No
+chest has been opened in the realm yet", the lookup answers 404 for every
+reference because there are none, and the form works the moment a real opening
+exists.
+
+What the page can honestly show today is the manual mode: the member supplies
+all three inputs themselves and the draw reruns in front of them. That proves
+the function is deterministic and proves nothing about any chest anybody pulled,
+so it returns the verdict `recomputed` and says so in those words. There are
+four verdicts rather than two for exactly this reason. `unusable` is the input
+being incomplete, never an accusation against the house; `recomputed` is a draw
+with nothing behind it; `match` and `mismatch` are the only two that speak to a
+record.
+
+### 47.4 The comparison is the part worth testing
+
+Rerunning is the easy half and was already covered. What decides whether the
+feature is honest is whether it can say NO, so `verify.test.ts` feeds
+`verifyDraw` deliberately corrupted triples: a changed server seed, a changed
+nonce, a changed client seed, a changed committed hash, one recorded card
+altered by a single number, a short record, and the same cards in another order.
+Every one must come back a mismatch.
+
+The instructive case is the changed nonce: the commitment check still PASSES,
+because the seed genuinely is the one the realm promised, and the card check
+fails, because this is a different opening. A verifier that only checked the
+hash would have called that a pass. That is why there are two checks and why
+they are reported separately rather than collapsed into one verdict.
+
+One bug was caught by writing those tests rather than by review. The roll omits
+`guaranteed` on an ordinary card, and a JSON round trip through Postgres can
+return it as an explicit `false`. A literal comparison would have reported every
+honest opening as forged, and it would have been invisible until the first real
+chest was opened, because there is no data to see it with today. The comparison
+normalises the flag and a test pins it.
+
+### 47.5 Where it is linked from
+
+The promise is made in two places and is now keepable in both: the
+`FairnessPanel` on `/warchests`, at step three, and the opening Ceremony itself,
+where the proof block carries the opening's reference into `/proof?draw=`. A
+proof that requires copying a uuid out of a dialog by hand is a proof nobody
+runs.
+
+The page sits at `/proof`, outside the shell on purpose. Everything under
+`app/(shell)` is behind `ShellGate`, and a verifier only members can reach
+quietly undoes the feature: the argument for provable fairness is that a
+stranger with no account and every reason to disbelieve can pick a draw and
+check it. It is a Console, not a Ceremony. The opening keeps its gold; an audit
+that glows is an audit congratulating itself.
+
+### 47.6 Repository versus database
+
+Checked before anything was written, as the handoff requires. `chest_openings`,
+`chest_seeds` and `chest_entitlements` in the live project match this directory
+column for column, and `public.chest_open` carries the ten argument signature
+from `20260813094251_two_step_commit_reveal.sql`. `chest_openings`,
+`chest_entitlements` and `chest_seeds` are all empty, and `chests_live` is
+false. No divergence found.
+
+**No migration.** This work adds no table, no column, no constraint and no
+function. Both new endpoints read existing columns through the service role.
+## 48. The compliance guardrails, and the size of what they are not
+
+Mission 12, and the last piece of code standing between the realm and
+`COMMERCE_PRICES_CONFIRMED`. What remains after this is a real payment account,
+which is not code.
+
+Nobody who built this is a lawyer and none of it claims compliance with any
+law. Every guardrail below carries an explicit "what this does not cover"
+paragraph, in `lib/commerce/compliance.ts`, written so a real adviser can read
+it and say what is missing. That list is the important half of the work.
+
+### 47.1 Where the decisions live, and why not in the route
+
+Section 34 named four answers to the gambling optics of a mystery box. Two were
+already built and enforced at module load: exact printed odds validated to sum
+to 100, and a guaranteed floor validated against the worst a chest can actually
+deal. The other two, no cash-out promises and no invented scarcity, were prose.
+This wave is the rest of the posture.
+
+Every decision is made inside Postgres, in the same transaction that creates
+the order, under the same lock. That is not a preference. A spend cap read in
+one round trip and enforced in the next is not a cap: ten concurrent presses
+each read a spend of zero and all ten pass. `public.commerce_checkout_guard`
+judges and inserts together or does neither, and the checkout route has no code
+path left that writes an order, so a future edit cannot forget the guard.
+
+Every threshold, though, lives in `lib/commerce/compliance.ts` and is passed in
+as a REQUIRED parameter with no SQL default. A default in the function body
+would be a second copy of a number that also lives in TypeScript, and two
+copies of a threshold drift the first time somebody tunes one of them, quietly,
+in the direction of taking more money. A required parameter cannot drift
+because it cannot exist twice. A test reads the migration file and asserts the
+declared parameters are exactly the ones the TypeScript bundle supplies, and
+that none of them carries a default, because that joint is invisible to
+typecheck.
+
+### 47.2 The Alms, the free method of entry
+
+The one that mattered most. A paid random-reward mechanic commonly needs a
+genuinely free path to the same reward, of equal dignity, and the realm's is
+called the Alms: a real Squire's Chest, given.
+
+Not a token, not a coupon, not a quieter chest wearing the same name. It is a
+row in `chest_entitlements` differing from a purchased one only in
+`source_kind`, and it opens through the same route, against the same committed
+seed, on the same printed odds, with the same guaranteed floor and the same
+provable reveal. No code path anywhere reads `source_kind` and rolls
+differently, and a test asserts the opening route does not mention it at all.
+
+The property that decides whether this is an entry or a consolation prize is
+that the free chest can win the rarest thing the realm mints. The Squire's
+Chest deals three cards at 0.6% mythic each, so it can. That is asserted at
+module load rather than argued, because an odds retune that zeroed mythic on
+the entry tier for perfectly good economic reasons would destroy it silently
+and nothing else in the codebase would notice.
+
+**Abuse, which is the whole difficulty.** A free entry one person can take a
+thousand times is not compliance, it is a faucet, and a faucet pointed at a
+capped-supply collectible is worse than no free path at all. Four defences,
+none individually sufficient: one per member per 30 days; an account at least
+seven days old, onboarded, carrying a handle; the same age gate as the paid
+path; and a realm-wide ceiling of twenty five a day under a transaction-scoped
+advisory lock, because a ceiling two requests can race past is not a ceiling.
+
+The account age floor is the cheap one: registration is free and instant, so
+seven days converts "make a thousand accounts now" into "make a thousand
+accounts a week ago and keep them", and costs an honest member nothing they
+notice. The realm-wide ceiling is the one that actually contains an attacker,
+because it bounds the damage however many accounts they hold.
+
+**It does not stop sybil.** One person with fifty aged accounts gets fifty
+entries. Only identity verification changes that and identity verification is a
+paid service. The ceiling is containment, not prevention, and the distinction
+is worth saying out loud rather than leaving for somebody to discover.
+
+**The ceiling cuts both ways.** A ceiling reached every day has stopped being a
+free method of entry and become a lottery for one. The exhaustion is written to
+the refusal ledger and the remaining count is on the panel, precisely so this
+is visible, and if it is regularly hit the founder must raise it. That is an
+operating commitment; no code can enforce it.
+
+Also not covered: merch and the physical King's Reliquary, which has real
+per-unit printing and shipping cost, have no free path. Whether the free entry
+must reach the top tier rather than the entry tier is exactly the question that
+needs an adviser and not a developer.
+
+The Alms are gated on `chests_live` and deliberately NOT on
+`COMMERCE_PRICES_CONFIRMED`, so the free path can never be narrower than the
+paid one. A test reads the route and asserts it.
+
+### 47.3 The age gate
+
+One question, "are you at least eighteen", answered once. What is stored is
+that it was answered, when, and against which minimum. **There is no date of
+birth column and there must never be one:** a birth date is identifying data
+the realm would then owe a duty of care over, and it answers a question nobody
+asked. The minimum in force is stored beside the answer so raising it later
+re-asks everybody rather than grandfathering them silently.
+
+It lives in its own table rather than on `profiles`, and the reason is not
+tidiness. `public.profiles` carries column-level grants to `anon` on a dozen
+columns because a profile is a public object. Putting a compliance fact on that
+table would leave it one accidental grant from a public read.
+
+It is a SELF DECLARATION and nothing in the product describes it as more. A
+member who types the wrong answer passes. Real verification needs a document or
+credit check provider, which is a paid service; the seam is `age_verified_at`
+and `age_verification_method`, which nothing writes.
+
+It gates the paid paths and the Alms, and nothing else. The realm does not ask
+a member's age to read the Ravenry.
+
+### 47.4 Spend caps
+
+250 in 24 hours, 1,000 in 30 days, computed at checkout from real order
+history. The dearest thing in the realm is the King's Reliquary at 54.86, so
+250 a day is four of them plus merch: past any honest collecting session, short
+of the kind of day somebody regrets. 1,000 a month is roughly eighteen top
+chests. Both are deliberately low for a launch, because the directions are not
+symmetrical: raising a cap later is a decision made calmly, and lowering one
+after members have been allowed to spend past it is a decision made inside a
+complaint.
+
+Paid and fulfilled orders count, dated by `paid_at` so a slow webhook does not
+date a charge to the wrong window. Refunded and cancelled never count. Pending
+orders count for sixty minutes, because a live checkout session is money the
+member can still spend and a cap ignoring them could be walked through by
+opening twenty sessions before paying any; after an hour an abandoned cart
+stops holding a member's ceiling hostage.
+
+A module load assertion refuses a day cap below the dearest single item,
+because that is not a cap, it is a closure that quietly makes one product
+unbuyable.
+
+They are per member, keyed on the profile: one person with three accounts has
+three ceilings. And they see only what the realm charged. They cannot see the
+Bazaar, where payment goes wallet to wallet and the platform is not a party to
+it, which the panel says on its own face.
+
+### 47.5 Cooling off, and the one asymmetry that matters
+
+Three mechanisms, none of which can be clicked past, which is the only test of
+whether an interruption is real.
+
+**The velocity brake.** Four paid orders inside sixty minutes and checkout
+stops until the oldest falls out of the window. Three is reachable by an
+ordinary member buying a chest, liking what came out, and buying two more; four
+inside an hour is a pattern rather than a purchase. It is a pause, it clears
+itself, and the answer says exactly when.
+
+**The informed consent interruption.** Once real 30 day spend would pass 150,
+checkout refuses and hands back the member's actual total; continuing needs an
+explicit acknowledgement that expires after 24 hours. 150 is set against the
+DAY cap rather than the month cap, and that is the correction worth recording:
+at 250 it would have equalled the 24 hour ceiling, so a member spending fast
+inside one day would have been stopped dead without ever having been shown
+their own running total, and the consent step would only ever have fired across
+days. The relationship is now asserted at module load.
+
+The number recorded is the one the SERVER computed. The route has no way to
+pass a total and must never be given one, so the row is evidence of what the
+member was actually shown rather than of what a client claimed to have shown
+them.
+
+**The member set cap**, and the asymmetry is the entire point: lowering it
+applies immediately, raising it waits 24 hours, and the pending value is
+visible so nobody is surprised by their own decision. A limit a member can
+raise in the moment they want to raise it is not a limit, it is a speed bump
+they installed and then removed. The delay is in
+`public.commerce_set_self_cap`, not in a route, because a delay a route
+computes is a delay a route can be edited to skip.
+
+What none of it does: it cannot tell distress from enthusiasm, it sees a rate
+and not a person, there is no self-exclusion register and no way to lock
+oneself out for a term, and nobody is paged, because there is no human on a
+rota to page.
+
+### 47.6 Geo, and the honest answer
+
+**Reliable geolocation needs a paid service and the realm does not have one.**
+Everything else here is a qualification of that sentence.
+
+What is free and real: Vercel injects `x-vercel-ip-country` and Cloudflare
+`cf-ipcountry`, both part of hosting rather than a new paid service. Why it is
+still only a hint: a VPN defeats it in ten seconds, mobile carrier routing puts
+honest members in neighbouring countries, and corporate egress is attributed
+badly. And the header is read ONLY when we know we are behind that edge, because
+off it the value is a string the caller typed, and a caller who can type their
+own country has defeated the gate by typing. Same reasoning as `clientIp`.
+
+Three modes. `advisory` is the default and enforces nothing until the founder
+names a country in `COMMERCE_BLOCKED_COUNTRIES`, which is the honest starting
+state rather than an oversight. `strict` additionally refuses an unknown
+origin, which is the only setting a plain VPN does not simply walk through, and
+also the setting that refuses every honest member when the deployment is not
+behind a trusted edge. `off` is a single switch rather than an emptied list.
+There is no hardcoded country list anywhere: a list of countries in a source
+file is a legal position taken by a developer.
+
+**What would actually be needed, so it can be costed.** An IP intelligence
+provider (MaxMind GeoIP2, IPinfo, IP2Location) returning a country AND a VPN,
+proxy and hosting-provider flag. The flag is the part that matters and the part
+no free source gives. `resolveCountry` is the single function it plugs into.
+And separately, the payment provider's own card-issuing country and billing
+address, which cost nothing extra because they arrive with the payment and are
+a materially stronger signal than an IP, but arrive AFTER the charge, so they
+inform refunds and reporting rather than the decision to sell. `orders` carries
+`geo_country` and `geo_source` so the two can never be flattened into one
+confidence.
+
+### 47.7 The refusal ledger
+
+Every guardrail that turns a member away writes `commerce_guard_events`. This
+is the half of a compliance posture that is easy to omit and impossible to
+reconstruct later: a guardrail that refuses and keeps no record cannot answer
+the only question anybody will ever ask it, which is "show me that it fires".
+It records the decision and the numbers it turned on, never a cart, a card or
+an address.
+
+### 47.8 The surfaces
+
+The Alms sit on `/warchests`, full width, directly under the three chests,
+because a free path harder to find than the purchase it stands beside is one in
+name. The interruption is a Base UI `Dialog` rather than a line of text,
+because an interruption that can be scrolled past is not one, and it always
+carries the member's real figures: "you cannot do that right now" is the shape
+of a dark pattern and "you have spent 140 in the last 30 days" is not. Spending
+and the self-limit control are in the Vault, absent entirely for a member who
+has never spent and set no limit, because telling somebody who has bought
+nothing how much headroom they have is an invitation dressed as information.
+
+All of it is the Ledger register. No gold gradient, no 3D icon, no glow. The
+Forge on a spending limit would be the product celebrating the fact that
+somebody is about to spend more, which is the thing these exist to interrupt.
+
+Two refusals carry an action and three do not, and the asymmetry is honest: the
+age gate and the acknowledgement are answered by the member, a spending cap and
+the velocity brake are answered by time. There is no override and no route that
+would accept one.
+
+### 47.9 Repository versus database, and how this was checked
+
+Read before anything was written, per `supabase/migrations/README.md`. One
+existing object is altered: `chest_entitlements_source_kind_check`, whose live
+definition was read out of the project as `('order', 'redemption')` and matches
+`20260812224950_commerce_engine.sql` exactly. The change adds `'amoe'` and
+removes nothing. Repository and database agree on every other object touched.
+
+The migration was NOT applied. It was replayed instead against a throwaway
+Postgres 16 cluster carrying stand-ins for the five tables it depends on,
+applied twice to prove it is idempotent, and then exercised: 39 behavioural
+assertions covering the age gate, idempotency that is never re-judged, the
+pending-order grace, the acknowledgement and its expiry, both spend windows,
+refunds counting for nothing, the self cap in both directions and its delay,
+the velocity brake and its self-clearing, and the Alms through every refusal
+they can give. A two-session test confirmed a concurrent checkout blocks on the
+limits row lock rather than racing past it.
+
+Applied in four parts, `20260813164228` through `20260813164429`, and the
+four files carry the names and versions production recorded. The security
+advisor was run afterwards and returns only the expected INFO
+`rls_enabled_no_policy` lints.
+
+## 49. The Herald as the realm's retention brain
+
+The Herald answered when it was spoken to. The Chronicle was the first half of
+fixing that: once a day the realm reads its own event spine and says what
+happened, and nobody has to summon it. This is the second half and the harder
+one, because it is addressed to one member rather than to everyone: **what
+happened to you since the last time the Herald spoke to you, in one paragraph,
+at the top of the Ravenry.**
+
+Sealed behind `herald_digest_live` until it is real.
+
+### 41.1 What it is
+
+A member opens the Ravenry. The server reads what the realm recorded since that
+member's last digest, in that member's own audience, reduces it to a short fact
+sheet, and hands the sheet to a model with one instruction: say the single most
+important thing and stop. The paragraph is stored, so refreshing the feed is
+free, and it renders as a system card in the Ledger register, structurally
+quieter than a member's raven, with a dismiss.
+
+The card is pinned above the feed rather than dropped into it. Every other realm
+event is a card in the timeline because every other realm event happened at an
+instant. A digest is about a period, so it has no honest position in a stream
+ordered by time, and inserting it at "now" would put a summary of the last six
+hours above the very ravens it summarises.
+
+### 41.2 The discipline, which is the whole feature
+
+**Every figure is the server's.** `lib/raven/digest.ts` turns real rows into
+lines: Calls of theirs that settled and what they scored, Calls still open and
+which settle within a day, Points and Glory that settled in their Ledger, where
+their House stands and who is nearest, what the members they follow did, what
+the rest of the realm did, when the season ends. The model states none of them.
+It is never asked for a number, and nothing it writes is read back into a table,
+so no Point, Glory, rank or price can depend on it. The exact lines it was given
+are stored beside the paragraph, so any sentence a member disputes can be
+checked against what the realm actually counted.
+
+**An empty realm produces an empty digest.** Not a paragraph observing that it
+was quiet, not a greeting: nothing at all, and no model call. `worthTelling` is
+the floor and it is deliberately strict about the difference between a fact that
+is always true and something that happened. A House rank and a season countdown
+are context for a sentence; they are never a reason to write one. One thing that
+happened to this member is enough; absent that, the realm has to have been
+genuinely busy before a member with no stake in it is told about it.
+
+**A quiet window is carried forward, not consumed.** The empty answer is stored
+with the window it failed to fill, so a realm producing one act a day
+accumulates into something worth saying rather than discarding each quiet window
+one at a time.
+
+### 41.3 What it costs, which is almost nothing
+
+Four things, in the order they bite:
+
+1. **The stored digest.** Inside a six hour TTL the route returns the stored
+   paragraph and spends nothing. Twenty refreshes cost one call.
+2. **The floor.** A window with nothing in it never reaches the model, and the
+   empty result is stored so the next refresh is free too.
+3. **The smaller model.** The reasoning was already done in SQL. What is left is
+   writing two sentences over a fact sheet of about twenty lines, which is the
+   cheapest thing a model does. The realm now names its two model choices by
+   the job rather than by the model, in `lib/ai/herald.ts`, so this is one line
+   to change.
+4. **Two caps**, per member and per realm, through the shared Supabase limiter,
+   checked in the last moment before the call so a cache hit never consumes an
+   allowance it did not spend. The per member cap sits above what an honest
+   reader can reach at the TTL, which is asserted in the tests: it is a backstop
+   against a loop, not a pacer for a member.
+
+### 41.4 Degradation, honestly
+
+No key, no flag, no database, a refusal, a timeout, a rate limit: every one of
+them renders as the Herald having had nothing to say. There is no error state on
+this surface and no fallback sentence, because a sentence the Herald did not
+write, presented as the Herald, is a rule 5 violation whatever it says. A
+failure writes no row, so the next request tries again.
+
+### 41.5 The channels that were rejected
+
+- **A notification.** The realm already has one, and the digest is not an event:
+  every notification kind is caused by a member acting on another member, with a
+  subject to open. A digest has no subject and no actor, so it would file a
+  raven that points nowhere. Worse, it fires on the realm's schedule rather than
+  on the member's, which is the definition of a nag, and the per type toggles in
+  `lib/notification-prefs.ts` would have needed a twelfth entry whose honest
+  label is "let the Herald interrupt you".
+- **A Whisper.** Whispers are between members. Putting the realm's own voice in
+  a member's private conversation list makes the one place in the product that
+  is genuinely person to person start carrying announcements, which is the exact
+  shape of every messaging product people have learned to distrust.
+- **A card in the stream.** Rejected for the timeline reason in 41.1, and
+  because the density cap already governs the stream: a digest competing with
+  Chronicle entries for the one system card per five ravens would either
+  displace them or be displaced by them, and neither is a decision worth
+  encoding.
+
+The card is where it is because the Ravenry is the only surface a returning
+member is guaranteed to open, and because a card there can be ignored in one
+glance and dismissed in one tap. A channel that has nowhere honest to fire
+should not be built.
+
+### 41.6 What was consolidated on the way
+
+The mission was mostly not addition:
+
+- **Seven Anthropic clients became one.** Every AI route built its own from the
+  same environment variable, and three of them said in a comment that they were
+  copies of `lib/ai/raven.ts`. `lib/ai/herald.ts` now holds the client, the two
+  model choices and prose extraction.
+- **Five private copies of the em dash filter became one.** House rule 1 was
+  enforced by whichever route remembered to enforce it. It is now inherited by
+  every surface that asks the Herald for prose.
+- **Two copies of the House ranking became one.** The realm strip and the digest
+  both name a member's nearest rival; `gloryStanding` in `lib/houses/view.ts` is
+  now the only place that decides which House that is.
+- **The card shell stopped requiring a spine row.** `SystemCard` and `ForgeCard`
+  took a whole `FeedEvent` to read one timestamp off it. They take the timestamp,
+  which is what let the digest use the same chassis as every other system card
+  rather than growing a second one.
+
+## 50. The Coffers, and a House a member can be inside
+
+Shipped, sealed. Mission 9, the creator and House economies, and it is the first
+piece of work in this document whose main output is a refusal.
+
+Two economies half existed. A member who brought people in, called a coin that
+resolved well, or sold a card, earned, and every one of those settled its own
+way and added up nowhere a member could read. A House had a treasury, a
+catalogue and two spenders, and a member could take part in none of it.
+
+### 50.1 An earned balance cannot exist, and that is the answer
+
+"Payouts are non-custodial" reads like a constraint on how money leaves. It is
+not. It is a constraint on whether an earned balance may exist at all, and
+working that through decided the whole mission.
+
+An earned balance denominated in money is a debt: the platform saying "we owe
+you fourteen dollars". For the platform to pay it later, the platform has to be
+holding it now. **Holding money that is owed to a member is custody**, whether
+it is called a balance, a float, an accrual or a pending payout, and whether it
+is held for a month or for an hour. Rule 6 has no exception for short holds and
+neither does anybody who regulates this.
+
+There are exactly three ways to pay a member a share of revenue.
+
+| | Verdict |
+| --- | --- |
+| The platform receives the gross and forwards the member's share later | Custody. What every creator platform ships. Refused |
+| The platform receives the gross and pays the member from its own funds on a schedule | The money is the platform's own, and between the sale and the payment the member is owed money the platform is holding. The accrual IS the custody. Refused |
+| The payer pays the member directly, at the moment of the event, in the payer's own signed transaction | Chosen |
+
+**Split at source, never accrue.** Nothing accrues because nothing is owed: the
+value went from the payer's wallet to the member's wallet and was never anywhere
+else. It is what the Bazaar already does with the seller's ninety five percent
+and what a tribute already does with the whole amount, and this section is the
+recognition that those two were never conveniences. They were the only shape
+allowed.
+
+The rule is enforced mechanically rather than remembered. `lib/economy/revenue.ts`
+refuses to load if any stream declares a member share that is not settled at
+source, the same posture `lib/commerce/market.ts` takes with a fee split that
+does not add up, and for the same reason: by the time anybody notices in
+production, the platform is holding money it told a member it owed them, and
+there is no clean way back from that.
+
+**What it costs, written down because it is not free.**
+
+- **A signature per payee.** Two payees means the buyer signs twice, which is
+  the price section 45.3 already paid. A third payee is a third prompt at the
+  exact moment somebody is committing money, and every prompt is real drop off.
+- **No accrual means no aggregation.** A share worth a fraction of a cent can
+  never be paid, because there is no balance for it to accumulate in. Any share
+  small enough to round to nothing at a single sale is a share that does not
+  exist, and the register may not declare one.
+- **It cannot cross rails.** A payment arriving on a card cannot pay a member on
+  chain in the same act, so a card paid surface shares nothing at all until its
+  processor can itself split the payment. That is a paid integration and a
+  regulatory posture, not a feature.
+- **The compensation is large.** There is no minimum payout threshold, no payout
+  schedule, no pending column, no reconciliation between what was promised and
+  what was sent, and no support queue for a payout that did not arrive. None of
+  those can exist, because the thing they all manage does not.
+
+### 50.2 Which streams are real, and the one that is real and still pays nothing
+
+`lib/economy/revenue.ts` is the register, and The Coffers renders it verbatim,
+including the streams that pay nothing and the sentence saying why.
+
+**Tributes. Real, open today, ten thousand basis points to the member.** One
+member paying another, wallet to wallet, with the realm reading the receipt off
+the chain afterwards. The platform takes nothing, so there is nothing to share
+and nothing to withhold, and there has never been a balance anywhere in it. This
+is the only stream paying a member real value right now with no flag on it.
+
+**A Bazaar sale. Real, sealed, nine thousand five hundred basis points to the
+member.** Ninety five percent of a sale, paid by the buyer's wallet to the
+seller's wallet, in the buyer's own signed transaction. That is a creator
+revenue share settled at source and it has been built since section 45. Naming
+it as one is most of the work: the product had a genuine ninety five percent
+revenue share and no surface that said so.
+
+**Nothing is shared out of the five percent, and this is the decision a reviewer
+should push on.** The obvious extension is a slice of the venue fee for the
+buyer's referrer, the seller's referrer, or a curator. Every version costs the
+buyer a third wallet prompt while they are handing over money, and section 45.3
+spent its argument establishing that two signatures is the price of never
+touching a seller's funds. A third has no comparable justification: nobody in
+that list created the card, the listing or the sale. And re-cutting the venue
+fee is a decision about the business, not about the code.
+
+**Chests and the Mercer. Real revenue, and they share nothing.** This is the
+stream that proves the rule is doing work rather than describing what already
+happened. A share for the member whose banner brought that customer is the most
+obviously fair creator payment in the product, and this design cannot make it.
+The payment arrives on a card, through a processor, into the platform's own
+account. Splitting it at source needs the processor's connected accounts
+product, which is a paid integration (rule 19), makes the platform a payment
+facilitator, and carries a compliance posture nobody here has. Every other way
+of paying it is an accrual, and an accrual is custody. So it pays zero, and the
+surface says zero and says why, in terms of custody rather than of effort.
+
+**A Call that lands. Not revenue at all**, and listed anyway so nobody has to
+guess. The single most valuable thing a member can do in this product pays no
+money, because the realm sells nothing when a Call resolves and so has nothing
+to share. Writing that down is the point: the pressure to invent a revenue
+stream lands hardest on the surface that most deserves one.
+
+**No creator revenue share was invented.** There is no third party creator whose
+work this platform monetises. The seller in the Bazaar is the closest thing to
+one and already receives ninety five percent at source. Anything else would have
+been a stream conjured to have something to share, which is the rule 4 line.
+
+### 50.3 The statement, and the four ways the old one was wrong
+
+`/api/profile/earnings` was the closest thing to an earnings record and it was
+quietly wrong in four places at once. None of them were careless. They are what
+a derived total does when nothing ever checks it against the balance it claims
+to explain.
+
+1. **Tips were structurally zero.** It summed `tips.points`, a column that has
+   been null on every row since tributes became on chain transfers, and added
+   the result into a headline figure. Every profile in the realm reported zero
+   tips, for a payment that is not denominated in POINTS in the first place.
+2. **Referrals were structurally zero.** It looked for a reason beginning
+   `referral`. Nothing has ever written one: a referral pays through
+   `banner_raised`. Every referral reward in the realm reported as zero and fell
+   into Other.
+3. **Staking made earnings fall.** It added the negative row a staked Call
+   writes at escrow into a figure labelled "points earned", and the positive row
+   a won stake writes. So sealing a staked Call reduced a member's lifetime
+   earnings, and getting your own points back read as earning them.
+4. **The breakdown could not add up to its own total.** Slices were filtered to
+   positives and the total was not, so the percentages beside them could not
+   reach a hundred and nothing said why.
+
+And under the panel, in the product's own copy: **"Points convert to $RSP at
+TGE".** A conversion this product has never committed to, on an earnings
+surface, under a number. Rule 7 says show POINTS for an earned balance and never
+an amount of $RSP; a promised rate is the same claim with the arithmetic left
+out. Gone.
+
+`lib/economy/earnings.ts` is now the single fold and both surfaces call it, so
+there cannot be two answers to "what has this member earned".
+
+**Two ledgers, in two units, never added together.**
+
+POINTS are a realm score. Not money, not $RSP, not redeemable, and there is no
+rate at which they become anything. VALUE is money that has already moved, on a
+public chain, into the member's own wallet: a tribute counts only once
+`verifyTribute` has read it off the chain, a Bazaar sale only once the buyer's
+leg is proven from the pay token's own logs by `verifyMarketLeg`. Summing the
+two would produce one number meaning nothing, which is the failure this module
+exists to close.
+
+**No USD figure is put on a token.** A tribute of 0.01 of a chain's native coin
+is reported as 0.01 of that coin. The realm did not record a price at the moment
+of the tribute and cannot recover one, and a rate read today applied to a
+payment made in March is an invented number with a currency symbol on it. Bazaar
+proceeds are in dollars, because the market quotes and settles in dollars.
+
+The amounts are summed with `sumDecimal` in `lib/commerce/money.ts`, on the
+decimal strings themselves, aligned and added as BigInt. `Number("0.1") +
+Number("0.2")` is exactly the mistake that module's header exists to prevent,
+and it would have been made on a figure a member reads as what they were paid.
+Grouped by chain and token before anything is added, because summing two
+different assets produces a number with no unit.
+
+**There is no claim button anywhere on the surface, and its absence is the
+feature.** A claim button implies a balance the realm is sitting on. It is
+sitting on nothing. That is said in words on the surface rather than left to be
+noticed, because a member who has used any other creator platform will look for
+it.
+
+### 50.4 Reconciliation, said out loud
+
+`points_ledger` is the source of truth and `profiles.points` is a cached total.
+`house_treasury_ledger` is the source of truth and `houses.treasury` is a cached
+total. That is the right shape twice, and it is also the shape that drifts in
+silence, because nothing in this product has ever compared the two.
+
+Now both do, and both tell the member. `public.reconcile_member_points` and
+`public.reconcile_house_treasury` sum in the database and return the cached
+figure beside the ledger figure.
+
+**The sum is in the database and not in the route, and that is the load bearing
+part.** The surface being replaced read two thousand ledger rows into Node and
+added them up, which is wrong twice over: a full page of somebody's financial
+history over the wire to produce one integer, and it silently stops being the
+whole sum at row two thousand and one. A statement folded from the first page of
+a long ledger will always disagree with the balance, so a drift computed that
+way is mostly its own truncation. **A truncated read is never reported as
+reconciled**, even when the numbers happen to agree, because a tick nobody
+checked is worse than no tick. "The realm has lost some of your POINTS" is far
+too serious a sentence to produce from an incomplete count.
+
+A House's drift is shown only when there is one. A green tick on every healthy
+treasury teaches everybody to stop reading the line.
+
+### 50.5 The endowment, and what a treasury may do
+
+A House already received (half of every burned Call stake), spent (a fixed
+catalogue, priced per sworn member) and decided (the Lord and the Hand, who are
+the top two contributors and rotate with the season). What a member could not do
+was take part. A treasury filled only by other people's losses and spent only by
+the two members at the top of a board is a thing that happens near a member
+rather than a thing they are in.
+
+**The endowment is the missing verb.** A sworn member may commit POINTS from
+their own balance to their House. Half reaches the banner and half is destroyed.
+
+**Why half is burned, which is the only real design choice here.** The obvious
+version is a straight transfer, and it is wrong for two reasons, only one of
+them obvious. The obvious one is supply: the Warden's Pardon pays POINTS back
+OUT of a treasury, so at a hundred percent in and fifty percent out a House
+becomes a laundry and the realm's supply never contracts. The stake tithe
+already answers exactly this question at exactly this ratio, and answering it
+differently at a second door would only tell everybody which door to use. The
+less obvious one is that a cheap endowment is a purchase: the Long Watch is the
+one perk that can move a House's standing, and a member with a deep balance
+could simply buy their House a competitive advantage. At half, an endowment is
+strictly worse than staking the same POINTS, because a stake can also come back
+and win. Endowing has to be a gift rather than an optimisation, or it stops
+being one.
+
+The remainder on an odd amount goes to the burn, never to the treasury, so a gift
+always errs toward destroying one more POINT than it pools: the direction that
+cannot inflate anything. Asserted exhaustively at module load across every legal
+amount, and again by a database check constraint, because a split that quietly
+loses a POINT shorts somebody on every gift forever and nothing ever fails.
+
+**A member gives at most a thousand POINTS a day**, deliberately identical to
+`MAX_STAKE`. The realm already has an opinion about how much of a balance may
+move in one act, arrived at against the two daily allowances, and an endowment
+moves a balance in exactly the same way. Per day rather than per act, so the
+ceiling cannot be walked around by sending it in ten pieces, and counted across
+every House, so a member cannot multiply it by the number of banners they have
+sworn to.
+
+**What a member gets for it, and what they deliberately do not.** They get the
+permanent public record: every treasury inflow from a burned stake carries a
+null actor because nobody decided it, and an endowment carries the giver's id,
+so the House's audit trail names its benefactors and keeps naming them. They get
+the perks their House can then afford.
+
+They do not get Renown, which never falls and would therefore be permanent
+standing bought with a balance. They do not get Glory. And this is the one that
+matters most:
+
+**AN ENDOWMENT MUST NEVER MOVE A MEMBER TOWARD LORD OR HAND.** Those two titles
+are the only thing in the realm that can spend a treasury, and `deriveLeadership`
+ranks them on Glory. A member who could buy their way up that ranking could buy
+the right to spend the treasury they had just filled, which is "no House mints
+value out of nothing" applied to power rather than to points, and it is the
+failure that would end the whole design. The mechanism is that an endowment
+writes a `glory_delta` of exactly zero, so there is no path from giving to
+ranking at all. It is a property nobody can see by reading the SQL, so it is
+asserted in `lib/houses/endowment.ts` and exercised against a real cluster.
+
+**What a treasury can and cannot do**, printed on the hall rather than left in a
+document nobody opens, from the same list the tests assert:
+
+- It can receive half of a burned stake, receive half of a gift, buy a perk from
+  a fixed catalogue, and pay a member back part of a burned stake out of a
+  Warden's Pardon that was bought and ring-fenced in advance.
+- It cannot be created, seeded, topped up or estimated. It cannot pay POINTS to
+  any member outside a ring-fenced pardon, so it cannot be shared out. It cannot
+  move to another House or leave with a member who leaves. It cannot be
+  withdrawn to a wallet, converted, or quoted in any currency, because it is not
+  money and never was. It cannot buy Renown or Glory, so no House can spend its
+  way up the standings. And it cannot go below zero, enforced by
+  `houses_treasury_check` rather than by the code that spends it.
+
+### 50.6 The transaction, and the request id
+
+`public.endow_house_treasury`, `security definer`, `service_role` only, one
+transaction, two locks, **taken in the same order `settle_call_stake` takes
+them**: the profile first, then the House. Deadlock is not hypothetical here. A
+member's stake settling and the same member endowing touch exactly the same two
+rows, and two functions that disagreed about the order would eventually meet in
+the middle and one of them would be killed.
+
+The balance, the day's running total and the oath are all read under the profile
+row lock and none of them is trusted from the route. A balance read in one round
+trip and spent in the next is not a balance, and a daily cap checked in
+TypeScript is a cap two concurrent requests both pass. The day is the DATABASE's
+day, never one passed in, because the cap is the only thing bounding how fast a
+balance becomes a House's capability and a host with a fast clock would get a
+second day's allowance free.
+
+**The request id is the member's protection, not the realm's.** Unlike an
+escrow, which is keyed on the post being staked, an endowment has no natural
+idempotency key: the same member may give the same House the same amount twice
+in a minute and both are real gifts. So the client mints one uuid per gift and
+carries it through every retry, and the function claims it under a unique index
+before anything moves. Without it, a client retrying a timed out request debits
+a member twice for one gift, and nothing anywhere can tell that apart from a
+member who meant to give twice.
+
+### 50.7 The surfaces
+
+**`/coffers` is a Console**, and every Console rule applies without exception:
+compact above `md`, right aligned tabular figures, hairline dividers, ornament
+budget zero. Nothing on it glows. A member reading what they have earned is
+operating an instrument, not being congratulated, and a surface that celebrated
+a balance would be selling it to them.
+
+Three views, because there are three questions and they have different answers:
+what the realm owes you in standing, what has actually reached your wallet, and
+what each surface pays. The register is the third one, printed in full, with the
+sealed streams carrying their padlock and the stream that pays nothing carrying
+its reason.
+
+The panel on the Keep stays where it is. It answers "how am I doing", which is a
+different question from "show me the record", and the two coexist the way the
+Vault and the Ledger do.
+
+**The endowment is a Modal on the House hall's treasury tab**, Ledger register,
+no gold. Three figures are printed before the button can be pressed, in the order
+the arithmetic runs: what you commit, what reaches the banner, what is destroyed.
+They come from the same pure module the server calls rather than from a copy, so
+the number promised and the number charged are one function. A member destroying
+half of something they earned, on purpose, should not be congratulated for it
+while they are deciding.
+
+There is no control at all when the chapter is sealed or the member has nothing
+left to give today, rather than a disabled one. A dead button is a promise the
+screen cannot keep.
+
+### 50.8 What it waits on
+
+`coffers_live` and `endowment_live`, both off, a seventh and eighth switch beside
+the six that exist. They are separate because reading your own earnings and
+committing your balance to a House are different decisions, and a member should
+be able to have the first without the second.
+
+Neither is waiting on a build. The Coffers waits on there being something in it:
+the value ledger is empty until `market_live` opens or somebody sends a tribute,
+and the honest empty state says exactly that rather than pretending. The
+endowment waits on Houses having treasuries worth filling, which waits on staked
+Calls settling, which is live.
+
+What is genuinely absent and would be the next thing: **a share of the venue fee
+paid at source to a third party**, if the founder decides the business should
+carry one. It is a third transfer and a third signature, and it is a founder
+decision rather than an engineering one. And **gifting a card**, which section
+45.10 already names, is the other half of member to member value and needs no
+fee, no reservation and one signature.
+
+### 50.9 Repository versus database
+
+Checked before a line of SQL was written, as `supabase/migrations/README.md`
+requires. The live definition of `points_ledger_category_check` is
+`('social', 'call', 'war', 'stake')`, matching
+`20260813104201_call_stakes_and_house_treasury.sql` exactly. The change adds
+`'house'` and removes nothing, so no existing row and no existing writer can be
+broken by it. That check was not optional: this is the fourth migration in a row
+to touch that one constraint, and the third nearly took every War award in the
+realm offline by re-adding it from a stale reading of this directory.
+
+`tips`, `market_listings`, `houses`, `house_treasury_ledger`, `house_members`
+and `realm_flags` all agree between the two, column for column. The six realm
+flags in the live project are the six this directory describes, all false.
+
+**A drift was found and it was already being fixed.** This work read the live
+`schema_migrations` table and found two things this directory did not describe:
+`appointments_and_seasons` applied as `20260813113137` while the README said it
+was written and not yet applied, and four `compliance_guardrails_*` versions
+(`20260813164228` through `20260813164429`) applied with no file here at all,
+which is exactly the invariant the README says broke four times. Section 48 was
+landing the recovery for both at the same moment, so by the time this branch
+merged, every applied version had a file again. Recorded rather than dropped,
+because the interesting fact is not the fix: it is that the invariant broke
+again, in the same week, in the same way, which says the failure is structural
+and not a lapse. The thing that catches it is reading `schema_migrations`
+before writing SQL, and that is now the first step of two separate missions.
+
+Migration `20260813172956_the_coffers_and_the_endowment.sql`, applied. The
+security advisor was run afterwards and returns only the expected INFO
+`rls_enabled_no_policy` lints, and the altered constraint was read back to
+confirm all four earlier categories survived.
+It was verified against a throwaway PostgreSQL 16 cluster with the whole
+migration chain replayed onto it, exercising the happy path, a replayed request
+id, the daily cap counting what has already gone, the floor, a negative amount,
+an outsider, terms that would pool more than they destroy, an insufficient
+balance, both reconciliations, a deliberately drifted cached total, the
+treasury's own floor of zero, the category constraint in both directions, and
+the grants. Four of the older migrations fail on that replay because the
+baseline already creates the policies they create, which is pre-existing and
+unrelated (section 46.7).
+## 51. Gasless and forgiving, and the wire that turned out not to exist
+
+Rule 6 is the mission, not a constraint on it. Every value transfer is signed by
+the member's own Privy embedded wallet, the platform never takes custody and
+never holds a key, and that is the reason the realm is worth building. It has a
+bill, and the bill arrives at the worst possible moment: a member's first act,
+when a realm that has cost them nothing so far asks them to go and acquire ETH
+on Base before they can carry a card they already own.
+
+Sealed behind `gasless_live` until it is real.
+
+### 51.1 What account abstraction on Privy actually is, which is not what the brief assumed
+
+The brief assumed a paymaster is something this codebase wires up. It is not,
+and finding that out is the most useful thing this mission produced.
+
+Read from the installed SDK rather than from memory. `@privy-io/react-auth`
+ships a `smart-wallets` entry point whose per-network configuration type is
+`{ chainId, bundlerUrl, paymasterUrl?, paymasterContext? }`, and that object
+arrives in the browser inside the **app config Privy sends down**, resolved from
+settings held in Privy's own dashboard. The only knob the SDK exposes to
+application code is `paymasterContext` on `SmartWalletsProvider`.
+
+So there is no environment variable this repository could hold that would turn
+sponsorship on, no module that could point at a bundler, and no server-side check
+that could confirm a paymaster exists. A file here pretending to configure one
+would be describing a wire that does not exist. What the realm owns is the
+**policy**, and the policy is the whole of what was built.
+
+Two further facts, both load bearing:
+
+- **`permissionless` is an optional peer dependency and is not installed.**
+  Importing `@privy-io/react-auth/smart-wallets` today fails typecheck, because
+  its types import from it. Adding it would be a bundle's worth of code behind a
+  feature that cannot function until a dashboard exists elsewhere.
+- **`user.smartWallet` is on the plain user object**, available from `usePrivy()`
+  with no extra dependency at all. That is the observation the whole design hangs
+  off, and it is why the honest half of this could ship now.
+
+### 51.2 What it costs, and whether a free tier carries us
+
+It does, and the answer is more comfortable than expected, with one caveat about
+where these numbers come from.
+
+| Provider | Mainnet sponsorship on the free tier | Surcharge above it |
+| --- | --- | --- |
+| Coinbase CDP Paymaster (Base only) | about $15 of gas per app per month | gas plus 7% |
+| Alchemy Gas Manager | testnet only; mainnet needs a paid tier | gas plus 8% |
+| Pimlico | testnet only; mainnet is usage priced | usage priced |
+
+**CDP is the answer, and it is the answer because of the chain we already
+chose.** The realm mints on Base (section 28.3). CDP's paymaster is Base only,
+which is a limitation everywhere else and is exactly our shape here. Alchemy
+would have been the tidier story, since the existing Alchemy key already covers
+Base reads, but mainnet sponsorship there is a paid tier and rule 19 ends that
+conversation.
+
+The arithmetic that decides whether $15 is a realm or a rounding error:
+
+- An ERC-1155 claim as a 4337 user operation costs roughly 300k to 400k gas
+  including bundler overhead.
+- Base at a typical fee, plus the L1 data cost, puts that at roughly half a cent
+  to two cents.
+- $15 is therefore somewhere around **1,000 to 3,000 sponsored claims a month**.
+
+`SPONSORED_ACTS_PER_REALM` is set to **1,200**, deliberately at the pessimistic
+end of that range, so the realm stops sponsoring before the free tier stops being
+free rather than after. `SPONSORED_ACTS_PER_MEMBER` is **10**, which is under one
+percent of the realm budget, so no single account can drink the month.
+
+Two honest caveats, and the first is about provenance rather than about the
+numbers. **Nobody read these off a pricing page.** The provider domains are
+unreachable from the environment this was built in, so every figure in the table
+came from search results describing those pages, which is a weaker source than
+this table's confident formatting suggests. They are a starting point for a
+conversation with the dashboard, not a basis for flipping anything: a 7%
+surcharge on an unbounded overflow is precisely the surprise invoice rule 19
+exists to prevent, and it is exactly the term a second-hand summary would get
+wrong. The founder confirms them on the CDP dashboard, or they stay unconfirmed
+and nothing turns on. And the gas estimate is a live number: if Base gets
+expensive the act budget should come down, which is one constant in
+`lib/chain/sponsorship.ts`.
+
+There is also a **Base Gasless Campaign** offering up to $15k in paymaster
+credits by application. That is worth an application and it is founder work.
+
+### 51.3 The division that makes the degradation honest
+
+This is the design, and it is forced by 51.1 rather than chosen.
+
+- **The server decides whether sponsorship is PERMITTED.** The `gasless_live`
+  flag, an attested chain, and budget remaining on both counters.
+  `decideSponsorship` in `lib/chain/sponsorship.ts` is one pure function that
+  returns a payer and, when it is the member, one of five named reasons.
+- **The browser decides whether sponsorship is POSSIBLE.** Whether Privy actually
+  created a smart account, which it does only when the dashboard says so.
+  `user.smartWallet` is the whole observation.
+- **A surface may promise "no gas" only when both say yes.**
+
+The case this exists for is the third one: **permitted but not possible.** The
+flag is up, the budget is there, and the member has no smart account because the
+dashboard was never finished. Rendering the server's answer alone would put "no
+gas needed" on the screen and then charge them at the wallet prompt, which is the
+one failure this mission is actually about. `components/wallet/use-sponsorship.ts`
+composes the two and fails toward "you pay": every path that is not an explicit
+yes from both halves says the member pays, because wrongly saying the member pays
+is a pleasant surprise and wrongly saying the realm pays is a broken promise
+about money.
+
+**Nothing about sponsorship gates any control.** `payer` is a label. The claim
+button sends the same transaction it always sent, the ordinary path works exactly
+as it always has, and a member paying their own gas is one sentence worse off
+rather than one button short. `ClaimButton` renders the payer line while the
+control is idle and drops it once the member has committed, because by then their
+own wallet is telling them the fee.
+
+The server also cannot verify the dashboard, and the naming says so:
+`SPONSORSHIP_ATTESTED_CHAIN_ID` is an attestation by whoever set it, not a fact
+any process here checked.
+
+### 51.4 The wallet cap is not the commerce cap, and the answer is no
+
+The mission asked whether an on-chain wallet cap is the same idea as the member
+set cap in `member_commerce_limits`, and asked for an answer rather than two
+features with one name. **It is a different idea.** Three differences, each on
+its own sufficient:
+
+**Unit.** Cents against wei. One is a fixed claim on the realm; the other is a
+quantity of an asset whose fiat value moves while the member reads the screen.
+There is no honest shared column.
+
+**Enforceability.** The commerce cap is *enforced*: `commerce_checkout_guard`
+evaluates it and inserts the order in one transaction under one lock, and it
+works because the realm is the party taking the money. A wallet cap can only ever
+be *observed*. Rule 6 means the realm is never a party to an on-chain transfer
+and holds nothing that could refuse one, so a member can always open Privy's own
+wallet interface, or export the key, and sign whatever they like.
+
+**What it protects against.** The commerce cap protects a member from the realm's
+checkout. This protects a member from the realm's calldata.
+
+So the thing built is named for what it does: a **signing ceiling**, the most any
+Ravenspire surface will build and ask a member to sign. That is genuinely useful,
+it is the guardrail against a fat finger on the Bazaar and against a tampered
+realm surface asking for more than a member intended, and the panel says in the
+panel that it binds Ravenspire and not their keys. A member who read one of these
+and believed they had set the other would be worse off than one who had set
+neither, because they would think they were covered.
+
+The one thing the two share is the asymmetry, and it is shared because the reason
+has nothing to do with money: lowering applies at once, raising waits a day. It
+is copied deliberately rather than factored into a helper, because a shared helper
+across two different units would be the first step back toward one feature with
+two meanings.
+
+**It covers native coin only, and it bites in exactly one place today.** The
+guard is in `components/wallet/wallet-send-flow.tsx`, on the native branch. wei
+is the only quantity the realm can compare without a price feed, and a price feed
+is a paid dependency bought to widen a guardrail. Comparing an ERC-20 amount
+against a wei ceiling would be worse than not comparing: a hundred USDC is
+100,000,000 of its own minor units, comfortably under any sane wei ceiling, so
+the check would silently pass every stablecoin transfer while appearing to have
+run. **A guardrail that looks like it fired and did not is the one failure mode
+worse than an absent guardrail**, so the panel says "native coin only" in the
+panel and says why.
+
+That does mean the Bazaar is not covered, because Bazaar payment legs are ERC-20.
+Covering it honestly needs either a price feed or a per-asset ceiling a member
+would have to reason about in four denominations, and neither is worth it yet.
+
+The genuinely enforced version, a ceiling the wallet itself would refuse to
+exceed, is an on-chain policy on a smart account. That is dark, and it waits on
+the same one thing everything else does.
+
+### 51.5 Recovery: what Privy offers versus what the brief assumed
+
+The brief asked for **social recovery**. Privy does not have it, and the panel
+says so in the panel.
+
+The SDK types the recovery methods as `privy`, `user-passcode`, `google-drive`,
+`icloud` and `icloud-native`. Every one of those is a **backup**: a second copy of
+the recovery material, held either by Privy or by the member. There are no
+guardians, no threshold, no M-of-N, and nothing anywhere in the SDK that lets a
+member nominate another person as a way back in. Social recovery in the sense the
+term usually carries cannot be built on an embedded wallet at all; it needs a
+smart account whose contract implements it.
+
+So `components/wallet/recovery-panel.tsx` sells exactly what exists and states
+the trade rather than recommending a side. The default, `privy`, means a member
+who signs back in gets their wallet back, which is genuinely good and is genuinely
+a dependency on one company. A passcode moves that onto the member: nobody can
+restore it without them, including Privy and including us. And the export sits
+last, because a member holding their own exported key can restore the wallet after
+both companies are gone, and a non-custodial realm that hid the exit would not be
+one.
+
+Anyone who has used a wallet recently arrives expecting guardians. Finding out
+they do not have them at the moment they need them is the worst possible time, so
+the correction is on the surface and not only in this document.
+
+### 51.6 The budget is counted in acts, and why
+
+Pricing gas in fiat needs an ETH price, which needs an oracle, which is a
+dependency bought so a budget can be marginally more precise, and it puts a float
+in the middle of a spending limit, which is the thing `lib/commerce/money.ts`
+exists to prevent. An act is an integer and cannot drift. The conversion from
+dollars to acts is a sum the founder does once, and it is written out in 51.2 so
+the next person can check it.
+
+`wallet_sponsorship_grants` is a ledger and not a counter, because a counter and a
+ledger disagree the first time one is written and the other is not, and the one
+that gets believed is always the wrong one. Reservations are taken before the
+member's wallet is asked to do anything, because the check and the write have to
+be one transaction: ten concurrent claims each reading a budget of zero is the
+same defect the compliance guardrails were built around. The realm-wide counter
+has no row to lock, so the reservation serialises behind one transaction-scoped
+advisory lock, which is a real cost knowingly bought: reservations happen at the
+rate members claim collectibles, and the alternative is a realm budget that is not
+one.
+
+`released` is the status that matters. Most reservations become `spent`; the ones
+that do not are members who closed a wallet prompt, and if those stayed reserved
+the realm would slowly starve its own free tier paying for transactions that never
+happened.
+
+### 51.7 Exactly what is dark, and what each piece waits on
+
+| Dark | Waits on |
+| --- | --- |
+| Routing a claim through a paymaster so it genuinely costs nothing | A CDP account, a paymaster configured for Base in the **Privy dashboard**, and adding `permissionless` to `package.json`. All three, and none is a code decision except the last. |
+| `gasless_live` | The above being true. The flag alone sponsors nothing: `decideSponsorship` needs the flag *and* an attested chain *and* budget. |
+| `SPONSORSHIP_ATTESTED_CHAIN_ID` | The founder setting it to 8453 once the dashboard is real. Absent reads as unconfigured and every member pays their own gas, which is what happens today. |
+| The reserve and settle calls | The routing above. `wallet_sponsorship_reserve` and `wallet_sponsorship_settle` exist and are called by nothing, because reserving budget for a sponsorship that cannot happen would be a ledger of fiction. |
+| A ceiling the wallet itself enforces | A smart account with an on-chain policy. Same dashboard. |
+| Real social recovery | A smart account whose contract implements guardians. Not on offer from Privy at any tier. |
+
+Everything else is live behind the flag: the policy, the two counters, the signing
+ceiling with its asymmetry, the recovery panel, the composed payer verdict, and
+the payer line on the claim control.
+
+**The migration is applied**, as `20260813175339`, advisor clean. Two tables,
+one flag row, four functions, every one revoked from `public`, `anon` and
+`authenticated` and granted to `service_role` alone. It alters nothing that
+already exists, and in particular it does not touch `member_commerce_limits`,
+which is the point of 51.4.
+
+### 51.8 What was found on the way
+
+Two things, neither blocking:
+
+- **The claim path had no way to say what it cost.** Not a bug so much as an
+  absence: `ClaimButton` sent a transaction that costs real money on a real chain
+  and the first mention of a fee a member ever saw was the wallet prompt. That is
+  fixed whether or not sponsorship ever turns on, and it is the part of this
+  mission that would have been worth doing even if every paymaster were paid.
+- **`SpendLimitsPanel` already disclaims the chain** in its footer, correctly, in
+  the course of explaining that it cannot see the Bazaar. That sentence is
+  evidence for 50.4: the commerce cap's own copy already knew it was not a wallet
+  cap, and building one under the same name would have contradicted a paragraph
+  that shipped a mission ago.
+## 52. Shareable distribution, and the step it was failing at
+
+The realm made things worth showing other people and had almost no way to show
+them. There were four Open Graph cards, three of them dynamic, and every one of
+them was invisible. There was one share control, buried in an overflow menu on
+somebody else's Keep, and none at all on your own. And every route those links
+pointed at was behind the shell gate, so the one visitor the whole apparatus
+exists for, a stranger with no account, was redirected to the landing page
+before they saw anything.
+
+Each of those is a small bug. Together they are the difference between a product
+that spreads and one that does not.
+
+### 50.1 The three failures, in the order they were found
+
+**The cards were invisible.** `app/layout.tsx` named `openGraph.images` and
+`twitter.images` in config. Next resolves a file-based `opengraph-image.tsx`
+into a segment only when that segment's own metadata does not already name an
+image, and both keys are inherited by every route below the root layout. So
+`app/opengraph-image.tsx` had never once reached a crawler, and on X, which is
+the realm's primary channel, every Keep, raven, Call and safety report unfurled
+as the same static champion lineup, cropped from 1306x295 into a 1.91:1 frame.
+Removing both keys is the whole fix: each segment's own card now resolves, and
+Next's own post-processing fills `twitter:image` from the resolved
+`openGraph.images` when no twitter block names one, which is why there are no
+`twitter-image.tsx` files anywhere in the tree. Verified against a running
+production build rather than reasoned about.
+
+**The links landed on a wall.** `ShellGate` redirected every unauthenticated
+visitor under `app/(shell)` to `/`. That is a routing decision and it was never
+a security boundary, which is worth saying plainly, because a client-side
+redirect that looks like one is the most dangerous kind of decoration: every
+mutation in the product is a server route behind `requireProfile` and none of
+them moved. The gate now admits exactly the paths `lib/share/links.ts` can
+produce, and nothing else.
+
+**There was no control.** A member could not share their own Keep at all. The
+share affordance now sits beside Edit on your own Keep, beside the caller on a
+Call, in the House hall header, on a crest you hold, on a listing you posted and
+on a chest proof.
+
+### 50.2 What is public, decided once
+
+`lib/share/subjects.ts` is the privacy boundary and the rule is one sentence:
+
+> A share card may show only what an anonymous caller can already read from the
+> public API for that same subject, and never a balance.
+
+The first half means this feature discloses nothing new. If `/api/hoard` would
+seal a collection from a signed-out reader, the image seals it. If
+`/api/profile/earnings` would withhold the earnings block, the image has no
+earnings on it to withhold.
+
+The second half is stricter than the API on purpose. **Points, $RSP, wallet
+addresses and PnL appear on no card, ever, whatever `pnlVisible` says.** An
+image at a guessable URL is the wrong place for a number that tells somebody
+what a member is worth, and honouring `pnlVisible` by never carrying the field
+is a stronger reading of that setting than gating on it.
+
+So, per card:
+
+- **Keep.** Public: display name, handle, tier, House, Renown, Glory, crest
+  count, settled Call record. Every one of those is already in the `public`
+  block `/api/profile/earnings` returns to an anonymous caller with no gate.
+  Gated on `hoardVisible`: the Hoard, and only ever as counts (`distinct` of
+  `setSize`), never a card list, because a card naming which mythic somebody
+  holds is a shopping list. A banned member's Keep does not unfurl at all.
+- **Call.** Public, and only when the raven is public and undeleted: the
+  subject, direction, verdict, settlement score, stated confidence, required
+  move, the rationale and the caller's name. A miss shows MISS, in ember, at the
+  same weight a hit shows HIT: a card that only unfurled flatteringly is a
+  highlight reel, and a highlight reel is worth nothing as evidence.
+- **House.** Rank, Glory, members sworn, level, season. Scored live off the
+  ledger through the same top-twenty rule `/api/houses` uses, so the card cannot
+  disagree with the standings board it is screenshotted beside.
+- **Crest.** The crest, its rarity, how it is earned, the holder, and how many
+  members in the realm hold it. Only for a crest genuinely held: the reader
+  requires the `user_crests` row, which is what stops anybody manufacturing an
+  image of somebody else holding something they never earned.
+- **Chest proof.** The chest, the cards dealt, the best card, and the first
+  twelve characters of the commitment hash. **Nothing that leads back to a
+  member**, which is the same line `/api/chests/openings/[id]` holds and holds
+  hardest here: no handle, no Keep, and the reader does not select `profile_id`
+  at all.
+- **Bazaar listing.** The card, its rarity, the price the seller named, the
+  seller's handle and the status. No floor, no appraisal, no estimated value:
+  the per rarity floor is what the platform stands behind, not what a card is
+  worth.
+
+**An image has no viewer, which is the part that is easy to get wrong.** Every
+other privacy gate in the product reads `isOwner || flag`. A crawler holding a
+URL is never the owner and can never be authenticated, so the gates here read
+the raw flag with no owner branch anywhere in the file. Adding one would let a
+member preview their own sealed Hoard, conclude it renders, and share a link
+that shows everybody else something different from what they saw.
+
+The Hoard gate also fires **before** the read rather than after, and there is a
+test that asserts the `inventory` table is never queried for a sealed member. A
+sealed collection that is fetched and then discarded is one refactor away from
+being fetched and then rendered.
+
+### 50.3 Where the referral line is drawn
+
+`/banners` already mints `?banner=<handle>`, `/welcome` stows it, `/api/onboard`
+credits it into `referrals`. Mission 10 reuses that parameter rather than
+inventing a second one, because two referral seams is two sets of numbers and
+one of them is always wrong.
+
+**A banner rides only when the sharer is sharing their own moment.** Sharing
+your own Keep, Call, crest, proof or listing is you bringing somebody to the
+realm. Sharing somebody else's Keep is you pointing at them, and taking the
+recruit for it would reassign a member the subject had at least as good a claim
+to. `ShareButton` works out whether the viewer is the subject itself rather than
+taking an `own` prop, because an `own` prop would be got wrong exactly once, on
+exactly that surface, and the symptom would be silent.
+
+**That is the entire tracking surface.** No click event, no per-recipient
+identifier, no cookie set by the link, nothing written when a link is opened.
+The only thing that happens is a public handle going into `localStorage` under
+the key `/welcome` has always used, so a recruit who lands on a shared Call and
+onboards a week later still credits whoever sent them. A link that phoned home
+on open would be a tracking pixel with a fantasy theme, and it would measure the
+wrong thing: the realm wants to know who brought members, not who opened tabs.
+
+**No migration, and that is the decision.** Nothing here needs a table. A
+`share_events` table is exactly the tracking pixel above with a schema.
+
+### 50.4 No new flag, and why that is not laziness
+
+Every surface in this mission is ready. The sealed chapters gate themselves by
+having no rows: while `market_live` is off nothing has ever been listed, so a
+listing card has no subject and renders the honest empty card. `/market/[id]`
+does read `marketGate()`, so a stranger following an old link is told the
+chapter is sealed rather than shown a 404 that reads as the realm losing the
+record, but that is the existing flag doing its existing job.
+
+A `share_live` flag would be on from the first deploy.
+`scripts/check-house-rules.mjs` makes the argument better than this section can:
+a check that cannot fail teaches people the whole mechanism is decorative, and
+so does a flag that is never off.
+
+### 50.5 What was consolidated, which is most of the diff
+
+- **Four hand drawn Open Graph frames became one chassis.** Four copies of the
+  obsidian ground, gold radials at three opacities, "R" marks at three border
+  widths and three opinions about wordmark size. Nobody would ever see two of
+  them side by side, which is why they drifted and also why it mattered: an
+  unfurled card is often the first thing anybody sees of this product, and four
+  first impressions is none. `lib/share/og.tsx` is the only file in the realm
+  allowed to hold brand hex, and it holds them once rather than nine times.
+- **Two copies of the privacy gate became one.** `hoardVisible` lived in
+  `lib/collectibles/hoard.ts` and `privacyFlag` lived inside
+  `/api/profile/earnings`. They agreed, which is the dangerous kind of
+  duplication: nothing would have told anybody if an edit made them disagree.
+  `lib/privacy.ts` is now the only implementation, and a share card cannot read
+  a third copy.
+- **Three copies of the referral handle validator became one.** `RefCapture`,
+  `/welcome` and the new seam each had the same regex against a value that
+  arrives in a URL a stranger was handed, is stowed in `localStorage` and is
+  later posted to `/api/onboard`.
+- **The share ladder was not rewritten.** `lib/share.ts` already existed and six
+  surfaces already used it, including a legacy textarea copy for insecure
+  origins that a seventh copy would have forgotten. `ShareButton` adds the URL
+  and the banner and nothing else.
+- **`/proof` became a component.** `ProofSurface` is rendered by both `/proof`
+  and `/proof/[reference]`, so a stranger handed a link to somebody else's chest
+  and a member checking their own read the same argument. The argument only
+  works if it is the same one.
+- **`useViewerId` grew a handle rather than a second `/api/me` call.**
+
+### 50.6 What was found broken on the way
+
+- **`twitter.images` at the root disabled every dynamic card on X.** Section
+  50.1. This is the one that was actually costing the realm distribution.
+- **`app/opengraph-image.tsx` had never rendered for a crawler,** for the same
+  reason, since the day it was written.
+- **`shareOrCopy` detected a cancelled share sheet by matching the browser's own
+  prose.** Chrome says "Share canceled", Safari says "The operation was
+  aborted", and both happen to match `/abort|cancel/i` in English. Neither
+  string is specified. On a localized build a dismissed share fell through and
+  silently copied a link the member had just declined to send. It checks
+  `err.name === "AbortError"` now, which does not translate, and returns a
+  distinct `"dismissed"` so a cancelled share no longer flashes "Copied" at
+  somebody who copied nothing.
+- **The Coffers share built `/u/${handle ?? ""}`,** which produces `/u/` for a
+  member with no handle yet and then said "Copied". The one member most likely
+  to be looking at that button is a new one, on their own Coffers.
+- **The referral panel and the Vault's earn card mint `/?ref=<code>`** while
+  `/banners` mints `/welcome?banner=<handle>`. Two link shapes for one
+  mechanism. Both still work, and `readBanner` now resolves either, but the
+  product should pick one. Left as it is deliberately: choosing which is a
+  product decision, not a tidy-up.
+- **`app/(shell)/post/[id]` has carried a share card since long before this
+  mission and its page has been redirecting strangers the whole time.** It is in
+  the public path list now even though a raven is not one of the six moments,
+  because a card that unfurls onto a sign-in wall is worse than no card.
+
+### 50.7 Where the brief was wrong
+
+The brief asked for the Bazaar listing card and a listing share affordance
+before the Bazaar has ever held a listing. That is right to build, because the
+seam has to exist before the chapter opens, but it means one of the six cards
+has been checked only against its empty state. The same is true of the chest
+proof card: `chest_openings` is empty, `chests_live` is off, and nothing has
+ever granted an entitlement. Both routes render the honest empty card today, and
+both should be looked at again with one real row in front of them before anybody
+calls the set finished.
