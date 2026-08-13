@@ -78,6 +78,25 @@ Everything below is labelled with what it actually is. See
 - The Forge (`/forge`). The staking hall is built and flag-gated; the on-chain
   contract is the remaining work.
 
+### The Collection (built, sealed until launch)
+
+A commercial collectibles layer, kept entirely separate from reputation, which
+is still earned and never bought. Every surface is flag-gated and shows an
+honest sealed state until launch, and no price reaches a customer surface until
+a human confirms it.
+
+- **The Reliquary** (`/reliquary`): Set One, the legion of the Six Houses. Forty
+  champion cards drawn from the War's own roster, shown portrait-forward in
+  forged-gold frames, House by House. Owning the card is owning the champion.
+- **The Warchests** (`/warchests`): mystery boxes with the exact pull odds
+  printed on every chest and a guaranteed floor in each. Openings are
+  provably-fair, settle on the server, and can be re-verified in the browser.
+- **The Mercer** (`/mercer`): the official merch line, regalia to wear and gear
+  for the table, sold from a cart-based store.
+- Checkout is crypto and non-custodial: Coinbase Commerce, ETH on mainnet and
+  ETH or USDC on Base, priced server-side with the money never rendered until
+  confirmed. Physical goods ship through a print-on-demand vendor.
+
 ### Planned
 
 - Renown tiers that unlock capabilities. Today a tier is a title.
@@ -112,6 +131,9 @@ Policy at `/legal/privacy` and the Terms of Service at `/legal/terms`.
 - Supabase (Postgres, RLS, realtime, storage) as the Archives. The schema is
   reproducible from `supabase/migrations/`.
 - Privy for non-custodial embedded wallets and X, email, and wallet auth.
+- Coinbase Commerce for non-custodial crypto checkout on the Collection (ETH on
+  mainnet, ETH or USDC on Base), with print-on-demand fulfillment for physical
+  goods. The provider is swappable behind `lib/commerce/payments/`.
 - Anthropic Claude Sonnet 5 for the Herald (see `lib/ai/raven.ts` and
   `lib/ai/raven-voice.ts`).
 - Vitest for unit tests. `lib/points.ts`, `lib/calls/scoring.ts` and
