@@ -463,7 +463,7 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-1 flex-col items-center gap-1.5"
+      className="touch:min-h-11 touch:min-w-11 group flex flex-1 flex-col items-center gap-1.5"
     >
       <span
         aria-hidden

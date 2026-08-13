@@ -222,7 +222,8 @@ export default function WelcomePage() {
                 key={h.slug}
                 pad="md"
                 interactive
-                render={<button type="button" />}
+                render={<button
+          className="touch:min-h-11 touch:min-w-11" type="button" />}
                 role="radio"
                 aria-checked={house === h.slug}
                 onClick={() => setHouse(h.slug)}

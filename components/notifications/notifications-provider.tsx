@@ -244,7 +244,7 @@ export function NotificationsProvider({
                     e.stopPropagation();
                     dismissToast(t.key);
                   }}
-                  className="shrink-0 text-bone-faint transition-colors duration-fast hover:text-bone"
+                  className="touch:min-h-11 touch:min-w-11 shrink-0 text-bone-faint transition-colors duration-fast hover:text-bone"
                 >
                   <Icon name="close" className="h-4 w-4" />
                 </button>

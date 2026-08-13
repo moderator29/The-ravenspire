@@ -144,7 +144,7 @@ function SetCard({ card, copies }: { card: SetOneCard; copies: number }) {
           : `${c.name}, ${c.rarity} of ${c.house}. Sealed preview.`
       }
       onClick={() => setPeeked((v) => !v)}
-      className="group flex flex-col gap-2 rounded-lg text-left"
+      className="touch:min-h-11 touch:min-w-11 group flex flex-col gap-2 rounded-lg text-left"
     >
       <CardFace card={card} peeked={peeked} copies={copies} />
       <span className="flex min-w-0 flex-col gap-1 px-0.5">

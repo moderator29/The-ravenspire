@@ -279,7 +279,7 @@ export default function CoinPage({
                       window.setTimeout(() => setCopiedAddr(false), 1600);
                     });
                   }}
-                  className="inline-flex items-center gap-1 rounded-sm border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition-colors duration-fast hover:border-gold/40 hover:text-gold"
+                  className="touch:min-h-11 touch:min-w-11 inline-flex items-center gap-1 rounded-sm border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition-colors duration-fast hover:border-gold/40 hover:text-gold"
                 >
                   <Icon name={copiedAddr ? "shield" : "share"} className="h-3 w-3" />
                   {copiedAddr

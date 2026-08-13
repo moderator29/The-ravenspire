@@ -163,7 +163,7 @@ export default function BattlePreparePage() {
                       type="button"
                       aria-pressed={isSelected}
                       onClick={() => setChampionSlug(c.slug)}
-                      className={`${BOARD_LIST_ROW} w-full border-l-2 text-left transition-colors duration-fast ease-out-quint hover:bg-panel ${
+                      className={`touch:min-h-11 touch:min-w-11 ${BOARD_LIST_ROW} w-full border-l-2 text-left transition-colors duration-fast ease-out-quint hover:bg-panel ${
                         isSelected
                           ? "border-l-gold bg-panel-warm/40"
                           : "border-l-transparent"
@@ -252,7 +252,8 @@ export default function BattlePreparePage() {
                 key={b.slug}
                 interactive
                 pad="md"
-                render={<button type="button" />}
+                render={<button
+          className="touch:min-h-11 touch:min-w-11" type="button" />}
                 aria-pressed={isSelected}
                 onClick={() => setField(b.slug)}
                 className={`w-full border-l-2 text-left ${

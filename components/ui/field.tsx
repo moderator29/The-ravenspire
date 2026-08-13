@@ -1,5 +1,6 @@
 "use client";
 
+import { INLINE_TOUCH_TARGET } from "@/components/ui/button";
 import type { ReactNode } from "react";
 import { Field as BaseField } from "@base-ui/react/field";
 import { Form as BaseForm } from "@base-ui/react/form";
@@ -289,9 +290,10 @@ export function Toggle({
         /* A switch keeps its 24px track: making the track itself 44px would
            stop it reading as a switch. The hit area grows instead, through a
            transparent pseudo element centred on the track, so a thumb gets its
-           44px and the control looks exactly as it did. */
-        "touch:before:absolute touch:before:inset-x-0 touch:before:top-1/2 " +
-          "touch:before:h-11 touch:before:-translate-y-1/2 touch:before:content-['']",
+           44px and the control looks exactly as it did. This was the first use
+           of that idea and is no longer the only one, so it is shared rather
+           than restated. */
+        INLINE_TOUCH_TARGET,
         "transition-[background-color,border-color] duration-fast ease-out-quint",
         "data-unchecked:border-steel-line data-unchecked:bg-steel-deep",
         "data-checked:border-gold/60 data-checked:bg-gold/20",

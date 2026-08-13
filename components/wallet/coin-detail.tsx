@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
-import { Button } from "@/components/ui/button";
+import { Button, INLINE_TOUCH_TARGET } from "@/components/ui/button";
 import { CopyButton } from "@/components/wallet/copy-button";
 import { AddressQR } from "@/components/wallet/address-qr";
 import { TokenLogo } from "@/components/wallet/token-logo";
@@ -228,7 +228,7 @@ function BackRow({ onBack, label }: { onBack: () => void; label: string }) {
     <button
       type="button"
       onClick={onBack}
-      className="inline-flex items-center gap-1.5 self-start text-xs font-medium text-bone-mut transition-colors duration-fast hover:text-bone"
+      className={`${INLINE_TOUCH_TARGET} inline-flex items-center gap-1.5 self-start text-xs font-medium text-bone-mut transition-colors duration-fast hover:text-bone`}
     >
       <Icon name="arrow" className="h-3.5 w-3.5 rotate-180" />
       Back to {label}

@@ -660,7 +660,8 @@ export default function WhispersPage() {
             pad="sm"
             className="flex w-full items-center gap-3 text-left"
             render={
-              <button type="button" onClick={() => openThread(c.id)} />
+              <button
+          className="touch:min-h-11 touch:min-w-11" type="button" onClick={() => openThread(c.id)} />
             }
           >
             {/* The Stream's accent rail, earned: it marks the threads still
@@ -841,6 +842,7 @@ export default function WhispersPage() {
                   className="flex w-full items-center gap-3 text-left"
                   render={
                     <button
+          className="touch:min-h-11 touch:min-w-11"
                       type="button"
                       disabled={starting !== null}
                       onClick={() => void startWhisper(p)}

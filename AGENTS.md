@@ -62,7 +62,13 @@ The full V2 plan lives in `docs/RAVENSPIRE-V2.md`.
     carry a label. Never put text on a fill-only hue.
 12. **Every interactive element is keyboard reachable and visibly focusable.**
     The global `:focus-visible` ring handles this; never add
-    `focus:outline-none` without a replacement.
+    `focus:outline-none` without a replacement. **The 44px touch floor is
+    checked too.** It lives inside the `Button` primitive as
+    `touch:min-h-11 touch:min-w-11`, keyed off the pointer rather than the
+    viewport width, so a hand rolled `<button>` inherits none of it: use the
+    primitive, carry the same two classes, or, for a word inside a line of text
+    where a min height would stretch the row, use `INLINE_TOUCH_TARGET` from
+    `components/ui/button.tsx`, which grows the target and moves no layout.
 13. Brand is obsidian and forged gold, restrained ember, a single steel tone.
     Gold is a gradient, never a flat fill. Glows are warm candlelight, never
     cool. **Never green in brand surfaces**, including success states, which use
