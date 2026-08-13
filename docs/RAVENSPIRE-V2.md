@@ -3324,3 +3324,124 @@ Applied in four parts, `20260813164228` through `20260813164429`, and the
 four files carry the names and versions production recorded. The security
 advisor was run afterwards and returns only the expected INFO
 `rls_enabled_no_policy` lints.
+
+## 49. The Herald as the realm's retention brain
+
+The Herald answered when it was spoken to. The Chronicle was the first half of
+fixing that: once a day the realm reads its own event spine and says what
+happened, and nobody has to summon it. This is the second half and the harder
+one, because it is addressed to one member rather than to everyone: **what
+happened to you since the last time the Herald spoke to you, in one paragraph,
+at the top of the Ravenry.**
+
+Sealed behind `herald_digest_live` until it is real.
+
+### 41.1 What it is
+
+A member opens the Ravenry. The server reads what the realm recorded since that
+member's last digest, in that member's own audience, reduces it to a short fact
+sheet, and hands the sheet to a model with one instruction: say the single most
+important thing and stop. The paragraph is stored, so refreshing the feed is
+free, and it renders as a system card in the Ledger register, structurally
+quieter than a member's raven, with a dismiss.
+
+The card is pinned above the feed rather than dropped into it. Every other realm
+event is a card in the timeline because every other realm event happened at an
+instant. A digest is about a period, so it has no honest position in a stream
+ordered by time, and inserting it at "now" would put a summary of the last six
+hours above the very ravens it summarises.
+
+### 41.2 The discipline, which is the whole feature
+
+**Every figure is the server's.** `lib/raven/digest.ts` turns real rows into
+lines: Calls of theirs that settled and what they scored, Calls still open and
+which settle within a day, Points and Glory that settled in their Ledger, where
+their House stands and who is nearest, what the members they follow did, what
+the rest of the realm did, when the season ends. The model states none of them.
+It is never asked for a number, and nothing it writes is read back into a table,
+so no Point, Glory, rank or price can depend on it. The exact lines it was given
+are stored beside the paragraph, so any sentence a member disputes can be
+checked against what the realm actually counted.
+
+**An empty realm produces an empty digest.** Not a paragraph observing that it
+was quiet, not a greeting: nothing at all, and no model call. `worthTelling` is
+the floor and it is deliberately strict about the difference between a fact that
+is always true and something that happened. A House rank and a season countdown
+are context for a sentence; they are never a reason to write one. One thing that
+happened to this member is enough; absent that, the realm has to have been
+genuinely busy before a member with no stake in it is told about it.
+
+**A quiet window is carried forward, not consumed.** The empty answer is stored
+with the window it failed to fill, so a realm producing one act a day
+accumulates into something worth saying rather than discarding each quiet window
+one at a time.
+
+### 41.3 What it costs, which is almost nothing
+
+Four things, in the order they bite:
+
+1. **The stored digest.** Inside a six hour TTL the route returns the stored
+   paragraph and spends nothing. Twenty refreshes cost one call.
+2. **The floor.** A window with nothing in it never reaches the model, and the
+   empty result is stored so the next refresh is free too.
+3. **The smaller model.** The reasoning was already done in SQL. What is left is
+   writing two sentences over a fact sheet of about twenty lines, which is the
+   cheapest thing a model does. The realm now names its two model choices by
+   the job rather than by the model, in `lib/ai/herald.ts`, so this is one line
+   to change.
+4. **Two caps**, per member and per realm, through the shared Supabase limiter,
+   checked in the last moment before the call so a cache hit never consumes an
+   allowance it did not spend. The per member cap sits above what an honest
+   reader can reach at the TTL, which is asserted in the tests: it is a backstop
+   against a loop, not a pacer for a member.
+
+### 41.4 Degradation, honestly
+
+No key, no flag, no database, a refusal, a timeout, a rate limit: every one of
+them renders as the Herald having had nothing to say. There is no error state on
+this surface and no fallback sentence, because a sentence the Herald did not
+write, presented as the Herald, is a rule 5 violation whatever it says. A
+failure writes no row, so the next request tries again.
+
+### 41.5 The channels that were rejected
+
+- **A notification.** The realm already has one, and the digest is not an event:
+  every notification kind is caused by a member acting on another member, with a
+  subject to open. A digest has no subject and no actor, so it would file a
+  raven that points nowhere. Worse, it fires on the realm's schedule rather than
+  on the member's, which is the definition of a nag, and the per type toggles in
+  `lib/notification-prefs.ts` would have needed a twelfth entry whose honest
+  label is "let the Herald interrupt you".
+- **A Whisper.** Whispers are between members. Putting the realm's own voice in
+  a member's private conversation list makes the one place in the product that
+  is genuinely person to person start carrying announcements, which is the exact
+  shape of every messaging product people have learned to distrust.
+- **A card in the stream.** Rejected for the timeline reason in 41.1, and
+  because the density cap already governs the stream: a digest competing with
+  Chronicle entries for the one system card per five ravens would either
+  displace them or be displaced by them, and neither is a decision worth
+  encoding.
+
+The card is where it is because the Ravenry is the only surface a returning
+member is guaranteed to open, and because a card there can be ignored in one
+glance and dismissed in one tap. A channel that has nowhere honest to fire
+should not be built.
+
+### 41.6 What was consolidated on the way
+
+The mission was mostly not addition:
+
+- **Seven Anthropic clients became one.** Every AI route built its own from the
+  same environment variable, and three of them said in a comment that they were
+  copies of `lib/ai/raven.ts`. `lib/ai/herald.ts` now holds the client, the two
+  model choices and prose extraction.
+- **Five private copies of the em dash filter became one.** House rule 1 was
+  enforced by whichever route remembered to enforce it. It is now inherited by
+  every surface that asks the Herald for prose.
+- **Two copies of the House ranking became one.** The realm strip and the digest
+  both name a member's nearest rival; `gloryStanding` in `lib/houses/view.ts` is
+  now the only place that decides which House that is.
+- **The card shell stopped requiring a spine row.** `SystemCard` and `ForgeCard`
+  took a whole `FeedEvent` to read one timestamp off it. They take the timestamp,
+  which is what let the digest use the same chassis as every other system card
+  rather than growing a second one.

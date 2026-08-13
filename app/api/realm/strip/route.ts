@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { getProfile, json } from "@/lib/auth/server";
 import { musterState } from "@/lib/realm/muster";
+import { gloryStanding } from "@/lib/houses/view";
 
 /* The realm strip.
  *
@@ -44,42 +45,12 @@ export async function GET(req: NextRequest) {
   const houses = (housesRes.data ?? []) as HouseRow[];
 
   /* The member's House, and the House immediately above or below it. A
-     standings table is a fact; a named rival is a reason to act. */
-  let house = null as
-    | {
-        slug: string;
-        name: string;
-        rank: number;
-        glory: number;
-        rival: { name: string; gap: number; ahead: boolean } | null;
-      }
-    | null;
+     standings table is a fact; a named rival is a reason to act.
 
-  if (profile?.house_slug && houses.length > 0) {
-    const index = houses.findIndex((h) => h.slug === profile.house_slug);
-    if (index >= 0) {
-      const mine = houses[index];
-      const above = index > 0 ? houses[index - 1] : null;
-      const below = index < houses.length - 1 ? houses[index + 1] : null;
-      /* Prefer whoever is closest. Being 40 behind the House above is a better
-         story than being 900 ahead of the House below. */
-      const gapAbove = above ? (above.glory ?? 0) - (mine.glory ?? 0) : null;
-      const gapBelow = below ? (mine.glory ?? 0) - (below.glory ?? 0) : null;
-      let rival: { name: string; gap: number; ahead: boolean } | null = null;
-      if (gapAbove !== null && (gapBelow === null || gapAbove <= gapBelow)) {
-        rival = { name: above!.name, gap: gapAbove, ahead: true };
-      } else if (gapBelow !== null) {
-        rival = { name: below!.name, gap: gapBelow, ahead: false };
-      }
-      house = {
-        slug: mine.slug,
-        name: mine.name,
-        rank: index + 1,
-        glory: mine.glory ?? 0,
-        rival,
-      };
-    }
-  }
+     The ranking itself lives in lib/houses/view.ts because the Herald's digest
+     names the same rival, and two copies of that rule would eventually name
+     two different Houses. */
+  const house = gloryStanding(houses, profile?.house_slug ?? null);
 
   /* SessionProfile carries a fixed column list that does not include streak, so
      it is read here rather than assumed. */

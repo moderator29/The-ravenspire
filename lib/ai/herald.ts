@@ -1,0 +1,108 @@
+import "server-only";
+import Anthropic from "@anthropic-ai/sdk";
+
+/* One Anthropic client, and one way to ask the Herald for a paragraph.
+ *
+ * Seven modules were each building their own client from the same environment
+ * variable, and each one re-derived the same three decisions: whether a key is
+ * configured at all, which model to use, and what to do with the text that
+ * comes back. That is seven places for the answer to drift, and it had already
+ * drifted: the daily Chronicle carried a private copy of the punctuation strip
+ * that keeps model output inside house rule 1, so a new AI surface got the rule
+ * only if its author happened to read that file.
+ *
+ * WHAT LIVES HERE
+ * The client, the two model choices, and prose extraction. Nothing about any
+ * particular surface: a caller brings its own system prompt and its own facts.
+ *
+ * WHAT DOES NOT
+ * Anything that decides. heraldProse returns writing or nothing. It never
+ * returns a number a caller goes on to store, never a verdict, never a rank.
+ * Rule 8 makes the server authoritative over everything a member earns, and
+ * that holds only while model output stays prose. */
+
+const key = process.env.ANTHROPIC_API_KEY;
+const client = key ? new Anthropic({ apiKey: key }) : null;
+
+/* Is the Herald reachable at all. Every AI surface checks this and degrades to
+   an honest silence, never to a canned sentence: prose that was not written by
+   the model but is presented as the Herald is a rule 5 violation whatever it
+   says. */
+export function heraldAvailable(): boolean {
+  return client !== null;
+}
+
+export function heraldClient(): Anthropic | null {
+  return client;
+}
+
+/* The two model choices in the realm, named by the job rather than by the
+   model, so a change of model is a change in one line here.
+ *
+ * REASONING is for the surfaces that read something unstructured and form a
+ * view of it: a member's draft Call, a thread, an account. It is the more
+ * capable and the more expensive of the two.
+ *
+ * BRIEF is for the opposite shape, and it is the cheaper model on purpose. The
+ * server has already done the counting and hands over a short fact sheet; the
+ * only job left is to say the important part of it in two sentences. That is
+ * writing, not reasoning, and paying reasoning prices for it on the realm's
+ * most requested page would be a bill with nothing to show for it. Rule 19
+ * says assume the budget is zero. */
+export const MODEL_REASONING = "claude-sonnet-5";
+export const MODEL_BRIEF = "claude-haiku-4-5";
+
+export interface ProseRequest {
+  model: string;
+  system: string;
+  /* The facts, already computed. A model is never asked for a figure the realm
+     can count itself. */
+  user: string;
+  maxTokens: number;
+  /* Only for models that accept it. Left off, no thinking configuration is
+     sent at all, which is what the cheaper model requires: it rejects the
+     effort control the larger one takes. */
+  effort?: "low" | "medium" | "high";
+}
+
+/* Model output with the punctuation the house rules forbid taken back out.
+   Every prompt already forbids it; this is the belt to that pair of braces, and
+   it is here rather than in a route so a new AI surface inherits it. */
+function clean(message: Anthropic.Message): string {
+  const block = message.content.find((b) => b.type === "text");
+  if (!block || block.type !== "text") return "";
+  return block.text
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\s*[—–]\s*/g, ", ")
+    .trim();
+}
+
+/* One short piece of writing over facts the caller computed, or null.
+ *
+ * Null covers every way this can fail to produce prose: no key configured, a
+ * network error, a refusal, an empty answer. A caller renders the same honest
+ * nothing for all of them, because to a member they are the same thing: the
+ * Herald had nothing to say. */
+export async function heraldProse(req: ProseRequest): Promise<string | null> {
+  if (!client) return null;
+  try {
+    const res = await client.messages.create({
+      model: req.model,
+      max_tokens: req.maxTokens,
+      system: req.system,
+      messages: [{ role: "user", content: req.user }],
+      ...(req.effort
+        ? {
+            /* A short read over figures already computed. Thinking would buy
+               nothing here and the realm's budget is zero. */
+            thinking: { type: "disabled" as const },
+            output_config: { effort: req.effort },
+          }
+        : {}),
+    });
+    return clean(res) || null;
+  } catch {
+    return null;
+  }
+}

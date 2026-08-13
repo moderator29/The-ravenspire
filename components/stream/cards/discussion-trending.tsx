@@ -50,7 +50,7 @@ export function DiscussionTrendingCard({ event }: { event: FeedEvent }) {
 
   return (
     <SystemCard
-      event={event}
+      at={event.created_at}
       icon="reply"
       label="The realm is talking"
       action={
