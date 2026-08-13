@@ -30,12 +30,23 @@ export function tierFor(renown: number) {
    inside an hour. */
 export const DAILY_SOCIAL_RENOWN_CAP = 200;
 
+/* The daily ceiling on Glory drawn from the War (V2 Part Three, section 39).
+   War Glory is reported by the client and settled by the server: the per battle
+   value is clamped and battles are capped at a dozen an hour, but without a
+   daily ceiling a member who scripts the finish call farms Glory into the
+   ladder all day. A full victory banks up to 400, so this is roughly a dozen
+   maxed victories, a wall a genuine player never touches in a session and a
+   farm walks into fast. Founder tunable: it is one number here and one row of
+   SQL, and the two must agree, which the points test asserts. */
+export const DAILY_WAR_GLORY_CAP = 5000;
+
 /* Which allowance an award draws from.
-     social  counts against the daily ceiling above
+     social  counts against the daily social ceiling above
+     war     counts against the daily War Glory ceiling above
      call    a resolved Call, uncapped by design
    Omitted means uncapped and uncategorised, which is every award that is
    neither, and every row written before this existed. */
-export type AwardCategory = "social" | "call";
+export type AwardCategory = "social" | "call" | "war";
 
 export interface AwardResult {
   points: number;
@@ -87,6 +98,37 @@ export async function award(
       capped: granted.capped ?? false,
     };
     if (result.points > 0 || result.glory > 0) {
+      await checkAndGrantCrests(db, profileId);
+    }
+    return result;
+  }
+
+  /* A War award has the same shape of exploit as a social one: the finish call
+     is client reported, so the day's total and the ledger write must be one
+     statement or two concurrent finishes both see room and both spend it.
+     award_war_glory_capped takes the profile row lock, sums today's War Glory,
+     and writes the ledger and totals in one function. War Glory is Glory only,
+     so points are ignored on this path. Service-role only, like every economy
+     RPC. */
+  if (opts.category === "war") {
+    const { data, error } = await db.rpc("award_war_glory_capped", {
+      p_profile_id: profileId,
+      p_glory: glory,
+      p_reason: opts.reason,
+      p_ref: opts.ref ?? null,
+      p_daily_cap: DAILY_WAR_GLORY_CAP,
+    });
+    if (error) {
+      console.error("[points] war glory award failed", opts.reason, error.message);
+      return { points: 0, glory: 0, capped: false };
+    }
+    const granted = (data ?? {}) as { glory?: number; capped?: boolean };
+    const result: AwardResult = {
+      points: 0,
+      glory: granted.glory ?? 0,
+      capped: granted.capped ?? false,
+    };
+    if (result.glory > 0) {
       await checkAndGrantCrests(db, profileId);
     }
     return result;
