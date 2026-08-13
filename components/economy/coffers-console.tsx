@@ -211,13 +211,19 @@ function RealmTab({ points }: { points: CoffersResponse["points"] }) {
           {num.format(points.balance)}
           <span className="ml-2 text-sm font-semibold text-gold">POINTS</span>
         </p>
-        {/* Rule 7, and the reason this line replaced the one that was here. The
-            surface used to print "Points convert to $RSP at TGE" under this
-            figure, which is a conversion the product has never committed to and
-            is not entitled to imply. */}
+        {/* THE CONVERSION IS A FOUNDER COMMITMENT, and this line states it and
+            stops exactly there. POINTS convert to $RSP at TGE: that is decided
+            and the realm says so. What is NOT decided is the rate, and a
+            surface that implied one would be making a second, larger claim with
+            the arithmetic left out.
+
+            Rule 7 still holds either way: the figure above is POINTS and is
+            never an amount of $RSP. A committed conversion is a fact about the
+            future; an $RSP number beside a balance is a valuation today. */}
         <p className={cx(CONSOLE_META, "mt-1.5 text-bone-faint")}>
-          POINTS are standing in the realm. They are not money, they are not
-          $RSP, and the realm does not quote a rate between them and anything.
+          POINTS are standing in the realm, and they convert to $RSP at TGE. The
+          rate is not set, so the realm counts POINTS and quotes no figure
+          against them.
         </p>
       </Card>
 

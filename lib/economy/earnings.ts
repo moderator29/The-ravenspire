@@ -27,9 +27,9 @@
    person most entitled to see it.
 
    TWO LEDGERS THAT ARE NEVER ADDED TOGETHER
-   This module folds the POINTS ledger only. POINTS are a realm score: they are
-   not money, they are not $RSP, they are not redeemable and they are never
-   quoted as an amount of anything. The other half of a member's earnings is
+   This module folds the POINTS ledger only. POINTS are a realm score. They
+   convert to $RSP at TGE, and no rate is set, so a POINT is never quoted here
+   as an amount of $RSP or of money. The other half of a member's earnings is
    real value that has already moved to their own wallet, in tokens and in
    dollars, and it lives in lib/economy/coffers.ts as a separate ledger with
    separate units. Summing them would produce a single number that means
