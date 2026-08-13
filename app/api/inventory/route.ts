@@ -4,6 +4,12 @@ import { getFlag } from "@/lib/flags";
 import { mintGate } from "@/lib/collectibles/claims";
 import { EMPTY_HOARD, readHoard } from "@/lib/collectibles/hoard";
 import { CRAFT_STEPS } from "@/lib/collectibles/crafting";
+import { marketGate } from "@/lib/commerce/market-config";
+import {
+  MARKET_FEE_BPS,
+  MAX_PRICE_MINOR,
+  MIN_PRICE_MINOR,
+} from "@/lib/commerce/market";
 
 /* GET /api/inventory: the caller's own Hoard.
  *
@@ -47,13 +53,28 @@ export async function GET(req: Request) {
       }
     : { open: false, reason: gate.reason };
 
-  if (!profile) return json({ ...EMPTY_HOARD, mint, craft });
+  /* The Bazaar's terms travel with the collection for the same reason the
+     craft rule does: the trophy case is where a member decides to sell
+     something, and a listing control cannot show what a sale pays without
+     knowing the fee. The fee and the price bounds are the whole of it. Never a
+     floor value, never an estimated price: the realm does not know what a card
+     is worth and is not going to invent a figure. */
+  const marketState = await marketGate();
+  const market = {
+    open: marketState.open,
+    ...(marketState.open ? {} : { reason: marketState.reason }),
+    fee_bps: MARKET_FEE_BPS,
+    min_price_minor: MIN_PRICE_MINOR,
+    max_price_minor: MAX_PRICE_MINOR,
+  };
+
+  if (!profile) return json({ ...EMPTY_HOARD, mint, craft, market });
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
   try {
     const hoard = await readHoard(db, profile.id);
-    return json({ ...hoard, mint, craft });
+    return json({ ...hoard, mint, craft, market });
   } catch {
     return json({ error: "unavailable" }, 503);
   }

@@ -55,6 +55,12 @@ export const collectionNav: NavItem[] = [
      crafting_live flag is off until members actually hold duplicates to
      burn. */
   { slug: "crafting", href: "/reliquary/craft", themed: "Crafting", plain: "Burn duplicates", icon: "flame", icon3d: "forge", badge: "Soon" },
+  /* The Bazaar sits with the cards rather than with the Vault, because what a
+     member trades here is a card and the decision to sell one is made looking
+     at a collection. It carries the same Soon badge as the rest of the chapter
+     and for the same reason: the market is real and its fee is printed, but
+     market_live is off until members actually hold cards to trade. */
+  { slug: "market", href: "/market", themed: "The Bazaar", plain: "Trade cards", icon: "coin", icon3d: "scales", badge: "Soon" },
   { slug: "warchests", href: "/warchests", themed: "Warchests", plain: "Mystery boxes", icon: "coin", icon3d: "chest", badge: "Soon" },
   { slug: "mercer", href: "/mercer", themed: "The Mercer", plain: "Official merch", icon: "flag", icon3d: "banner", badge: "Soon" },
   { slug: "renown", href: "/renown", themed: "Crests & Renown", plain: "Reputation", icon: "medal", icon3d: "trophy" },
