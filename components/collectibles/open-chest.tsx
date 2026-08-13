@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import Image from "next/image";
+import { Dialog } from "@base-ui/react/dialog";
 import { motion, useReducedMotion } from "framer-motion";
 import { realmFetch } from "@/lib/auth/api";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,21 @@ import { houses } from "@/lib/data/houses";
  * It is deliberately not the `Ceremony` primitive. That component carries one
  * sentence, one number and one action by design, and says so; a chest carries
  * three to ten cards and a cryptographic proof, which is a different shape. So
- * this is a Ceremony by archetype (full bleed, motion led, portalled to
- * document.body per house rule 16) without pretending to be that component.
+ * this is a Ceremony by archetype, full bleed and motion led, without
+ * pretending to be that component.
+ *
+ * ON BASE UI DIALOG, and the first draft of this file was not, which was a
+ * mistake this codebase has already paid for once. A hand rolled
+ * `createPortal` into a `fixed inset-0` div satisfies house rule 16 on the
+ * letter (it does portal to document.body) and fails everything that rule is
+ * actually for: focus never enters the overlay, Escape does nothing, the
+ * background keeps scrolling, and Tab walks straight out into the page
+ * underneath. The Ceremony component carries a comment recording exactly that
+ * measurement, 22 of 24 focusable elements reachable outside the dialog, which
+ * is precisely why writing a twentieth bespoke overlay was the wrong move.
+ * Base UI supplies focus entry, focus restore on close, the Escape handler and
+ * the scroll lock; `components/shell/inert-background.tsx`, mounted in the
+ * shell, closes the keyboard half.
  *
  * WHAT IT SHOWS, AND THE ORDER MATTERS. The cards land one at a time, rarest
  * last, because a reveal that shows everything at once has no reveal in it. A
@@ -152,11 +165,21 @@ export function OpenChest({ sku, name }: { sku: string; name: string }) {
     ) : null;
   }
 
-  const reveal =
-    phase === "revealed" && mounted
-      ? createPortal(
-          <div className="fixed inset-0 z-modal flex flex-col overflow-y-auto bg-obsidian/95 px-4 py-8 backdrop-blur-sm">
-            <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6">
+  const reveal = mounted ? (
+    <Dialog.Root
+      open={phase === "revealed"}
+      onOpenChange={(next) => {
+        if (!next) close();
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-overlay bg-obsidian/90 backdrop-blur-sm transition-opacity duration-base ease-out-quint data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-fast" />
+        <Dialog.Viewport className="fixed inset-0 z-modal overflow-y-auto px-4 py-8">
+          <Dialog.Popup
+            aria-label={`${name}, opened`}
+            className="mx-auto w-full max-w-3xl transition-opacity duration-base ease-out-quint data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-fast"
+          >
+            <div className="flex w-full flex-col items-center gap-6">
               <div className="text-center">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-bone-faint">
                   {name} &middot; opened
@@ -276,10 +299,11 @@ export function OpenChest({ sku, name }: { sku: string; name: string }) {
                 </Button>
               )}
             </div>
-          </div>,
-          document.body
-        )
-      : null;
+          </Dialog.Popup>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog.Root>
+  ) : null;
 
   return (
     <>
