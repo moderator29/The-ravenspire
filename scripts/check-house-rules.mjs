@@ -65,6 +65,40 @@ const PILL_ALLOWED = [
   /rounded-full bg-(gold|ember|steel|bone)[^ ]*"\s*\/>/, // bare status dots
 ];
 
+/* Every icon the set actually draws, read from the source rather than listed
+   here. A second list would be a second thing to forget to update, which is
+   the whole failure mode these two rules exist to close. Both key spellings
+   are matched because the file uses quoted keys for the hyphenated names and
+   bare ones for the rest. */
+let iconNameCache;
+function knownIconNames() {
+  if (iconNameCache) return iconNameCache;
+  /* Resolved from this file's own location, never from the working directory.
+     The rule suite runs the checker inside a temporary directory of planted
+     files, and a relative path there crashed the whole gate with ENOENT: one
+     rule reaching for a file that is not under the cwd took down the other
+     fifteen. The icon set is always a sibling of this script's parent. */
+  const iconFile = new URL("../components/ui/icon.tsx", import.meta.url);
+  const source = readFileSync(iconFile, "utf8");
+  const names = new Set();
+  for (const m of source.matchAll(/^\s{2}"?([a-zA-Z][a-zA-Z0-9-]*)"?:/gm)) {
+    names.add(m[1]);
+  }
+  iconNameCache = names;
+  return names;
+}
+
+/* The crest roundel glyphs, read out of the file that draws them. */
+function localCrestGlyphs(text) {
+  const names = new Set();
+  const start = text.indexOf("const crestIcons");
+  if (start < 0) return names;
+  for (const m of text.slice(start).matchAll(/^\s{2}"?([a-zA-Z][a-zA-Z0-9-]*)"?:/gm)) {
+    names.add(m[1]);
+  }
+  return names;
+}
+
 function files(patterns) {
   const out = execSync(
     `git ls-files ${patterns.map((p) => `'${p}'`).join(" ")}`,
@@ -639,6 +673,85 @@ export const RULES = [
         if (!m) return null;
         return `${m[0]} is the retired gold. Use var(--gold) family, or the current hex in Satori rendered images.`;
       }),
+  },
+
+  {
+    /* Rule 2: no emoji as icons, use the Icon component. Which is only worth
+       anything if the Icon component actually draws the icon you name.
+
+       It did not, silently. `Icon` falls back to a plain circle for a name it
+       does not know, so a typo or a glyph nobody drew renders as a small empty
+       ring rather than as nothing at all. That reads as a deliberate dot, so a
+       page full of them looks populated. Found the hard way: four of the six
+       House sigils (snowflake, storm, moon, lion) had never been drawn, so
+       Frosthold, Stormcrest, Nightvale and Goldmane wore identical blank
+       circles everywhere a banner appears, and `feather`, `badge` and
+       `features` were doing the same. The file's own comment records an
+       earlier round of exactly this, five names that time, which is the
+       clearest possible evidence that catching it by eye does not work.
+
+       Literal names only. A dynamic `name={sigil}` cannot be checked from
+       here, so the sigils themselves are asserted separately below. */
+    id: "icon-name-exists",
+    title: "Rule 2: an Icon name must be an icon that exists",
+    globs: ["*.tsx"],
+    check: (file, text) => {
+      const known = knownIconNames();
+      const found = [];
+      byLine(text, (line, n) => {
+        for (const m of line.matchAll(/<Icon\s[^>]*\bname="([a-zA-Z0-9-]+)"/g)) {
+          if (!known.has(m[1])) {
+            found.push({
+              line: n,
+              message:
+                `<Icon name="${m[1]}" /> is not in components/ui/icon.tsx, so it ` +
+                `renders as a blank circle. Draw it or use one that exists.`,
+            });
+          }
+        }
+        return null;
+      });
+      return found;
+    },
+  },
+
+  {
+    /* The dynamic half of the rule above. Every House sigil and every crest
+       glyph reaches Icon through a variable, which the literal scan cannot
+       see, and those are precisely the ones that went missing: they are
+       written once in a data file and rendered everywhere. */
+    id: "sigil-and-crest-glyphs-exist",
+    title: "Rule 2: every House sigil and crest glyph is drawn",
+    globs: ["lib/data/houses.ts", "components/brand/crests.tsx"],
+    check: (file, text) => {
+      /* Two glyph sets, deliberately. A House sigil is a general icon and is
+         drawn in components/ui/icon.tsx; a crest is a roundel with its own
+         heavier drawing and lives in its own map inside crests.tsx, rendered
+         by CrestRoundel rather than by Icon. Checking a crest against the
+         shared set was this rule's first bug, and it reported nine perfectly
+         good crests as missing. Each name is checked against the set that
+         actually draws it. */
+      const known = file.endsWith("crests.tsx")
+        ? localCrestGlyphs(text)
+        : knownIconNames();
+      const label = file.endsWith("crests.tsx")
+        ? "the crestIcons map in this file"
+        : "components/ui/icon.tsx";
+      const found = [];
+      byLine(text, (line, n) => {
+        const m = line.match(/\b(?:sigil|icon):\s*"([a-zA-Z0-9-]+)"/);
+        if (m && !known.has(m[1])) {
+          found.push({
+            line: n,
+            message:
+              `"${m[1]}" is not drawn in ${label}, so every surface that ` +
+              `renders it shows a blank fallback instead.`,
+          });
+        }
+        return null;
+      });
+      return found;
+    },
   },
 
   {
