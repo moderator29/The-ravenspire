@@ -6,6 +6,7 @@ import { useSendTransaction } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
 import { realmFetch } from "@/lib/auth/api";
 import { CLAIM_ABI } from "@/lib/chain/claim-abi";
+import { useSponsorship } from "@/components/wallet/use-sponsorship";
 
 /* The claim control: three steps that must look like one.
  *
@@ -26,6 +27,19 @@ import { CLAIM_ABI } from "@/lib/chain/claim-abi";
  * so `confirming` polls rather than declaring victory early. A collectible
  * that says "yours" before it is would be the one lie in this whole loop that
  * a member could actually be hurt by.
+ *
+ * WHO PAYS IS SAID BEFORE THE MEMBER PRESSES ANYTHING, not after. Step 2 costs
+ * real money on a real chain, and the way this loop loses people is not the
+ * charge itself but discovering it at the wallet prompt, once they have already
+ * decided. useSponsorship composes what the server permits with what the
+ * browser can actually see, and the line under the control renders that answer
+ * unedited. When the realm is not covering it, the line says the member pays and
+ * why; when it is, it says so. It never guesses, and there is no state in which
+ * the control implies free gas and then charges for it.
+ *
+ * NOTHING ABOUT SPONSORSHIP GATES THIS CONTROL. The transaction below is the
+ * ordinary path, it works exactly as it always has, and a member who is paying
+ * their own gas is one sentence worse off rather than one button short.
  */
 
 type Phase = "idle" | "asking" | "signing" | "confirming" | "done" | "error";
@@ -77,6 +91,7 @@ export function ClaimButton({
   onClaimed?: () => void;
 }) {
   const { sendTransaction } = useSendTransaction();
+  const sponsorship = useSponsorship();
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState<string | null>(null);
   /* Guards the whole sequence rather than the button, because the slow part is
@@ -228,6 +243,18 @@ export function ClaimButton({
       </Button>
       {message ? (
         <p className="text-[11px] leading-snug text-bone-faint">{message}</p>
+      ) : null}
+      {/* Who pays, before the press and not after it. Held back until the
+          answer is actually known: flashing "the realm covers this" and
+          correcting it a moment later would be a worse promise than saying
+          nothing for that moment. Suppressed once the member has committed,
+          because by `signing` their own wallet is telling them the fee. */}
+      {sponsorship.ready && phase === "idle" ? (
+        <p className="text-[11px] leading-snug text-bone-faint">
+          {sponsorship.payer === "realm"
+            ? "The realm covers the gas. Your wallet still signs it."
+            : (sponsorship.reason ?? "You pay the gas for this.")}
+        </p>
       ) : null}
     </div>
   );

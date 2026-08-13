@@ -16,6 +16,9 @@ import { HoardPanel } from "@/components/collectibles/hoard-panel";
 import { OrdersPanel } from "@/components/commerce/orders-panel";
 import { SpendLimitsPanel } from "@/components/commerce/spend-limits-panel";
 import { RedeemCode } from "@/components/collectibles/redeem-code";
+import { GasPanel } from "@/components/wallet/gas-panel";
+import { RecoveryPanel } from "@/components/wallet/recovery-panel";
+import { SigningLimitPanel } from "@/components/wallet/signing-limit-panel";
 
 /* The Vault: a Console. Compact above md, zero ornament, and every panel
    inside it on the shared Card chassis. */
@@ -108,6 +111,19 @@ export default function VaultPage() {
                   headroom they have is an invitation dressed as information. */}
               <SpendLimitsPanel />
               <RedeemCode />
+
+              {/* The cost of being non-custodial, and the two things that make
+                  it survivable. Gas first, because it is the one a member meets
+                  on their very first act. Recovery second, because it is the
+                  one they only think about once, ideally before they need it.
+                  The signing ceiling last, because it is the advanced one and
+                  it sits deliberately far from the spending limit above: the
+                  two are different features and putting them side by side would
+                  invite exactly the confusion both of them warn about. Each
+                  panel renders nothing at all when it has nothing true to say. */}
+              <GasPanel />
+              <RecoveryPanel />
+              <SigningLimitPanel />
             </section>
           </>
         )}

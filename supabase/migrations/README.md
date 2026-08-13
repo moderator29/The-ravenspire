@@ -63,6 +63,26 @@ The Bazaar is split into four files (`20260813112210` through `20260813112411`)
 because it was applied in four parts, and the files carry the names and versions
 production recorded so the two listings read the same.
 
+## Written and not yet applied
+
+The four incidents above were all the same divergence: production carrying schema
+no file described. The opposite divergence is also possible and is much less
+dangerous, but it still has to be written down, because a reader who assumes
+every file here has run will go looking for a table that is not there.
+
+- **`20260813183000_gasless_and_forgiving.sql`** (mission 11). Two tables
+  (`wallet_sponsorship_grants`, `member_wallet_guardrails`), one `realm_flags`
+  row (`gasless_live`, seeded false), four `SECURITY DEFINER` functions. It
+  **alters nothing that already exists**, so the read-the-live-definition rule
+  above had nothing to check against. In particular it does not touch
+  `member_commerce_limits`: the signing ceiling it adds is a different feature
+  from the commerce spend cap, and `docs/RAVENSPIRE-V2.md` section 50.4 sets out
+  why at length.
+
+  Until it is applied, `/api/wallet/guardrails` answers `503 not migrated` on the
+  `42883` and `42P01` codes and every Vault panel that depends on it renders
+  nothing, which is the designed behaviour rather than a fault to fix.
+
 ## Applied in parts, and why the filenames say so
 
 Two of the recent migrations were applied through the Supabase API in more than
