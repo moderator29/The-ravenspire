@@ -247,15 +247,36 @@ Gelato, with Printful and Prodigi fallbacks behind a swappable abstraction. Per
 card mint caps Rare 5,000, Epic 1,500, Legendary 400, Mythic 75. Art print edition
 250 per champion.
 
-## 8. Founder only decisions (never block on these, build sealed and ready)
+## 8. Founder decisions (values now provided, encode and keep sealed)
 
-- Confirm or adjust the chest prices, then set `COMMERCE_PRICES_CONFIRMED=true`.
-- Real per card floor valuations before confirming (the guardrail forces floor at
-  least price).
-- Merch prices (checkout rejects merch until they exist).
-- On chain mint: deployed contracts on Base and a platform voucher signer (the
-  mint phase, deliberately last, never faked).
-- The print on demand vendor contract and the payment provider account.
+The founder has set the numbers below. Encode them server side in
+`lib/commerce/catalog.ts` (chest floors) and a merch catalog, keep them off every
+customer surface, and leave `COMMERCE_PRICES_CONFIRMED` false until the checkout
+frontend, a real Stripe account, and the compliance guardrails are all in place.
+These floors are a platform committed guaranteed value (the no downside promise),
+not a scraped market price, so they are honest to state as our commitment.
+
+**Per rarity guaranteed floor value** (the value the platform stands behind per
+card, conservative): Rare 8, Epic 22, Legendary 60, Mythic 275, all USD.
+
+**Per chest guaranteed floor** (minimum guaranteed contents, which clears the
+floor at least price guardrail on every chest): Squire's 38.00 (one Epic plus two
+Rare), Knight's 92.00 (one Legendary plus four Rare), King's Reliquary 192.00
+(merch plus a full art print plus one Legendary plus nine Rare). Encode these as
+the chest `floorMinor` values, replacing the placeholder that equals price.
+
+**Merch prices** for the five Mercer SKUs, USD: The Obsidian Tee 32, The Rookery
+Hoodie 68, The Banner Cap 30, Set One Art Print 42 (numbered giclee, edition 250),
+The War Playmat 48. Wire a server side merch catalog and enable the merch line in
+checkout (today it is rejected honestly because no price existed).
+
+Still genuinely founder only, do not block, build sealed and ready:
+- On chain mint: two deployed contracts on Base and a platform voucher signing key
+  (the interface is stubbed at `lib/chain/claim-abi.ts`). The mint phase, last.
+- The Gelato fulfillment account and the Stripe payment account (keys go in env,
+  never in the bundle or a commit).
+- The final yes to flip `COMMERCE_PRICES_CONFIRMED` and the `chests_live` flag,
+  once everything above is real.
 
 Everything else is yours to decide and build. Start at section 3, item 1.
 
