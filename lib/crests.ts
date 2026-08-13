@@ -60,7 +60,7 @@ export async function checkAndGrantCrests(
    *
    * PostgREST fails the WHOLE select when one column in it does not exist, so
    * adding muster_streak to the list above would mean that on any database
-   * that has not yet taken 20260817090000, this function returns early and
+   * that has not yet taken 20260813113137, this function returns early and
    * NOBODY is granted any crest at all. Migrations in this repository are
    * written and applied separately by a human, so "the column is not there
    * yet" is a state the running code has to survive rather than a state that
