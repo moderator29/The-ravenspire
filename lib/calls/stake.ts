@@ -20,7 +20,7 @@
    Nothing here is authoritative. Every number this file produces is recomputed
    on the server, and the escrow and the settlement both happen inside a single
    Postgres function that holds the member's profile row lock. See
-   supabase/migrations/20260815120000_call_stakes_and_house_treasury.sql. */
+   supabase/migrations/20260813104201_call_stakes_and_house_treasury.sql. */
 
 import { SCORE_MAX, clamp } from "@/lib/calls/scoring";
 

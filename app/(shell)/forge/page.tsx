@@ -243,7 +243,7 @@ export default function ForgePage() {
    prop to pass it a number, so nothing can invent one. */
 function Figure({ label }: { label: string }) {
   return (
-    <Card radius="lg" pad="none" className="p-3 md:p-2.5">
+    <Card radius="lg" pad="md" className="md:p-2.5">
       <p className="text-[10px] uppercase tracking-[0.16em] text-bone-faint">
         {label}
       </p>

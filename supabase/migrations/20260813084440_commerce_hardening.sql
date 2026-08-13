@@ -20,7 +20,7 @@
 -- any test, because no test can see a constraint that only exists in one place.
 --
 -- Two of the four functions here are superseded and are dropped by
--- 20260815090000_retire_the_superseded_rpcs.sql, which explains why.
+-- 20260813103924_retire_the_superseded_rpcs.sql, which explains why.
 
 alter table public.points_ledger
   drop constraint if exists points_ledger_category_check;

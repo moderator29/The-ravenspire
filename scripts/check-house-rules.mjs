@@ -794,6 +794,44 @@ export const RULES = [
       return found;
     },
   },
+  {
+    id: "card-padding-is-a-rung",
+    title: "Rule 10: card padding comes off the scale, not out of the air",
+    globs: ["*.tsx"],
+    skip: (f) =>
+      /^components\/ui\/card\.tsx$/.test(f) ||
+      /* The Forge register, where a hero card genuinely wants more air than
+         any Ledger rung offers. The landing page and the Ceremony are the two
+         places section 21 allows ornament, and a padding rung invented there
+         is a deliberate choice rather than a card that forgot the scale. */
+      /^components\/landing\//.test(f) ||
+      /^components\/realm\/ceremony\.tsx$/.test(f) ||
+      /^app\/page\.tsx$/.test(f) ||
+      /^app\/legal\//.test(f),
+    check: (file, text) => {
+      const found = [];
+      for (const { text: tag, line } of openingTags(text, "Card")) {
+        /* `pad="none"` is correct on its own: it is how a caller composes with
+           CardHeader, CardBody and CardFooter, which carry their own. It is
+           only wrong when the caller then paints a padding back on by hand,
+           because that padding answers to nothing. */
+        if (!/pad=(\{?)"none"/.test(tag)) continue;
+        for (const cls of classNamesIn(tag)) {
+          if (cls.includes(":")) continue;
+          if (!/^p-[0-9]/.test(cls)) continue;
+          found.push({
+            line,
+            message:
+              `<Card pad="none" className="... ${cls} ..."> sets its own ` +
+              `padding. Use pad="sm" | "md" | "lg" so every card in the realm ` +
+              `agrees, and so the tightening in components/ui/card.tsx reaches ` +
+              `this one.`,
+          });
+        }
+      }
+      return found;
+    },
+  },
 ];
 
 /* ------------------------------------------------------------------

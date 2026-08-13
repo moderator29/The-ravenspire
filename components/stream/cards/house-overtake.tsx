@@ -42,7 +42,7 @@ export function HouseOvertakeCard({ event }: { event: FeedEvent }) {
 
   return (
     <ForgeCard
-      event={event}
+      at={event.created_at}
       icon="rivalry"
       label="Rivalry"
       rail="house"

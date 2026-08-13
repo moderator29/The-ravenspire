@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/icon";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { FairnessPanel } from "@/components/collectibles/fairness-panel";
 import { BuyButton } from "@/components/commerce/buy-button";
+import { AlmsPanel } from "@/components/commerce/alms-panel";
 import { OpenChest } from "@/components/collectibles/open-chest";
 import { BackButton } from "@/components/shell/back-button";
 
@@ -123,6 +124,11 @@ export default function WarchestsPage() {
           <TierCard key={tier.sku} tier={tier} />
         ))}
       </div>
+
+      {/* The free path, directly under the paid ones and on the same page,
+          because a free method of entry that is harder to find than the
+          purchase it stands beside is one in name only. */}
+      <AlmsPanel />
 
       {/* The fairness contract, on the page that makes the promise. It is
           deliberately not behind the launch flag: a member is entitled to hold

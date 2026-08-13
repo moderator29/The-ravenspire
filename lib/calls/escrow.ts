@@ -9,7 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
    takes the escrow row's lock and refuses anything that is not still escrowed.
    Neither guarantee can be expressed from here, which is why neither is
    attempted from here. See
-   supabase/migrations/20260815120000_call_stakes_and_house_treasury.sql. */
+   supabase/migrations/20260813104201_call_stakes_and_house_treasury.sql. */
 
 export interface EscrowResult {
   ok: boolean;

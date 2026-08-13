@@ -32,7 +32,7 @@
 --
 -- The live constraint was read out of the database before this was written and
 -- is ('social', 'call', 'war', 'stake'), which matches
--- 20260815120000_call_stakes_and_house_treasury.sql exactly. Repository and
+-- 20260813104201_call_stakes_and_house_treasury.sql exactly. Repository and
 -- database agree. Checked, not assumed.
 
 -- ============================================================
@@ -308,7 +308,7 @@ revoke insert, update, delete, truncate on public.house_clash_results
 --
 -- Nor can it pay POINTS into the House treasury: that treasury holds real
 -- POINTS burned by real members staking real Calls
--- (20260815120000_call_stakes_and_house_treasury.sql), and minting into it
+-- (20260813104201_call_stakes_and_house_treasury.sql), and minting into it
 -- would put invented balance beside earned balance in the same column.
 --
 -- So a Clash pays a record, permanently, and that is the honest whole of it. A
@@ -628,7 +628,7 @@ grant execute on function public.close_season(integer, integer, boolean)
 -- ============================================================
 --
 -- clash.settled joins the once-only kinds. It is written by a scheduled job,
--- which is precisely the shape 20260812100000_periodic_event_idempotency.sql
+-- which is precisely the shape 20260812144432_periodic_event_idempotency.sql
 -- exists for: a job that runs more often than the card should appear races a
 -- guard written in application code, and does not race a unique index.
 --

@@ -36,7 +36,7 @@ export function QuestCompletedCard({ event }: { event: FeedEvent }) {
 
   return (
     <SystemCard
-      event={event}
+      at={event.created_at}
       icon="check"
       label="Quest"
       action={

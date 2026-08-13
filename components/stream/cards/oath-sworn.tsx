@@ -31,7 +31,7 @@ export function OathSwornCard({ event }: { event: FeedEvent }) {
 
   return (
     <SystemCard
-      event={event}
+      at={event.created_at}
       icon={houseIcon(toSlug)}
       label="Oath"
       {...(to ? { rail: "house" as const, railColor: to.color } : {})}

@@ -2375,7 +2375,7 @@ are printed while sealed, for the same reason a chest prints its odds before it
 can be bought: a member is entitled to read the terms of a trade before the
 trade exists.
 
-Migration `20260814090000_crafting_the_card_sink.sql`, not applied.
+Migration `20260813103404_crafting_the_card_sink.sql`, applied.
 
 ## 45. The Bazaar, the non-custodial secondary market
 
@@ -2599,7 +2599,8 @@ Gifting and member to member transfer without a payment are the two pieces of
 mission 4 still absent. Neither is hard on top of this, and both are a different
 flow: no price, no fee, no reservation, one signature.
 
-Migration `20260816090000_the_bazaar.sql`, not applied. It was verified against
+Applied in four parts, `20260813112210` through `20260813112411`, and the four
+files carry the names and versions production recorded. It was verified against
 a throwaway PostgreSQL 16 cluster with the whole migration chain replayed onto
 it, exercising every refusal, both triggers, every check constraint, the unique
 indexes and the grants.
@@ -2887,7 +2888,7 @@ moved to `lib/economy/allowances.ts`, a leaf with no imports, re-exported from
 Checked before anything was written, as the handoff now requires.
 `points_ledger_category_check` in the live project is
 `('social', 'call', 'war', 'stake')`, which matches
-`20260815120000_call_stakes_and_house_treasury.sql` exactly. Every table,
+`20260813104201_call_stakes_and_house_treasury.sql` exactly. Every table,
 column and index this work touches agrees between the two. No divergence found.
 
 The migration was replayed instead: the full chain from
@@ -2897,7 +2898,7 @@ how the behaviour claimed above was checked rather than assumed. Four of the
 older migrations fail on that replay because the baseline already creates the
 policies they create, which is pre-existing and unrelated.
 
-Migration `20260817090000_appointments_and_seasons.sql`, not applied.
+Migration `20260813113137_appointments_and_seasons.sql`, applied.
 
 ## 47. Provably fair, as a feature
 
@@ -3055,14 +3056,397 @@ that glows is an audit congratulating itself.
 Checked before anything was written, as the handoff requires. `chest_openings`,
 `chest_seeds` and `chest_entitlements` in the live project match this directory
 column for column, and `public.chest_open` carries the ten argument signature
-from `20260813180000_two_step_commit_reveal.sql`. `chest_openings`,
+from `20260813094251_two_step_commit_reveal.sql`. `chest_openings`,
 `chest_entitlements` and `chest_seeds` are all empty, and `chests_live` is
 false. No divergence found.
 
 **No migration.** This work adds no table, no column, no constraint and no
 function. Both new endpoints read existing columns through the service role.
+## 48. The compliance guardrails, and the size of what they are not
 
-## 48. The Coffers, and a House a member can be inside
+Mission 12, and the last piece of code standing between the realm and
+`COMMERCE_PRICES_CONFIRMED`. What remains after this is a real payment account,
+which is not code.
+
+Nobody who built this is a lawyer and none of it claims compliance with any
+law. Every guardrail below carries an explicit "what this does not cover"
+paragraph, in `lib/commerce/compliance.ts`, written so a real adviser can read
+it and say what is missing. That list is the important half of the work.
+
+### 47.1 Where the decisions live, and why not in the route
+
+Section 34 named four answers to the gambling optics of a mystery box. Two were
+already built and enforced at module load: exact printed odds validated to sum
+to 100, and a guaranteed floor validated against the worst a chest can actually
+deal. The other two, no cash-out promises and no invented scarcity, were prose.
+This wave is the rest of the posture.
+
+Every decision is made inside Postgres, in the same transaction that creates
+the order, under the same lock. That is not a preference. A spend cap read in
+one round trip and enforced in the next is not a cap: ten concurrent presses
+each read a spend of zero and all ten pass. `public.commerce_checkout_guard`
+judges and inserts together or does neither, and the checkout route has no code
+path left that writes an order, so a future edit cannot forget the guard.
+
+Every threshold, though, lives in `lib/commerce/compliance.ts` and is passed in
+as a REQUIRED parameter with no SQL default. A default in the function body
+would be a second copy of a number that also lives in TypeScript, and two
+copies of a threshold drift the first time somebody tunes one of them, quietly,
+in the direction of taking more money. A required parameter cannot drift
+because it cannot exist twice. A test reads the migration file and asserts the
+declared parameters are exactly the ones the TypeScript bundle supplies, and
+that none of them carries a default, because that joint is invisible to
+typecheck.
+
+### 47.2 The Alms, the free method of entry
+
+The one that mattered most. A paid random-reward mechanic commonly needs a
+genuinely free path to the same reward, of equal dignity, and the realm's is
+called the Alms: a real Squire's Chest, given.
+
+Not a token, not a coupon, not a quieter chest wearing the same name. It is a
+row in `chest_entitlements` differing from a purchased one only in
+`source_kind`, and it opens through the same route, against the same committed
+seed, on the same printed odds, with the same guaranteed floor and the same
+provable reveal. No code path anywhere reads `source_kind` and rolls
+differently, and a test asserts the opening route does not mention it at all.
+
+The property that decides whether this is an entry or a consolation prize is
+that the free chest can win the rarest thing the realm mints. The Squire's
+Chest deals three cards at 0.6% mythic each, so it can. That is asserted at
+module load rather than argued, because an odds retune that zeroed mythic on
+the entry tier for perfectly good economic reasons would destroy it silently
+and nothing else in the codebase would notice.
+
+**Abuse, which is the whole difficulty.** A free entry one person can take a
+thousand times is not compliance, it is a faucet, and a faucet pointed at a
+capped-supply collectible is worse than no free path at all. Four defences,
+none individually sufficient: one per member per 30 days; an account at least
+seven days old, onboarded, carrying a handle; the same age gate as the paid
+path; and a realm-wide ceiling of twenty five a day under a transaction-scoped
+advisory lock, because a ceiling two requests can race past is not a ceiling.
+
+The account age floor is the cheap one: registration is free and instant, so
+seven days converts "make a thousand accounts now" into "make a thousand
+accounts a week ago and keep them", and costs an honest member nothing they
+notice. The realm-wide ceiling is the one that actually contains an attacker,
+because it bounds the damage however many accounts they hold.
+
+**It does not stop sybil.** One person with fifty aged accounts gets fifty
+entries. Only identity verification changes that and identity verification is a
+paid service. The ceiling is containment, not prevention, and the distinction
+is worth saying out loud rather than leaving for somebody to discover.
+
+**The ceiling cuts both ways.** A ceiling reached every day has stopped being a
+free method of entry and become a lottery for one. The exhaustion is written to
+the refusal ledger and the remaining count is on the panel, precisely so this
+is visible, and if it is regularly hit the founder must raise it. That is an
+operating commitment; no code can enforce it.
+
+Also not covered: merch and the physical King's Reliquary, which has real
+per-unit printing and shipping cost, have no free path. Whether the free entry
+must reach the top tier rather than the entry tier is exactly the question that
+needs an adviser and not a developer.
+
+The Alms are gated on `chests_live` and deliberately NOT on
+`COMMERCE_PRICES_CONFIRMED`, so the free path can never be narrower than the
+paid one. A test reads the route and asserts it.
+
+### 47.3 The age gate
+
+One question, "are you at least eighteen", answered once. What is stored is
+that it was answered, when, and against which minimum. **There is no date of
+birth column and there must never be one:** a birth date is identifying data
+the realm would then owe a duty of care over, and it answers a question nobody
+asked. The minimum in force is stored beside the answer so raising it later
+re-asks everybody rather than grandfathering them silently.
+
+It lives in its own table rather than on `profiles`, and the reason is not
+tidiness. `public.profiles` carries column-level grants to `anon` on a dozen
+columns because a profile is a public object. Putting a compliance fact on that
+table would leave it one accidental grant from a public read.
+
+It is a SELF DECLARATION and nothing in the product describes it as more. A
+member who types the wrong answer passes. Real verification needs a document or
+credit check provider, which is a paid service; the seam is `age_verified_at`
+and `age_verification_method`, which nothing writes.
+
+It gates the paid paths and the Alms, and nothing else. The realm does not ask
+a member's age to read the Ravenry.
+
+### 47.4 Spend caps
+
+250 in 24 hours, 1,000 in 30 days, computed at checkout from real order
+history. The dearest thing in the realm is the King's Reliquary at 54.86, so
+250 a day is four of them plus merch: past any honest collecting session, short
+of the kind of day somebody regrets. 1,000 a month is roughly eighteen top
+chests. Both are deliberately low for a launch, because the directions are not
+symmetrical: raising a cap later is a decision made calmly, and lowering one
+after members have been allowed to spend past it is a decision made inside a
+complaint.
+
+Paid and fulfilled orders count, dated by `paid_at` so a slow webhook does not
+date a charge to the wrong window. Refunded and cancelled never count. Pending
+orders count for sixty minutes, because a live checkout session is money the
+member can still spend and a cap ignoring them could be walked through by
+opening twenty sessions before paying any; after an hour an abandoned cart
+stops holding a member's ceiling hostage.
+
+A module load assertion refuses a day cap below the dearest single item,
+because that is not a cap, it is a closure that quietly makes one product
+unbuyable.
+
+They are per member, keyed on the profile: one person with three accounts has
+three ceilings. And they see only what the realm charged. They cannot see the
+Bazaar, where payment goes wallet to wallet and the platform is not a party to
+it, which the panel says on its own face.
+
+### 47.5 Cooling off, and the one asymmetry that matters
+
+Three mechanisms, none of which can be clicked past, which is the only test of
+whether an interruption is real.
+
+**The velocity brake.** Four paid orders inside sixty minutes and checkout
+stops until the oldest falls out of the window. Three is reachable by an
+ordinary member buying a chest, liking what came out, and buying two more; four
+inside an hour is a pattern rather than a purchase. It is a pause, it clears
+itself, and the answer says exactly when.
+
+**The informed consent interruption.** Once real 30 day spend would pass 150,
+checkout refuses and hands back the member's actual total; continuing needs an
+explicit acknowledgement that expires after 24 hours. 150 is set against the
+DAY cap rather than the month cap, and that is the correction worth recording:
+at 250 it would have equalled the 24 hour ceiling, so a member spending fast
+inside one day would have been stopped dead without ever having been shown
+their own running total, and the consent step would only ever have fired across
+days. The relationship is now asserted at module load.
+
+The number recorded is the one the SERVER computed. The route has no way to
+pass a total and must never be given one, so the row is evidence of what the
+member was actually shown rather than of what a client claimed to have shown
+them.
+
+**The member set cap**, and the asymmetry is the entire point: lowering it
+applies immediately, raising it waits 24 hours, and the pending value is
+visible so nobody is surprised by their own decision. A limit a member can
+raise in the moment they want to raise it is not a limit, it is a speed bump
+they installed and then removed. The delay is in
+`public.commerce_set_self_cap`, not in a route, because a delay a route
+computes is a delay a route can be edited to skip.
+
+What none of it does: it cannot tell distress from enthusiasm, it sees a rate
+and not a person, there is no self-exclusion register and no way to lock
+oneself out for a term, and nobody is paged, because there is no human on a
+rota to page.
+
+### 47.6 Geo, and the honest answer
+
+**Reliable geolocation needs a paid service and the realm does not have one.**
+Everything else here is a qualification of that sentence.
+
+What is free and real: Vercel injects `x-vercel-ip-country` and Cloudflare
+`cf-ipcountry`, both part of hosting rather than a new paid service. Why it is
+still only a hint: a VPN defeats it in ten seconds, mobile carrier routing puts
+honest members in neighbouring countries, and corporate egress is attributed
+badly. And the header is read ONLY when we know we are behind that edge, because
+off it the value is a string the caller typed, and a caller who can type their
+own country has defeated the gate by typing. Same reasoning as `clientIp`.
+
+Three modes. `advisory` is the default and enforces nothing until the founder
+names a country in `COMMERCE_BLOCKED_COUNTRIES`, which is the honest starting
+state rather than an oversight. `strict` additionally refuses an unknown
+origin, which is the only setting a plain VPN does not simply walk through, and
+also the setting that refuses every honest member when the deployment is not
+behind a trusted edge. `off` is a single switch rather than an emptied list.
+There is no hardcoded country list anywhere: a list of countries in a source
+file is a legal position taken by a developer.
+
+**What would actually be needed, so it can be costed.** An IP intelligence
+provider (MaxMind GeoIP2, IPinfo, IP2Location) returning a country AND a VPN,
+proxy and hosting-provider flag. The flag is the part that matters and the part
+no free source gives. `resolveCountry` is the single function it plugs into.
+And separately, the payment provider's own card-issuing country and billing
+address, which cost nothing extra because they arrive with the payment and are
+a materially stronger signal than an IP, but arrive AFTER the charge, so they
+inform refunds and reporting rather than the decision to sell. `orders` carries
+`geo_country` and `geo_source` so the two can never be flattened into one
+confidence.
+
+### 47.7 The refusal ledger
+
+Every guardrail that turns a member away writes `commerce_guard_events`. This
+is the half of a compliance posture that is easy to omit and impossible to
+reconstruct later: a guardrail that refuses and keeps no record cannot answer
+the only question anybody will ever ask it, which is "show me that it fires".
+It records the decision and the numbers it turned on, never a cart, a card or
+an address.
+
+### 47.8 The surfaces
+
+The Alms sit on `/warchests`, full width, directly under the three chests,
+because a free path harder to find than the purchase it stands beside is one in
+name. The interruption is a Base UI `Dialog` rather than a line of text,
+because an interruption that can be scrolled past is not one, and it always
+carries the member's real figures: "you cannot do that right now" is the shape
+of a dark pattern and "you have spent 140 in the last 30 days" is not. Spending
+and the self-limit control are in the Vault, absent entirely for a member who
+has never spent and set no limit, because telling somebody who has bought
+nothing how much headroom they have is an invitation dressed as information.
+
+All of it is the Ledger register. No gold gradient, no 3D icon, no glow. The
+Forge on a spending limit would be the product celebrating the fact that
+somebody is about to spend more, which is the thing these exist to interrupt.
+
+Two refusals carry an action and three do not, and the asymmetry is honest: the
+age gate and the acknowledgement are answered by the member, a spending cap and
+the velocity brake are answered by time. There is no override and no route that
+would accept one.
+
+### 47.9 Repository versus database, and how this was checked
+
+Read before anything was written, per `supabase/migrations/README.md`. One
+existing object is altered: `chest_entitlements_source_kind_check`, whose live
+definition was read out of the project as `('order', 'redemption')` and matches
+`20260812224950_commerce_engine.sql` exactly. The change adds `'amoe'` and
+removes nothing. Repository and database agree on every other object touched.
+
+The migration was NOT applied. It was replayed instead against a throwaway
+Postgres 16 cluster carrying stand-ins for the five tables it depends on,
+applied twice to prove it is idempotent, and then exercised: 39 behavioural
+assertions covering the age gate, idempotency that is never re-judged, the
+pending-order grace, the acknowledgement and its expiry, both spend windows,
+refunds counting for nothing, the self cap in both directions and its delay,
+the velocity brake and its self-clearing, and the Alms through every refusal
+they can give. A two-session test confirmed a concurrent checkout blocks on the
+limits row lock rather than racing past it.
+
+Applied in four parts, `20260813164228` through `20260813164429`, and the
+four files carry the names and versions production recorded. The security
+advisor was run afterwards and returns only the expected INFO
+`rls_enabled_no_policy` lints.
+
+## 49. The Herald as the realm's retention brain
+
+The Herald answered when it was spoken to. The Chronicle was the first half of
+fixing that: once a day the realm reads its own event spine and says what
+happened, and nobody has to summon it. This is the second half and the harder
+one, because it is addressed to one member rather than to everyone: **what
+happened to you since the last time the Herald spoke to you, in one paragraph,
+at the top of the Ravenry.**
+
+Sealed behind `herald_digest_live` until it is real.
+
+### 41.1 What it is
+
+A member opens the Ravenry. The server reads what the realm recorded since that
+member's last digest, in that member's own audience, reduces it to a short fact
+sheet, and hands the sheet to a model with one instruction: say the single most
+important thing and stop. The paragraph is stored, so refreshing the feed is
+free, and it renders as a system card in the Ledger register, structurally
+quieter than a member's raven, with a dismiss.
+
+The card is pinned above the feed rather than dropped into it. Every other realm
+event is a card in the timeline because every other realm event happened at an
+instant. A digest is about a period, so it has no honest position in a stream
+ordered by time, and inserting it at "now" would put a summary of the last six
+hours above the very ravens it summarises.
+
+### 41.2 The discipline, which is the whole feature
+
+**Every figure is the server's.** `lib/raven/digest.ts` turns real rows into
+lines: Calls of theirs that settled and what they scored, Calls still open and
+which settle within a day, Points and Glory that settled in their Ledger, where
+their House stands and who is nearest, what the members they follow did, what
+the rest of the realm did, when the season ends. The model states none of them.
+It is never asked for a number, and nothing it writes is read back into a table,
+so no Point, Glory, rank or price can depend on it. The exact lines it was given
+are stored beside the paragraph, so any sentence a member disputes can be
+checked against what the realm actually counted.
+
+**An empty realm produces an empty digest.** Not a paragraph observing that it
+was quiet, not a greeting: nothing at all, and no model call. `worthTelling` is
+the floor and it is deliberately strict about the difference between a fact that
+is always true and something that happened. A House rank and a season countdown
+are context for a sentence; they are never a reason to write one. One thing that
+happened to this member is enough; absent that, the realm has to have been
+genuinely busy before a member with no stake in it is told about it.
+
+**A quiet window is carried forward, not consumed.** The empty answer is stored
+with the window it failed to fill, so a realm producing one act a day
+accumulates into something worth saying rather than discarding each quiet window
+one at a time.
+
+### 41.3 What it costs, which is almost nothing
+
+Four things, in the order they bite:
+
+1. **The stored digest.** Inside a six hour TTL the route returns the stored
+   paragraph and spends nothing. Twenty refreshes cost one call.
+2. **The floor.** A window with nothing in it never reaches the model, and the
+   empty result is stored so the next refresh is free too.
+3. **The smaller model.** The reasoning was already done in SQL. What is left is
+   writing two sentences over a fact sheet of about twenty lines, which is the
+   cheapest thing a model does. The realm now names its two model choices by
+   the job rather than by the model, in `lib/ai/herald.ts`, so this is one line
+   to change.
+4. **Two caps**, per member and per realm, through the shared Supabase limiter,
+   checked in the last moment before the call so a cache hit never consumes an
+   allowance it did not spend. The per member cap sits above what an honest
+   reader can reach at the TTL, which is asserted in the tests: it is a backstop
+   against a loop, not a pacer for a member.
+
+### 41.4 Degradation, honestly
+
+No key, no flag, no database, a refusal, a timeout, a rate limit: every one of
+them renders as the Herald having had nothing to say. There is no error state on
+this surface and no fallback sentence, because a sentence the Herald did not
+write, presented as the Herald, is a rule 5 violation whatever it says. A
+failure writes no row, so the next request tries again.
+
+### 41.5 The channels that were rejected
+
+- **A notification.** The realm already has one, and the digest is not an event:
+  every notification kind is caused by a member acting on another member, with a
+  subject to open. A digest has no subject and no actor, so it would file a
+  raven that points nowhere. Worse, it fires on the realm's schedule rather than
+  on the member's, which is the definition of a nag, and the per type toggles in
+  `lib/notification-prefs.ts` would have needed a twelfth entry whose honest
+  label is "let the Herald interrupt you".
+- **A Whisper.** Whispers are between members. Putting the realm's own voice in
+  a member's private conversation list makes the one place in the product that
+  is genuinely person to person start carrying announcements, which is the exact
+  shape of every messaging product people have learned to distrust.
+- **A card in the stream.** Rejected for the timeline reason in 41.1, and
+  because the density cap already governs the stream: a digest competing with
+  Chronicle entries for the one system card per five ravens would either
+  displace them or be displaced by them, and neither is a decision worth
+  encoding.
+
+The card is where it is because the Ravenry is the only surface a returning
+member is guaranteed to open, and because a card there can be ignored in one
+glance and dismissed in one tap. A channel that has nowhere honest to fire
+should not be built.
+
+### 41.6 What was consolidated on the way
+
+The mission was mostly not addition:
+
+- **Seven Anthropic clients became one.** Every AI route built its own from the
+  same environment variable, and three of them said in a comment that they were
+  copies of `lib/ai/raven.ts`. `lib/ai/herald.ts` now holds the client, the two
+  model choices and prose extraction.
+- **Five private copies of the em dash filter became one.** House rule 1 was
+  enforced by whichever route remembered to enforce it. It is now inherited by
+  every surface that asks the Herald for prose.
+- **Two copies of the House ranking became one.** The realm strip and the digest
+  both name a member's nearest rival; `gloryStanding` in `lib/houses/view.ts` is
+  now the only place that decides which House that is.
+- **The card shell stopped requiring a spine row.** `SystemCard` and `ForgeCard`
+  took a whole `FeedEvent` to read one timestamp off it. They take the timestamp,
+  which is what let the digest use the same chassis as every other system card
+  rather than growing a second one.
+
+## 50. The Coffers, and a House a member can be inside
 
 Shipped, sealed. Mission 9, the creator and House economies, and it is the first
 piece of work in this document whose main output is a refusal.
@@ -3072,7 +3456,7 @@ resolved well, or sold a card, earned, and every one of those settled its own
 way and added up nowhere a member could read. A House had a treasury, a
 catalogue and two spenders, and a member could take part in none of it.
 
-### 48.1 An earned balance cannot exist, and that is the answer
+### 50.1 An earned balance cannot exist, and that is the answer
 
 "Payouts are non-custodial" reads like a constraint on how money leaves. It is
 not. It is a constraint on whether an earned balance may exist at all, and
@@ -3125,7 +3509,7 @@ there is no clean way back from that.
   what was sent, and no support queue for a payout that did not arrive. None of
   those can exist, because the thing they all manage does not.
 
-### 48.2 Which streams are real, and the one that is real and still pays nothing
+### 50.2 Which streams are real, and the one that is real and still pays nothing
 
 `lib/economy/revenue.ts` is the register, and The Coffers renders it verbatim,
 including the streams that pay nothing and the sentence saying why.
@@ -3174,7 +3558,7 @@ work this platform monetises. The seller in the Bazaar is the closest thing to
 one and already receives ninety five percent at source. Anything else would have
 been a stream conjured to have something to share, which is the rule 4 line.
 
-### 48.3 The statement, and the four ways the old one was wrong
+### 50.3 The statement, and the four ways the old one was wrong
 
 `/api/profile/earnings` was the closest thing to an earnings record and it was
 quietly wrong in four places at once. None of them were careless. They are what
@@ -3235,7 +3619,7 @@ sitting on nothing. That is said in words on the surface rather than left to be
 noticed, because a member who has used any other creator platform will look for
 it.
 
-### 48.4 Reconciliation, said out loud
+### 50.4 Reconciliation, said out loud
 
 `points_ledger` is the source of truth and `profiles.points` is a cached total.
 `house_treasury_ledger` is the source of truth and `houses.treasury` is a cached
@@ -3260,7 +3644,7 @@ too serious a sentence to produce from an incomplete count.
 A House's drift is shown only when there is one. A green tick on every healthy
 treasury teaches everybody to stop reading the line.
 
-### 48.5 The endowment, and what a treasury may do
+### 50.5 The endowment, and what a treasury may do
 
 A House already received (half of every burned Call stake), spent (a fixed
 catalogue, priced per sworn member) and decided (the Lord and the Hand, who are
@@ -3334,7 +3718,7 @@ document nobody opens, from the same list the tests assert:
   way up the standings. And it cannot go below zero, enforced by
   `houses_treasury_check` rather than by the code that spends it.
 
-### 48.6 The transaction, and the request id
+### 50.6 The transaction, and the request id
 
 `public.endow_house_treasury`, `security definer`, `service_role` only, one
 transaction, two locks, **taken in the same order `settle_call_stake` takes
@@ -3360,7 +3744,7 @@ before anything moves. Without it, a client retrying a timed out request debits
 a member twice for one gift, and nothing anywhere can tell that apart from a
 member who meant to give twice.
 
-### 48.7 The surfaces
+### 50.7 The surfaces
 
 **`/coffers` is a Console**, and every Console rule applies without exception:
 compact above `md`, right aligned tabular figures, hairline dividers, ornament
@@ -3390,7 +3774,7 @@ There is no control at all when the chapter is sealed or the member has nothing
 left to give today, rather than a disabled one. A dead button is a promise the
 screen cannot keep.
 
-### 48.8 What it waits on
+### 50.8 What it waits on
 
 `coffers_live` and `endowment_live`, both off, a seventh and eighth switch beside
 the six that exist. They are separate because reading your own earnings and
@@ -3410,7 +3794,7 @@ decision rather than an engineering one. And **gifting a card**, which section
 45.10 already names, is the other half of member to member value and needs no
 fee, no reservation and one signature.
 
-### 48.9 Repository versus database
+### 50.9 Repository versus database
 
 Checked before a line of SQL was written, as `supabase/migrations/README.md`
 requires. The live definition of `points_ledger_category_check` is

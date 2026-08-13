@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { MODEL_REASONING, heraldAvailable, heraldProse } from "@/lib/ai/herald";
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
@@ -28,9 +28,6 @@ import { canViewPost, resolveViewer } from "@/lib/social/feed-server";
    is the easiest kind of fake to catch and the worst kind to ship. */
 
 export const dynamic = "force-dynamic";
-
-const key = process.env.ANTHROPIC_API_KEY;
-const client = key ? new Anthropic({ apiKey: key }) : null;
 
 /* A thread shorter than this is not worth a paid summary. */
 const MIN_COMMENTS = 5;
@@ -65,7 +62,7 @@ export async function POST(
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  if (!client) {
+  if (!heraldAvailable()) {
     return json(
       {
         error:
@@ -153,34 +150,13 @@ export async function POST(
 
   const truncated = comments.length >= MAX_COMMENTS;
 
-  try {
-    const res = await client.messages.create({
-      model: "claude-sonnet-5",
-      max_tokens: 450,
-      /* A read over messages already written. Thinking would buy nothing here
-         and the realm's budget is zero. */
-      thinking: { type: "disabled" },
-      output_config: { effort: "low" },
-      system: SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: `Summarise this discussion. The raven it hangs from said:\n\n"${head.replace(/\s+/g, " ").trim().slice(0, 1000)}"\n\n${truncated ? `These are the first ${MAX_COMMENTS} replies, and there are more.` : `These are all ${comments.length} replies.`}\n\n${lines.join("\n")}`,
-        },
-      ],
-    });
-    const block = res.content.find((b) => b.type === "text");
-    const text =
-      block && block.type === "text"
-        ? block.text
-            .trim()
-            .replace(/^["']|["']$/g, "")
-            .replace(/\s*[—–]\s*/g, ", ")
-            .trim()
-        : "";
-    if (!text) return json({ error: "The Herald had nothing to say." }, 502);
-    return json({ ok: true, text, comments: comments.length, truncated });
-  } catch {
-    return json({ error: "The Herald could not be reached. Try again." }, 502);
-  }
+  const text = await heraldProse({
+    model: MODEL_REASONING,
+    system: SYSTEM,
+    user: `Summarise this discussion. The raven it hangs from said:\n\n"${head.replace(/\s+/g, " ").trim().slice(0, 1000)}"\n\n${truncated ? `These are the first ${MAX_COMMENTS} replies, and there are more.` : `These are all ${comments.length} replies.`}\n\n${lines.join("\n")}`,
+    maxTokens: 450,
+    effort: "low",
+  });
+  if (!text) return json({ error: "The Herald had nothing to say." }, 502);
+  return json({ ok: true, text, comments: comments.length, truncated });
 }
