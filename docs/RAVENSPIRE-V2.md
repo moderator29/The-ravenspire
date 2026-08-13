@@ -2022,3 +2022,37 @@ Founder only, do not block on these, keep building sealed:
 - On chain mint: deployed contracts and a platform voucher signer (the mint
   phase, deliberately last).
 - The print on demand vendor contract and the payment provider account.
+
+## 41. Second commerce wave shipped (done, integrated, on the branch)
+
+Two more agents ran and their work was re-audited, integrated, gated green, and
+the second migration applied to the live database (advisor clean, only the
+expected deny by default lints, no SECURITY DEFINER exposure).
+
+Frontend, sealed: the one champion card chassis (rarity in the frame, never a
+caption), the pack opening Ceremony with an in browser provably fair verifier
+(re-hashes the seed and replays the exact draw over Web Crypto), the Warchests
+store (cart, checkout, shipping collection, no price ever rendered client side),
+and Vault order history plus redemption. Onboarding steps 0 and 1, Whispers
+realtime and image attachments were found already built and were not duplicated.
+
+Backend hardening and security: the transactional `open_chest_tx` RPC (a paid
+chest can no longer be burned by a mid open failure), a server side daily War
+Glory cap (`award_war_glory_capped`, 5000 a day, closing the self reported Glory
+gap), admin redemption code creation, refunds (provider refund plus webhook
+branch plus admin route, never clawing back an opened pull), the physical
+fulfillment worker, env gated Sentry plus a structured logger, checkout shipping
+persistence, and the redeem attempts counter. Migration
+`20260813120000_commerce_hardening.sql`, four `service_role` only functions.
+
+Security residuals now fixed: the chest open burn (39.3), the War Glory ceiling
+(39.2), and the redeem attempts counter (39.5). Still open and queued for the
+next session: the pre committed rotating seed (39.4, deferred so it can be
+designed with the Ceremony) and on chain `tx_hash` verification (39.1, needs an
+EVM RPC account).
+
+Remaining commerce build for the next session: the onboarding first card grant
+(needs a backend inventory grant), a public provably fair verifier page with
+published floor and expected value, an order detail drill down, an unopened
+entitlements endpoint so the open affordance can show a count, and adding
+`/api/commerce/fulfill` to the cron schedule. None blocks the big work.
