@@ -163,3 +163,36 @@ export async function readBoard(
     shape(row, opts.viewerProfileId ?? null)
   );
 }
+
+/* One listing, by id, in exactly the shape the board hands out.
+ *
+ * Added for mission 10, which gave a listing its own address so a seller can
+ * point somebody at the card rather than at the whole Bazaar. It reads the same
+ * columns through the same `shape`, deliberately: a listing that renders one
+ * way on the board and another way on its own page is two listings, which is
+ * the lesson lib/collectibles/hoard.ts already paid for.
+ *
+ * NOT filtered to live statuses, unlike readBoard. A settled or withdrawn
+ * listing still has an address, and somebody following a link to a card that
+ * has just sold is entitled to be told it sold rather than be shown a 404 that
+ * looks like the realm losing the record. The caller decides what to render;
+ * `status` carries the truth.
+ */
+export async function readListing(
+  db: SupabaseClient,
+  id: string,
+  opts: { viewerProfileId?: string | null } = {}
+): Promise<BoardListing | null> {
+  const { data, error } = await db
+    .from("market_listings")
+    .select(BOARD_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    /* Table not migrated yet: nothing is listed, so no listing is found. */
+    if (error.code === UNDEFINED_TABLE) return null;
+    throw error;
+  }
+  if (!data) return null;
+  return shape(data as unknown as ListingRow, opts.viewerProfileId ?? null);
+}

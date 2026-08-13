@@ -124,7 +124,7 @@ function CardRowLine({
   );
 }
 
-export function DrawVerifier() {
+export function DrawVerifier({ reference: fixed }: { reference?: string }) {
   /* `?draw=` is how the Ceremony hands a member straight here with their own
      opening already loaded. Without it, a member who has just watched five
      cards land would have to copy a uuid out of a dialog by hand to check them,
@@ -133,7 +133,13 @@ export function DrawVerifier() {
 
      useSearchParams opts this component out of static rendering, which is why
      the page wraps it in a Suspense boundary. The shell layout carries the same
-     note for the same reason. */
+     note for the same reason.
+
+     `reference` is the same idea arriving from a path segment instead: mission
+     10 gave a settled opening its own address at /proof/<reference> so it could
+     carry an Open Graph card, which a query string cannot. The prop wins over
+     the query, because a path is what the visitor asked for and a stale `?draw`
+     riding along behind it is not. */
   const params = useSearchParams();
 
   /* The three inputs, plus the two things a record supplies. */
@@ -227,7 +233,7 @@ export function DrawVerifier() {
      the object and its identity changed on any of those renders, the page would
      fetch the same opening forever. Depending on a string makes that
      impossible. */
-  const drawParam = params.get("draw");
+  const drawParam = fixed ?? params.get("draw");
   useEffect(() => {
     if (!drawParam || !isDrawReference(drawParam)) return;
     setReference(drawParam);

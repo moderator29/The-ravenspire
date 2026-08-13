@@ -277,16 +277,11 @@ function summarise(cards: HoardCard[]): HoardSummary {
 
 /* Whether a member has chosen to show their collection on their Keep.
    Default ON: the trophy case is the point of the feature, so a member is
-   hidden only when they explicitly say so. Same shape and same default as the
-   pnlVisible and publicPositions gates in /api/profile/earnings, deliberately:
-   one privacy idea in the product, not three. */
-export function hoardVisible(settings: unknown): boolean {
-  if (settings && typeof settings === "object") {
-    const privacy = (settings as Record<string, unknown>).privacy;
-    if (privacy && typeof privacy === "object") {
-      const val = (privacy as Record<string, unknown>).hoardVisible;
-      if (typeof val === "boolean") return val;
-    }
-  }
-  return true;
-}
+   hidden only when they explicitly say so.
+
+   The rule itself moved to lib/privacy.ts in mission 10, beside the pnlVisible
+   and publicPositions gates it was always meant to match. It is re-exported
+   here because a dozen call sites import it from the Hoard and the gate is
+   genuinely part of what a Hoard is. One idea, one implementation, and now a
+   share card cannot read a fourth copy of it. */
+export { hoardVisible } from "@/lib/privacy";

@@ -1,5 +1,6 @@
 import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { privacyFlag } from "@/lib/privacy";
 
 /* Earnings + balance data for the FOMO-style profile section.
    Real data only, drawn from three sources:
@@ -106,18 +107,6 @@ function labelForReason(reason: string | null): string {
 
 const isReferral = (reason: string | null): boolean =>
   typeof reason === "string" && reason.startsWith("referral");
-
-function privacyFlag(settings: unknown, key: string): boolean {
-  /* Default ON: a member is only hidden when they explicitly set it false. */
-  if (settings && typeof settings === "object") {
-    const privacy = (settings as Record<string, unknown>).privacy;
-    if (privacy && typeof privacy === "object") {
-      const val = (privacy as Record<string, unknown>)[key];
-      if (typeof val === "boolean") return val;
-    }
-  }
-  return true;
-}
 
 function readThesis(settings: unknown): string | null {
   if (settings && typeof settings === "object") {
