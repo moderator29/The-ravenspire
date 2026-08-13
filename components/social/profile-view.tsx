@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { HoardPanel } from "@/components/collectibles/hoard-panel";
 import { Icon } from "@/components/ui/icon";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
 import { StreamList } from "@/components/stream/stream-shell";
@@ -39,6 +40,8 @@ import { houses } from "@/lib/data/houses";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { shareOrCopy } from "@/lib/share";
+import { shareUrl } from "@/lib/share/links";
+import { ShareButton } from "@/components/share/share-button";
 
 /* A Keep, on the Dossier archetype.
 
@@ -62,7 +65,7 @@ const PICKER_FOCUS =
   "cursor-pointer has-[input:focus-visible]:outline has-[input:focus-visible]:outline-2 " +
   "has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-[color:var(--state-focus-ring)]";
 
-export type ProfileTab = "posts" | "calls" | "media";
+export type ProfileTab = "posts" | "calls" | "media" | "hoard";
 
 export function ProfileView({
   profile,
@@ -258,8 +261,17 @@ export function ProfileView({
     }
   };
 
+  /* Somebody else's Keep, from the overflow menu. No banner rides on this one:
+     crediting the viewer for traffic to a Keep that is not theirs would take a
+     recruit the subject had at least as good a claim to. bannerFor enforces
+     that; passing `own: false` here is stating it at the call site too. */
   const shareProfile = () => {
-    const url = `${window.location.origin}/u/${profile.handle}`;
+    const url = shareUrl(
+      window.location.origin,
+      { kind: "keep", handle: profile.handle ?? "" },
+      { handle: null, own: false }
+    );
+    if (!url) return;
     const who = profile.display_name ?? `@${profile.handle}`;
     void shareOrCopy(url, `${who} on The Ravenspire`);
   };
@@ -351,14 +363,33 @@ export function ProfileView({
               and padding, so the actions read as controls rather than as the
               headline. */}
           {isOwn ? (
-            onEdit ? (
-              <Button variant="gold" size="md" dense onClick={onEdit}>
-                <Icon name="sliders" className="h-3.5 w-3.5" />
-                Edit profile
-              </Button>
-            ) : (
-              <Badge variant="gold">This is your Keep</Badge>
-            )
+            /* A member's own Keep is the single most shared thing the realm
+               has, and until mission 10 the only way to share it was an
+               overflow menu on somebody ELSE'S Keep: there was no share
+               control on your own at all. It sits beside Edit rather than in
+               a menu because a control nobody can find is a control that does
+               not exist. `subjectHandle` matching the viewer is what lets the
+               referral banner ride along, which is exactly the case where
+               that is honest. */
+            <div className="flex items-center gap-2">
+              <ShareButton
+                /* A handle that is not yet claimed produces no path and
+                   therefore no button, which is correct: there is nothing to
+                   share until the Keep has a name. */
+                target={{ kind: "keep", handle: profile.handle ?? "" }}
+                subjectHandle={profile.handle}
+                size="md"
+                title={`${profile.display_name ?? `@${profile.handle}`} on The Ravenspire`}
+              />
+              {onEdit ? (
+                <Button variant="gold" size="md" dense onClick={onEdit}>
+                  <Icon name="sliders" className="h-3.5 w-3.5" />
+                  Edit profile
+                </Button>
+              ) : (
+                <Badge variant="gold">This is your Keep</Badge>
+              )}
+            </div>
           ) : (
             /* Follow always renders so blocking never shifts it. The menu is
                anchored to its own trigger and portals, so opening it never
@@ -617,6 +648,11 @@ export function ProfileView({
           { value: "posts", label: "Ravens", count: posts.length },
           { value: "calls", label: "Calls", count: callPosts.length },
           { value: "media", label: "Media", count: mediaTiles.length },
+          /* The Hoard carries no count. Every other tab counts something the
+             Keep already holds in memory; this one would have to be fetched
+             before the member had asked to see it, and a trophy case is worth
+             one deliberate press. */
+          { value: "hoard", label: "Hoard" },
         ]}
         trailing={
           isOwn ? (
@@ -733,6 +769,13 @@ export function ProfileView({
               ))}
             </div>
           )}
+        </DossierTabPanel>
+
+        {/* The trophy case. It loads itself, and only when this panel is the
+            one on screen, so a Keep opened to read someone's ravens never pays
+            for a collection nobody looked at. */}
+        <DossierTabPanel value="hoard">
+          <HoardPanel handle={profile.handle} own={isOwn} />
         </DossierTabPanel>
       </DossierTabs>
     </DossierPage>

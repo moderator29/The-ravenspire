@@ -40,7 +40,7 @@ export function WatchStar({ id, symbol, className = "" }: Props) {
       aria-pressed={watched}
       aria-label={label}
       title={label}
-      className={`inline-flex shrink-0 items-center justify-center rounded-full p-1.5 transition-colors ${
+      className={`touch:min-h-11 touch:min-w-11 inline-flex shrink-0 items-center justify-center rounded-full p-1.5 transition-colors ${
         watched
           ? "text-gold hover:text-gold-bright"
           : "text-bone-faint hover:text-bone-mut"

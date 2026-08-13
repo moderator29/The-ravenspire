@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { MusterCell, type MusterPayload } from "@/components/realm/muster";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 
@@ -31,6 +32,7 @@ interface Strip {
     rival: { name: string; gap: number; ahead: boolean } | null;
   } | null;
   openCalls: number | null;
+  muster: MusterPayload | null;
   season: { id: number; name: string; endsAt: string } | null;
 }
 
@@ -97,6 +99,22 @@ export function RealmStrip() {
   const season = data.season ? daysLeft(data.season.endsAt) : null;
   const cells: React.ReactNode[] = [];
 
+  /* The Muster leads the strip, and it is the only cell that ever leads.
+     The other three describe standing; this one is the only one that expires,
+     and a clock a member can miss belongs at the start of the row rather than
+     at the end of a horizontally scrolling one on a phone. */
+  if (data.muster) {
+    cells.push(
+      <MusterCell
+        key="muster"
+        muster={data.muster}
+        onChange={(next) =>
+          setData((prev) => (prev ? { ...prev, muster: next } : prev))
+        }
+      />
+    );
+  }
+
   if (data.streak && data.streak > 0) {
     cells.push(
       <Cell key="streak" href="/renown" label="Streak">
@@ -154,7 +172,7 @@ export function RealmStrip() {
   if (cells.length === 0) return null;
 
   return (
-    <Card pad="none" className="scrollbar-none mb-3 flex items-stretch gap-1 overflow-x-auto p-1">
+    <Card pad="xs" className="scrollbar-none mb-3 flex items-stretch gap-1 overflow-x-auto">
       {cells}
     </Card>
   );

@@ -279,7 +279,7 @@ export default function CoinPage({
                       window.setTimeout(() => setCopiedAddr(false), 1600);
                     });
                   }}
-                  className="inline-flex items-center gap-1 rounded-sm border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition-colors duration-fast hover:border-gold/40 hover:text-gold"
+                  className="touch:min-h-11 touch:min-w-11 inline-flex items-center gap-1 rounded-sm border border-steel-line px-2 py-0.5 text-[10px] font-medium text-bone-faint transition-colors duration-fast hover:border-gold/40 hover:text-gold"
                 >
                   <Icon name={copiedAddr ? "shield" : "share"} className="h-3 w-3" />
                   {copiedAddr
@@ -637,7 +637,7 @@ function TxnsBar({ buys, sells }: { buys: number; sells: number }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <Card radius="lg" pad="none" className="p-3 md:p-2.5">
+    <Card radius="lg" pad="md" className="md:p-2.5">
       <p className="text-[10px] uppercase tracking-[0.16em] text-bone-faint">
         {label}
       </p>

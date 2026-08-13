@@ -147,7 +147,7 @@ export default async function SafetyReportPage({
         </p>
 
         {!report ? (
-          <Card pad="none" className="mt-6 p-8 text-center text-sm text-bone-mut">
+          <Card pad="xl" className="mt-6 text-center text-sm text-bone-mut">
             <Icon name="search" className="mx-auto mb-3 h-6 w-6 text-bone-faint" />
             The Watch could not read a verdict for this contract yet, it may be
             too new to have been analysed, or the wall was unreachable.
@@ -168,7 +168,7 @@ export default async function SafetyReportPage({
           </Card>
         ) : (
           <>
-            <Card pad="none" className="mt-6 p-6 text-center">
+            <Card pad="xl" className="mt-6 text-center">
               <p
                 className={`tnum font-display text-5xl font-semibold ${scoreColor}`}
               >
@@ -188,7 +188,7 @@ export default async function SafetyReportPage({
               const rows = report.checks.filter((c) => c.group === g.id);
               if (rows.length === 0) return null;
               return (
-                <Card key={g.id} pad="none" className="mt-3 p-2">
+                <Card key={g.id} pad="xs" className="mt-3">
                   <p className="px-3 pb-1 pt-2 text-[11px] uppercase tracking-[0.2em] text-bone-faint">
                     {g.label}
                   </p>

@@ -19,6 +19,7 @@ import {
   type CalibrationBucket,
 } from "@/lib/calls/analytics";
 import { CONFIDENCE_MAX, CONFIDENCE_MIN } from "@/lib/calls/scoring";
+import { MIN_STAKE, stakeBonus } from "@/lib/calls/stake";
 import {
   CALL_CATEGORIES,
   CALL_TIMEFRAMES,
@@ -89,6 +90,10 @@ export interface CallDraft {
   metric: RealmMetric;
   houseSlug: string;
   glory: string;
+  /* POINTS put behind the Call. Zero means an unstaked Call, which is what
+     every Call in the realm has been until now and remains the default: a
+     member has to choose to put something at risk. */
+  stake: number;
 }
 
 export const EMPTY_CALL_DRAFT: CallDraft = {
@@ -103,6 +108,7 @@ export const EMPTY_CALL_DRAFT: CallDraft = {
   metric: "house_leads",
   houseSlug: houses[0]?.slug ?? "",
   glory: "",
+  stake: 0,
 };
 
 /* The move required, as the positive fraction the engine takes. An empty field
@@ -171,6 +177,10 @@ export function callPayload(draft: CallDraft): Record<string, unknown> | null {
     confidence: draft.confidence / 100,
     ...(draft.rationale.trim() ? { rationale: draft.rationale.trim() } : {}),
     ...(sources.length > 0 ? { sources } : {}),
+    /* Sent only when there is one. The server re-validates it against the
+       member's real balance and escrows it under a row lock; this is the
+       member's intent, never the authority. */
+    ...(draft.stake >= MIN_STAKE ? { stake: draft.stake } : {}),
   };
 }
 
@@ -226,6 +236,14 @@ interface SimilarCall {
   confidence: number | null;
 }
 
+/* What the member could put behind the Call. Real POINTS, read from their own
+   profile on the server, never estimated here. */
+interface StakeWindow {
+  balance: number;
+  min: number;
+  max: number;
+}
+
 interface Preview {
   token: string | null;
   stance: CallDirection;
@@ -238,6 +256,7 @@ interface Preview {
   record: CallerRecord;
   similar: SimilarCall[];
   discussion: { posts: number; windowHours: number } | null;
+  stake: StakeWindow;
 }
 
 function price(n: number | null | undefined): string {
@@ -343,6 +362,30 @@ export function CallForm({
      the server again, so the slider stays instant and the figure stays real. */
   const record = preview?.record ?? null;
   const calBand = record ? bandFor(record.calibration, confidence) : null;
+  /* The slider's ceiling, rounded down to a whole number of steps so the last
+     stop is reachable. A member holding 137 POINTS gets a top stop of 125
+     rather than a stop at 137 the step can never land on. */
+  const stakeCeiling =
+    Math.floor((preview?.stake.max ?? 0) / MIN_STAKE) * MIN_STAKE;
+
+  /* Everything the stake returns if the Call lands, computed with the same
+     function the settlement job runs over the same score. Not an estimate. */
+  const stakeIfHit =
+    draft.stake > 0 && outlook
+      ? draft.stake + stakeBonus(draft.stake, outlook.ifHit)
+      : 0;
+
+  /* The window can shrink between one preview and the next, because the
+     balance is real and a settling Call elsewhere may have moved it. A slider
+     left pointing above its own ceiling would submit a stake the server then
+     refuses, so the draft is pulled back rather than the control being allowed
+     to lie. */
+  useEffect(() => {
+    if (draft.stake > stakeCeiling) {
+      onChange({ ...draft, stake: stakeCeiling });
+    }
+  }, [draft, onChange, stakeCeiling]);
+
   const sameClaim =
     preview?.similar.filter((s) => s.relation === "same-claim").length ?? 0;
   const otherSide =
@@ -622,6 +665,76 @@ export function CallForm({
               Renown takes the gain and never falls. Season Rating takes both.
               The realm settles this itself when the window closes.
             </p>
+
+            {/* The stake.
+
+                It sits here, under the outlook, because this is the first
+                moment a member knows what their Call is actually worth, and a
+                stake is only a decision once the difficulty is on the screen.
+                Both sides are named in POINTS before anything is committed:
+                what comes back if it lands, what leaves if it does not.
+
+                Ledger register throughout. Putting a balance at risk is not a
+                Forge moment, it is an instrument reading, and a glow here
+                would be the product cheering a member into a bet. */}
+            <div className="flex flex-col gap-2 border-t border-steel-line pt-2.5">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
+                  Stake
+                </span>
+                <span className="tnum text-[11px] text-bone-faint">
+                  {preview.stake.balance.toLocaleString()} POINTS held
+                </span>
+              </div>
+
+              {stakeCeiling >= MIN_STAKE ? (
+                <>
+                  <Slider
+                    label="POINTS behind this Call"
+                    valueText={
+                      draft.stake > 0
+                        ? `${draft.stake} points`
+                        : "nothing at stake"
+                    }
+                    value={Math.min(draft.stake, stakeCeiling)}
+                    min={0}
+                    max={stakeCeiling}
+                    step={MIN_STAKE}
+                    onValueChange={(v) => set("stake", v)}
+                  />
+                  {draft.stake > 0 ? (
+                    <>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <span className="tnum text-xs text-chart-up">
+                          +{stakeIfHit.toLocaleString()} POINTS if it lands
+                        </span>
+                        <span className="tnum text-xs text-chart-down">
+                          -{draft.stake.toLocaleString()} POINTS if it misses
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-bone-faint">
+                        A stake that misses burns. Half of it leaves the realm
+                        for good and half pools in your House treasury, where
+                        the Lord and the Hand can spend it on the House.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[11px] leading-relaxed text-bone-faint">
+                      A Call costs nothing but a slot. Put POINTS behind it and
+                      the realm pays a bonus scaled to how hard it was, or
+                      burns them.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-[11px] leading-relaxed text-bone-faint">
+                  The smallest stake the realm takes is{" "}
+                  {MIN_STAKE.toLocaleString()} POINTS, and you hold{" "}
+                  {preview.stake.balance.toLocaleString()}. This Call is sealed
+                  without one.
+                </p>
+              )}
+            </div>
 
             {/* The member's own record against the claim in front of them, and
                 their measured calibration at the confidence they are stating.

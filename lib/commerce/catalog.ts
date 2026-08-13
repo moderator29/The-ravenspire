@@ -1,5 +1,6 @@
 import "server-only";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
+import { MERCER_SKUS } from "@/lib/collectibles/mercer";
 import { majorToMinor } from "@/lib/commerce/money";
 import type { Rarity } from "@/lib/game/champions";
 
@@ -23,6 +24,20 @@ import type { Rarity } from "@/lib/game/champions";
  * because unsealing a chapter and committing to a price are two different
  * decisions and must be made separately.
  *
+ * WHAT THE FLOOR IS, AND THE ONE THING IT IS NOT
+ * It is a valuation the realm publishes and stands behind as a catalogue value.
+ * It is NOT redeemable and there is no buy back: nothing anywhere in this
+ * codebase pays a member RARITY_FLOOR_USD for a card, and the only place a card
+ * becomes money is the Bazaar, where another member decides what it is worth.
+ *
+ * That distinction has to survive contact with the copy, because every chest
+ * here is priced BELOW its own floor and a member reading "guaranteed floor $38"
+ * on a $34.99 box will read a promise the realm cannot fund. The buy control
+ * says "at the realm's own valuation" for that reason, and the trophy case
+ * declines to quote a floor at all. If the realm ever does buy a card back at
+ * its floor, that is a funded liability and a founder decision, and this comment
+ * is where it stops being true.
+ *
  * THE FLOOR GUARANTEE
  * The founder's guardrail is that the guaranteed floor value of a chest is at
  * least its price, so a buyer never loses money opening one: it is a
@@ -35,26 +50,59 @@ export type PackRarity = Exclude<Rarity, "common">;
 
 export interface ChestCatalogEntry {
   sku: string;
-  /* Price in USD minor units (cents). Provisional until confirmed. */
+  /* Price in USD minor units (cents). */
   priceMinor: number;
-  /* The guaranteed floor value the buyer receives, in minor units. Must be at
-     least priceMinor, the no-downside guardrail. Provisional. */
+  /* The guaranteed floor value the buyer receives, in minor units. Never below
+     priceMinor: that is the no-downside guardrail, enforced at module load. */
   floorMinor: number;
 }
 
-/* Provisional prices from the founder brief, item 7. Stored here and nowhere a
-   client can read them. Squire's 4.99, Knight's 14.99, King's Reliquary 59.99.
-   Floor values are provisional placeholders set to meet the guardrail (floor
-   at least price); they are recomputed from real per-card valuations before
-   confirmation, and the guardrail below is what forces that to stay honest. */
-const PROVISIONAL: Record<string, { price: number; floor: number }> = {
-  "squires-chest": { price: 4.99, floor: 4.99 },
-  "knights-warchest": { price: 14.99, floor: 14.99 },
-  "kings-reliquary": { price: 59.99, floor: 59.99 },
+/* THE PER-RARITY FLOOR, set by the founder.
+ *
+ * Read this for what it is and not for what it is not. It is the value the
+ * PLATFORM commits to standing behind for a card of each rarity: the no
+ * downside guarantee that makes a Warchest a collectible box rather than a
+ * bet. It is not a market price, not an appraisal, and not a promise about
+ * what anyone else will pay. Nothing in the product may render it as one, and
+ * the secondary market must never quote it as a price. */
+export const RARITY_FLOOR_USD: Record<PackRarity, number> = {
+  rare: 8,
+  epic: 22,
+  legendary: 60,
+  mythic: 275,
 };
 
+/* Chest prices and floors, set by the founder. */
+const PRICING: Record<string, { price: number; floor: number }> = {
+  "squires-chest": { price: 34.99, floor: 38 },
+  "knights-warchest": { price: 41.0, floor: 92 },
+  "kings-reliquary": { price: 54.86, floor: 192 },
+};
+
+/* The worst a chest can possibly open, in floor value: every card the lowest
+   rarity on its odds table, except the one the printed guarantee lifts to the
+   floor rarity. That is exactly what lib/collectibles/pulls.ts enforces, so
+   this is not an estimate of the floor, it is the floor.
+
+   Derived rather than typed, which is the whole point. If a tier's card count
+   or its guarantee ever changes, this number moves with it and the assertions
+   below catch a chest whose promised floor no longer matches what it can
+   actually deal. */
+function worstCaseCardFloorUsd(sku: string): number {
+  const tier = CHEST_TIERS.find((t) => t.sku === sku);
+  if (!tier) throw new Error(`No chest tier for ${sku}`);
+  const lowest = (Object.keys(tier.odds) as PackRarity[])
+    .filter((r) => (tier.odds[r] ?? 0) > 0)
+    .reduce((worst, r) =>
+      RARITY_FLOOR_USD[r] < RARITY_FLOOR_USD[worst] ? r : worst
+    );
+  return (
+    RARITY_FLOOR_USD[lowest] * (tier.cardCount - 1) + RARITY_FLOOR_USD[tier.floor]
+  );
+}
+
 export const CHEST_CATALOG: ChestCatalogEntry[] = CHEST_TIERS.map((tier) => {
-  const p = PROVISIONAL[tier.sku];
+  const p = PRICING[tier.sku];
   if (!p) {
     throw new Error(
       `Chest tier ${tier.sku} has no catalog price. Every sellable chest needs a server price.`
@@ -67,13 +115,95 @@ export const CHEST_CATALOG: ChestCatalogEntry[] = CHEST_TIERS.map((tier) => {
   };
 });
 
-/* The guardrail, enforced at module load: floor value is never below price. */
-for (const entry of CHEST_CATALOG) {
+for (const tier of CHEST_TIERS) {
+  const entry = CHEST_CATALOG.find((c) => c.sku === tier.sku) as ChestCatalogEntry;
+
+  /* The founder's guardrail: a buyer never loses money opening a chest. */
   if (entry.floorMinor < entry.priceMinor) {
     throw new Error(
       `Chest ${entry.sku} floor ${entry.floorMinor} is below its price ${entry.priceMinor}. A chest never sells for more than its guaranteed floor.`
     );
   }
+
+  const cardFloorMinor = majorToMinor(worstCaseCardFloorUsd(tier.sku));
+
+  /* A digital chest holds cards and nothing else, so its promised floor and
+     the worst it can deal are the same number or the promise is wrong in one
+     direction or the other. Both of the founder's digital floors land on this
+     exactly: 2 rare plus an epic is 38, 4 rare plus a legendary is 92. */
+  if (tier.kind === "digital" && entry.floorMinor !== cardFloorMinor) {
+    throw new Error(
+      `Chest ${tier.sku} promises a floor of ${entry.floorMinor} but its cards can only guarantee ${cardFloorMinor}. A printed floor and a dealt floor must be the same number.`
+    );
+  }
+
+  /* A physical box also ships merch and a print, so its floor is legitimately
+     above what the cards alone guarantee. It can never be below. */
+  if (tier.kind === "physical" && entry.floorMinor < cardFloorMinor) {
+    throw new Error(
+      `Chest ${tier.sku} promises a floor of ${entry.floorMinor}, below the ${cardFloorMinor} its cards already guarantee.`
+    );
+  }
+}
+
+/* What a physical chest's floor attributes to the goods in the box rather than
+   to the cards: the merch and the print. Derived, never typed, so it cannot
+   drift from the two numbers it sits between. Zero for a digital chest. */
+export function physicalGoodsFloorMinor(sku: string): number {
+  const entry = CHEST_CATALOG.find((c) => c.sku === sku);
+  const tier = CHEST_TIERS.find((t) => t.sku === sku);
+  if (!entry || !tier || tier.kind !== "physical") return 0;
+  return entry.floorMinor - majorToMinor(worstCaseCardFloorUsd(sku));
+}
+
+/* THE MERCER, priced. Set by the founder.
+ *
+ * Keyed by the same slugs the customer catalog uses
+ * (lib/collectibles/mercer.ts), which carries the names, the blurbs and the
+ * plates and deliberately carries no money. A sku here with no product there,
+ * or a product there with no price here, breaks the build: a shop that can
+ * charge for something it cannot name, or name something it cannot price, is
+ * a shop with a hole in it. */
+const MERCH_PRICING: Record<string, number> = {
+  "obsidian-tee": 32,
+  "rookery-hoodie": 68,
+  "banner-cap": 30,
+  "set-one-print": 42,
+  "war-playmat": 48,
+};
+
+export interface MerchCatalogEntry {
+  sku: string;
+  name: string;
+  kind: string;
+  priceMinor: number;
+}
+
+export const MERCH_CATALOG: MerchCatalogEntry[] = MERCER_SKUS.map((product) => {
+  const price = MERCH_PRICING[product.sku];
+  if (price === undefined) {
+    throw new Error(
+      `Mercer product ${product.sku} has no catalog price. Nothing is sellable without one.`
+    );
+  }
+  return {
+    sku: product.sku,
+    name: product.name,
+    kind: product.kind,
+    priceMinor: majorToMinor(price),
+  };
+});
+
+for (const sku of Object.keys(MERCH_PRICING)) {
+  if (!MERCER_SKUS.some((p) => p.sku === sku)) {
+    throw new Error(
+      `Catalog prices ${sku}, which is not a Mercer product. A price with no product is a price for nothing.`
+    );
+  }
+}
+
+export function merchPrice(sku: string): MerchCatalogEntry | null {
+  return MERCH_CATALOG.find((m) => m.sku === sku) ?? null;
 }
 
 export function chestPrice(sku: string): ChestCatalogEntry | null {
@@ -90,11 +220,15 @@ export const RARITY_SUPPLY: Record<PackRarity, number> = {
   mythic: 75,
 };
 
-/* Set One art prints are numbered to this edition per champion (item 7). */
+/* Set One art prints are numbered giclees, this edition per champion. */
 export const SET_ONE_PRINT_EDITION = 250;
 
-/* True only when a human has confirmed the provisional prices. Defaults to
-   false: an unconfirmed price is never charged, even behind an open flag. */
+/* True only when a human has confirmed that the realm may charge these prices.
+   Defaults to false, and it is still false: the prices above are the founder's
+   final numbers, but confirmation waits on three things that have nothing to do
+   with arithmetic, namely the checkout frontend, a real payment account, and
+   the compliance guardrails. A number being decided and a realm being ready to
+   take money are two different facts and this gate is the second one. */
 export function pricesConfirmed(): boolean {
   return process.env.COMMERCE_PRICES_CONFIRMED === "true";
 }

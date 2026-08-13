@@ -51,7 +51,7 @@ export function Tour({ onDone }: { onDone: () => void }) {
     >
       <Card
         key={step}
-        pad="none"
+        pad="xl"
         render={
           <motion.div
             initial={
@@ -61,7 +61,7 @@ export function Tour({ onDone }: { onDone: () => void }) {
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           />
         }
-        className="w-full max-w-sm p-6 text-center"
+        className="w-full max-w-sm text-center"
       >
         <div
           className="mb-4 flex items-center justify-center gap-1.5"

@@ -631,3 +631,216 @@ describe("the gate always says something", () => {
     expect(output.trim().length).toBeGreaterThan(0);
   });
 });
+
+describe("icon names", () => {
+  /* The failure these two rules exist to close is not a crash. `Icon` falls
+     back to a small empty ring for a name it does not know, so a missing glyph
+     renders as something that looks deliberate, and a page full of them looks
+     populated. Four of the six House sigils shipped that way, which meant four
+     of the six banners were visually identical everywhere in the product. */
+
+  it("catches an Icon name nothing draws", () => {
+    const found = check(
+      "icon-name-exists",
+      "components/thing.tsx",
+      '<Icon name="unicorn" className="h-4 w-4" />'
+    );
+    expect(found.length).toBe(1);
+    expect(found[0].message).toMatch(/blank circle/);
+  });
+
+  it("stays quiet for a name the set actually draws", () => {
+    expect(
+      check(
+        "icon-name-exists",
+        "components/thing.tsx",
+        '<Icon name="raven" className="h-4 w-4" />'
+      ).length
+    ).toBe(0);
+  });
+
+  it("stays quiet for a dynamic name it cannot resolve", () => {
+    /* A variable name is checked by the sigil rule instead. Firing here would
+       make every dynamic icon in the product a violation, and a rule that
+       fires on everything gets disabled within a day. */
+    expect(
+      check("icon-name-exists", "components/thing.tsx", "<Icon name={sigil} />")
+        .length
+    ).toBe(0);
+  });
+
+  it("catches a House sigil nothing draws", () => {
+    const found = check(
+      "sigil-and-crest-glyphs-exist",
+      "lib/data/houses.ts",
+      '    sigil: "wyvern",'
+    );
+    expect(found.length).toBe(1);
+  });
+
+  it("accepts the six real House sigils", () => {
+    for (const sigil of ["raven", "flame", "snowflake", "storm", "moon", "lion"]) {
+      expect(
+        check("sigil-and-crest-glyphs-exist", "lib/data/houses.ts", `  sigil: "${sigil}",`),
+        sigil
+      ).toEqual([]);
+    }
+  });
+
+  it("checks a crest against the map that actually draws it", () => {
+    /* Crests are roundels with their own heavier drawing and their own map.
+       Checking them against the shared icon set was this rule's first bug and
+       it reported nine perfectly good crests as missing. */
+    const file = [
+      '  { slug: "x", icon: "laurel" },',
+      "const crestIcons = {",
+      "  laurel: null,",
+      "};",
+    ].join("\n");
+    expect(
+      check("sigil-and-crest-glyphs-exist", "components/brand/crests.tsx", file)
+    ).toEqual([]);
+  });
+});
+
+describe("card-padding-is-a-rung", () => {
+  it("catches a card that sets its own padding after opting out of the scale", () => {
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="none" className="p-6">x</Card>')
+    ).toHaveLength(1);
+  });
+
+  it("catches it inside a multi line tag, which is how most of them were written", () => {
+    const file = [
+      "<Card",
+      '  variant="warm"',
+      '  pad="none"',
+      '  className="mt-5 p-6"',
+      ">",
+      "  x",
+      "</Card>",
+    ].join("\n");
+    expect(check("card-padding-is-a-rung", "a.tsx", file)).toHaveLength(1);
+  });
+
+  it("leaves pad=none alone when the caller adds no padding of its own", () => {
+    /* The legitimate use: composing with CardHeader and CardBody, which carry
+       their own. A rule that flagged this would push callers back to hand
+       padding, which is the opposite of the point. */
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="none" className="overflow-hidden" />')
+    ).toEqual([]);
+  });
+
+  it("allows asymmetric padding, which is not a rung and does not pretend to be", () => {
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="none" className="px-3.5 py-2" />')
+    ).toEqual([]);
+  });
+
+  it("allows a responsive or state variant, which lives in its own bucket", () => {
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="none" className="md:p-2" />')
+    ).toEqual([]);
+  });
+
+  it("does not police a named rung", () => {
+    expect(
+      check("card-padding-is-a-rung", "a.tsx", '<Card pad="lg" className="p-6" />')
+    ).toEqual([]);
+  });
+
+  it("leaves the Forge register out of it", () => {
+    /* The landing page and the Ceremony are where section 21 allows ornament,
+       so a padding chosen there is a decision rather than a card that forgot
+       the scale. Driven through runRules rather than the check helper, because
+       the exemption lives in the rule's `skip` and the helper calls `check`
+       straight through. */
+    expect(
+      runRules({
+        rules: [rule("card-padding-is-a-rung")],
+        list: () => ["components/landing/hero.tsx"],
+        read: () => '<Card pad="none" className="p-10" />',
+      })
+    ).toEqual([]);
+  });
+
+  it("still polices a Ledger surface through the same path", () => {
+    /* The other half of the exemption test. Without this, deleting the whole
+       rule body would leave the one above passing. */
+    expect(
+      runRules({
+        rules: [rule("card-padding-is-a-rung")],
+        list: () => ["app/(shell)/keep/page.tsx"],
+        read: () => '<Card pad="none" className="p-10" />',
+      })
+    ).toHaveLength(1);
+  });
+});
+
+describe("hand-rolled-button-has-a-touch-floor", () => {
+  it("catches a raw button with no floor", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button className="px-2 py-1">MAX</button>')
+    ).toHaveLength(1);
+  });
+
+  it("catches one with no className at all", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button type="button">x</button>')
+    ).toHaveLength(1);
+  });
+
+  it("accepts the pointer keyed floor the primitives use", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button className="touch:min-h-11 touch:min-w-11 px-2">x</button>')
+    ).toEqual([]);
+  });
+
+  it("accepts a control already tall enough for a thumb on any pointer", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button className="h-12 w-12">x</button>')
+    ).toEqual([]);
+  });
+
+  it("accepts the inline hit area, for a word inside a line of text", () => {
+    /* A min height on an inline control grows the line box and stretches the
+       row. The pseudo element grows the target instead and moves nothing. */
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", "<button className={`${INLINE_TOUCH_TARGET} text-xs`}>Edit</button>")
+    ).toEqual([]);
+  });
+
+  it("accepts a full bleed backdrop, which cannot miss a thumb", () => {
+    expect(
+      check("hand-rolled-button-has-a-touch-floor", "a.tsx", '<button className="absolute inset-0" aria-label="Dismiss" />')
+    ).toEqual([]);
+  });
+
+  it("does not read markup quoted inside a comment", () => {
+    /* This codebase records what a file used to do by quoting the old markup.
+       ceremony.tsx explains that its backdrop is no longer a full bleed
+       `<button aria-label="Dismiss">`, and a scanner that reads that reports a
+       violation whose only fix is to edit the comment into a lie. */
+    const file = [
+      "/* The backdrop is Dialog.Backdrop rather than a full bleed",
+      ' * `<button aria-label="Dismiss">`, which had been a tap target. */',
+      "export const x = 1;",
+    ].join("\n");
+    expect(check("hand-rolled-button-has-a-touch-floor", "a.tsx", file)).toEqual([]);
+  });
+
+  it("still reads a real button under a comment holding an apostrophe", () => {
+    /* The other half. Blanking comments must not blank the code after them,
+       and an apostrophe in prose must not open a quote state that swallows the
+       rest of the file: that bug made this rule report a control whose floor
+       was written two lines below the comment. */
+    const file = [
+      "/* Same box as the strip's other cells, so the row reads as one. */",
+      '<button className="px-2 py-1">x</button>',
+    ].join("\n");
+    const found = check("hand-rolled-button-has-a-touch-floor", "a.tsx", file);
+    expect(found).toHaveLength(1);
+    expect(found[0].line).toBe(2);
+  });
+});
