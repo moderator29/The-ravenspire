@@ -8,6 +8,7 @@ import { FloatingCompose } from "@/components/shell/floating-compose";
 import { ShellMain, ShellChrome } from "@/components/shell/shell-main";
 import { NotificationsProvider } from "@/components/notifications/notifications-provider";
 import { DossierProvider } from "@/components/social/user-dossier";
+import { VisitorRibbon } from "@/components/share/visitor-ribbon";
 
 export default function ShellLayout({
   children,
@@ -26,7 +27,13 @@ export default function ShellLayout({
           {/* The mobile dock floats and can carry a sub navigation strip above
               it, so it needs more clearance than the old fixed 64px bar. A
               full bleed surface gets neither the padding nor the chrome. */}
-          <ShellMain>{children}</ShellMain>
+          <ShellMain>
+            {/* Inside the main column rather than beside it: the shell is a
+                flex ROW at lg, so a sibling here would become a third column
+                on desktop. Renders nothing at all for a member. */}
+            <VisitorRibbon />
+            {children}
+          </ShellMain>
           <ShellChrome>
             <RightRail />
           </ShellChrome>

@@ -8,6 +8,7 @@ import { SegmentedControl } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { shareOrCopy } from "@/lib/share";
+import { sharePath } from "@/lib/share/links";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
 import { EarningsChart, type EarningsPoint } from "@/components/profile/earnings-chart";
@@ -215,8 +216,18 @@ export function EarningsSection({
   }, [profileId]);
 
   const share = () => {
-    const url = `${window.location.origin}/u/${handle ?? ""}`;
-    void shareOrCopy(url, "The Coffers on The Ravenspire").then(() => {
+    /* Through sharePath rather than string interpolation, which is what this
+       was. A member with no handle yet produced `/u/` and the control happily
+       said "Copied", so the one member most likely to be shown this button
+       (a new one, on their own Coffers) got a link to nothing. A null path is
+       now a control that does nothing rather than one that lies. */
+    const path = sharePath({ kind: "keep", handle: handle ?? "" });
+    if (!path) return;
+    void shareOrCopy(
+      `${window.location.origin}${path}`,
+      "The Coffers on The Ravenspire"
+    ).then((result) => {
+      if (result !== "shared" && result !== "copied") return;
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     });

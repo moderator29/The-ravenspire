@@ -4095,3 +4095,210 @@ Two things, neither blocking:
   evidence for 50.4: the commerce cap's own copy already knew it was not a wallet
   cap, and building one under the same name would have contradicted a paragraph
   that shipped a mission ago.
+## 52. Shareable distribution, and the step it was failing at
+
+The realm made things worth showing other people and had almost no way to show
+them. There were four Open Graph cards, three of them dynamic, and every one of
+them was invisible. There was one share control, buried in an overflow menu on
+somebody else's Keep, and none at all on your own. And every route those links
+pointed at was behind the shell gate, so the one visitor the whole apparatus
+exists for, a stranger with no account, was redirected to the landing page
+before they saw anything.
+
+Each of those is a small bug. Together they are the difference between a product
+that spreads and one that does not.
+
+### 50.1 The three failures, in the order they were found
+
+**The cards were invisible.** `app/layout.tsx` named `openGraph.images` and
+`twitter.images` in config. Next resolves a file-based `opengraph-image.tsx`
+into a segment only when that segment's own metadata does not already name an
+image, and both keys are inherited by every route below the root layout. So
+`app/opengraph-image.tsx` had never once reached a crawler, and on X, which is
+the realm's primary channel, every Keep, raven, Call and safety report unfurled
+as the same static champion lineup, cropped from 1306x295 into a 1.91:1 frame.
+Removing both keys is the whole fix: each segment's own card now resolves, and
+Next's own post-processing fills `twitter:image` from the resolved
+`openGraph.images` when no twitter block names one, which is why there are no
+`twitter-image.tsx` files anywhere in the tree. Verified against a running
+production build rather than reasoned about.
+
+**The links landed on a wall.** `ShellGate` redirected every unauthenticated
+visitor under `app/(shell)` to `/`. That is a routing decision and it was never
+a security boundary, which is worth saying plainly, because a client-side
+redirect that looks like one is the most dangerous kind of decoration: every
+mutation in the product is a server route behind `requireProfile` and none of
+them moved. The gate now admits exactly the paths `lib/share/links.ts` can
+produce, and nothing else.
+
+**There was no control.** A member could not share their own Keep at all. The
+share affordance now sits beside Edit on your own Keep, beside the caller on a
+Call, in the House hall header, on a crest you hold, on a listing you posted and
+on a chest proof.
+
+### 50.2 What is public, decided once
+
+`lib/share/subjects.ts` is the privacy boundary and the rule is one sentence:
+
+> A share card may show only what an anonymous caller can already read from the
+> public API for that same subject, and never a balance.
+
+The first half means this feature discloses nothing new. If `/api/hoard` would
+seal a collection from a signed-out reader, the image seals it. If
+`/api/profile/earnings` would withhold the earnings block, the image has no
+earnings on it to withhold.
+
+The second half is stricter than the API on purpose. **Points, $RSP, wallet
+addresses and PnL appear on no card, ever, whatever `pnlVisible` says.** An
+image at a guessable URL is the wrong place for a number that tells somebody
+what a member is worth, and honouring `pnlVisible` by never carrying the field
+is a stronger reading of that setting than gating on it.
+
+So, per card:
+
+- **Keep.** Public: display name, handle, tier, House, Renown, Glory, crest
+  count, settled Call record. Every one of those is already in the `public`
+  block `/api/profile/earnings` returns to an anonymous caller with no gate.
+  Gated on `hoardVisible`: the Hoard, and only ever as counts (`distinct` of
+  `setSize`), never a card list, because a card naming which mythic somebody
+  holds is a shopping list. A banned member's Keep does not unfurl at all.
+- **Call.** Public, and only when the raven is public and undeleted: the
+  subject, direction, verdict, settlement score, stated confidence, required
+  move, the rationale and the caller's name. A miss shows MISS, in ember, at the
+  same weight a hit shows HIT: a card that only unfurled flatteringly is a
+  highlight reel, and a highlight reel is worth nothing as evidence.
+- **House.** Rank, Glory, members sworn, level, season. Scored live off the
+  ledger through the same top-twenty rule `/api/houses` uses, so the card cannot
+  disagree with the standings board it is screenshotted beside.
+- **Crest.** The crest, its rarity, how it is earned, the holder, and how many
+  members in the realm hold it. Only for a crest genuinely held: the reader
+  requires the `user_crests` row, which is what stops anybody manufacturing an
+  image of somebody else holding something they never earned.
+- **Chest proof.** The chest, the cards dealt, the best card, and the first
+  twelve characters of the commitment hash. **Nothing that leads back to a
+  member**, which is the same line `/api/chests/openings/[id]` holds and holds
+  hardest here: no handle, no Keep, and the reader does not select `profile_id`
+  at all.
+- **Bazaar listing.** The card, its rarity, the price the seller named, the
+  seller's handle and the status. No floor, no appraisal, no estimated value:
+  the per rarity floor is what the platform stands behind, not what a card is
+  worth.
+
+**An image has no viewer, which is the part that is easy to get wrong.** Every
+other privacy gate in the product reads `isOwner || flag`. A crawler holding a
+URL is never the owner and can never be authenticated, so the gates here read
+the raw flag with no owner branch anywhere in the file. Adding one would let a
+member preview their own sealed Hoard, conclude it renders, and share a link
+that shows everybody else something different from what they saw.
+
+The Hoard gate also fires **before** the read rather than after, and there is a
+test that asserts the `inventory` table is never queried for a sealed member. A
+sealed collection that is fetched and then discarded is one refactor away from
+being fetched and then rendered.
+
+### 50.3 Where the referral line is drawn
+
+`/banners` already mints `?banner=<handle>`, `/welcome` stows it, `/api/onboard`
+credits it into `referrals`. Mission 10 reuses that parameter rather than
+inventing a second one, because two referral seams is two sets of numbers and
+one of them is always wrong.
+
+**A banner rides only when the sharer is sharing their own moment.** Sharing
+your own Keep, Call, crest, proof or listing is you bringing somebody to the
+realm. Sharing somebody else's Keep is you pointing at them, and taking the
+recruit for it would reassign a member the subject had at least as good a claim
+to. `ShareButton` works out whether the viewer is the subject itself rather than
+taking an `own` prop, because an `own` prop would be got wrong exactly once, on
+exactly that surface, and the symptom would be silent.
+
+**That is the entire tracking surface.** No click event, no per-recipient
+identifier, no cookie set by the link, nothing written when a link is opened.
+The only thing that happens is a public handle going into `localStorage` under
+the key `/welcome` has always used, so a recruit who lands on a shared Call and
+onboards a week later still credits whoever sent them. A link that phoned home
+on open would be a tracking pixel with a fantasy theme, and it would measure the
+wrong thing: the realm wants to know who brought members, not who opened tabs.
+
+**No migration, and that is the decision.** Nothing here needs a table. A
+`share_events` table is exactly the tracking pixel above with a schema.
+
+### 50.4 No new flag, and why that is not laziness
+
+Every surface in this mission is ready. The sealed chapters gate themselves by
+having no rows: while `market_live` is off nothing has ever been listed, so a
+listing card has no subject and renders the honest empty card. `/market/[id]`
+does read `marketGate()`, so a stranger following an old link is told the
+chapter is sealed rather than shown a 404 that reads as the realm losing the
+record, but that is the existing flag doing its existing job.
+
+A `share_live` flag would be on from the first deploy.
+`scripts/check-house-rules.mjs` makes the argument better than this section can:
+a check that cannot fail teaches people the whole mechanism is decorative, and
+so does a flag that is never off.
+
+### 50.5 What was consolidated, which is most of the diff
+
+- **Four hand drawn Open Graph frames became one chassis.** Four copies of the
+  obsidian ground, gold radials at three opacities, "R" marks at three border
+  widths and three opinions about wordmark size. Nobody would ever see two of
+  them side by side, which is why they drifted and also why it mattered: an
+  unfurled card is often the first thing anybody sees of this product, and four
+  first impressions is none. `lib/share/og.tsx` is the only file in the realm
+  allowed to hold brand hex, and it holds them once rather than nine times.
+- **Two copies of the privacy gate became one.** `hoardVisible` lived in
+  `lib/collectibles/hoard.ts` and `privacyFlag` lived inside
+  `/api/profile/earnings`. They agreed, which is the dangerous kind of
+  duplication: nothing would have told anybody if an edit made them disagree.
+  `lib/privacy.ts` is now the only implementation, and a share card cannot read
+  a third copy.
+- **Three copies of the referral handle validator became one.** `RefCapture`,
+  `/welcome` and the new seam each had the same regex against a value that
+  arrives in a URL a stranger was handed, is stowed in `localStorage` and is
+  later posted to `/api/onboard`.
+- **The share ladder was not rewritten.** `lib/share.ts` already existed and six
+  surfaces already used it, including a legacy textarea copy for insecure
+  origins that a seventh copy would have forgotten. `ShareButton` adds the URL
+  and the banner and nothing else.
+- **`/proof` became a component.** `ProofSurface` is rendered by both `/proof`
+  and `/proof/[reference]`, so a stranger handed a link to somebody else's chest
+  and a member checking their own read the same argument. The argument only
+  works if it is the same one.
+- **`useViewerId` grew a handle rather than a second `/api/me` call.**
+
+### 50.6 What was found broken on the way
+
+- **`twitter.images` at the root disabled every dynamic card on X.** Section
+  50.1. This is the one that was actually costing the realm distribution.
+- **`app/opengraph-image.tsx` had never rendered for a crawler,** for the same
+  reason, since the day it was written.
+- **`shareOrCopy` detected a cancelled share sheet by matching the browser's own
+  prose.** Chrome says "Share canceled", Safari says "The operation was
+  aborted", and both happen to match `/abort|cancel/i` in English. Neither
+  string is specified. On a localized build a dismissed share fell through and
+  silently copied a link the member had just declined to send. It checks
+  `err.name === "AbortError"` now, which does not translate, and returns a
+  distinct `"dismissed"` so a cancelled share no longer flashes "Copied" at
+  somebody who copied nothing.
+- **The Coffers share built `/u/${handle ?? ""}`,** which produces `/u/` for a
+  member with no handle yet and then said "Copied". The one member most likely
+  to be looking at that button is a new one, on their own Coffers.
+- **The referral panel and the Vault's earn card mint `/?ref=<code>`** while
+  `/banners` mints `/welcome?banner=<handle>`. Two link shapes for one
+  mechanism. Both still work, and `readBanner` now resolves either, but the
+  product should pick one. Left as it is deliberately: choosing which is a
+  product decision, not a tidy-up.
+- **`app/(shell)/post/[id]` has carried a share card since long before this
+  mission and its page has been redirecting strangers the whole time.** It is in
+  the public path list now even though a raven is not one of the six moments,
+  because a card that unfurls onto a sign-in wall is worse than no card.
+
+### 50.7 Where the brief was wrong
+
+The brief asked for the Bazaar listing card and a listing share affordance
+before the Bazaar has ever held a listing. That is right to build, because the
+seam has to exist before the chapter opens, but it means one of the six cards
+has been checked only against its empty state. The same is true of the chest
+proof card: `chest_openings` is empty, `chests_live` is off, and nothing has
+ever granted an entitlement. Both routes render the honest empty card today, and
+both should be looked at again with one real row in front of them before anybody
+calls the set finished.

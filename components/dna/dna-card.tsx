@@ -20,7 +20,9 @@ export function DnaCard({ result }: { result: DnaResult }) {
         ? `${window.location.origin}/dna?q=${encodeURIComponent(result.subject)}`
         : "";
     const result2 = await shareOrCopy(url || result.shareText, result.shareText);
-    if (result2 !== "failed") {
+    /* See referral-panel: a dismissed sheet copied nothing, so it confirms
+       nothing. */
+    if (result2 === "shared" || result2 === "copied") {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }

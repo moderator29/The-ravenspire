@@ -25,6 +25,7 @@ import {
   DossierTabs,
 } from "@/components/dossier/dossier-shell";
 import { Avatar } from "@/components/social/avatar";
+import { ShareButton } from "@/components/share/share-button";
 import { PostCard } from "@/components/social/post-card";
 import { realmFetch } from "@/lib/auth/api";
 import { fetchFeed } from "@/lib/social/queries";
@@ -122,7 +123,15 @@ function HouseHallView({ slug }: { slug: string }) {
 
   return (
     <DossierPage width="wide">
-      <DossierHeader backHref="/houses" />
+      <DossierHeader
+        backHref="/houses"
+        /* No subjectHandle: a House belongs to everybody sworn to it, so there
+           is no member whose banner could honestly ride on a link to it. The
+           control is here because a House arguing about its own standing in a
+           group chat is the realm's cheapest recruitment, and until now there
+           was no way to link the argument. */
+        actions={<ShareButton target={{ kind: "house", slug }} title={`${meta.name} · The Ravenspire`} />}
+      />
 
       {/* The hero is the one place a Dossier may carry the Forge register, and
           a House hall is where that is most obviously earned: the sigil in its

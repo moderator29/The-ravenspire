@@ -1,14 +1,28 @@
 import { ImageResponse } from "next/og";
 import { fetchGoPlus, fetchHoneypot, buildReport } from "@/lib/tools/goplus";
 import { WATCH_CHAINS, type WatchReport } from "@/lib/tools/watch-types";
+import {
+  OgCard,
+  OG_CONTENT_TYPE,
+  OG_GENERIC,
+  OG_SIZE,
+} from "@/lib/share/og";
 
-/* Dynamic share card for a token safety report: the Defenses score, verdict
-   and chain in the realm's livery. Real data only; falls back to a neutral
-   "reading the wall" card when the token cannot be scored. */
+/* A token safety report, as a share card. Moved onto the shared chassis in
+ * mission 10; the verdict, the score and the refusal to invent one are
+ * unchanged.
+ *
+ * The one card in the realm that reads a third party at request time rather
+ * than the database, which is why it can honestly answer "nothing to show" for
+ * a real token: a rate limited upstream is not a safe token and must never
+ * render as one.
+ */
+
+export const dynamic = "force-dynamic";
 
 export const alt = "A token safety report from The Ravenspire";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const size = OG_SIZE;
+export const contentType = OG_CONTENT_TYPE;
 
 const ADDR = /^0x[a-fA-F0-9]{40}$/;
 
@@ -37,122 +51,43 @@ export default async function Image({
   params: Promise<{ chain: string; address: string }>;
 }) {
   const { chain, address } = await params;
+  const report = await readReport(chain, address);
+
+  /* No report is no card. The old version drew a "reading the wall" headline
+     with a dot where the score goes, which is a safety report that says
+     nothing while still looking like a safety report, and the one place in the
+     product where that is genuinely dangerous: somebody could share it as
+     though the token had been checked. */
+  if (!report) {
+    return new ImageResponse(<OgCard {...OG_GENERIC} />, { ...size });
+  }
+
   const chainLabel = WATCH_CHAINS[chain]?.label ?? "EVM";
   const short = ADDR.test(address)
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
     : address;
-  const report = await readReport(chain, address);
-  const serif = "ui-serif, Georgia, 'Times New Roman', Times, serif";
-
-  const score = report?.score ?? null;
-  const gold = "#D9B040";
-  const ember = "#C6633B";
-  const emberDeep = "#B23B2E";
-  const verdictColor =
-    report == null
-      ? "#8C877B"
-      : report.verdict === "safe"
-        ? gold
-        : report.verdict === "caution"
-          ? ember
-          : report.verdict === "danger"
-            ? emberDeep
-            : "#8C877B";
-  const headline = report?.headline ?? "Reading the wall";
+  const tone =
+    report.verdict === "safe"
+      ? "gold"
+      : report.verdict === "danger"
+        ? "ember"
+        : "bone";
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: "#07070A",
-          backgroundImage:
-            "radial-gradient(circle at 80% 10%, rgba(217, 176, 64,0.18), rgba(7,7,10,0) 55%)",
-          padding: 72,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            color: gold,
-            fontSize: 26,
-            letterSpacing: 8,
-            fontFamily: serif,
-            fontWeight: 700,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 52,
-              height: 52,
-              borderRadius: 14,
-              border: `4px solid ${gold}`,
-              marginRight: 20,
-              fontSize: 36,
-            }}
-          >
-            R
-          </div>
-          THE RAVENSPIRE · THE WATCH
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div
-            style={{
-              display: "flex",
-              color: "#8C877B",
-              fontSize: 30,
-              letterSpacing: 3,
-            }}
-          >
-            TOKEN SAFETY REPORT
-          </div>
-          <div
-            style={{
-              display: "flex",
-              color: verdictColor,
-              fontSize: 76,
-              fontWeight: 700,
-              fontFamily: serif,
-              marginTop: 8,
-            }}
-          >
-            {headline}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              marginTop: 14,
-              color: "#8C877B",
-              fontSize: 32,
-            }}
-          >
-            {short}
-            {"   ·   "}
-            {chainLabel}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 60 }}>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{ color: verdictColor, fontSize: 96, fontWeight: 700 }}>
-              {score === null ? "·" : score}
-              {score === null ? "" : "/100"}
-            </span>
-            <span style={{ color: "#8C877B", fontSize: 26, letterSpacing: 4 }}>
-              DEFENSES SCORE
-            </span>
-          </div>
-        </div>
-      </div>
+      <OgCard
+        kicker="THE WATCH"
+        headline={report.headline}
+        subline={`${short}  ·  ${chainLabel}`}
+        stats={[
+          {
+            label: "DEFENSES SCORE",
+            value: `${report.score}/100`,
+            tone,
+          },
+        ]}
+        glow="right"
+      />
     ),
     { ...size }
   );

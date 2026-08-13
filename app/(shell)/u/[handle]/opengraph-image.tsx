@@ -1,22 +1,41 @@
 import { ImageResponse } from "next/og";
-import { adminClient } from "@/lib/supabase/admin";
+import {
+  OgCard,
+  OG_CONTENT_TYPE,
+  OG_GENERIC,
+  OG_SIZE,
+  ogNumber,
+  ogTrim,
+  type OgStat,
+} from "@/lib/share/og";
+import { readKeepSubject } from "@/lib/share/subjects";
 
-/* A dynamic share card for a member's Keep (profile): their name, standing and
-   house in the realm's livery. Real data only; falls back to the house card
-   when the Keep cannot be read. */
+/* A member's Keep, as a share card.
+ *
+ * WHAT IS ON IT, AND WHY EACH THING IS ALLOWED THERE. Renown, Glory, crests
+ * held, the Call record and the House. Every one of those is already returned
+ * to an anonymous caller by /api/profile/earnings in its `public` block, with
+ * no gate, so this card discloses nothing new. The Hoard is on it only when the
+ * member's `hoardVisible` says so, which is the same gate /api/hoard applies to
+ * a stranger. lib/share/subjects.ts is where all of that is decided and where
+ * the reasoning is written out.
+ *
+ * WHAT IS DELIBERATELY NOT ON IT: points, $RSP, any earnings figure, and the
+ * wallet address. A crawler holding a guessed URL is the wrong reader for a
+ * number that says what somebody is worth, whatever their pnlVisible says.
+ *
+ * DYNAMIC, NOT CACHED, and that is a privacy decision rather than a freshness
+ * one. An Open Graph route is statically optimised by default in this version
+ * of Next. A member who seals their Hoard and finds the realm still serving the
+ * open version from a build-time cache has been ignored, so this route reads
+ * the gate on every request.
+ */
+
+export const dynamic = "force-dynamic";
 
 export const alt = "A Keep on The Ravenspire";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
-
-interface ProfileRow {
-  display_name: string | null;
-  handle: string | null;
-  tier: string | null;
-  renown: number | null;
-  glory: number | null;
-  house_slug: string | null;
-}
+export const size = OG_SIZE;
+export const contentType = OG_CONTENT_TYPE;
 
 export default async function Image({
   params,
@@ -24,101 +43,55 @@ export default async function Image({
   params: Promise<{ handle: string }>;
 }) {
   const { handle } = await params;
-  let profile: ProfileRow | null = null;
-  try {
-    const db = adminClient();
-    if (db) {
-      const { data } = await db
-        .from("profiles")
-        .select("display_name, handle, tier, renown, glory, house_slug")
-        .eq("handle", handle.toLowerCase())
-        .maybeSingle();
-      profile = (data as ProfileRow) ?? null;
-    }
-  } catch {
-    profile = null;
+  const keep = await readKeepSubject(handle);
+
+  if (!keep) {
+    return new ImageResponse(<OgCard {...OG_GENERIC} />, { ...size });
   }
 
-  const name = profile?.display_name ?? (profile?.handle ? `@${profile.handle}` : "A member");
-  const at = profile?.handle ? `@${profile.handle}` : "";
-  const tier = profile?.tier ?? null;
-  const house = profile?.house_slug ?? null;
-  const renown = profile?.renown ?? 0;
-  const glory = profile?.glory ?? 0;
-  const serif = "ui-serif, Georgia, 'Times New Roman', Times, serif";
+  const stats: OgStat[] = [
+    { label: "RENOWN", value: ogNumber(keep.renown) },
+    { label: "GLORY", value: ogNumber(keep.glory) },
+  ];
+  /* Only real counts reach the card. A member with no crests gets two stats
+     rather than a third reading zero, because a zero presented as a statistic
+     is the product telling a stranger this member has failed at something they
+     may never have attempted. */
+  if (keep.crests > 0) {
+    stats.push({ label: "CRESTS", value: ogNumber(keep.crests) });
+  }
+  if (keep.callsWon + keep.callsLost > 0) {
+    stats.push({
+      label: "CALLS",
+      value: `${ogNumber(keep.callsWon)}/${ogNumber(
+        keep.callsWon + keep.callsLost
+      )}`,
+      tone: keep.callsWon >= keep.callsLost ? "gold" : "ember",
+    });
+  }
+  if (keep.hoard) {
+    stats.push({
+      label: "HOARD",
+      value: `${ogNumber(keep.hoard.distinct)}/${ogNumber(keep.hoard.setSize)}`,
+      tone: "bone",
+    });
+  }
+
+  const identity = [
+    `@${keep.handle}`,
+    keep.tier,
+    keep.houseName,
+  ].filter(Boolean) as string[];
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: "#07070A",
-          backgroundImage:
-            "radial-gradient(circle at 80% 10%, rgba(217, 176, 64,0.18), rgba(7,7,10,0) 55%)",
-          padding: 72,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            color: "#D9B040",
-            fontSize: 26,
-            letterSpacing: 8,
-            fontFamily: serif,
-            fontWeight: 700,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 52,
-              height: 52,
-              borderRadius: 14,
-              border: "4px solid #D9B040",
-              marginRight: 20,
-              fontSize: 36,
-            }}
-          >
-            R
-          </div>
-          THE RAVENSPIRE
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", color: "#F5F2E9", fontSize: 78, fontWeight: 700, fontFamily: serif }}>
-            {name}
-          </div>
-          {at && (
-            <div style={{ display: "flex", marginTop: 12, color: "#8C877B", fontSize: 34 }}>
-              {at}
-              {tier ? `  ·  ${tier}` : ""}
-              {house ? `  ·  House ${house}` : ""}
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 60 }}>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{ color: "#D9B040", fontSize: 56, fontWeight: 700 }}>
-              {renown.toLocaleString("en-US")}
-            </span>
-            <span style={{ color: "#8C877B", fontSize: 26, letterSpacing: 4 }}>RENOWN</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{ color: "#D9B040", fontSize: 56, fontWeight: 700 }}>
-              {glory.toLocaleString("en-US")}
-            </span>
-            <span style={{ color: "#8C877B", fontSize: 26, letterSpacing: 4 }}>GLORY</span>
-          </div>
-        </div>
-      </div>
+      <OgCard
+        kicker="THE KEEP"
+        headline={ogTrim(keep.name, 34) ?? `@${keep.handle}`}
+        subline={identity.join("  ·  ")}
+        stats={stats.slice(0, 4)}
+        glow="right"
+      />
     ),
     { ...size }
   );
