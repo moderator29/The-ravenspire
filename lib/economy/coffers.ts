@@ -72,7 +72,13 @@ export interface PointsSide {
 
 export async function loadPointsSide(
   db: SupabaseClient,
-  profileId: string
+  profileId: string,
+  /* The balance the session already knows, used only when the reconciliation
+     read is unavailable. Without it a missing RPC renders a member's balance as
+     zero, which is the single most alarming thing this surface could get wrong:
+     a member would be told their POINTS were gone by a page that had simply
+     failed to ask. */
+  knownBalance: number
 ): Promise<PointsSide> {
   const [ledgerRes, reconRes, stakesRes] = await Promise.all([
     db
@@ -104,8 +110,12 @@ export async function loadPointsSide(
   } | null;
 
   const entries = Number(recon?.entries ?? 0);
-  const cached = Number(recon?.cached ?? 0);
+  const cached = recon === null ? knownBalance : Number(recon.cached ?? 0);
   const ledgerNet = Number(recon?.ledger ?? 0);
+  /* Partial covers both "the ledger is longer than one page" and "the sum could
+     not be taken at all". Neither may be reported as reconciled, and the second
+     one must not be reported as a drift either: reconcile() reads partial before
+     it reads the difference. */
   const partial = recon === null || entries > rows.length;
 
   let openStake = 0;
@@ -128,6 +138,10 @@ export async function loadPointsSide(
     reconciliation: reconcile({ cached, ledgerNet, partial }),
     balance: cached,
     glory: Number(recon?.glory_cached ?? 0),
+    /* burnedStake is summed over one page of settled stakes. A member past that
+       is under-reported rather than wrong, which is the safe direction for a
+       figure describing what they lost. openStake cannot truncate: a member
+       holds at most six open Calls. */
     openStake,
     burnedStake,
     openCalls,
