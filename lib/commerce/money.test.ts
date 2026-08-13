@@ -6,6 +6,7 @@ import {
   formatMoney,
   money,
   splitFee,
+  sumDecimal,
 } from "@/lib/commerce/money";
 
 describe("money", () => {
@@ -72,5 +73,51 @@ describe("money", () => {
     expect(() => splitFee(100, 500.5)).toThrow();
     expect(() => splitFee(-100, 500)).toThrow();
     expect(() => splitFee(100, 10_001)).toThrow();
+  });
+
+  /* sumDecimal totals the tributes on a member's Coffers. The amounts are the
+     decimal strings the senders' wallets signed, in tokens whose decimals were
+     never recorded, so there is no minor unit to fall back on and the sum has
+     to be exact on the strings themselves. */
+  describe("sumDecimal", () => {
+    it("adds the amounts a double cannot", () => {
+      /* 0.1 + 0.2 is 0.30000000000000004 in IEEE 754, which is the whole
+         reason this function exists rather than a reduce over Number(). */
+      expect(sumDecimal(["0.1", "0.2"]).total).toBe("0.3");
+      expect(sumDecimal(["0.7", "0.1"]).total).toBe("0.8");
+    });
+
+    it("aligns amounts of different precision", () => {
+      expect(sumDecimal(["1", "0.5", "0.25"]).total).toBe("1.75");
+      expect(sumDecimal(["0.000000000000000001", "1"]).total).toBe(
+        "1.000000000000000001"
+      );
+    });
+
+    it("stays exact at eighteen decimals, where a double is not", () => {
+      const eighteen = "0.000000000000000001";
+      const sum = sumDecimal(Array.from({ length: 10 }, () => eighteen));
+      expect(sum.total).toBe("0.00000000000000001");
+      expect(sum.counted).toBe(10);
+    });
+
+    it("trims trailing zeros without inventing precision", () => {
+      expect(sumDecimal(["0.50", "0.50"]).total).toBe("1");
+      expect(sumDecimal(["1.500", "0.250"]).total).toBe("1.75");
+    });
+
+    it("sums an empty set to zero", () => {
+      expect(sumDecimal([])).toEqual({ total: "0", counted: 0, skipped: 0 });
+    });
+
+    /* A historical row with a malformed amount must not take a member's whole
+       earnings page down, and must not be silently folded in as zero either.
+       It is skipped and counted, so the surface can say the total is short. */
+    it("skips what it cannot read and says how many", () => {
+      const sum = sumDecimal(["1.5", "", "abc", "-2", "1e18", "0.5"]);
+      expect(sum.total).toBe("2");
+      expect(sum.counted).toBe(2);
+      expect(sum.skipped).toBe(4);
+    });
   });
 });

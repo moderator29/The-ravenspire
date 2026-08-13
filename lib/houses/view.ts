@@ -111,6 +111,39 @@ export interface HouseTreasuryView {
      the real check is inside spend_house_treasury. */
   may_spend: boolean;
   viewer_role: string | null;
+  /* Does the cached balance still agree with the ledger under it.
+
+     `houses.treasury` is a cached total and house_treasury_ledger is the source
+     of truth, which is the same shape profiles.points and points_ledger have,
+     and the same shape that drifts in silence when nothing compares the two.
+     A House's members fund this balance, so they are the people entitled to
+     know when it stops adding up. `known` is false when the sum could not be
+     taken at all, which renders as nothing rather than as agreement: a tick
+     nobody checked is worse than no tick. */
+  reconciled: boolean;
+  reconciliation_known: boolean;
+  reconciliation_drift: number;
+  /* What the endowment costs and what a member may still give today. Present
+     for a signed in member sworn to this House, null otherwise: a reader who
+     cannot give is not shown a control. */
+  endowment: HouseEndowmentView | null;
+}
+
+/* The terms of a gift, priced for the member reading them. Every figure is the
+   figure the server will charge, never an estimate. */
+export interface HouseEndowmentView {
+  /* Whether endowment_live is on. The terms are readable either way, the same
+     posture the Bazaar takes with its fee. */
+  open: boolean;
+  min: number;
+  daily_cap: number;
+  /* This member's own position: their balance, what they have already given
+     today across every House, and the largest gift the realm would take from
+     them right now. `max` is zero rather than a control that moves and then
+     refuses. */
+  balance: number;
+  given_today: number;
+  max: number;
 }
 
 export interface HouseHall {

@@ -9,6 +9,11 @@ import {
   type HousePerkSlug,
   type HousePerkView,
 } from "@/lib/houses/perks";
+import {
+  DAILY_ENDOWMENT_CAP,
+  ENDOWMENT_TREASURY_BPS,
+  MIN_ENDOWMENT,
+} from "@/lib/houses/endowment";
 
 /* Reading and spending a House treasury.
 
@@ -109,6 +114,54 @@ export async function extraOpenCallSlots(
   if (!houseSlug) return 0;
   const perks = await loadActivePerks(db, houseSlug);
   return hasActivePerk(perks, "long-watch") ? LONG_WATCH_EXTRA_SLOTS : 0;
+}
+
+/* Whether the cached balance on `houses` still agrees with the ledger that is
+   supposed to explain it.
+
+   Both ledgers in this product keep a cached total beside their rows, which is
+   the right shape and also the shape that drifts in silence. The sum is done in
+   the database by public.reconcile_house_treasury, never by reading the rows
+   into Node and adding them up: a partial read would report a drift that is
+   only its own truncation, and "this House's treasury does not add up" is far
+   too serious a claim to make from an incomplete count.
+
+   A failure to read is reported as unknown rather than as agreement. A tick
+   nobody checked is worse than no tick. */
+export interface TreasuryReconciliation {
+  cached: number;
+  ledger: number;
+  drift: number;
+  entries: number;
+  reconciled: boolean;
+  known: boolean;
+}
+
+export async function reconcileTreasury(
+  db: SupabaseClient,
+  houseSlug: string
+): Promise<TreasuryReconciliation> {
+  const { data, error } = await db.rpc("reconcile_house_treasury", {
+    p_house_slug: houseSlug,
+  });
+  const row = (data ?? null) as {
+    cached?: number;
+    ledger?: number;
+    entries?: number;
+  } | null;
+  if (error || !row) {
+    return { cached: 0, ledger: 0, drift: 0, entries: 0, reconciled: false, known: false };
+  }
+  const cached = Number(row.cached) || 0;
+  const ledger = Number(row.ledger) || 0;
+  return {
+    cached,
+    ledger,
+    drift: cached - ledger,
+    entries: Number(row.entries) || 0,
+    reconciled: cached === ledger,
+    known: true,
+  };
 }
 
 export interface TreasuryEntry {
@@ -245,5 +298,142 @@ export async function buyHousePerk(
     perkId: result.perk_id ?? "",
     cost: Number(result.cost) || cost,
     treasury: Number(result.treasury) || 0,
+  };
+}
+
+/* ------------------------------------------------------------------
+   The endowment
+   ------------------------------------------------------------------ */
+
+/* Everything this member has committed to any House today, on the server's
+   clock.
+
+   Across every House, not per House: a member has one daily allowance, not one
+   per banner they have ever sworn to. Used only to render an honest control and
+   to refuse before a member commits. The ceiling that actually binds is
+   re-derived inside endow_house_treasury under the member's profile row lock,
+   because a cap checked here and enforced there is a cap two concurrent
+   requests both pass. */
+export async function endowedToday(
+  db: SupabaseClient,
+  profileId: string
+): Promise<number> {
+  const since = new Date();
+  since.setUTCHours(0, 0, 0, 0);
+  const { data } = await db
+    .from("house_endowments")
+    .select("committed")
+    .eq("profile_id", profileId)
+    .gte("created_at", since.toISOString())
+    .limit(200);
+  let total = 0;
+  for (const row of (data ?? []) as { committed: number }[]) {
+    total += Number(row.committed) || 0;
+  }
+  return total;
+}
+
+export type EndowResult =
+  | {
+      ok: true;
+      /* Zero when this was a replay of a gift that already landed. */
+      committed: number;
+      toTreasury: number;
+      destroyed: number;
+      balance: number;
+      treasury: number;
+      replayed: boolean;
+    }
+  | { ok: false; error: string; status: number };
+
+/* Every refusal endow_house_treasury can return, in the member's language.
+   Written out rather than passed through, for the same reason the perk
+   refusals are: a reason code is a debugging aid and a member handing over
+   their balance is owed a sentence. */
+const ENDOW_REFUSALS: Record<string, { error: string; status: number }> = {
+  not_positive: { error: "An endowment has to be more than nothing.", status: 400 },
+  bad_terms: { error: "The realm could not price that endowment.", status: 400 },
+  below_minimum: {
+    error: `The smallest endowment the realm takes is ${MIN_ENDOWMENT} POINTS.`,
+    status: 400,
+  },
+  over_daily_cap: {
+    error: `A member may commit ${DAILY_ENDOWMENT_CAP} POINTS to their House in a day, and you have reached it.`,
+    status: 409,
+  },
+  insufficient: { error: "You do not hold that many POINTS.", status: 409 },
+  not_sworn: {
+    error: "Only a member sworn to this House may fill its treasury.",
+    status: 403,
+  },
+  no_member: { error: "No such member.", status: 404 },
+};
+
+/* Commit POINTS from one member's balance to one House treasury.
+ *
+ * The terms travel with the call rather than being duplicated in PL/pgSQL, the
+ * same way a perk's price does: the catalogue and the reasoning live in
+ * TypeScript where they can be explained, and the database bounds them so a
+ * caller cannot send terms that would let a treasury gain more than the burn
+ * destroys. Every guard that decides the outcome (the oath, the balance, the
+ * day's running total) is inside the function under the profile row lock, and
+ * is deliberately not repeated here: repeating a check in TypeScript moves the
+ * race, it does not close it. */
+export async function endowHouseTreasury(
+  db: SupabaseClient,
+  opts: {
+    requestId: string;
+    houseSlug: string;
+    profileId: string;
+    amount: number;
+  }
+): Promise<EndowResult> {
+  const { data, error } = await db.rpc("endow_house_treasury", {
+    p_request_id: opts.requestId,
+    p_house_slug: opts.houseSlug,
+    p_profile_id: opts.profileId,
+    p_amount: opts.amount,
+    p_min: MIN_ENDOWMENT,
+    p_daily_cap: DAILY_ENDOWMENT_CAP,
+    p_treasury_bps: ENDOWMENT_TREASURY_BPS,
+  });
+
+  if (error) {
+    console.error("[treasury] endowment failed", error.message);
+    return {
+      ok: false,
+      error: "The treasury could not be opened. Try again.",
+      status: 503,
+    };
+  }
+
+  const result = (data ?? {}) as {
+    ok?: boolean;
+    reason?: string;
+    committed?: number;
+    to_treasury?: number;
+    destroyed?: number;
+    balance?: number;
+    treasury?: number;
+  };
+
+  if (!result.ok) {
+    const refusal = ENDOW_REFUSALS[result.reason ?? ""] ?? {
+      error: "The treasury refused that.",
+      status: 400,
+    };
+    return { ok: false, ...refusal };
+  }
+
+  return {
+    ok: true,
+    committed: Number(result.committed) || 0,
+    toTreasury: Number(result.to_treasury) || 0,
+    destroyed: Number(result.destroyed) || 0,
+    balance: Number(result.balance) || 0,
+    treasury: Number(result.treasury) || 0,
+    /* A retry of a gift that already landed. Reported so the surface can say
+       "already given" rather than showing a second gift that did not happen. */
+    replayed: result.reason === "already",
   };
 }
