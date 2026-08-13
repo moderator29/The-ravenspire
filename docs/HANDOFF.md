@@ -290,6 +290,34 @@ checkout frontend, a real payment account, and the compliance guardrails. A
 number being decided and a realm being ready to take money are two different
 facts.
 
+## 7b. Two founder calls made this session, and where they landed
+
+**POINTS convert to $RSP at TGE. Committed.** An earlier pass removed that line
+from the earnings surfaces on the reading that it was a promise the product had
+never made. The founder confirms it was, so it is back, in The Coffers and on the
+Keep's earnings panel, and the Herald may state it in conversation.
+
+What is NOT committed is a rate, and every surface says so in the same breath.
+Those are two different claims: the conversion is a fact about the future, a rate
+would be a valuation today. Rule 7 is unchanged and unaffected, because it is
+about display rather than about whether a conversion exists: an earned balance is
+rendered as POINTS and never as an amount of $RSP, before and after this.
+
+**The pitch is "Make the call. Earn your name."** In full: *a competitive realm
+of Houses, Calls, Crests and Renown, where standing is earned through
+participation.*
+
+`RAVENSPIRE-V2.md` line 113 recorded this as defect P10, "positioning
+contradicts itself three ways on one page load", and it was still true: the
+Open Graph block pitched a competitive realm, the Twitter block pitched a safety
+scanner ("See every chain. Fear no rug."), the web manifest pitched a fun-first
+social realm, and the Herald's own brief led with the collection. A stranger met
+whichever their client happened to read.
+
+All four now say the founder's line, and the Herald's identity paragraph leads
+with it and keeps the collection as the largest thing a member builds rather than
+as the identity itself. "SocialFi" stays retired.
+
 ## 8. Founder only decisions (never block on these, build sealed and ready)
 
 - The final yes to set `COMMERCE_PRICES_CONFIRMED=true` and flip `chests_live`.

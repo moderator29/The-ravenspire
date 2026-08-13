@@ -81,7 +81,13 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "The Ravenspire",
-    description: "See every chain. Fear no rug. Rule your realm.",
+    /* THE SAME PITCH AS openGraph ABOVE, and that is the point of this edit.
+       The two blocks described two different products: this one led with a
+       safety scanner promise and the one above with a competitive realm. A
+       stranger meets whichever their client happens to read, so the realm had
+       two first impressions and no way to know which one it was making. */
+    description:
+      "Make the call. Earn your name. A competitive realm of Houses, Calls, Crests and Renown.",
   },
   icons: { icon: "/favicon.ico" },
 };

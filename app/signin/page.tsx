@@ -98,8 +98,8 @@ export default function SignInPage() {
                 <span className="gold-text">truly yours</span>
               </h2>
               <p className="mt-3 text-[13px] leading-relaxed text-bone-mut">
-                See every chain. Fear no rug. Rule your realm. The keys are yours
-                from the first moment you cross the gate.
+                Make the call. Earn your name. The keys are yours from the
+                first moment you cross the gate.
               </p>
             </div>
 
@@ -131,7 +131,7 @@ export default function SignInPage() {
                 THE RAVENSPIRE
               </h1>
               <p className="mt-2 text-[13px] text-bone-mut">
-                See every chain. Fear no rug. Rule your realm.
+                Make the call. Earn your name.
               </p>
             </div>
 

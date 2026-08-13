@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "The Ravenspire",
     short_name: "The Ravenspire",
     description:
-      "See every chain. Fear no rug. Rule your realm. A fun-first social realm of Houses, Calls, crests and The War.",
+      "Make the call. Earn your name. A competitive realm of Houses, Calls, Crests and Renown, where standing is earned through participation.",
     start_url: "/",
     display: "standalone",
     background_color: "#07070A",
