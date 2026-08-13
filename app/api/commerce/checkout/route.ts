@@ -7,6 +7,7 @@ import { chestPrice, pricesConfirmed } from "@/lib/commerce/catalog";
 import { lineTotal, sumMinor } from "@/lib/commerce/money";
 import { paymentProvider } from "@/lib/commerce/payments";
 import type { CheckoutLineItem } from "@/lib/commerce/payments";
+import { logger } from "@/lib/observability/log";
 
 /* POST /api/commerce/checkout (V2 Part Two, section 33, Phase D).
  *
@@ -30,6 +31,8 @@ import type { CheckoutLineItem } from "@/lib/commerce/payments";
  */
 
 export const dynamic = "force-dynamic";
+
+const log = logger("commerce.checkout");
 
 const MAX_QTY = 10;
 
@@ -175,7 +178,8 @@ export async function POST(req: Request) {
       cancelUrl: `${baseUrl(req)}/warchests?checkout=cancelled`,
       idempotencyKey,
     });
-  } catch {
+  } catch (err) {
+    log.error("checkout session create failed", { orderId, err });
     return json({ error: "checkout failed" }, 502);
   }
 
