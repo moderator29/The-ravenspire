@@ -1,105 +1,248 @@
-# The Ravenspire: handoff
+# Handoff: take the upgrade work forward
 
-The state of the realm, honestly, and what to build next. Read `AGENTS.md`
-first (the house rules are compulsory), then `docs/DESIGN-SYSTEM.md` before
-designing any surface. The full V2 plan is `docs/RAVENSPIRE-V2.md`;
-`docs/NEXT-SESSION-HANDOFF.md` is an older session's notes and is history now,
-not instruction.
+You are picking up Ravenspire as a co-founder, not a contractor. Read this once,
+top to bottom, then start. You do not need permission to begin and you do not
+stop to ask. You decide, you build, you verify, you commit, you push, you keep
+going. The only things you do not decide are the handful of founder only
+business calls listed at the end, and you never block on those: you build the
+work sealed and ready so a single yes ships it.
 
-## 1. How this work runs
+## 0. How you work (the operating protocol, non negotiable)
 
-Autonomous. Decide, build, verify, commit, push, keep going. Do not stop to
-ask permission for anything on the list in section 4. The founder-only calls
-in section 5 are the exceptions, and they are never a reason to stop: build
-the work sealed and ready so a single yes ships it.
+- **Autonomous.** No stopping to ask "should I proceed." Proceed. Make the
+  technical and design decisions a senior co-founder would make, and record why
+  in the commit and the code comments. Surface a question only for a genuine
+  founder only business decision (the list in section 8), and even then keep
+  building around it rather than waiting.
+- **Co-founder standard.** Think like the top one percent of researchers, devs
+  and analysts. Build to production quality. Where you see a better approach than
+  what is written here, take it, and say why. Leave the codebase better than you
+  found it.
+- **The rules are compulsory** (section 1). They are not style preferences. CI
+  enforces two of the gates and the house rule checker enforces fourteen more.
+  Read `AGENTS.md` and `docs/DESIGN-SYSTEM.md` before you design any surface.
+- **Every push is gated.** Run all four before you push, and never push red:
+  `npm run check:rules`, `npm run typecheck`, `npm test`, `npm run build`.
+- **Commit cleanly, in slices.** One coherent change per commit, a real message,
+  no em dashes anywhere, and never the model identifier in any commit or artifact.
+  End commit messages with the co-author and session trailer already used on this
+  branch (see `git log`).
+- **Branch.** Develop on `claude/ravenspire-v2-living-realm-a5b06e` unless its pull
+  request is already merged, in which case restart it from the latest default
+  branch and keep the name. If you fan work out to subagents, give each its own
+  worktree and branch, then re-audit their diffs yourself before you merge:
+  read the actual diff, do not trust the report, run the four gates on the
+  integrated result, and for money or security code run the Supabase security
+  advisor after any DDL.
+- **Real, honest, sealed.** New surfaces ship sealed behind a realm flag until
+  they are real. An empty state is honest; invented data is not, ever.
 
-Every push passes all four gates, and none of them may go red:
+## 1. The compulsory rules (acknowledged, from AGENTS.md)
 
-```
-npm run check:rules   # the house rules, mechanically
-npm run typecheck
-npm test
-npm run build
-```
+These bind every file, every commit, every subagent you spawn.
 
-After any DDL, run the Supabase security advisor against project
-`tqvigouaifbklvajiyoj` and read what it says.
+1. No em dashes or en dash punctuation anywhere: code, comments, commits, UI copy,
+   docs. Use commas, periods, colons, or restructure.
+2. No emoji as icons. Use the `Icon` component. Never label a 3D icon with its name.
+3. Realm lexicon: The Ravenry (feed), The Crossroads (explore), The Rookery
+   (live), Whispers (DMs), The Vault (wallet), The Coffers (earnings), The Ledger
+   (portfolio), The Scrying Glass (coin discovery), The War (game), @raven (the
+   Herald AI), Houses, Renown, Glory, Calls, Crests, Keeps.
+4. **Real data only.** No mock, placeholder, seeded, demo, or invented data. Every
+   number, balance, chart, holding and list is real or an honest empty state. Hard
+   line.
+5. **Real AI only.** Every AI surface is a real Anthropic call over real data.
+   Never fake, stub, canned, or hardcoded model output.
+6. **Non custodial only.** Every value transfer is signed by the member's own Privy
+   embedded wallet. The platform never takes custody and never holds keys.
+7. Ticker `$RSP`, supply 10,000,000,000. Presale is external launchpad only, never
+   on platform. Copy is always "Presale coming soon". Show POINTS for earned
+   balances, never `$RSP` amounts.
+8. **Server authoritative rewards.** Points and Glory settle on the server against
+   verified events. Never trust the client.
+9. Buttons and controls are clean rounded rectangles. No `rounded-full` on buttons,
+   tabs, nav, or chips. Radius comes from the scale.
+10. Use the token scales in `app/globals.css` for spacing, radius, elevation, z
+    index. No one off `z-[93]` or `rounded-[13px]` (checked).
+11. Every colour that carries text clears WCAG AA (4.5:1). Never text on a fill only
+    hue (`--foe`, `--blood`, `--ash`); use their `-text` twins.
+12. Every interactive element is keyboard reachable and visibly focusable. Never
+    add `focus:outline-none` without a replacement.
+13. Brand is obsidian and forged gold (gold is a gradient, never flat), restrained
+    ember, one steel tone, warm glows. Never green in brand surfaces, including
+    success, which uses gold. Trading up may use gold, down may use ember.
+14. Motion is fast: 100 to 150ms micro, 150 to 250ms standard, under 300ms always,
+    exits about twenty percent faster, animate only transform and opacity.
+15. Responsive is different layouts, not a scaled one. Distinct mobile and desktop.
+16. Every navigable surface has a back control. Modals portal to `document.body`.
+    Popovers anchor to their trigger in a `relative` box.
+17. `npm run typecheck` and `npm run build` must both pass before any push. CI
+    enforces both, and the workflow also runs the rule checker and the tests.
+18. Prefer the primitives in `components/ui/`. If one is missing, add it there.
+19. No new paid service without justification. Prefer free tiers, open source,
+    browser native. Assume the budget is zero.
+20. Read `docs/DESIGN-SYSTEM.md` before designing any surface. Two registers
+    (Ledger and Forge), six archetypes, three tab patterns, two densities, one
+    card chassis.
+21. Ornament is earned, never ambient. The Ledger register (about ninety percent
+    of the product) is flat, dense, quiet. The Forge register (Crest unlocks, Call
+    resolutions, House victories, pack opening, onboarding) is where gold, 3D
+    icons, glow and heavy motion are allowed.
+22. Never caption a 3D icon with its own name.
 
-**Check the repository and the live database agree before writing a
-migration.** They have diverged once already: the commerce engine migration
-was applied to production by a session whose branch never reached `main`, so
-five tables existed that no file described. It is recovered now, verbatim, as
-`supabase/migrations/20260812224950_commerce_engine.sql`. `list_migrations`
-against the project takes ten seconds and would have caught it.
+## 2. Where the product stands right now
 
-## 2. What is live
+Branch `claude/ravenspire-v2-living-realm-a5b06e`, all four gates green, pushed.
+The live Supabase project is `tqvigouaifbklvajiyoj`.
 
-The core platform: Ravenry, Calls, Houses, Crests and Renown, the War,
-Whispers, the Rookery, the Vault, the Ledger, the Scrying Glass, the Swap,
-the Watch, the Scanner, @raven, notifications, leaderboards, search, seasons.
-Real data throughout, real Anthropic calls on every AI surface, non-custodial
-throughout.
+**The core platform is live:** the Ravenry feed, Calls (composer and
+`calls/[id]` detail), Houses, The War, the Herald AI (knows the member and the
+platform, real CoinGecko and GeckoTerminal data), the Vault, Swap, Watch,
+Whispers. The design system sweep, mobile shell, WCAG contrast and focus rings,
+and the core security fixes are done.
 
-## 3. The collectibles realm
+**The collectibles realm is built as a sealed preview and, this wave, a real
+backend:** The Reliquary, Warchests, and The Mercer pages exist sealed. The
+commerce engine backend is complete and sealed behind two switches, the
+`chests_live` realm flag and the `COMMERCE_PRICES_CONFIRMED` env gate, both off.
 
-Sealed preview. Backend live, frontend sealed, so opening day is a flag flip
-and not a deploy (`docs/RAVENSPIRE-V2.md` section 27).
+**What shipped this wave** (detail in `RAVENSPIRE-V2.md` section 35): the 3D icon
+slice fix, the commerce engine (Stripe provider, server authoritative checkout,
+provably fair opening, non custodial redemption, fulfillment abstraction, the
+`20260812130000_commerce_engine.sql` migration applied to the live database), and
+a money safety pass. The `cx` defect, durable rate limiting, and four gate CI
+were already done and were verified, not rebuilt.
 
-| Piece | State |
-| --- | --- |
-| Catalog: Set One, forty cards derived from the champion roster | Shipped, in code, `lib/collectibles/set-one.ts` |
-| Sealed chapters: Reliquary, Warchests, Mercer | Shipped, behind `LockedGate` |
-| Interest capture ("Notify me") | Live, real, `/api/interest` |
-| Commerce engine: orders, payments, fulfillments, chest entitlements, inventory | Schema live, sealed |
-| The ownership loop: claims, vouchers, on-chain verification | Shipped, sealed. Section 35 of the V2 doc |
-| The Hoard: the trophy case on the Keep, a public Keep and the Vault | Shipped. Honestly empty until a chest opens |
-| Chest opening: pre-committed seed, deterministic roll, one atomic settle | Shipped, sealed. Section 36 |
-| Realm flags | `reliquary_live`, `chests_live`, `mercer_live`, `mint_live`, all off |
+**The strategy that drives your work** is in `docs/RAVENSPIRE-V2-STRATEGY.md`, and
+the consolidated todo is `RAVENSPIRE-V2.md` Part Three (sections 35 to 40).
 
-## 4. The missions, in order
+## 3. Your mission: the big upgrade work
 
-1. **Close the ownership loop.** Done. Wallet-backed non-custodial cards and
-   soulbound crests: `docs/RAVENSPIRE-V2.md` section 35.
-2. **The trophy case.** Done. The Hoard renders on the Keep, on a public
-   Keep and in the Vault, with a server-side privacy gate.
-3. **Sinks and stakes.** Crafting, staked Calls, House treasury perks.
-4. **The native non-custodial secondary market.** Reads `isSoulbound`; a
-   crest is never listable.
-5. **Appointments and seasons.** Daily drop window, weekly Clash clock,
-   season finale.
-6. **Provably fair as a feature.** Verifier page, Ceremony reveal,
-   pre-committed seed.
-7. **Phygital.** NFC and QR authenticity on physical Warchests.
-8. **The Herald as retention brain.**
-9. **Creator and House economies.**
-10. **Shareable distribution artifacts.**
-11. **Gasless account abstraction on Privy.**
-12. **Compliance guardrails** before commerce takes a dollar: AMOE, age gate,
-    caps, cooling off, geo.
+Close the retention loop and give the collectibles real weight. The loop is
+Earn, Own, Spend and Stake, Show. The platform has Earn and half of Own. Your job
+is to build the rest. Take these in order; each is a slice you build, gate,
+commit, push, then move on. Full reasoning per item is in the strategy doc.
 
-Alongside those, the leftover commerce build: checkout, the Ceremony and
-redeem surfaces, redemption code creation, the fulfillment worker, refunds,
-Sentry, onboarding, Whispers realtime, attachments.
+1. **Close the ownership loop.** Make a pulled or redeemed card a real, owned,
+   non custodial holding in the member's own Privy wallet, with a soulbound tier
+   for earned Crests that cannot be sold. The off chain holdings ledger
+   (`inventory` table) already exists and is written by opening and redemption;
+   build the ownership surface on top and the path to on chain ownership. Blend:
+   the Reliquary becomes a real collection, the Keep shows owned rarities, the War
+   plays cards the member owns. Acceptance: a member can see and prove what they
+   own, real data only, non custodial.
+2. **The trophy case (the Show beat).** A surface in the Keep and the Vault that
+   shows owned cards by rarity, won Crests, House standing, and the rarest holding,
+   all real or an honest empty state. Cheapest retention on the table. Use the one
+   card chassis at every size.
+3. **Sinks and stakes (the Spend beat).** Crafting duplicates up a rarity, Call
+   entries with a stake, House treasury contributions that buy House perks,
+   cosmetic Crest frames. Server authoritative throughout. This gives Glory and
+   POINTS somewhere to go.
+4. **Native secondary market.** List, buy, gift, transfer, member to member, each
+   signed by the member's own wallet, a small protocol fee to the Coffers, real
+   print caps for a real floor. Non custodial, never take custody.
+5. **Appointment mechanics and seasons.** A daily Warchest window, a weekly House
+   Clash clock with a settlement time, a season finale that banks rank into a
+   permanent badge. Give the Chronicle, the Clash and Calls a clock.
+6. **Provably fair as a feature.** A public verifier page and the reveal affordance
+   on the Ceremony, with the floor and expected value published beside the odds.
+   The opening already reveals the seed and nonce; build the surface that lets a
+   member verify a pull, and pre commit a rotating seed for the stronger guarantee.
+7. **Phygital authenticity.** NFC or QR on the physical King's Reliquary box tying
+   printed cards to their digital twins, provenance that survives resale.
+8. **The Herald as retention brain.** A personal weekly brief grounded in real
+   data, surfaced as a notification. Real AI over real data.
+9. **Creator and House economies.** House treasuries that accrue a slice of market
+   fees, Renown that unlocks issuing Calls.
+10. **Native distribution wedges.** Shareable real artifacts (a Call result, a pull
+    reveal, a season rank), each a portrait carrying an invite. Extend the existing
+    opengraph image route.
+11. **Gasless, forgiving non custodial UX.** Account abstraction on Privy: a
+    paymaster for gasless pulls and claims, social recovery, a member set spending
+    cap.
+12. **Compliance guardrails** before commerce takes a dollar: alternative means of
+    entry, age gate, spending caps, cooling off, geo awareness, the verifier page.
 
-The four security residuals are all closed: on-chain transaction verification
-(section 35), the transactional chest open and the pre-committed seed
-(section 36), and the daily War Glory cap (`award_capped`, and the reasoning
-is in `lib/points.ts`).
+## 4. The remaining build from this wave (finish these too)
 
-What the chest opening still waits on is the thing that grants an
-entitlement. Nothing sells a chest yet, so `chest_entitlements` is empty and
-the opening route answers honestly that you have no unopened chest. Checkout
-and redemption codes are the two writers, and both are founder-gated on
-pricing.
+Sealed while the flag is off. Detail in `RAVENSPIRE-V2.md` section 38.
 
-## 5. Founder-only, and never a reason to stop
+1. Commerce frontend: purchase and checkout UI in Warchests, order history in The
+   Vault (`GET /api/commerce/orders` is ready), the pack opening Ceremony in the
+   Forge register, redemption code UI. Distinct mobile and desktop.
+2. Redemption code creation (admin or pack time): generate a code, store its hash
+   plus the granted cards plus the chest sku. The redeem route consumes codes;
+   nothing mints them yet.
+3. Physical fulfillment: collect a shipping address at checkout, and a worker that
+   calls the fulfillment vendor on the pending `fulfillments` row.
+4. Refunds: `payments.status` supports `refunded`; there is no refund route yet.
+5. Error monitoring (Sentry free), structured logging, a Supabase backup and PITR
+   note, an image CDN policy for card art.
+6. Onboarding steps 0 and 1, Whispers realtime UI, image attachment flows.
 
-Build it sealed and ready; one yes ships it.
+## 5. Security residuals to fix as you pass through (from the audit and re-audit)
 
-- Chest prices, then `COMMERCE_PRICES_CONFIRMED`.
-- Real per-card floor valuations.
-- Merch prices.
-- The on-chain mint: the two contracts and the voucher signing key. The
-  interface the contracts must implement is recorded in
-  `lib/chain/claim-abi.ts` and cannot be edited apart from the voucher.
-- Vendor and payment accounts.
+Detail in `RAVENSPIRE-V2.md` section 39. Highest value first:
+
+1. Move chest claim, roll and grant into one transactional RPC, or reset
+   `opened_at` on failure, so a database error mid open never burns a paid chest.
+2. A server side daily War Glory cap (mirroring the two hundred per day social cap),
+   or seed based replay verification, since War Glory is self reported.
+3. On chain verification of the `tx_hash` on tips and trades before recording
+   (needs an EVM RPC provider, an infra decision). Rate limits mitigate for now.
+4. Pre commit a rotating seed for chest opening (stronger provably fair).
+5. Align the redeem route comment with its code (the `attempts` bump).
+
+## 6. How the money and security code is shaped (so you extend it safely)
+
+- Money is integer minor units everywhere (`lib/commerce/money.ts`). No float ever
+  reaches a charge. Keep it that way.
+- Prices, supply caps and the confirmation gate live server only in
+  `lib/commerce/catalog.ts`. Never render a price a client can read until it is
+  confirmed. Checkout prices from the catalog, never from the request.
+- The Stripe provider (`lib/commerce/payments/stripe.ts`) verifies the webhook
+  signature over the raw body with a five minute replay window, secret server only.
+  Any new provider implements the same `PaymentProvider` interface.
+- Chest opening (`lib/commerce/chest-open.ts`) is a pure, deterministic commit
+  reveal against the single odds source in `lib/collectibles/warchests.ts`. The
+  route claims one entitlement with a conditional update so two opens cannot both
+  win, and enforces the printed guarantee floor server side.
+- Every new user owned table is RLS deny by default with ownership enforced in the
+  route via the service role, because Privy makes `auth.uid()` null. Run the
+  Supabase security advisor after any DDL and expect only INFO
+  `rls_enabled_no_policy` lints.
+- Every mutating or expensive route carries a durable rate limit
+  (`rateLimit(profileKey(action, profile.id), limit, windowSeconds)`).
+
+## 7. Item 7, decided
+
+Stored server side in `lib/commerce/catalog.ts`, off customer surfaces until
+confirmed. Chest pricing 4.99, 14.99, 59.99 USD. One print on demand vendor,
+Gelato, with Printful and Prodigi fallbacks behind a swappable abstraction. Per
+card mint caps Rare 5,000, Epic 1,500, Legendary 400, Mythic 75. Art print edition
+250 per champion.
+
+## 8. Founder only decisions (never block on these, build sealed and ready)
+
+- Confirm or adjust the chest prices, then set `COMMERCE_PRICES_CONFIRMED=true`.
+- Real per card floor valuations before confirming (the guardrail forces floor at
+  least price).
+- Merch prices (checkout rejects merch until they exist).
+- On chain mint: deployed contracts on Base and a platform voucher signer (the
+  mint phase, deliberately last, never faked).
+- The print on demand vendor contract and the payment provider account.
+
+Everything else is yours to decide and build. Start at section 3, item 1.
+
+## 9. Commands and map
+
+- Gates: `npm run check:rules`, `npm run typecheck`, `npm test`, `npm run build`.
+- Icons: `npm run icons` then `node scripts/normalize-icons-3d.mjs`.
+- Strategy and reasoning: `docs/RAVENSPIRE-V2-STRATEGY.md`.
+- Consolidated todo: `docs/RAVENSPIRE-V2.md` Part Three (sections 35 to 40).
+- Design law: `docs/DESIGN-SYSTEM.md`. Rules: `AGENTS.md`.
+- Commerce backend: `lib/commerce/**`, `app/api/commerce/**`,
+  `app/api/chests/[sku]/open`, `app/api/reliquary/redeem`.
+- Live database: Supabase project `tqvigouaifbklvajiyoj`. Migrations in
+  `supabase/migrations/`.
