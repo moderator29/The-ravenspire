@@ -187,11 +187,16 @@ Detail in `RAVENSPIRE-V2.md` section 39. Highest value first:
 
 1. Move chest claim, roll and grant into one transactional RPC, or reset
    `opened_at` on failure, so a database error mid open never burns a paid chest.
+   DONE. `public.chest_open`, one transaction under a row lock.
 2. A server side daily War Glory cap (mirroring the two hundred per day social cap),
-   or seed based replay verification, since War Glory is self reported.
-3. On chain verification of the `tx_hash` on tips and trades before recording
-   (needs an EVM RPC provider, an infra decision). Rate limits mitigate for now.
-4. Pre commit a rotating seed for chest opening (stronger provably fair).
+   or seed based replay verification, since War Glory is self reported. DONE.
+   1,500 a day on its own allowance, `public.award_capped`.
+3. On chain verification of the `tx_hash` on tips and trades before recording.
+   DONE. `lib/chain/verify-transfer.ts`, free tier over the existing Alchemy
+   key. An unproven transfer is recorded but kept out of the shared feed and
+   rings nobody, because what is defended is the audience, not the record.
+4. Pre commit a rotating seed for chest opening (stronger provably fair). DONE,
+   both halves: `RAVENSPIRE-V2.md` section 42.1.
 5. Align the redeem route comment with its code (the `attempts` bump).
 
 ## 6. How the money and security code is shaped (so you extend it safely)
@@ -218,20 +223,52 @@ Detail in `RAVENSPIRE-V2.md` section 39. Highest value first:
 ## 7. Item 7, decided
 
 Stored server side in `lib/commerce/catalog.ts`, off customer surfaces until
-confirmed. Chest pricing 4.99, 14.99, 59.99 USD. One print on demand vendor,
-Gelato, with Printful and Prodigi fallbacks behind a swappable abstraction. Per
-card mint caps Rare 5,000, Epic 1,500, Legendary 400, Mythic 75. Art print edition
-250 per champion.
+confirmed. One print on demand vendor, Gelato, with Printful and Prodigi
+fallbacks behind a swappable abstraction. Per card mint caps Rare 5,000, Epic
+1,500, Legendary 400, Mythic 75. Art print edition 250 per champion.
+
+**Prices, final, set by the founder.** These supersede the 4.99 / 14.99 / 59.99
+placeholders this section used to carry.
+
+| Chest | Price | Guaranteed floor |
+| --- | --- | --- |
+| Squire's Chest | 34.99 | 38 |
+| Knight's Warchest | 41.00 | 92 |
+| King's Reliquary | 54.86 | 192 |
+
+Per rarity guaranteed floor: Rare 8, Epic 22, Legendary 60, Mythic 275. This is
+the value the PLATFORM commits to standing behind, not a market price, not an
+appraisal, and not a promise about what anyone else will pay. Nothing may render
+it as one, and the secondary market must never quote it.
+
+The chest floors are not typed in as three magic numbers: the module derives
+the worst a chest can open from the per rarity floor, its card count and its
+printed guarantee, and refuses to load if a digital chest's promised floor and
+its dealt floor stop matching. Both digital floors fall out exactly (two rares
+and an epic is 38, four rares and a legendary is 92). The King's Reliquary sits
+above its card floor because it also ships merch and a print.
+
+Merch, final: Obsidian Tee 32, Rookery Hoodie 68, Banner Cap 30, Set One Art
+Print 42 (numbered giclee, edition 250), War Playmat 48. The merch line is live
+in checkout and answers to `mercer_live`, separately from `chests_live`.
+
+`COMMERCE_PRICES_CONFIRMED` is still off, and deliberately so: it waits on the
+checkout frontend, a real payment account, and the compliance guardrails. A
+number being decided and a realm being ready to take money are two different
+facts.
 
 ## 8. Founder only decisions (never block on these, build sealed and ready)
 
-- Confirm or adjust the chest prices, then set `COMMERCE_PRICES_CONFIRMED=true`.
-- Real per card floor valuations before confirming (the guardrail forces floor at
-  least price).
-- Merch prices (checkout rejects merch until they exist).
-- On chain mint: deployed contracts on Base and a platform voucher signer (the
-  mint phase, deliberately last, never faked).
-- The print on demand vendor contract and the payment provider account.
+- The final yes to set `COMMERCE_PRICES_CONFIRMED=true` and flip `chests_live`.
+  Prices, floors and merch prices are all decided and encoded; what remains is
+  the checkout frontend, a real Stripe account, and the compliance guardrails.
+- On chain mint: two deployed contracts on Base and the platform voucher signer.
+  The interface the contracts must implement is recorded in
+  `lib/chain/claim-abi.ts` and cannot be edited apart from the voucher, since a
+  struct that differs by one field produces a signature that verifies against
+  nothing and the member meets that failure in their own wallet after paying
+  gas. Deliberately last, never faked.
+- The Gelato and Stripe accounts. Keys go in env, never in a commit.
 
 Everything else is yours to decide and build. Start at section 3, item 1.
 
