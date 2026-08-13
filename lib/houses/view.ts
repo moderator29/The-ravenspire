@@ -62,6 +62,57 @@ export interface PastMemberView {
   member: MemberIdentityView | null;
 }
 
+/* One perk in the hall's catalogue, priced against this House's real sworn
+   count. `price` is what the server will charge, not an estimate. */
+export interface PerkOfferView {
+  slug: string;
+  name: string;
+  blurb: string;
+  effect: string;
+  icon: string;
+  duration_days: number;
+  price: number;
+  affordable: boolean;
+  burning: boolean;
+}
+
+export interface TreasuryEntryView {
+  delta: number;
+  reason: string;
+  ref: string | null;
+  actor_id: string | null;
+  created_at: string;
+}
+
+export interface HouseTreasuryView {
+  /* Real POINTS, from real sinks. Zero for a House that has never had a stake
+     burn under its banner, and rendered as zero. */
+  balance: number;
+  sworn: number;
+  catalogue: PerkOfferView[];
+  active: {
+    slug: string;
+    cost: number;
+    starts_at: string;
+    expires_at: string;
+    allowance_remaining: number | null;
+    actor_id: string | null;
+  }[];
+  history: {
+    slug: string;
+    cost: number;
+    starts_at: string;
+    expires_at: string;
+    allowance_remaining: number | null;
+    actor_id: string | null;
+  }[];
+  ledger: TreasuryEntryView[];
+  /* Whether the member reading this may open the treasury. Presentation only:
+     the real check is inside spend_house_treasury. */
+  may_spend: boolean;
+  viewer_role: string | null;
+}
+
 export interface HouseHall {
   house: {
     slug: string;
@@ -91,6 +142,7 @@ export interface HouseHall {
     score: number;
   } | null;
   level: HouseLevelView;
+  treasury: HouseTreasuryView;
   board: BoardEntry[];
   roster: RosterEntryView[];
   past: PastMemberView[];
