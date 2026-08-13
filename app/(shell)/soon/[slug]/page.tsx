@@ -24,7 +24,7 @@ export default async function ComingSoonPage({
       <div className="w-full max-w-md self-center">
         <BackButton />
       </div>
-      <Card pad="none" className="mt-6 flex w-full max-w-md flex-col items-center p-8">
+      <Card pad="xl" className="mt-6 flex w-full max-w-md flex-col items-center">
         {/* "Chapter II" was hardcoded, so all six chapters announced themselves
             as the second one. Nothing in comingSoonNav carries a chapter
             number, and inventing one for each would be inventing data. The

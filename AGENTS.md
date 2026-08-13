@@ -21,6 +21,12 @@ The full V2 plan lives in `docs/RAVENSPIRE-V2.md`.
    (live), Whispers (DMs), The Vault (wallet), The Coffers (earnings), The
    Ledger (portfolio), The Scrying Glass (coin discovery), The War (game),
    @raven (the Herald AI), Houses, Renown, Glory, Calls, Crests, Keeps.
+   **The Exchequer is the platform's own fee wallet, and it is never called the
+   Coffers.** Those two were one word for a while, on opposite ends of the same
+   trade: the Bazaar took its five percent to "the Coffers" while the lexicon
+   said the Coffers is what a member earns. A seller reading that a fee went to
+   the Coffers could reasonably think it went to theirs. One name, one side of
+   the table. The Exchequer is the house's; the Coffers are the member's.
 
 ## Product
 
@@ -50,13 +56,25 @@ The full V2 plan lives in `docs/RAVENSPIRE-V2.md`.
     never true. Setting `--spacing: initial` is what would make it true and it
     breaks every existing `p-4` at once, so it is a dedicated mechanical pass
     tracked in `docs/RAVENSPIRE-V2.md`. Until then the named steps are the
-    scale for new work and nothing stops you leaving it.
+    scale for new work and nothing stops you leaving it. **Card padding is the
+    exception and it is now checked**: `<Card pad="none">` followed by a `p-*`
+    class of your own fails the gate. Forty cards had done exactly that, in
+    twelve different values, so the chassis could be tightened and forty
+    surfaces would not move. Use a rung: `xs` `sm` `md` `lg` `xl`, or `hero` for
+    the few Forge moments rule 21 allows. `pad="none"` on its own is still
+    correct when you are composing with `CardHeader` and `CardBody`.
 11. **Every colour that carries text must clear WCAG AA (4.5:1).** The fill-only
     hues (`--foe`, `--blood`, `--ash`) have `-text` twins for when they must
     carry a label. Never put text on a fill-only hue.
 12. **Every interactive element is keyboard reachable and visibly focusable.**
     The global `:focus-visible` ring handles this; never add
-    `focus:outline-none` without a replacement.
+    `focus:outline-none` without a replacement. **The 44px touch floor is
+    checked too.** It lives inside the `Button` primitive as
+    `touch:min-h-11 touch:min-w-11`, keyed off the pointer rather than the
+    viewport width, so a hand rolled `<button>` inherits none of it: use the
+    primitive, carry the same two classes, or, for a word inside a line of text
+    where a min height would stretch the row, use `INLINE_TOUCH_TARGET` from
+    `components/ui/button.tsx`, which grows the target and moves no layout.
 13. Brand is obsidian and forged gold, restrained ember, a single steel tone.
     Gold is a gradient, never a flat fill. Glows are warm candlelight, never
     cool. **Never green in brand surfaces**, including success states, which use

@@ -150,7 +150,7 @@ export default function RavensPage() {
             <Card key={i} radius="lg" pad="none" className="h-16 animate-pulse" />
           ))
         ) : items.length === 0 ? (
-          <Card pad="none" className="p-10 text-center">
+          <Card pad="xl" className="text-center">
             <Icon
               name="raven"
               className="mx-auto h-8 w-8 text-bone-faint"
@@ -164,7 +164,7 @@ export default function RavensPage() {
           </Card>
         ) : (
           items.map((n) => (
-            <Card key={n.id} render={<Link href={notifHref(n)} />} radius="lg" pad="none" interactive className={`relative flex items-start gap-3 p-3.5 transition ${
+            <Card key={n.id} render={<Link href={notifHref(n)} />} radius="lg" pad="md" interactive className={`relative flex items-start gap-3 transition ${
                 n.fresh
                   ?"border-gold/30 bg-gold/[0.04]"
                   : "opacity-80"

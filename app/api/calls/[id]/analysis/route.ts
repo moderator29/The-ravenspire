@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { MODEL_REASONING, heraldAvailable, heraldProse } from "@/lib/ai/herald";
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
@@ -25,9 +25,6 @@ import { callProgress, difficultyBand, scoreOutlook } from "@/lib/calls/analytic
    enforced by the shared Supabase limiter, so they hold across instances. */
 
 export const dynamic = "force-dynamic";
-
-const key = process.env.ANTHROPIC_API_KEY;
-const client = key ? new Anthropic({ apiKey: key }) : null;
 
 /* One member cannot burn the realm's daily allowance on their own. */
 const PER_MEMBER_HOURLY = 10;
@@ -57,7 +54,7 @@ export async function POST(
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  if (!client) {
+  if (!heraldAvailable()) {
     return json(
       {
         error:
@@ -217,34 +214,13 @@ export async function POST(
     );
   }
 
-  try {
-    const res = await client.messages.create({
-      model: "claude-sonnet-5",
-      max_tokens: 400,
-      /* A short read over facts already computed. Thinking would buy nothing
-         here and the realm's budget is zero. */
-      thinking: { type: "disabled" },
-      output_config: { effort: "low" },
-      system: SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: `Read this Call for the realm. Here is everything the realm knows about it, and it is all you may use:\n\n${facts.join("\n")}`,
-        },
-      ],
-    });
-    const block = res.content.find((b) => b.type === "text");
-    const text =
-      block && block.type === "text"
-        ? block.text
-            .trim()
-            .replace(/^["']|["']$/g, "")
-            .replace(/\s*[—–]\s*/g, ", ")
-            .trim()
-        : "";
-    if (!text) return json({ error: "The Herald had nothing to say." }, 502);
-    return json({ ok: true, text });
-  } catch {
-    return json({ error: "The Herald could not be reached. Try again." }, 502);
-  }
+  const text = await heraldProse({
+    model: MODEL_REASONING,
+    system: SYSTEM,
+    user: `Read this Call for the realm. Here is everything the realm knows about it, and it is all you may use:\n\n${facts.join("\n")}`,
+    maxTokens: 400,
+    effort: "low",
+  });
+  if (!text) return json({ error: "The Herald had nothing to say." }, 502);
+  return json({ ok: true, text });
 }

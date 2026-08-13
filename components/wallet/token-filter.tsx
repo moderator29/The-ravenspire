@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
-import { Button } from "@/components/ui/button";
+import { Button, INLINE_TOUCH_TARGET } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/field";
 import { Chip } from "@/components/console/console-shell";
 import { EVM_CHAINS } from "@/components/wallet/chains";
@@ -96,7 +96,7 @@ export function TokenFilter({
             <button
               type="button"
               onClick={() => onChange({ ...value, chains: [] })}
-              className="mt-2 text-[11px] font-medium text-gold hover:underline"
+              className={`${INLINE_TOUCH_TARGET} mt-2 text-[11px] font-medium text-gold hover:underline`}
             >
               Show all chains
             </button>

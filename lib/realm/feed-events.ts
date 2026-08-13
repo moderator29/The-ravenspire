@@ -58,6 +58,7 @@ export const FEED_EVENT_KINDS = [
   "season.milestone",
   "standings.snapshot",
   "clash.opened",
+  "clash.settled",
   "discussion.trending",
 ] as const;
 
@@ -87,6 +88,10 @@ export interface EventQuery {
      page boundary that falls inside it. */
   before?: string | null | undefined;
   exclude?: readonly string[] | null | undefined;
+  /* The other end of the window: rows at or after this instant. The feed never
+     needs it, because a feed reads backwards forever. The Herald's digest does,
+     because a digest is about a period with two ends. */
+  since?: string | null | undefined;
   /* Narrowing, each validated against a known set by the caller. */
   kinds?: readonly string[] | undefined;
   houseSlug?: string | null | undefined;
@@ -127,6 +132,10 @@ export async function loadRealmEvents(
   if (opts.actorIds && opts.actorIds.length > 0)
     q = q.in("actor_id", opts.actorIds);
   const exclude = new Set(opts.exclude ?? []);
+  if (opts.since) {
+    const from = new Date(opts.since);
+    if (!Number.isNaN(from.getTime())) q = q.gte("created_at", from.toISOString());
+  }
   if (opts.before) {
     const cursor = new Date(opts.before);
     if (!Number.isNaN(cursor.getTime())) {

@@ -12,7 +12,7 @@ import {
   type Proof,
   type RevealedCard,
   type VerifyResult,
-} from "@/lib/collectibles/verify";
+} from "@/lib/collectibles/opening-proof";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";

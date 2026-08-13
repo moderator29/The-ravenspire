@@ -1,11 +1,12 @@
 "use client";
 
 import { use } from "react";
-import { BackButton } from "@/components/shell/back-button";
+import { DossierHeader, DossierPage } from "@/components/dossier/dossier-shell";
 import { CallerProfile } from "@/components/calls/caller-profile";
 
 /* The prediction profile route. Dossier, like the Call detail: hero band, then
-   tabs, then panels, with the panels going two column at lg. */
+   tabs, then panels, with the panels going two column at lg. Same frame as the
+   Call detail beside it, from the shell rather than from a copy. */
 
 export default function CallerPage({
   params,
@@ -14,11 +15,12 @@ export default function CallerPage({
 }) {
   const { handle } = use(params);
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-5">
-      <div className="mb-4">
-        <BackButton href="/calls?view=leaderboard" label="Back to the board" />
-      </div>
+    <DossierPage width="wide">
+      <DossierHeader
+        backHref="/calls?view=leaderboard"
+        backLabel="Back to the board"
+      />
       <CallerProfile handle={handle} />
-    </div>
+    </DossierPage>
   );
 }

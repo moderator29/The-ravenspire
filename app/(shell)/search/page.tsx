@@ -168,7 +168,7 @@ function SearchBody() {
             Searching the realm...
           </div>
         ) : empty ? (
-          <Card pad="none" className="p-8 text-center text-sm text-bone-mut">
+          <Card pad="xl" className="text-center text-sm text-bone-mut">
             Nothing found for &ldquo;{query.trim()}&rdquo;.
           </Card>
         ) : (

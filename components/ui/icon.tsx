@@ -226,6 +226,63 @@ const paths: Record<string, React.ReactNode> = {
     </>
   ),
   spark: <path d="M12 3l2.2 6.1L20 12l-5.8 2.9L12 21l-2.2-6.1L4 12l5.8-2.9L12 3z" />,
+
+  /* The House sigils. Four of the six were missing, which meant House
+     Frosthold, Stormcrest, Nightvale and Goldmane rendered as identical blank
+     circles everywhere a sigil appears: the Houses page, the landing, the
+     Reliquary's card backs, the Keep. Six banners that look the same are not
+     six banners. Corvane (raven) and Emberfall (flame) were the only two that
+     happened to share a name with an existing glyph, which is exactly why
+     nobody spotted it: the page looked populated.
+
+     scripts/check-house-rules.mjs now fails the build on an icon name that
+     does not exist, so this cannot come back quietly. */
+  snowflake: (
+    <>
+      <path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9" />
+      <path d="M12 6.4l-2 -2M12 6.4l2 -2M12 17.6l-2 2M12 17.6l2 2" />
+      <path d="M7.1 9.3l-2.7 -.4M7.1 14.7l-2.7 .4M16.9 9.3l2.7 -.4M16.9 14.7l2.7 .4" />
+    </>
+  ),
+  storm: (
+    <>
+      <path d="M7 15a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.5 1.6A3.6 3.6 0 0 1 17.5 15" />
+      <path d="M13 11l-3.5 5H12l-1.5 4.5L15 15h-2.5L14 11z" />
+    </>
+  ),
+  moon: (
+    <>
+      <path d="M20 14.5A8.2 8.2 0 0 1 9.5 4 8.3 8.3 0 1 0 20 14.5z" />
+      <path d="M16.5 5.5l.5 1.4 1.4.5-1.4.5-.5 1.4-.5-1.4-1.4-.5 1.4-.5.5-1.4z" />
+    </>
+  ),
+  lion: (
+    <>
+      <path d="M12 3.5c3.6 0 6.5 2.9 6.5 6.5 0 4.3-2.9 8-6.5 10.5C8.4 18 5.5 14.3 5.5 10c0-3.6 2.9-6.5 6.5-6.5z" />
+      <path d="M9.6 9.6h.01M14.4 9.6h.01" />
+      <path d="M10.4 13.2c.5.5 1 .8 1.6.8s1.1-.3 1.6-.8" />
+    </>
+  ),
+
+  /* Three more that were referenced by name and never existed, same silent
+     fallback, found by the same sweep. */
+  feather: (
+    <>
+      <path d="M20 4c-6 0-11 3.6-11 10v4l-3 2" />
+      <path d="M9 18c6.5 0 11-4.6 11-11V4" />
+      <path d="M11 12h6" />
+    </>
+  ),
+  badge: (
+    <>
+      <path d="M12 3l2.4 1.7 2.9-.2.9 2.8 2.4 1.7-1.1 2.7 1.1 2.7-2.4 1.7-.9 2.8-2.9-.2L12 21l-2.4-1.7-2.9.2-.9-2.8L3.4 15l1.1-2.7L3.4 9.6l2.4-1.7.9-2.8 2.9.2L12 3z" />
+    </>
+  ),
+  features: (
+    <>
+      <path d="M4 6h7v5H4zM13 6h7v5h-7zM4 13h7v5H4zM13 13h7v5h-7z" />
+    </>
+  ),
   ledger: (
     <>
       <path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4z" />

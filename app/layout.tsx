@@ -46,19 +46,42 @@ export const metadata: Metadata = {
   },
   description:
     "A competitive realm where communities earn reputation through participation. Post, make Calls the realm can verify, swear to a House, and climb from Smallfolk to Monarch. Standing is earned, never bought.",
+  /* NO `images` KEY IN EITHER BLOCK, AND THAT IS THE WHOLE POINT.
+   *
+   * Both used to name /game/lineup.png here, and between them they made every
+   * generated share card in the product invisible. Next resolves file-based
+   * metadata into a segment only when that segment's own metadata does not
+   * already name an image, and both keys are inherited by every route below
+   * this layout, so:
+   *
+   *   openGraph.images    beat app/opengraph-image.tsx, which has therefore
+   *                       never once reached a crawler.
+   *   twitter.images      beat all of them, everywhere. X is the realm's
+   *                       primary distribution channel and every Keep, raven,
+   *                       Call and safety report shared to it unfurled as the
+   *                       same static champion lineup, cropped from 1306x295
+   *                       into a 1.91:1 frame.
+   *
+   * With both keys gone, each segment's own opengraph-image.tsx resolves, and
+   * Next's own post-processing fills twitter:image from it when no twitter
+   * block names one. That is why there are no twitter-image.tsx files beside
+   * the nine Open Graph routes: they would be nine identical re-exports of a
+   * fallback the framework already applies.
+   *
+   * Do not reintroduce either key here. A static image named at the root is not
+   * a default, it is an override, and it silently disables the entire feature.
+   */
   openGraph: {
     title: "The Ravenspire",
     description:
       "Make the call. Earn your name. A competitive realm of Houses, Calls, Crests and Renown, where standing is earned through participation.",
     siteName: "The Ravenspire",
-    images: [{ url: "/game/lineup.png", width: 1306, height: 295 }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "The Ravenspire",
     description: "See every chain. Fear no rug. Rule your realm.",
-    images: ["/game/lineup.png"],
   },
   icons: { icon: "/favicon.ico" },
 };

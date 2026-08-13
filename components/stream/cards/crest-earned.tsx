@@ -30,7 +30,7 @@ export function CrestEarnedCard({ event }: { event: FeedEvent }) {
 
   return (
     <ForgeCard
-      event={event}
+      at={event.created_at}
       icon="trophy"
       label="Crest"
       action={

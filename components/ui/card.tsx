@@ -25,7 +25,7 @@ import { Icon } from "@/components/ui/icon";
    can actually override it. */
 
 export type CardVariant = "default" | "warm" | "inset" | "raised";
-export type CardPad = "none" | "sm" | "md" | "lg";
+export type CardPad = "none" | "xs" | "sm" | "md" | "lg" | "xl" | "hero";
 export type CardRadius = "sm" | "md" | "lg" | "xl" | "2xl";
 export type CardTone = "gold" | "ember" | "danger" | "steel";
 export type CardElevation = "flat" | "edge" | "well" | "card" | "lifted" | "overlay";
@@ -133,11 +133,38 @@ const DEFAULT_ELEVATION: Record<CardVariant, CardElevation> = {
  * pointer they are a 44px accessibility floor, not a style choice, and trading
  * that away to reclaim eight pixels is the wrong trade. Density comes out of
  * the space around things. */
+/* Six rungs, and the two at the ends were added after a mechanical rule
+   (`card-padding-is-a-rung`) counted forty cards in the Ledger register that
+   had set `pad="none"` and then painted a padding back on by hand, in twelve
+   distinct values from `p-1` to `p-10`.
+ *
+ * Most of those were not defiance, they were a scale with no rung for what the
+ * card actually was. `xs` is the rail wrapper: a card whose whole job is to
+ * hold a row of controls that carry their own padding, where the four rung
+ * scale had nothing tighter than 10px. `xl` is the standing card: an empty
+ * state, a tour step, a tribute confirmation, where the content is centred and
+ * wants air around it.
+ *
+ * `xl` is deliberately smaller than most of what it replaced. `p-8`, `p-9` and
+ * `p-10` were 32, 36 and 40px, and tightening them to 24 continues the same
+ * pass that took a quarter off the rungs below: the founder's read on a real
+ * phone was that the containers were oversized and the product looked loose
+ * rather than sharp. A card that keeps 40px of gutter while every card beside
+ * it dropped to 14 does not read as generous, it reads as unfinished. */
 const PAD: Record<CardPad, string> = {
   none: "",
+  xs: "p-1.5",
   sm: "p-2.5",
   md: "p-3.5 sm:p-4",
   lg: "p-4 sm:p-5",
+  xl: "p-5 sm:p-6",
+  /* The Forge rung, and the only one that grows rather than tightens. A hero
+     band, a Crest unlock, a Call resolution: the moments section 21 says
+     ornament is earned. It is named rather than left as a one-off so that the
+     three or four surfaces allowed to be generous are generous by the same
+     amount, and so a Ledger card cannot quietly reach for it without the
+     reviewer seeing the word. */
+  hero: "p-6 sm:p-10",
 };
 
 export interface CardProps extends useRender.ComponentProps<"div"> {

@@ -1,184 +1,249 @@
-import type { ChestTier } from "@/lib/collectibles/warchests";
-import { setOneCards } from "@/lib/collectibles/set-one";
-import type { Rarity } from "@/lib/game/champions";
+import { CHEST_TIERS } from "@/lib/collectibles/warchests";
+import { rollChest, seedHash, type PulledCard } from "@/lib/collectibles/roll";
 
-/* Client-side provably-fair verifier (V2 Part Two, section 34).
+/* The verifier's judgement. This is the part of mission 6 worth testing hard.
  *
- * The opening reveal returns the server seed, the committed hash, the client
- * seed and the nonce. This module lets a member CONFIRM the pull in their own
- * browser, taking nothing on trust:
+ * WHAT THIS MODULE IS FOR, AND WHY IT IS NOT IN THE COMPONENT.
  *
- *   1. HASH CHECK. sha256(serverSeed) must equal the committed serverSeedHash
- *      the server published before the pull. If it matches, the server could
- *      not have chosen the seed after seeing the client seed.
- *   2. DRAW REPLAY. Re-run the exact deterministic draw from those inputs and
- *      confirm the cards match the ones the member was shown. If they match,
- *      the outcome is a pure function of the committed seed and cannot have been
- *      steered.
+ * Rerunning the roll is the easy half: `rollChest` already does it and is
+ * already tested. The half that decides whether the feature is worth anything
+ * is the comparison, because a verifier that is generous about what counts as a
+ * match is worse than no verifier at all. It would hand the realm a badge of
+ * honesty it had not earned, and it would do so in the exact case that matters,
+ * which is the case where somebody is checking because they suspect something.
  *
- * This is a faithful mirror of the pure server algorithm in
- * lib/commerce/chest-open.ts, expressed against the Web Crypto API (SubtleCrypto
- * HMAC-SHA256 and SHA-256) so it runs with zero dependencies in the browser.
- * The two implementations MUST agree: the odds are the same single source
- * (the tier, validated to sum to 100), and the card pools are the same real
- * Set One roster. If chest-open.ts changes, change this in lockstep.
+ * So the comparison lives here, as a pure function with no React and no fetch
+ * in it, and `verify.test.ts` feeds it deliberately corrupted triples: a
+ * changed seed, a changed nonce, a changed client seed, a recorded card altered
+ * by one number. Every one of those must come back a mismatch. A test that only
+ * ever checks the happy path proves the verifier can say yes, which nobody
+ * doubted.
+ *
+ * IT RUNS IN THE BROWSER. That is the whole design. The realm's server is not
+ * asked whether the numbers agree; it is asked only for the record it already
+ * published, and this code, on the member's own machine, decides. See
+ * `roll.ts` for why the algorithm ships to the client at all.
+ *
+ * FOUR VERDICTS, NOT TWO, and the third one is the honest one.
+ *
+ *   unusable    Nothing could be computed. An unknown chest, or a triple with
+ *               a hole in it. Never dressed up as a failure of the realm.
+ *   recomputed  The draw ran, but there is no recorded opening to hold it
+ *               against. This is what the manual form returns, and it is
+ *               deliberately NOT `match`: the member has proved the function
+ *               is deterministic, which is a real thing to prove, and has
+ *               proved nothing about any chest anybody opened.
+ *   match       Every check that could be run, ran and passed.
+ *   mismatch    At least one check failed. Said loudly, always.
  */
 
-export type PackRarity = Exclude<Rarity, "common">;
+export type CheckState = "pass" | "fail" | "absent";
 
-const RARITY_ORDER: PackRarity[] = ["rare", "epic", "legendary", "mythic"];
+export type Check = {
+  id: "commitment" | "cards";
+  label: string;
+  state: CheckState;
+  /* One sentence a member can read without knowing what a hash is. */
+  detail: string;
+};
 
-function rank(r: PackRarity): number {
-  return RARITY_ORDER.indexOf(r);
-}
+export type Verdict = "match" | "mismatch" | "recomputed" | "unusable";
 
-export interface RevealedCard {
-  number: number;
-  slug: string;
-  rarity: PackRarity;
-}
-
-export interface Proof {
+export type VerifyInput = {
+  chestSku: string;
   serverSeed: string;
-  serverSeedHash: string;
   clientSeed: string;
-  nonce: number;
-}
+  nonce: string;
+  /* The hash the realm published BEFORE the draw. Optional, because the manual
+     form has no record behind it, and because a member checking from a
+     screenshot may have the seed and not the hash. When present it is the
+     strongest single check on this page: it is the only one that speaks to
+     whether the realm committed early. */
+  committedHash?: string | null;
+  /* What the realm says it dealt. Optional for the same reason. */
+  recordedCards?: PulledCard[] | null;
+};
 
-export interface VerifyResult {
-  /* sha256(serverSeed) matched the committed hash. */
-  hashOk: boolean;
-  /* The replayed draw reproduced exactly the revealed cards. */
-  drawOk: boolean;
-}
+export type Verification = {
+  verdict: Verdict;
+  /* What the algorithm produced from the three inputs, in the order it
+     produced them. Null only when nothing could be computed. */
+  cards: PulledCard[] | null;
+  /* sha256 of the server seed the member supplied, computed here. */
+  computedHash: string | null;
+  checks: Check[];
+  /* Set only for `unusable`, and it names what is missing rather than saying
+     the input was invalid, which tells a member nothing. */
+  problem: string | null;
+};
 
-function toHex(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let out = "";
-  for (const b of bytes) out += b.toString(16).padStart(2, "0");
-  return out;
-}
-
-async function sha256Hex(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return toHex(digest);
-}
-
-/* HMAC-SHA256(key = serverSeed, message), returning the raw bytes. Mirrors the
-   Node createHmac("sha256", serverSeed) the server uses. */
-async function hmac(serverSeed: string, message: string): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(serverSeed),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
+/* Two cards are the same card when the four fields the realm records are the
+   same, plus the guarantee flag.
+ *
+ * `guaranteed` is normalised rather than compared as written, because the roll
+ * omits the key entirely on an ordinary card and a JSON round trip through
+ * Postgres may return it as absent, null or false. Comparing those as written
+ * would report a mismatch on a chest that was dealt exactly as recorded, which
+ * is the false accusation this whole module exists to avoid. */
+function sameCard(a: PulledCard, b: PulledCard): boolean {
+  return (
+    a.set_slug === b.set_slug &&
+    a.card_number === b.card_number &&
+    a.champion_slug === b.champion_slug &&
+    a.rarity === b.rarity &&
+    (a.guaranteed === true) === (b.guaranteed === true)
   );
-  const sig = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    new TextEncoder().encode(message)
-  );
-  return new Uint8Array(sig);
 }
 
-/* A uniform float in [0, 1), the same derivation as the server: 7 bytes of the
-   HMAC over `${clientSeed}:${nonce}:${label}`, divided by 2^56. */
-async function uniform(
-  proof: Proof,
-  label: string
-): Promise<number> {
-  const mac = await hmac(
-    proof.serverSeed,
-    `${proof.clientSeed}:${proof.nonce}:${label}`
-  );
-  let value = 0;
-  for (let i = 0; i < 7; i++) value = value * 256 + mac[i];
-  return value / 2 ** 56;
-}
-
-function drawRarity(tier: ChestTier, u: number): PackRarity {
-  const target = u * 100;
-  let cumulative = 0;
-  for (const r of RARITY_ORDER) {
-    cumulative += tier.odds[r] ?? 0;
-    if (target < cumulative) return r;
+/* Order is part of the claim, not a presentation detail. The roll deals slot
+   zero first and puts the guarantee in the last slot, so a recorded opening
+   whose cards are the same multiset in a different order was not produced by
+   this triple. The Ceremony sorts for the reveal; it sorts a copy, and the
+   stored `result.cards` is the order the roll produced. */
+function firstDifference(
+  computed: PulledCard[],
+  recorded: PulledCard[]
+): number {
+  const shared = Math.min(computed.length, recorded.length);
+  for (let i = 0; i < shared; i += 1) {
+    if (!sameCard(computed[i], recorded[i])) return i;
   }
-  for (let i = RARITY_ORDER.length - 1; i >= 0; i--) {
-    if ((tier.odds[RARITY_ORDER[i]] ?? 0) > 0) return RARITY_ORDER[i];
+  return computed.length === recorded.length ? -1 : shared;
+}
+
+export function verifyDraw(input: VerifyInput): Verification {
+  const tier = CHEST_TIERS.find((t) => t.sku === input.chestSku);
+
+  const unusable = (problem: string): Verification => ({
+    verdict: "unusable",
+    cards: null,
+    computedHash: null,
+    checks: [],
+    problem,
+  });
+
+  if (!tier) {
+    return unusable(
+      "Name the chest this draw came from. A roll cannot be rerun without the odds and the card count it was rolled against."
+    );
   }
-  return "rare";
-}
-
-function drawCard(rarity: PackRarity, u: number): RevealedCard {
-  const pool = setOneCards.filter((c) => c.champion.rarity === rarity);
-  const idx = Math.min(pool.length - 1, Math.floor(u * pool.length));
-  const chosen = pool[idx];
-  return { number: chosen.number, slug: chosen.champion.slug, rarity };
-}
-
-function cardCount(tier: ChestTier): number {
-  for (const line of tier.contents) {
-    const m = /(\d+)\s+(?:printed\s+)?cards?/i.exec(line);
-    if (m) return Number(m[1]);
+  /* A server seed is the one input with no honest empty value. The client seed
+     may legitimately be empty, which means the member expressed no preference,
+     and the nonce is required because it is what makes one opening distinct
+     from another. */
+  if (!input.serverSeed) {
+    return unusable("Paste the revealed server seed. Without it there is nothing to rerun.");
   }
-  return 0;
-}
+  if (!input.nonce) {
+    return unusable(
+      "Paste the draw reference. It is the entitlement the chest was opened against, and it is what stops one seed dealing the same chest twice."
+    );
+  }
 
-function guaranteeFloor(tier: ChestTier): PackRarity | null {
-  let floor: PackRarity | null = null;
-  const text = tier.guarantee.toLowerCase();
-  for (const r of RARITY_ORDER) {
-    if (text.includes(r)) {
-      if (floor === null || rank(r) > rank(floor)) floor = r;
+  const roll = rollChest({
+    tier,
+    serverSeed: input.serverSeed,
+    clientSeed: input.clientSeed,
+    nonce: input.nonce,
+  });
+  const computedHash = seedHash(input.serverSeed);
+
+  const checks: Check[] = [];
+
+  /* Check one: did the realm commit to this seed before the draw?
+     This is the check a cheating house fails. Everything else here only proves
+     the arithmetic; this proves the arithmetic was fixed in advance. */
+  if (input.committedHash) {
+    const committed = input.committedHash.trim().toLowerCase();
+    const pass = committed === computedHash;
+    checks.push({
+      id: "commitment",
+      label: "The seed is the one the realm committed to",
+      state: pass ? "pass" : "fail",
+      detail: pass
+        ? "The published hash is the hash of this seed, so the realm was holding this seed before the chest was opened."
+        : "The published hash is not the hash of this seed. Either the seed is not the one that drew this chest, or the realm changed it after committing.",
+    });
+  } else {
+    checks.push({
+      id: "commitment",
+      label: "The seed is the one the realm committed to",
+      state: "absent",
+      detail:
+        "No published hash was given, so nothing here says when the realm chose this seed.",
+    });
+  }
+
+  /* Check two: does the rerun deal what the realm recorded? */
+  const recorded = input.recordedCards ?? null;
+  if (recorded) {
+    const at = firstDifference(roll.cards, recorded);
+    if (at === -1) {
+      checks.push({
+        id: "cards",
+        label: "The rerun deals the cards on the record",
+        state: "pass",
+        detail: `All ${roll.cards.length} cards match, in the order they were dealt.`,
+      });
+    } else if (roll.cards.length !== recorded.length) {
+      checks.push({
+        id: "cards",
+        label: "The rerun deals the cards on the record",
+        state: "fail",
+        detail: `The rerun deals ${roll.cards.length} cards and the record holds ${recorded.length}.`,
+      });
+    } else {
+      checks.push({
+        id: "cards",
+        label: "The rerun deals the cards on the record",
+        state: "fail",
+        detail: `Card ${at + 1} differs. The rerun deals ${roll.cards[at].champion_slug}, the record says ${recorded[at].champion_slug}.`,
+      });
     }
+  } else {
+    checks.push({
+      id: "cards",
+      label: "The rerun deals the cards on the record",
+      state: "absent",
+      detail:
+        "No recorded opening was given, so there is nothing to hold this rerun against.",
+    });
   }
-  return floor;
+
+  const failed = checks.some((c) => c.state === "fail");
+  const anyCompared = checks.some((c) => c.state === "pass");
+
+  return {
+    verdict: failed ? "mismatch" : anyCompared ? "match" : "recomputed",
+    cards: roll.cards,
+    computedHash,
+    checks,
+    problem: null,
+  };
 }
 
-/* Replay the draw purely from the proof, mirroring openChest exactly. */
-async function replay(tier: ChestTier, proof: Proof): Promise<RevealedCard[]> {
-  const count = cardCount(tier);
-  const cards: RevealedCard[] = [];
-  for (let i = 0; i < count; i++) {
-    const rarity = drawRarity(tier, await uniform(proof, `rarity:${i}`));
-    cards.push(drawCard(rarity, await uniform(proof, `card:${i}`)));
-  }
-  const floor = guaranteeFloor(tier);
-  if (floor && !cards.some((c) => rank(c.rarity) >= rank(floor))) {
-    let worst = 0;
-    for (let i = 1; i < cards.length; i++) {
-      if (rank(cards[i].rarity) < rank(cards[worst].rarity)) worst = i;
-    }
-    cards[worst] = drawCard(floor, await uniform(proof, `guarantee`));
-  }
-  return cards;
-}
+/* What the public opening endpoint hands back, narrowed to what the verifier
+   needs. Declared here rather than in the route so the browser and the route
+   cannot drift apart on the shape. */
+export type PublicOpening = {
+  id: string;
+  chest_sku: string;
+  opened_at: string;
+  cards: PulledCard[];
+  proof: {
+    server_seed_hash: string;
+    server_seed: string;
+    client_seed: string;
+    nonce: string;
+  };
+};
 
-/* Verify a revealed pull. Both checks must pass for a member to trust the box:
-   the seed matches its commitment, and the draw reproduces the shown cards. */
-export async function verifyOpening(
-  tier: ChestTier,
-  proof: Proof,
-  revealed: RevealedCard[]
-): Promise<VerifyResult> {
-  const hashOk = (await sha256Hex(proof.serverSeed)) === proof.serverSeedHash;
+/* Openings are addressed by uuid and nothing else. Checked before the id
+   reaches Postgres, because a malformed uuid raises 22P02 there and a database
+   error rendered at a member is both useless and a small information leak. */
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  let drawOk = false;
-  try {
-    const replayed = await replay(tier, proof);
-    drawOk =
-      replayed.length === revealed.length &&
-      replayed.every(
-        (c, i) =>
-          c.number === revealed[i].number &&
-          c.slug === revealed[i].slug &&
-          c.rarity === revealed[i].rarity
-      );
-  } catch {
-    drawOk = false;
-  }
-
-  return { hashOk, drawOk };
+export function isDrawReference(value: string): boolean {
+  return UUID.test(value.trim());
 }

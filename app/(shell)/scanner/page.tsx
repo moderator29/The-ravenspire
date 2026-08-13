@@ -168,7 +168,7 @@ export default function ScannerPage() {
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <Card radius="lg" pad="none" className="p-3 text-center md:p-2">
+    <Card radius="lg" pad="md" className="text-center md:p-2">
       <p className="text-[10px] uppercase tracking-[0.16em] text-bone-faint">
         {label}
       </p>

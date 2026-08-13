@@ -1,6 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkAndGrantCrests } from "@/lib/crests";
+import {
+  DAILY_SOCIAL_RENOWN_CAP,
+  DAILY_WAR_GLORY_CAP,
+} from "@/lib/economy/allowances";
 
 export const TIERS: { slug: string; name: string; min: number }[] = [
   { slug: "smallfolk", name: "Smallfolk", min: 0 },
@@ -18,35 +22,32 @@ export function tierFor(renown: number) {
   return current;
 }
 
-/* The daily ceiling on Renown drawn from social actions (V2 section 9.5, rule
-   4). Likes, reravens, comments, duel votes and authoring ravens are all
-   unbounded actions that any two accounts can perform on each other forever, so
-   without a ceiling a pair of colluding accounts farms Renown indefinitely and
-   the ladder means nothing. Resolved Calls are deliberately NOT capped: a Call
-   costs a scarce open-Call slot, is scored against a difficulty baseline, and
-   is the one thing the realm actually wants people doing more of.
-
-   Set where a genuinely active member never notices it and a farm hits it
-   inside an hour. */
-export const DAILY_SOCIAL_RENOWN_CAP = 200;
-
-/* The daily ceiling on Glory drawn from the War (V2 Part Three, section 39).
-   War Glory is reported by the client and settled by the server: the per battle
-   value is clamped and battles are capped at a dozen an hour, but without a
-   daily ceiling a member who scripts the finish call farms Glory into the
-   ladder all day. A full victory banks up to 400, so this is roughly a dozen
-   maxed victories, a wall a genuine player never touches in a session and a
-   farm walks into fast. Founder tunable: it is one number here and one row of
-   SQL, and the two must agree, which the points test asserts. */
-export const DAILY_WAR_GLORY_CAP = 5000;
+/* The two daily ceilings now live in lib/economy/allowances.ts, a leaf module
+   with no imports of its own, and are re-exported here so every existing call
+   site is unchanged. They had to move: lib/realm/appointments.ts asserts its
+   reward ceiling against the social allowance at MODULE LOAD, and reading it
+   from here closed a real import cycle (points to crests to appointments and
+   back) that typecheck cannot see and the build fails on. The reasoning behind
+   both numbers travelled with them. */
+export { DAILY_SOCIAL_RENOWN_CAP, DAILY_WAR_GLORY_CAP };
 
 /* Which allowance an award draws from.
-     social  counts against the daily social ceiling above
-     war     counts against the daily War Glory ceiling above
-     call    a resolved Call, uncapped by design
+     social  counts against the daily social ceiling
+     war     counts against the daily War Glory ceiling
+     call    a resolved Call, uncapped by design: a Call costs a scarce open
+             slot, is scored against a difficulty baseline, and is the one
+             thing the realm actually wants people doing more of
    Omitted means uncapped and uncategorised, which is every award that is
-   neither, and every row written before this existed. */
-export type AwardCategory = "social" | "call" | "war";
+   none of those, and every row written before this existed.
+
+   The allowances are independent: an evening in the War does not spend the
+   day's social Renown, and vice versa. */
+export type AwardCategory = "social" | "war" | "call";
+
+const DAILY_CAP: Partial<Record<AwardCategory, number>> = {
+  social: DAILY_SOCIAL_RENOWN_CAP,
+  war: DAILY_WAR_GLORY_CAP,
+};
 
 export interface AwardResult {
   points: number;
@@ -73,19 +74,22 @@ export async function award(
   if (points === 0 && glory === 0)
     return { points: 0, glory: 0, capped: false };
 
-  /* A social award has to check the day's allowance and write the ledger
-     without a gap in between, or two concurrent likes both see room and both
-     spend it. award_social_capped takes the profile row lock, sums the day, and
-     writes the ledger and both totals in one function, so the read and the
-     write cannot interleave. Service-role only, like every other economy RPC. */
-  if (opts.category === "social") {
-    const { data, error } = await db.rpc("award_social_capped", {
+  /* A capped award has to check the day's allowance and write the ledger
+     without a gap in between, or two concurrent likes, or two battles settling
+     together, both see room and both spend it. award_capped takes the profile
+     row lock, sums the day for that one category, and writes the ledger and
+     both totals in one function, so the read and the write cannot interleave.
+     Service-role only, like every other economy RPC. */
+  const cap = opts.category ? DAILY_CAP[opts.category] : undefined;
+  if (cap !== undefined) {
+    const { data, error } = await db.rpc("award_capped", {
       p_profile_id: profileId,
       p_points: points,
       p_glory: glory,
       p_reason: opts.reason,
       p_ref: opts.ref ?? null,
-      p_daily_cap: DAILY_SOCIAL_RENOWN_CAP,
+      p_daily_cap: cap,
+      p_category: opts.category,
     });
     if (error) {
       console.error("[points] capped award failed", opts.reason, error.message);
@@ -98,37 +102,6 @@ export async function award(
       capped: granted.capped ?? false,
     };
     if (result.points > 0 || result.glory > 0) {
-      await checkAndGrantCrests(db, profileId);
-    }
-    return result;
-  }
-
-  /* A War award has the same shape of exploit as a social one: the finish call
-     is client reported, so the day's total and the ledger write must be one
-     statement or two concurrent finishes both see room and both spend it.
-     award_war_glory_capped takes the profile row lock, sums today's War Glory,
-     and writes the ledger and totals in one function. War Glory is Glory only,
-     so points are ignored on this path. Service-role only, like every economy
-     RPC. */
-  if (opts.category === "war") {
-    const { data, error } = await db.rpc("award_war_glory_capped", {
-      p_profile_id: profileId,
-      p_glory: glory,
-      p_reason: opts.reason,
-      p_ref: opts.ref ?? null,
-      p_daily_cap: DAILY_WAR_GLORY_CAP,
-    });
-    if (error) {
-      console.error("[points] war glory award failed", opts.reason, error.message);
-      return { points: 0, glory: 0, capped: false };
-    }
-    const granted = (data ?? {}) as { glory?: number; capped?: boolean };
-    const result: AwardResult = {
-      points: 0,
-      glory: granted.glory ?? 0,
-      capped: granted.capped ?? false,
-    };
-    if (result.glory > 0) {
       await checkAndGrantCrests(db, profileId);
     }
     return result;

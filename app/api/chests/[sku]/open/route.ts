@@ -1,137 +1,189 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { rateLimit, profileKey } from "@/lib/rate-limit";
 import { getFlag } from "@/lib/flags";
-import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
-import { SET_ONE } from "@/lib/collectibles/set-one";
-import { generateServerSeed, openChest } from "@/lib/commerce/chest-open";
-import { logger } from "@/lib/observability/log";
+import { activeCommitment, nextCommitment } from "@/lib/collectibles/seeds";
+import { rollChest } from "@/lib/collectibles/pulls";
 
-/* POST /api/chests/[sku]/open (V2 Part Two, sections 28.2 and 34).
+/* POST /api/chests/[sku]/open (V2 Part Two, section 28.2).
  *
- * The provably-fair opening flow, implementing the Phase D contract that this
- * route recorded as a skeleton:
+ * Opening a chest, server-authoritative and provably fair.
  *
- *   1. GATE. Auth, then the sku, then chests_live. A sealed chapter answers 423.
- *   2. COMMIT and ROLL. Generate a server seed, publish sha256(seed), and draw
- *      against the printed odds with the printed guarantee floor, all pure in
- *      lib/commerce/chest-open, server-authoritative, the same law as Glory: the
- *      client is told what it pulled, never asked.
- *   3. CLAIM, RECORD and GRANT, ATOMICALLY. open_chest_tx claims one unopened
- *      entitlement, writes the opening (with the revealed seeds), links the
- *      entitlement to it, and writes the pulled cards to inventory, all in one
- *      transaction. Either every write lands or none does, so a database error
- *      partway through can never consume a paid chest without its cards. If the
- *      member holds no unopened chest, the function writes nothing and returns
- *      null, and the route reports no entitlement.
+ * WHAT THE MEMBER SENDS: nothing that matters. The body is empty. They may
+ * name an entitlement, and even that is checked to be theirs and unspent. The
+ * cards are not asked for, the odds are not sent, the seed is not chosen here.
+ * Same law as points: the client is told what it pulled, never asked.
  *
- * The earlier version of this route did (a) mark the entitlement opened, then
- * (b) write the opening, then (c) write inventory, as three separate statements.
- * A failure between (a) and (c) burned a paid chest with no cards, which is the
- * exact bug this route now closes by folding the three into one RPC.
+ * THE ORDER, and every step is load bearing:
+ *   1. The flag. While chests_live is false every caller meets 423 Locked.
+ *   2. An unspent entitlement. Chests are not free and this route does not
+ *      make them so: something must have granted the entitlement first (an
+ *      order, or a redemption code from a physical box). No entitlement, no
+ *      chest, and the answer says so plainly.
+ *   3. The commitment. The member's server seed was committed, hash published,
+ *      before they ever got here, and they answered it with a client seed of
+ *      their own after seeing that hash. If somehow no commitment exists, this
+ *      refuses rather than committing one now: a seed committed at open time is
+ *      the exact dishonesty the whole scheme exists to prevent.
+ *   4. The roll, in lib/collectibles/pulls.ts: a pure function of the server
+ *      seed, the member's client seed, and the entitlement id as the nonce.
+ *      The odds it rolls against are the odds printed on the box, the same
+ *      object, not a copy.
+ *   5. The settle and the reveal, in one transaction (public.chest_open): the
+ *      commitment is published and retired, a fresh one is committed for the
+ *      next chest, the entitlement is spent, the opening is recorded with the
+ *      revealed seed beside the hash that preceded it, and the cards land in
+ *      the holdings ledger. All of it or none of it. A crash halfway used to
+ *      mean either a paid chest that granted nothing or cards granted twice,
+ *      and neither is distinguishable afterwards.
  *
- * Only digital chests open here. The King's Reliquary is physical: its digital
- * twins are minted through the redemption code printed in the box, not this pull.
+ * The response is the Ceremony's script: the cards, the seed that produced
+ * them, the hash that was published before they were drawn, and the commitment
+ * for the chest after this one. A member walks away able to check the roll
+ * without asking the realm for anything further.
  */
-
-const log = logger("commerce.chest-open");
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request, ctx: { params: Promise<{ sku: string }> }) {
+/* Opening is a write and a payment being consumed. A member opens a handful of
+   chests in a sitting; this is generous for that and closes the door on a loop
+   racing the entitlement check. */
+const OPEN_LIMIT = 60;
+const OPEN_WINDOW_SECONDS = 3600;
+
+export async function POST(
+  req: Request,
+  ctx: { params: Promise<{ sku: string }> }
+) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
+  const db = adminClient();
+  if (!db) return json({ error: "unavailable" }, 503);
 
   const { sku } = await ctx.params;
   const tier = CHEST_TIERS.find((t) => t.sku === sku);
   if (!tier) return json({ error: "unknown chest" }, 404);
 
-  const live = await getFlag("chests_live");
-  if (!live) return json({ error: "The chests are sealed until launch" }, 423);
-
   if (tier.kind === "physical") {
-    /* A physical chest is opened by hand; its digital twins come from the code
-       printed inside it, redeemed at /api/reliquary/redeem. */
+    /* A physical chest is opened by hand. Its digital twins come from the code
+       printed inside it, redeemed at /api/reliquary/redeem, so there is nothing
+       to roll here. Kept from the commerce wave's version of this route. */
     return json({ error: "This chest opens by its printed code" }, 409);
   }
 
-  const rl = await rateLimit(profileKey("chest-open", profile.id), 60, 3600);
-  if (!rl.ok) return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
+  const live = await getFlag("chests_live");
+  if (!live) {
+    /* 423 Locked: the resource exists, the caller is known, the door is
+       sealed. Distinct from 403 (never yours) and 404 (never real) so the
+       client can honestly render "coming soon" rather than "forbidden". */
+    return json({ error: "The chests are sealed until launch" }, 423);
+  }
 
-  const db = adminClient();
-  if (!db) return json({ error: "unavailable" }, 503);
+  const rl = await rateLimit(
+    profileKey("chest-open", profile.id),
+    OPEN_LIMIT,
+    OPEN_WINDOW_SECONDS
+  );
+  if (!rl.ok) {
+    return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
+  }
 
-  const body = (await req.json().catch(() => null)) as { clientSeed?: unknown } | null;
-  const clientSeed =
-    typeof body?.clientSeed === "string" && body.clientSeed.length <= 128
-      ? body.clientSeed
-      : "";
-
-  /* How many the member has opened before, the domain separator for this pull.
-     The nonce only has to be recorded exactly as it was used; the entitlement
-     that authorises the open is claimed inside the transaction below, not here. */
-  const priorRes = await db
-    .from("chest_openings")
-    .select("id", { count: "exact", head: true })
+  /* An unspent entitlement of this tier, oldest first so a member who bought
+     several spends them in the order they arrived. The row is only a
+     candidate: chest_open locks it and re-checks that it is unspent, so two
+     requests choosing the same one cannot both open it. */
+  const { data: entitlement, error: entitlementError } = await db
+    .from("chest_entitlements")
+    .select("id")
     .eq("profile_id", profile.id)
-    .eq("chest_sku", sku);
-  if (priorRes.error?.code === "42P01") return json({ error: "not migrated" }, 503);
-  const nonce = priorRes.count ?? 0;
+    .eq("chest_sku", sku)
+    .is("opened_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
-  /* COMMIT and ROLL, both pure. Nothing is persisted yet: if the member turns
-     out to hold no unopened chest, the transaction below writes nothing and this
-     work is simply discarded. */
-  const serverSeed = generateServerSeed();
-  const result = openChest({ tier, serverSeed, clientSeed, nonce });
+  if (entitlementError) return json({ error: "unavailable" }, 503);
+  if (!entitlement) {
+    return json(
+      { error: "You have no unopened chest of that kind" },
+      /* 409: the request is well formed and the caller is entitled to make it;
+         the realm's state is simply not one in which it can succeed. */
+      409
+    );
+  }
 
-  const cardRows = result.cards.map((c) => ({
-    set_slug: SET_ONE.slug,
-    card_number: c.number,
-    champion_slug: c.slug,
-    rarity: c.rarity,
-  }));
+  const commitment = await activeCommitment(db, profile.id);
+  if (!commitment) return json({ error: "unavailable" }, 503);
 
-  /* CLAIM, RECORD and GRANT in one transaction. Returns the opening id, or null
-     when there is no unopened chest to claim. */
-  const tx = await db.rpc("open_chest_tx", {
-    p_profile_id: profile.id,
-    p_chest_sku: sku,
-    p_server_seed: serverSeed,
-    p_server_seed_hash: result.serverSeedHash,
-    p_client_seed: clientSeed,
-    p_nonce: nonce,
-    p_result: { cards: result.cards },
-    p_cards: cardRows,
+  /* The nonce is the entitlement being spent. A uuid, unique to one opening,
+     and fixed before the roll rather than counted during it, so a retried
+     request recomputes the same chest instead of rerolling into a better
+     one. */
+  const nonce = entitlement.id as string;
+
+  const roll = rollChest({
+    tier,
+    serverSeed: commitment.seed,
+    clientSeed: commitment.client_seed,
+    nonce,
   });
 
-  if (tx.error) {
-    if (tx.error.code === "42P01" || tx.error.code === "42883") {
-      return json({ error: "not migrated" }, 503);
-    }
-    log.error("open_chest_tx failed", {
-      profileId: profile.id,
-      sku,
-      err: tx.error,
-    });
-    return json({ error: "unavailable" }, 503);
-  }
+  /* The commitment for the chest AFTER this one, generated here so that the
+     reveal and the recommit reach the database together. A member is never
+     left without a live commitment, and so can never be asked to open a chest
+     against a seed they have already been shown. */
+  const next = nextCommitment();
 
-  const openingId = tx.data as string | null;
+  const { data: openingId, error: settleError } = await db.rpc("chest_open", {
+    p_profile_id: profile.id,
+    p_entitlement_id: nonce,
+    p_seed_id: commitment.id,
+    p_server_seed_hash: roll.proof.server_seed_hash,
+    p_server_seed: commitment.seed,
+    p_client_seed: roll.proof.client_seed,
+    p_next_seed: next.seed,
+    p_next_seed_hash: next.seedHash,
+    p_result: { v: 1, cards: roll.cards, proof: roll.proof },
+    p_cards: roll.cards,
+  });
+
+  if (settleError) return json({ error: "unavailable" }, 503);
+
   if (!openingId) {
-    /* No unopened chest of this kind. Nothing was written. */
-    return json({ error: "You have no unopened chest of this kind" }, 403);
+    /* Either the entitlement was spent between the read and the lock, or the
+       commitment was revealed by another opening that got there first. The
+       first case has an opening to read back; the second means this roll was
+       computed against a seed the member may now have seen, so it is thrown
+       away rather than recorded and the caller opens again against the fresh
+       commitment. */
+    const { data: prior } = await db
+      .from("chest_openings")
+      .select("id, result, server_seed_hash, server_seed, client_seed, opened_at")
+      .eq("entitlement_id", nonce)
+      .maybeSingle();
+    if (prior) {
+      return json({ opening: prior, already_opened: true });
+    }
+    return json(
+      { error: "Another chest was opening at the same moment. Try again." },
+      409
+    );
   }
 
-  /* Reveal: the seed and the nonce, so the member can hash the seed, confirm it
-     matches server_seed_hash, and replay the pull. */
   return json({
-    opened: true,
-    cards: result.cards,
-    proof: {
-      serverSeed,
-      serverSeedHash: result.serverSeedHash,
-      clientSeed,
-      nonce,
+    opening: {
+      id: openingId,
+      chest_sku: sku,
+      cards: roll.cards,
+      /* The reveal. The seed that drew these cards, published now that it is
+         spent, beside the hash that was published before they were drawn.
+         Hash the one, compare it to the other, rerun the roll: the member can
+         check this chest without asking the realm for anything further. */
+      proof: { ...roll.proof, server_seed: commitment.seed },
     },
+    /* And the commitment for the next chest, so the member is already holding
+       the promise for it before they decide to buy one. */
+    next_commitment: { seed_hash: next.seedHash },
   });
 }

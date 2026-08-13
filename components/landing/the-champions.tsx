@@ -40,8 +40,16 @@ const featured = featuredSlugs
   .map((s) => bySlug.get(s))
   .filter((c): c is (typeof champions)[number] => Boolean(c && c.art));
 
-/* Rough ceilings across the roster, used to normalize the stat bars. */
-const MAX = { attack: 3800, defense: 1600 };
+/* The ceilings the stat bars are drawn against, derived from the roster rather
+   than typed. They were hand written as 3800 and 1600 and described as rough,
+   which is the shape of a number that drifts: a champion tuned above the
+   ceiling clamps to a full bar and reads as tied with the strongest in the
+   realm, and nothing anywhere would say so. Reading the roster costs one pass
+   over sixty two entries at module load and cannot go stale. */
+const MAX = {
+  attack: Math.max(...champions.map((c) => c.stats.attack)),
+  defense: Math.max(...champions.map((c) => c.stats.defense)),
+};
 
 const rise: Variants = {
   hidden: { opacity: 0, y: 24 },

@@ -29,7 +29,7 @@ export function ChronicleCard({ event }: { event: FeedEvent }) {
 
   return (
     <SystemCard
-      event={event}
+      at={event.created_at}
       icon="raven"
       label={house ? `${house.name} today` : "The Chronicle"}
       rail={house ? "house" : "steel"}

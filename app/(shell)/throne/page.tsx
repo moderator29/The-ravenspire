@@ -83,8 +83,8 @@ export default function ThroneComingSoon() {
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
           />
         }
-        pad="none"
-        className="relative overflow-hidden p-6 text-center sm:p-10"
+        pad="hero"
+        className="relative overflow-hidden text-center"
       >
         <div
           aria-hidden
@@ -129,7 +129,7 @@ export default function ThroneComingSoon() {
       {/* Ledger from here down. Flat plates, no glow, no motion. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {previewCards.map((c) => (
-          <Card key={c.label} variant="raised" radius="lg" pad="none" className="p-4">
+          <Card key={c.label} variant="raised" radius="lg" pad="md">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
               {c.label}
             </p>
@@ -146,7 +146,7 @@ export default function ThroneComingSoon() {
         {PILLARS.map((p) => (
           /* No `interactive`: these are inert. A hover lift on content that
              cannot be clicked is a broken affordance, and all four carried one. */
-          <Card key={p.title} variant="raised" radius="lg" pad="none" className="p-4 sm:p-5">
+          <Card key={p.title} variant="raised" radius="lg" pad="md" className="sm:p-5">
             <span className="flex h-9 w-9 items-center justify-center rounded-md border border-steel-line bg-void text-bone-mut">
               <Icon name={p.icon} className="h-[18px] w-[18px]" />
             </span>
@@ -160,7 +160,7 @@ export default function ThroneComingSoon() {
         ))}
       </div>
 
-      <Card variant="raised" pad="none" className="flex items-start gap-2.5 p-4">
+      <Card variant="raised" pad="md" className="flex items-start gap-2.5">
         <Icon name="flame" className="mt-0.5 h-4 w-4 shrink-0 text-ember" />
         <p className="text-sm text-bone-mut">
           The throne is claimed at launch. Follow the realm and be ready when

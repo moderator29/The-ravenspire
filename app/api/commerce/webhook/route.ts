@@ -2,9 +2,6 @@ import { json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
 import { paymentProvider } from "@/lib/commerce/payments";
-import { logger } from "@/lib/observability/log";
-
-const log = logger("commerce.webhook");
 
 /* POST /api/commerce/webhook (V2 Part Two, section 33, Phase D).
  *
@@ -35,7 +32,7 @@ export async function POST(req: Request) {
   const provider = paymentProvider();
   const raw = await req.text();
   const signature =
-    req.headers.get("x-cc-webhook-signature") ?? req.headers.get("x-signature");
+    req.headers.get("stripe-signature") ?? req.headers.get("x-signature");
 
   const event = provider.verifyAndParseWebhook(raw, signature);
   if (!event) return json({ error: "invalid signature" }, 400);
@@ -72,42 +69,6 @@ export async function POST(req: Request) {
       status: "failed",
       amount_minor: event.amountMinor,
     });
-    return json({ received: true });
-  }
-
-  if (event.kind === "refunded") {
-    /* A refund issued outside the platform, in the provider dashboard. Record
-       it and withdraw the unopened digital entitlements from the order. The
-       refund_order RPC is idempotent and never claws back an opened pull, so a
-       redelivered event or an admin refund that already ran reverses once. */
-    const { data, error } = await db.rpc("refund_order", {
-      p_order_id: event.orderId,
-      p_provider: provider.name,
-      p_provider_ref: event.providerRef,
-      p_amount_minor: event.amountMinor,
-      p_reason: "provider_webhook",
-    });
-    if (error) {
-      log.error("refund_order failed from webhook", {
-        orderId: event.orderId,
-        err: error,
-      });
-      /* Do not acknowledge: let the provider redeliver so the refund is not
-         silently dropped. */
-      return json({ error: "unavailable" }, 503);
-    }
-    const result = (data ?? {}) as {
-      refunded?: boolean;
-      reversed?: number;
-      already_opened?: number;
-    };
-    if (result.already_opened && result.already_opened > 0) {
-      log.warn("refund reversed fewer chests than the order held", {
-        orderId: event.orderId,
-        reversed: result.reversed ?? 0,
-        alreadyOpened: result.already_opened,
-      });
-    }
     return json({ received: true });
   }
 
@@ -181,8 +142,8 @@ export async function POST(req: Request) {
 
   for (const item of items) {
     if (item.kind === "merch") {
-      /* Every merch piece is a physical good, so a paid merch line puts the
-         order into fulfillment. No digital entitlement is granted. */
+      /* Merch is printed and shipped, so it needs a fulfillment the same way a
+         physical chest does. Nothing is granted in-realm for it. */
       hasPhysical = true;
       continue;
     }
@@ -210,7 +171,8 @@ export async function POST(req: Request) {
   }
 
   if (hasPhysical) {
-    /* Record a fulfillment to ship the physical box. Left pending: the vendor
+    /* Record a fulfillment to ship the physical goods, a boxed chest or merch
+       or both. Left pending: the vendor
        call happens in the fulfillment worker once a shipping address is on the
        order, which the checkout collects at launch. A pending row with no
        vendor ref is the honest state, not a fabricated shipment. */

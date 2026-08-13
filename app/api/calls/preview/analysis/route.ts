@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { MODEL_REASONING, heraldAvailable, heraldProse } from "@/lib/ai/herald";
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
@@ -42,9 +42,6 @@ import { difficultyBand, scoreOutlook } from "@/lib/calls/analytics";
 
 export const dynamic = "force-dynamic";
 
-const key = process.env.ANTHROPIC_API_KEY;
-const client = key ? new Anthropic({ apiKey: key }) : null;
-
 /* A member can hold five Calls open at once, so six readings an hour is more
    than one for every Call they could possibly seal in that hour. */
 const PER_MEMBER_HOURLY = 6;
@@ -77,7 +74,7 @@ export async function POST(req: Request) {
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  if (!client) {
+  if (!heraldAvailable()) {
     return json(
       {
         error:
@@ -118,7 +115,11 @@ export async function POST(req: Request) {
 
   /* The same server path that seals the Call. A client side approximation would
      hand the Herald a difficulty the member is never scored against. */
-  const draft = await prepareCall(db, profile.id, body);
+  const draft = await prepareCall(
+    db,
+    { id: profile.id, points: profile.points, house_slug: profile.house_slug },
+    body
+  );
   if (!draft.ok) return json({ error: draft.error }, draft.status);
   const call = draft.call;
 
@@ -238,34 +239,13 @@ export async function POST(req: Request) {
     );
   }
 
-  try {
-    const res = await client.messages.create({
-      model: "claude-sonnet-5",
-      max_tokens: 450,
-      /* A short read over facts already computed. Thinking would buy nothing
-         here and the realm's budget is zero. */
-      thinking: { type: "disabled" },
-      output_config: { effort: "low" },
-      system: SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: `Read this member's draft Call back to them before they seal it. Here is everything the realm knows about it, and it is all you may use:\n\n${facts.join("\n")}`,
-        },
-      ],
-    });
-    const block = res.content.find((b) => b.type === "text");
-    const text =
-      block && block.type === "text"
-        ? block.text
-            .trim()
-            .replace(/^["']|["']$/g, "")
-            .replace(/\s*[—–]\s*/g, ", ")
-            .trim()
-        : "";
-    if (!text) return json({ error: "The Herald had nothing to say." }, 502);
-    return json({ ok: true, text });
-  } catch {
-    return json({ error: "The Herald could not be reached. Try again." }, 502);
-  }
+  const text = await heraldProse({
+    model: MODEL_REASONING,
+    system: SYSTEM,
+    user: `Read this member's draft Call back to them before they seal it. Here is everything the realm knows about it, and it is all you may use:\n\n${facts.join("\n")}`,
+    maxTokens: 450,
+    effort: "low",
+  });
+  if (!text) return json({ error: "The Herald had nothing to say." }, 502);
+  return json({ ok: true, text });
 }
