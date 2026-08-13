@@ -2191,3 +2191,70 @@ kind. `chests_live` is off as well, so the door is shut on both counts.
 
 The verifier page (mission 6) is the surface this was built for: the revealed
 seeds, the openings under them, and a rerun anybody can check.
+
+## 43. The commerce frontend, and two things it turned up
+
+Shipped. The last of the three things `COMMERCE_PRICES_CONFIRMED` was waiting
+on. What remains is a real payment account and the compliance guardrails,
+neither of which is code.
+
+### 43.1 Prices come through one door
+
+`lib/commerce/catalog.ts` is server-only so a price cannot leak into a bundle,
+and `GET /api/commerce/catalog` is the single controlled exception. While the
+confirmation gate is shut it carries no money at all: not a rounded figure, not
+a "from" price, not a placeholder. The buy control says "priced at launch"
+instead.
+
+The buy control has four states and most of its job is refusing correctly:
+sealed, open but unpriced, priced and ready, and payments not configured. Each
+is a different truth and each is said in words. The guaranteed floor rides
+beside every chest price, because a chest that shows its price without its
+floor is a worse offer than the realm actually makes.
+
+Merch sells now and answers to `mercer_live`, checked after the cart is parsed
+so a merch-only order is not turned away by a sealed chest chapter it never
+touched.
+
+### 43.2 The opening, and the Reliquary as a checklist
+
+The opening is the Forge register: full bleed, cards landing one at a time
+rarest last, the card the printed guarantee lifted named as such, and the proof
+on the same screen. Card names and art come from the roster rather than from
+the response, so the two can never disagree.
+
+The Reliquary now knows what you hold. A card you own is unsealed and wears its
+rarity frame, which is the existing rule read correctly: the seal was always
+about a card you have not pulled yet, never about a chapter being closed. The
+progress line and the Held/Missing filter are absent until the holdings read
+lands, so the page never spends a moment claiming you own nothing before it
+knows.
+
+### 43.3 Two bugs the work turned up
+
+**An invented feed on the landing page.** `platform-preview.tsx` shipped a
+raven with 214 likes from a member who does not exist, a Season table where
+House Corvane held 4,820 Glory, and a Keep with 8,140 Renown. Every figure
+invented, on the most public page in the product, beside real claims about a
+real platform. Rebuilt with the same four rooms and no invented figure: the six
+Houses and the crest set are real, and the two social rooms show chrome with
+their content honestly empty.
+
+**Four of the six House sigils were blank circles.** `Icon` falls back to a
+small empty ring for a name it does not know, so a missing glyph reads as
+deliberate. `snowflake`, `storm`, `moon` and `lion` had never been drawn, so
+Frosthold, Stormcrest, Nightvale and Goldmane wore identical circles everywhere
+a banner appears. Six banners that look the same are not six banners. Drawn
+now, and checked: `scripts/check-house-rules.mjs` gained two rules, one for
+literal `Icon` names and one for the sigils and crest glyphs that reach `Icon`
+through a variable, which are exactly the ones that went missing because they
+are written once in a data file and rendered everywhere.
+
+### 43.4 One decision unblocked, and left for the founder
+
+Section 29 offers two mobile docks and recommends the one that drops the
+Crossroads for the Reliquary, on the premise that the Crossroads stays
+reachable from a top bar search. There was no top bar search, so the premise
+was false and the dock could not honestly move. There is one now. The dock
+itself is untouched: which five destinations a member gets on a phone is the
+founder's call, and it is one array in `lib/nav.ts` when they make it.

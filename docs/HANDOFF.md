@@ -260,8 +260,12 @@ facts.
 ## 8. Founder only decisions (never block on these, build sealed and ready)
 
 - The final yes to set `COMMERCE_PRICES_CONFIRMED=true` and flip `chests_live`.
-  Prices, floors and merch prices are all decided and encoded; what remains is
-  the checkout frontend, a real Stripe account, and the compliance guardrails.
+  Prices, floors and merch prices are all decided and encoded, and the checkout
+  frontend is built (section 43). What remains is a real Stripe account and the
+  compliance guardrails.
+- The mobile dock: five slots, section 29 offers two arrangements and
+  recommends the one carrying the Reliquary. Its prerequisite, a top bar
+  search, now exists. One array in `lib/nav.ts` when you decide.
 - On chain mint: two deployed contracts on Base and the platform voucher signer.
   The interface the contracts must implement is recorded in
   `lib/chain/claim-abi.ts` and cannot be edited apart from the voucher, since a
