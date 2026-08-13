@@ -1,8 +1,27 @@
-import { json } from "@/lib/auth/server";
+import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { HOUSE_TOP_N, houseBySlug, houseLevel } from "@/lib/data/houses";
 import { loadSeasonWindow, oathSpan, type OathRow } from "@/lib/houses/oath";
 import { loadIdentities, loadRoster } from "@/lib/houses/members";
+import {
+  HOUSE_PERKS,
+  PERK_META,
+  maySpendTreasury,
+  perkIsActive,
+  perkPrice,
+} from "@/lib/houses/perks";
+import {
+  endowedToday,
+  loadHousePerks,
+  loadTreasuryLedger,
+  reconcileTreasury,
+} from "@/lib/houses/treasury";
+import {
+  DAILY_ENDOWMENT_CAP,
+  MIN_ENDOWMENT,
+  maxEndowmentFor,
+} from "@/lib/houses/endowment";
+import { getFlag } from "@/lib/flags";
 import {
   buildStandings,
   loadCumulative,
@@ -25,7 +44,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ slug: string }> }
 ) {
   const db = adminClient();
@@ -91,6 +110,50 @@ export async function GET(
   const banked = cumulative.get(slug) ?? 0;
   const total = banked + standing.score;
 
+  /* The treasury: a real balance from real sinks, the perks it has bought, and
+     the audit trail of every movement. A House that has never had a stake burn
+     under its banner reads as zero here and the hall says zero. Nothing is
+     seeded and nothing is estimated.
+
+     The viewer is resolved so the hall knows whether to render the catalogue
+     as buyable or as a price list. That is presentation only: the Lord and
+     Hand check that actually governs the spend is inside
+     spend_house_treasury, under the House row lock, and a client that lied
+     about its own role would get a 403 from the RPC. */
+  const viewer = await getProfile(req);
+  const [houseRow, perks, treasuryLedger, recon] = await Promise.all([
+    db.from("houses").select("treasury").eq("slug", slug).maybeSingle(),
+    loadHousePerks(db, slug),
+    loadTreasuryLedger(db, slug),
+    /* The cached balance against the ledger under it. Summed in the database,
+       never by reading the rows back and adding them up: a partial read would
+       report a drift that is only its own truncation, and "this House's
+       treasury does not add up" is far too serious a claim to make from an
+       incomplete count. */
+    reconcileTreasury(db, slug),
+  ]);
+
+  /* A gift is only offered to somebody who could actually make one, and the
+     terms are priced against their real balance and their real running total
+     for the day. A reader who is not sworn here gets null and no control, not a
+     control that refuses. The oath that governs the gift is re-read inside
+     endow_house_treasury under the profile row lock; this is presentation. */
+  const viewerSworn = viewer?.house_slug === slug;
+  const [endowmentOpen, givenToday] = await Promise.all([
+    viewerSworn ? getFlag("endowment_live") : Promise.resolve(false),
+    viewerSworn && viewer ? endowedToday(db, viewer.id) : Promise.resolve(0),
+  ]);
+
+  const treasury = Number(houseRow.data?.treasury) || 0;
+  const swornHere = roster.length;
+  /* Read off the roster, which is house_members with an open oath to THIS
+     House, rather than off profiles.house_slug. The RPC that governs the spend
+     reads the same table, so the button a member sees and the answer they get
+     when they press it cannot disagree. */
+  const viewerRole = viewer
+    ? (roster.find((r) => r.profile_id === viewer.id)?.role ?? null)
+    : null;
+
   return json({
     house: {
       slug: meta.slug,
@@ -128,6 +191,51 @@ export async function GET(
       };
     })(),
     level: { ...houseLevel(total), cumulative: total },
+    treasury: {
+      balance: treasury,
+      sworn: swornHere,
+      /* The catalogue, priced against this House's real sworn count so the
+         figure shown is the figure charged. Per member pricing is what keeps
+         perks from reintroducing the headcount advantage that size-neutral
+         scoring removed; the reasoning is in lib/houses/perks.ts. */
+      catalogue: HOUSE_PERKS.map((slug) => {
+        const meta = PERK_META[slug];
+        const price = perkPrice(meta, swornHere);
+        return {
+          slug: meta.slug,
+          name: meta.name,
+          blurb: meta.blurb,
+          effect: meta.effect,
+          icon: meta.icon,
+          duration_days: meta.durationDays,
+          price,
+          affordable: treasury >= price,
+          burning: perks.some(
+            (p) => p.slug === meta.slug && Date.parse(p.expires_at) > Date.now()
+          ),
+        };
+      }),
+      active: perks.filter((p) => perkIsActive(p)),
+      history: perks,
+      ledger: treasuryLedger,
+      /* Whether THIS viewer may open it. Null when nobody is signed in. */
+      may_spend: maySpendTreasury(viewerRole),
+      viewer_role: viewerRole,
+      reconciled: recon.reconciled,
+      reconciliation_known: recon.known,
+      reconciliation_drift: recon.drift,
+      endowment:
+        viewerSworn && viewer
+          ? {
+              open: endowmentOpen,
+              min: MIN_ENDOWMENT,
+              daily_cap: DAILY_ENDOWMENT_CAP,
+              balance: viewer.points,
+              given_today: givenToday,
+              max: maxEndowmentFor(viewer.points, givenToday),
+            }
+          : null,
+    },
     board,
     roster,
     past: past.map((p) => ({

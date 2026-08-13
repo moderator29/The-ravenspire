@@ -261,6 +261,9 @@ export function PostCard({ post }: { post: Post }) {
     const url = `${window.location.origin}/post/${post.id}`;
     const author = a.handle ? `@${a.handle}` : "a member";
     const result = await shareOrCopy(url, `A raven from ${author} on The Ravenspire`);
+    /* A dismissed sheet is a choice, not an outcome: the label stays as it was
+       rather than flashing "Shared" at somebody who decided not to. */
+    if (result === "dismissed") return;
     setShared(result);
     window.setTimeout(() => setShared(null), 1800);
   };
@@ -424,7 +427,7 @@ export function PostCard({ post }: { post: Post }) {
           aria-label={`Open ${a.handle ? `@${a.handle}` : "member"} dossier`}
           /* A 40px avatar with 2px of bleed on every side is a 44px target,
              without the circle itself growing into the name row beside it. */
-          className="-m-0.5 shrink-0 self-start rounded-[var(--radius-full)] p-0.5 transition-opacity duration-fast ease-out-quint hover:opacity-90"
+          className="touch:min-h-11 touch:min-w-11 -m-0.5 shrink-0 self-start rounded-[var(--radius-full)] p-0.5 transition-opacity duration-fast ease-out-quint hover:opacity-90"
         >
           <Avatar author={a} size={40} />
         </button>

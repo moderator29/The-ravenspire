@@ -72,7 +72,7 @@ export function SeasonMilestoneCard({ event }: { event: FeedEvent }) {
 
   return (
     <SystemCard
-      event={event}
+      at={event.created_at}
       icon={copy.icon}
       label={copy.label}
       action={

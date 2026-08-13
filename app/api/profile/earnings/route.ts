@@ -1,27 +1,55 @@
 import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import {
+  MOVEMENT_CATEGORIES,
+  foldStatement,
+  type LedgerRow as FoldRow,
+} from "@/lib/economy/earnings";
+import { privacyFlag } from "@/lib/privacy";
 
-/* Earnings + balance data for the FOMO-style profile section.
-   Real data only, drawn from three sources:
-     - points_ledger (points_delta / glory_delta with timestamps)
-     - tips received (tips.points where to_id = member)
-     - referral rewards (points_ledger rows whose reason names a referral)
-   Privacy gates it: a member who turns PnL visibility OFF hides their
-   earnings from every other viewer, while the owner always sees their own.
-   Nothing is invented; when a member has earned nothing the numbers are zero
+/* Earnings summary for the profile panel, the public half of The Coffers.
+
+   The statement a member reads about themselves lives at /api/coffers and is
+   folded by lib/economy/earnings.ts. This route is the smaller, public thing:
+   a total and a breakdown for a profile panel, privacy gated, with a windowed
+   series the panel charts. It shares the fold rather than deriving a second
+   one, because two answers to "what has this member earned" is how the first
+   version of this route ended up wrong in four places at once.
+
+   WHAT WAS WRONG, AND IS FIXED HERE
+
+   1. TIPS. It summed `tips.points`, and that column has been null on every row
+      since tributes became on chain wallet to wallet transfers. So the Tips
+      figure was structurally zero and it was added into the headline total, in
+      POINTS, for a payment that is not denominated in POINTS at all. Tributes
+      are now reported as a count of PROVEN receipts and are not added to a
+      points figure. The amounts, in their own tokens, are on /api/coffers.
+
+   2. REFERRALS. It looked for a reason beginning "referral". Nothing has ever
+      written one: a referral pays through `banner_raised`. Every referral
+      reward in the realm reported as zero and fell into Other.
+
+   3. STAKES. It added the negative row a staked Call writes at escrow into a
+      figure labelled "points earned", so sealing a staked Call made a member's
+      lifetime earnings FALL, and the positive row a won stake writes, so
+      getting your own points back read as earning them. A stake is a balance
+      moving, not an earning, and it is excluded from both directions.
+
+   4. THE BREAKDOWN. Its slices were filtered to positives and its total was
+      not, so the percentages beside the slices could not add to a hundred and
+      nothing said why. The slices are now the earned figure exactly.
+
+   Real data only, and when a member has earned nothing the numbers are zero
    and the caller renders an honest empty state. */
 
 export const dynamic = "force-dynamic";
 
 interface LedgerRow {
+  id: string;
   points_delta: number | null;
   glory_delta: number | null;
   reason: string | null;
-  created_at: string;
-}
-
-interface TipRow {
-  points: number | null;
+  category: string | null;
   created_at: string;
 }
 
@@ -35,12 +63,23 @@ interface BreakdownSlice {
   value: number;
 }
 
+/* A ledger row a movement wrote, which is never an earning. Same test the fold
+   applies, reading the same exported list, so the series and the totals cannot
+   hold different opinions about which rows count. */
+function isMovement(category: string | null): boolean {
+  return (MOVEMENT_CATEGORIES as readonly string[]).includes(category ?? "");
+}
+
 interface WindowBlock {
-  /* Cumulative $RSP total across the window, anchored by a baseline point at
-     the window's start and a trailing point at "now", so the chart always has
-     at least two points and reads as a live window rather than all-time. */
+  /* Cumulative POINTS across the window, anchored by a baseline point at the
+     window's start and a trailing point at "now", so the chart always has at
+     least two points and reads as a live window rather than all-time.
+
+     POINTS, and the comment said $RSP, which is where the "converts at TGE"
+     line on the panel came from. They are a realm score and the product has
+     never described a rate between them and any token. */
   series: SeriesPoint[];
-  /* $RSP earned within the window (may be negative if deltas net down). */
+  /* POINTS earned within the window (may be negative if deltas net down). */
   delta: number;
   /* Change vs. the balance held at window start. */
   changePct: number;
@@ -82,42 +121,14 @@ function buildWindow(events: SeriesPoint[], ms: number, now: number): WindowBloc
   return { series, delta, changePct, events: pts.length };
 }
 
-/* Group a raw ledger reason into a member-facing earning category. */
-function labelForReason(reason: string | null): string {
-  if (!reason) return "Other";
-  if (reason.startsWith("quest_")) return "Quests";
-  if (reason.startsWith("liked_by_")) return "Ravens liked";
-  if (reason.startsWith("referral")) return "Referrals";
-  switch (reason) {
-    case "sent_a_raven":
-      return "Ravens sent";
-    case "replied":
-      return "Replies";
-    case "sealed_a_call":
-      return "Calls sealed";
-    case "war_fought":
-      return "War";
-    case "took_the_black":
-      return "Joined the realm";
-    default:
-      return "Other";
-  }
-}
+/* A raven a referral raised pays through `banner_raised`, not through anything
+   named "referral", and this is the only place that fact is asserted outside
+   the fold. Kept as one predicate so the referral figure and the Banners slice
+   can never disagree about which rows are referral rewards. */
+const REFERRAL_REASONS = new Set(["banner_raised", "banner_answered"]);
 
 const isReferral = (reason: string | null): boolean =>
-  typeof reason === "string" && reason.startsWith("referral");
-
-function privacyFlag(settings: unknown, key: string): boolean {
-  /* Default ON: a member is only hidden when they explicitly set it false. */
-  if (settings && typeof settings === "object") {
-    const privacy = (settings as Record<string, unknown>).privacy;
-    if (privacy && typeof privacy === "object") {
-      const val = (privacy as Record<string, unknown>)[key];
-      if (typeof val === "boolean") return val;
-    }
-  }
-  return true;
-}
+  reason !== null && REFERRAL_REASONS.has(reason);
 
 function readThesis(settings: unknown): string | null {
   if (settings && typeof settings === "object") {
@@ -211,52 +222,53 @@ export async function GET(req: Request) {
     });
   }
 
-  const [ledgerRes, tipsRes] = await Promise.all([
+  const [ledgerRes, tributesRes] = await Promise.all([
     db
       .from("points_ledger")
-      .select("points_delta, glory_delta, reason, created_at")
+      .select("id, points_delta, glory_delta, reason, category, created_at")
       .eq("profile_id", target.id)
       .order("created_at", { ascending: true })
       .limit(2000),
+    /* PROVEN receipts only. An unverified tribute is a claim somebody made
+       about a transaction, and counting one would let anybody inflate their own
+       public record by posting a hash. verifyTribute reads it off the chain;
+       until it has, the row is not a payment. */
     db
       .from("tips")
-      .select("points, created_at")
+      .select("id", { count: "exact", head: true })
       .eq("to_id", target.id)
-      .order("created_at", { ascending: true })
-      .limit(2000),
+      .not("verified_at", "is", null),
   ]);
 
   const ledger = (ledgerRes.data ?? []) as LedgerRow[];
-  const tips = (tipsRes.data ?? []) as TipRow[];
 
-  let ledgerPoints = 0;
-  let totalGlory = 0;
+  /* One fold, shared with /api/coffers. Stakes and endowments are excluded from
+     earnings in both directions, the breakdown is the earned figure exactly,
+     and a duplicated row across a page boundary is counted once. */
+  const statement = foldStatement(
+    ledger.map(
+      (r): FoldRow => ({
+        id: r.id,
+        points_delta: r.points_delta ?? 0,
+        glory_delta: r.glory_delta ?? 0,
+        reason: r.reason ?? "",
+        category: r.category,
+        created_at: r.created_at,
+      })
+    )
+  );
+
   let referralRewards = 0;
-  const buckets = new Map<string, number>();
-
-  /* Combined, time-ordered earning events feed the cumulative chart. */
+  /* The chart's event stream. Movement rows are deliberately absent: a chart of
+     "what you have earned" that dips by five hundred the moment somebody stakes
+     a Call is describing something other than earning. */
   const events: SeriesPoint[] = [];
 
   for (const row of ledger) {
     const pts = row.points_delta ?? 0;
-    const glory = row.glory_delta ?? 0;
-    ledgerPoints += pts;
-    totalGlory += glory;
     if (isReferral(row.reason)) referralRewards += pts;
-    if (pts !== 0) {
-      const label = labelForReason(row.reason);
-      buckets.set(label, (buckets.get(label) ?? 0) + pts);
+    if (pts !== 0 && !isMovement(row.category)) {
       events.push({ t: row.created_at, v: pts });
-    }
-  }
-
-  let tipsTotal = 0;
-  for (const tip of tips) {
-    const pts = tip.points ?? 0;
-    if (pts !== 0) {
-      tipsTotal += pts;
-      buckets.set("Tips", (buckets.get("Tips") ?? 0) + pts);
-      events.push({ t: tip.created_at, v: pts });
     }
   }
 
@@ -268,11 +280,14 @@ export async function GET(req: Request) {
     series.push({ t: e.t, v: running });
   }
 
-  const grandTotal = ledgerPoints + tipsTotal;
+  /* Earned minus spent, and nothing else. Not the balance, which stakes and
+     endowments also move, and never a tribute, which is not denominated in
+     POINTS and was being added in as a structural zero. */
+  const grandTotal = statement.earned - statement.spent;
 
   /* Real windowed views over the same event stream, built from the actual
-     points_ledger + tips timestamps. Each drives the chart and headline change
-     for its timeframe; sparse windows degrade to an honest flat line. */
+     points_ledger timestamps. Each drives the chart and headline change for its
+     timeframe; sparse windows degrade to an honest flat line. */
   const now = Date.now();
   const windows: Record<string, WindowBlock> = {
     "24h": buildWindow(events, WINDOW_MS["24h"], now),
@@ -280,14 +295,14 @@ export async function GET(req: Request) {
     "30d": buildWindow(events, WINDOW_MS["30d"], now),
   };
 
-  /* Allocation breakdown, largest source first, positives only. Gated behind
-     public-positions for non-owners: a member can show earnings totals while
-     keeping the source mix private. */
+  /* Largest source first, positives only, and now it genuinely sums to the
+     headline: the slices are the earned figure split by stream. Gated behind
+     public-positions for non-owners, so a member can show a total while keeping
+     the source mix private. */
   const breakdown: BreakdownSlice[] = showPositions
-    ? [...buckets.entries()]
-        .filter(([, v]) => v > 0)
-        .map(([label, value]) => ({ label, value }))
-        .sort((a, b) => b.value - a.value)
+    ? statement.streams
+        .filter((s) => s.points > 0)
+        .map((s) => ({ label: s.label, value: s.points }))
     : [];
 
   const firstEarnedAt = events.length ? events[0].t : null;
@@ -300,10 +315,17 @@ export async function GET(req: Request) {
     public: publicBlock,
     earnings: {
       grandTotal,
-      ledgerPoints,
-      tipsTotal,
+      ledgerPoints: statement.earned - statement.spent,
+      /* A count of proven tributes, never a POINTS figure. The amounts, in the
+         tokens they arrived in, are on /api/coffers where they can be shown in
+         their own units instead of folded into a score. */
+      tributeCount: tributesRes.count ?? 0,
       referralRewards,
-      totalGlory,
+      totalGlory: statement.glory,
+      /* Balance movements, reported rather than folded into earnings. */
+      staked: statement.stakes.staked,
+      stakeNet: statement.stakes.net,
+      givenToHouse: statement.given,
       series,
       windows,
       breakdown,

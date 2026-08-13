@@ -26,7 +26,7 @@ import {
    these params is retired; the tab line under the identity block is the one
    switcher now. ProfileView stays uncontrolled for a public /u/handle, which
    has no param to answer. */
-const TABS: ProfileTab[] = ["posts", "calls", "media"];
+const TABS: ProfileTab[] = ["posts", "calls", "media", "hoard"];
 
 function tabFromParam(raw: string | null): ProfileTab {
   return TABS.includes(raw as ProfileTab) ? (raw as ProfileTab) : "posts";

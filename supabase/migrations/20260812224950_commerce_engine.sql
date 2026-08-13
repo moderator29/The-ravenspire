@@ -3,6 +3,14 @@
 -- realm flags until launch, the same "backend live, frontend sealed" posture as
 -- the foundation migration.
 --
+-- FILENAME RECONCILED. This was authored as 20260812130000 but applied to the
+-- live project (tqvigouaifbklvajiyoj) as version 20260812224950, so the
+-- repository and the database disagreed about whether it had run: the CLI would
+-- have seen an unapplied migration and tried to apply it again. The SQL is
+-- byte-identical either way and every statement in it is idempotent, so nothing
+-- was at risk, but a migration ledger that lies is a bad thing to leave lying
+-- around. Renamed to the version that actually ran.
+--
 -- WHY THIS EXISTS
 -- The foundation migration (20260812120000) laid schema-only orders,
 -- order_items, chests, chest_openings, redemptions and merch_products, with no

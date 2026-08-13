@@ -20,8 +20,12 @@ import {
   BoardStack,
 } from "@/components/board/board-shell";
 import { houseBySlug, houseIcon, HOUSE_TOP_N } from "@/lib/data/houses";
-import type { HouseStandingRow, ClashRow } from "@/lib/houses/view";
-import { clashCountdown, seasonCountdown } from "@/lib/houses/view";
+import type { HouseStandingRow, ClashRow, ClashCadence } from "@/lib/houses/view";
+import {
+  cadenceCountdown,
+  clashCountdown,
+  seasonCountdown,
+} from "@/lib/houses/view";
 
 /* The Houses surface.
  *
@@ -316,6 +320,7 @@ function Rival({ row }: { row: HouseStandingRow }) {
 
 function Clashes() {
   const [clashes, setClashes] = useState<ClashRow[] | null>(null);
+  const [cadence, setCadence] = useState<ClashCadence | null>(null);
   const [loading, setLoading] = useState(true);
   const showSkeleton = useDelayedLoading(loading);
 
@@ -323,9 +328,10 @@ function Clashes() {
     let live = true;
     void fetch("/api/houses/clashes")
       .then((r) => r.json())
-      .then((payload: { clashes?: ClashRow[] }) => {
+      .then((payload: { clashes?: ClashRow[]; cadence?: ClashCadence }) => {
         if (!live) return;
         setClashes(payload.clashes ?? []);
+        setCadence(payload.cadence ?? null);
         setLoading(false);
       })
       .catch(() => live && setLoading(false));
@@ -337,24 +343,68 @@ function Clashes() {
   if (showSkeleton) return <HousesSkeleton />;
   if (loading) return null;
 
-  if (!clashes || clashes.length === 0) {
-    return (
-      <Card className="mt-4">
-        <EmptyState
-          icon="swords"
-          title="No Clash has been called"
-          body="A Clash is a 48 hour window on one nominated token. Only Calls made inside it count, and the scoreboard runs live while it does. The stewards call the next one."
-        />
-      </Card>
-    );
-  }
-
   return (
     <div className="mt-4 flex flex-col gap-3">
-      {clashes.map((clash) => (
-        <ClashCard key={clash.id} clash={clash} />
-      ))}
+      {cadence ? <Cadence cadence={cadence} /> : null}
+
+      {!clashes || clashes.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon="swords"
+            title="No Clash has been called yet"
+            body={
+              cadence
+                ? "The calendar opens the next one. Nothing has been called before now, so there is no record to show."
+                : "A Clash is a 48 hour window in which every Call sealed counts toward its House, with the scoreboard running live throughout."
+            }
+          />
+        </Card>
+      ) : (
+        clashes.map((clash) => <ClashCard key={clash.id} clash={clash} />)
+      )}
     </div>
+  );
+}
+
+/* The weekly clock, above the Clashes and present whether or not one exists.
+ *
+ * This is the honest empty state the surface never had. A Clashes tab that can
+ * only say "none has been called" gives a member no reason to look again, and
+ * the reason it could only say that is that Clashes had no schedule at all:
+ * every one had to be typed by a steward, so in practice none was ever called.
+ * Now that they are on the calendar, the calendar is a fact worth publishing,
+ * and publishing a rule is not the same as inventing a record.
+ *
+ * `scheduled` keeps it honest in the other direction. When the row for the
+ * next window has not been written yet the card says the Clash is due rather
+ * than showing a countdown to something that does not exist. */
+function Cadence({ cadence }: { cadence: ClashCadence }) {
+  /* Re-render on the minute so the countdown does not go stale behind a member
+     who leaves the tab open. Motion is not involved: this is a number
+     changing, and nothing on the Ledger register animates. */
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <Card variant="warm" pad="sm">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Icon name="swords" className="h-4 w-4 shrink-0 text-gold" />
+        <p className="text-sm text-bone">Clashes run every weekend</p>
+        <span className="tnum text-xs text-bone-faint">
+          {cadenceCountdown(cadence)}
+        </span>
+        {cadence.scheduled ? null : <Badge variant="default">Due</Badge>}
+      </div>
+      <p className="mt-2 text-xs leading-relaxed text-bone-mut">
+        A Clash opens on Friday at 18:00 UTC and runs for {cadence.hours} hours.
+        Every Call sealed inside the window counts toward its House, scored on
+        the same top {HOUSE_TOP_N} rule as the season, and the result is frozen
+        when it closes.
+      </p>
+    </Card>
   );
 }
 
@@ -362,6 +412,11 @@ function ClashCard({ clash }: { clash: ClashRow }) {
   const board = clash.houses.filter((h) => h.calls > 0 || h.score !== 0);
   const leader = board[0];
   const top = Math.max(1, ...board.map((h) => Math.max(0, h.score)));
+  const settled = clash.settled_at !== null;
+  /* Closed and settled are different facts and the card says which. A Clash
+     that has closed but has not settled has no result yet, and calling that
+     "final" would be claiming a board the realm has not frozen. */
+  const winner = settled && board.length > 0 ? board[0] : null;
 
   return (
     <Card pad="none" className="overflow-hidden">
@@ -376,6 +431,8 @@ function ClashCard({ clash }: { clash: ClashRow }) {
           </Badge>
         ) : clash.phase === "upcoming" ? (
           <Badge variant="default">Upcoming</Badge>
+        ) : settled ? (
+          <Badge variant="gold">Final</Badge>
         ) : (
           <Badge variant="default">Closed</Badge>
         )}
@@ -385,6 +442,12 @@ function ClashCard({ clash }: { clash: ClashRow }) {
         {clash.token ? `Calls on $${clash.token}` : clash.theme}
         {" · "}
         {clashCountdown(clash)}
+        {winner ? (
+          <>
+            {" · "}
+            <b className="font-semibold text-gold">{winner.name}</b> took it
+          </>
+        ) : null}
       </p>
 
       <div className="px-4 py-4 sm:px-5">
@@ -395,9 +458,11 @@ function ClashCard({ clash }: { clash: ClashRow }) {
             icon="raven"
             title="No Calls inside the window yet"
             body={
-              clash.phase === "closed"
-                ? "This Clash closed with no Calls made under it."
-                : "The first Call made inside the window opens the scoreboard."
+              settled
+                ? "This Clash closed with no Calls made under it, so no House took it."
+                : clash.phase === "closed"
+                  ? "This Clash closed with no Calls made under it. Its result is not frozen yet."
+                  : "The first Call made inside the window opens the scoreboard."
             }
           />
         ) : (

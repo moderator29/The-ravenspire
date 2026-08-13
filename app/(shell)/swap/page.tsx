@@ -6,7 +6,7 @@ import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
 import { Icon } from "@/components/ui/icon";
 import { cx } from "@/components/ui/cx";
 import { Badge } from "@/components/ui/badge";
-import { Button, IconButton } from "@/components/ui/button";
+import { Button, IconButton, INLINE_TOUCH_TARGET } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AdaptiveDialog } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -492,7 +492,7 @@ export default function SwapPage() {
                 onClick={() =>
                   setAmount(formatUnits(fromBalanceRaw, from.decimals))
                 }
-                className="ml-1.5 font-semibold text-gold hover:underline"
+                className={`${INLINE_TOUCH_TARGET} ml-1.5 font-semibold text-gold hover:underline`}
               >
                 Max
               </button>

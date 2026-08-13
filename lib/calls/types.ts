@@ -128,6 +128,23 @@ export interface CallData {
   subject?: PriceSubject;
   /* The claim for the internal resolver. */
   claim?: InternalClaim;
+  /* The POINTS the member put behind this Call, frozen at seal time.
+
+     The authoritative escrow record is the call_stakes row, which is what the
+     settlement function locks and settles. This copy exists so that every
+     surface already reading the `call` jsonb (the feed card, the Call detail,
+     the caller profile) can show the stake without a second query, and so a
+     Call that was staked still says so if the escrow row is ever pruned. */
+  stake?: number;
+  /* What settlement did with it: 'returned' when the Call landed or was
+     voided, 'burned' when it missed. */
+  stake_result?: "returned" | "burned";
+  /* POINTS actually paid back, stake plus bonus. Zero on a burn. */
+  stake_return?: number;
+  /* What the Warden's Pardon put back out of the House treasury, when the
+     House had one burning at settlement. */
+  stake_pardon?: number;
+
   /* Settlement output. */
   score?: number;
   /* Which baseline actually produced the score: the volatility model, or the

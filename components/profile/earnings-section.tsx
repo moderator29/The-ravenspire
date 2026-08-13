@@ -8,6 +8,7 @@ import { SegmentedControl } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { shareOrCopy } from "@/lib/share";
+import { sharePath } from "@/lib/share/links";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
 import { EarningsChart, type EarningsPoint } from "@/components/profile/earnings-chart";
@@ -15,9 +16,12 @@ import { PositionsList } from "@/components/profile/positions-list";
 import type { PositionToken } from "@/app/api/profile/earnings/types";
 
 /* THE COFFERS
-   The realm's treasury panel: a member's platform $RSP earnings and their
-   wallet holdings, kept in one obsidian-and-gold surface. Everything is real,
-   drawn through /api/profile/earnings (points_ledger + tips) and
+   The public panel: a member's earned POINTS and their wallet holdings, kept
+   in one obsidian-and-gold surface. POINTS are standing in the realm and are
+   never $RSP, never an amount of money, and never described as convertible
+   into either. The full statement, reconciled against the balance and carrying
+   the on chain receipts, is the Console at /coffers. Everything is real,
+   drawn through /api/profile/earnings (points_ledger) and
    /api/profile/earnings/positions (live on-chain balances), both privacy-gated
    server-side. Timeframes (24h / 7d / 30d) window the same real event stream;
    sparse accounts get honest empty states, never invented numbers.
@@ -58,9 +62,15 @@ interface PublicBlock {
 interface EarningsBlock {
   grandTotal: number;
   ledgerPoints: number;
-  tipsTotal: number;
+  /* Proven tributes, counted. Never a POINTS figure: see the Fact that renders
+     it, and the header of app/api/profile/earnings/route.ts. */
+  tributeCount: number;
   referralRewards: number;
   totalGlory: number;
+  /* Balance movements, reported beside the earnings rather than folded in. */
+  staked: number;
+  stakeNet: number;
+  givenToHouse: number;
   series: EarningsPoint[];
   windows: Record<Timeframe, WindowBlock>;
   breakdown: { label: string; value: number }[];
@@ -206,8 +216,18 @@ export function EarningsSection({
   }, [profileId]);
 
   const share = () => {
-    const url = `${window.location.origin}/u/${handle ?? ""}`;
-    void shareOrCopy(url, "The Coffers on The Ravenspire").then(() => {
+    /* Through sharePath rather than string interpolation, which is what this
+       was. A member with no handle yet produced `/u/` and the control happily
+       said "Copied", so the one member most likely to be shown this button
+       (a new one, on their own Coffers) got a link to nothing. A null path is
+       now a control that does nothing rather than one that lies. */
+    const path = sharePath({ kind: "keep", handle: handle ?? "" });
+    if (!path) return;
+    void shareOrCopy(
+      `${window.location.origin}${path}`,
+      "The Coffers on The Ravenspire"
+    ).then((result) => {
+      if (result !== "shared" && result !== "copied") return;
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     });
@@ -382,8 +402,13 @@ export function EarningsSection({
               No points earned yet. Send ravens, seal calls, win glory.
             </p>
           )}
+          {/* This line used to read "Points convert to $RSP at TGE", which is a
+              conversion the product has never committed to and is not entitled
+              to imply on an earnings surface. Rule 7 is to show POINTS for an
+              earned balance and never an amount of $RSP; a promised rate is the
+              same claim with the arithmetic left out. */}
           <p className="mt-1 text-[11px] text-bone-faint">
-            Points convert to $RSP at TGE
+            POINTS are standing in the realm, not money
           </p>
         </Coffer>
 
@@ -648,9 +673,16 @@ export function EarningsSection({
             <Fact label="Calls open" value={fmt.format(pub.callsOpen)} />
             <Fact label="Crests" value={fmt.format(pub.crestCount)} />
             <Fact label="Referrals" value={fmt.format(pub.referralCount)} />
+            {/* A COUNT, NOT A POINTS FIGURE. This read `tipsTotal` in POINTS,
+                summed from `tips.points`, a column that has been null on every
+                row since tributes became on chain transfers: it was a
+                structural zero on every profile in the realm. A tribute arrives
+                in a token, not in POINTS, so the honest thing a profile panel
+                can say is how many have been proven. The amounts, in their own
+                units, are on The Coffers. */}
             <Fact
-              label="Tips earned"
-              value={`${fmt.format(earn?.tipsTotal ?? 0)} pts`}
+              label="Tributes received"
+              value={fmt.format(earn?.tributeCount ?? 0)}
             />
           </div>
         </div>

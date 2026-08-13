@@ -53,7 +53,7 @@ export default function BookmarksPage() {
             <Card key={i} radius="lg" pad="none" className="h-24 animate-pulse" />
           ))
         ) : posts.length === 0 ? (
-          <Card pad="none" className="p-8 text-center text-sm text-bone-mut">
+          <Card pad="xl" className="text-center text-sm text-bone-mut">
             Nothing saved yet. The bookmark mark on any raven places it here.
           </Card>
         ) : (
