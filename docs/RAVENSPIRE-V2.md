@@ -3799,7 +3799,7 @@ fee, no reservation and one signature.
 Checked before a line of SQL was written, as `supabase/migrations/README.md`
 requires. The live definition of `points_ledger_category_check` is
 `('social', 'call', 'war', 'stake')`, matching
-`20260815120000_call_stakes_and_house_treasury.sql` exactly. The change adds
+`20260813104201_call_stakes_and_house_treasury.sql` exactly. The change adds
 `'house'` and removes nothing, so no existing row and no existing writer can be
 broken by it. That check was not optional: this is the fourth migration in a row
 to touch that one constraint, and the third nearly took every War award in the
@@ -3809,17 +3809,18 @@ realm offline by re-adding it from a stale reading of this directory.
 and `realm_flags` all agree between the two, column for column. The six realm
 flags in the live project are the six this directory describes, all false.
 
-**A fifth divergence, found on the way and worth recording**, because the README
-says this directory has lied four times and the count is now higher. The live
-project has applied `appointments_and_seasons` as version `20260813113137`,
-while section 46.7 and the README both say `20260817090000_appointments_and_seasons.sql`
-is written and not yet applied. It is applied. And four migrations named
-`compliance_guardrails_*` (`20260813164228` through `20260813164429`) are applied
-in production with no file in this directory at all, which is the exact invariant
-the README says broke four times: **every applied version has a file here.** The
-work they came from exists on a branch, as a single file with a different name,
-so the file that describes them is neither in this directory nor a match for
-what actually ran.
+**A drift was found and it was already being fixed.** This work read the live
+`schema_migrations` table and found two things this directory did not describe:
+`appointments_and_seasons` applied as `20260813113137` while the README said it
+was written and not yet applied, and four `compliance_guardrails_*` versions
+(`20260813164228` through `20260813164429`) applied with no file here at all,
+which is exactly the invariant the README says broke four times. Section 48 was
+landing the recovery for both at the same moment, so by the time this branch
+merged, every applied version had a file again. Recorded rather than dropped,
+because the interesting fact is not the fix: it is that the invariant broke
+again, in the same week, in the same way, which says the failure is structural
+and not a lapse. The thing that catches it is reading `schema_migrations`
+before writing SQL, and that is now the first step of two separate missions.
 
 Migration `20260821090000_the_coffers_and_the_endowment.sql`, **not applied.**
 It was verified against a throwaway PostgreSQL 16 cluster with the whole

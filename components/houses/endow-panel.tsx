@@ -260,8 +260,11 @@ function Line({ label, value }: { label: string; value: number | undefined }) {
   return (
     <div className="flex items-center justify-between gap-3 text-xs">
       <span className="text-bone-faint">{label}</span>
+      {/* A dash is not a figure. Until the member has typed an amount the
+          realm has nothing to promise, so the line holds its place and stays
+          blank rather than showing a zero somebody could read as the answer. */}
       <span className="tnum font-semibold text-bone">
-        {value === undefined ? "—" : value.toLocaleString()}
+        {value === undefined ? "" : value.toLocaleString()}
       </span>
     </div>
   );
