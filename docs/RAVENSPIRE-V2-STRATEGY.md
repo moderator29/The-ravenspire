@@ -374,8 +374,8 @@ build output and security findings.
   printed cards, single use mint code). Odds already validated in
   lib/collectibles/warchests.ts and unchanged.
 - **Pricing** (set by founder, stored server side, off customer surfaces until
-  confirmed, guardrail: guaranteed floor value at or above price): Squire's 5.99,
-  Knight's 15.49, King's Reliquary 25.00, all USD.
+  confirmed, guardrail: guaranteed floor value at or above price): Squire's 34.99,
+  Knight's 41.00, King's Reliquary 54.86, all USD.
 - **Vendor intent**: one print on demand vendor, Gelato (apparel plus fine art
   prints plus global fulfillment, Stripe compatible, no fixed cost), with Printful
   as apparel fallback and Prodigi for numbered giclee prints. Built behind a
