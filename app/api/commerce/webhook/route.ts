@@ -2,6 +2,9 @@ import { json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
 import { paymentProvider } from "@/lib/commerce/payments";
+import { logger } from "@/lib/observability/log";
+
+const log = logger("commerce.webhook");
 
 /* POST /api/commerce/webhook (V2 Part Two, section 33, Phase D).
  *
@@ -69,6 +72,42 @@ export async function POST(req: Request) {
       status: "failed",
       amount_minor: event.amountMinor,
     });
+    return json({ received: true });
+  }
+
+  if (event.kind === "refunded") {
+    /* A refund issued outside the platform, in the provider dashboard. Record
+       it and withdraw the unopened digital entitlements from the order. The
+       refund_order RPC is idempotent and never claws back an opened pull, so a
+       redelivered event or an admin refund that already ran reverses once. */
+    const { data, error } = await db.rpc("refund_order", {
+      p_order_id: event.orderId,
+      p_provider: provider.name,
+      p_provider_ref: event.providerRef,
+      p_amount_minor: event.amountMinor,
+      p_reason: "provider_webhook",
+    });
+    if (error) {
+      log.error("refund_order failed from webhook", {
+        orderId: event.orderId,
+        err: error,
+      });
+      /* Do not acknowledge: let the provider redeliver so the refund is not
+         silently dropped. */
+      return json({ error: "unavailable" }, 503);
+    }
+    const result = (data ?? {}) as {
+      refunded?: boolean;
+      reversed?: number;
+      already_opened?: number;
+    };
+    if (result.already_opened && result.already_opened > 0) {
+      log.warn("refund reversed fewer chests than the order held", {
+        orderId: event.orderId,
+        reversed: result.reversed ?? 0,
+        alreadyOpened: result.already_opened,
+      });
+    }
     return json({ received: true });
   }
 

@@ -45,6 +45,25 @@ export interface CheckoutSession {
   url: string;
 }
 
+/* Ask the provider to reverse a settled payment. Amount omitted means a full
+   refund. The order id is carried for the provider's own records and so a
+   refund can be matched back without trusting the client. */
+export interface CreateRefundParams {
+  orderId: string;
+  /* The provider session reference stored on the order at checkout, from which
+     the provider resolves the charge or payment intent to refund. */
+  sessionRef: string | null;
+  /* Minor units to refund. Null or omitted refunds the full captured amount. */
+  amountMinor?: number | null;
+}
+
+export interface RefundResult {
+  /* The provider's own refund id, recorded on the refunded payments row. */
+  providerRef: string | null;
+  /* The amount the provider reports as refunded, in minor units. */
+  amountMinor: number | null;
+}
+
 /* The provider-agnostic shape of a settled (or failed) payment, parsed from a
    verified webhook. The route acts only on this, never on raw provider JSON. */
 export interface PaymentEvent {
@@ -52,8 +71,9 @@ export interface PaymentEvent {
      event id is processed at most once. */
   id: string;
   /* Normalised outcome. Unknown or irrelevant events map to "ignored" and the
-     route acknowledges them without acting. */
-  kind: "paid" | "failed" | "ignored";
+     route acknowledges them without acting. A "refunded" event is a
+     provider-initiated reversal (a refund issued from the provider dashboard). */
+  kind: "paid" | "failed" | "refunded" | "ignored";
   /* The platform order id, recovered from provider metadata. Null on ignored. */
   orderId: string | null;
   /* The provider's own payment or session reference, for the payments row. */
@@ -70,6 +90,10 @@ export interface PaymentProvider {
      to fail honestly rather than attempt an unconfigured call. */
   isConfigured(): boolean;
   createCheckoutSession(params: CreateCheckoutParams): Promise<CheckoutSession>;
+  /* Reverse a captured payment at the provider. Throws when the provider is not
+     configured or the reversal is rejected, so the caller records a refund only
+     after the money has actually moved. */
+  refund(params: CreateRefundParams): Promise<RefundResult>;
   /* Verify the webhook signature against the raw body and parse it. Returns
      null when the signature does not verify: a forged event never becomes a
      PaymentEvent, so it can never credit an order. */
