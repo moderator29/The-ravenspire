@@ -25,9 +25,8 @@ import { BackButton } from "@/components/shell/back-button";
  * Honesty rules this surface. No owners, no prices, no supplies, no sale
  * counts: none of that exists yet, so none of it is shown. What is shown is
  * real: forty champions, their names, titles, houses and rarities, straight
- * from lib/game/champions.ts. Twenty cards carry finished art today; the
- * other twenty show the sealed card back until their portraits land, and say
- * so plainly. */
+ * from lib/game/champions.ts. Most cards carry finished art; the few whose
+ * portraits have not landed show the sealed card back and say so plainly. */
 
 /* The Reliquary grid draws the shared card chassis (components/ui/champion-card),
    the one chassis used at every size across the product. The peek behaviour is

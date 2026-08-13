@@ -398,7 +398,7 @@ function CartPanel({
                   src={sku.art}
                   alt=""
                   aria-hidden
-                  className="h-10 w-10 shrink-0 rounded object-contain"
+                  className="h-10 w-10 shrink-0 rounded-sm object-contain"
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-bone">

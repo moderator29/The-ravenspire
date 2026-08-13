@@ -17,7 +17,7 @@ import { cx } from "@/components/ui/cx";
  * 22 applied to cards: the frame carries the meaning, the copy does not repeat
  * it.
  *
- * Honesty rules the face. Twenty champions carry finished art today; a champion
+ * Honesty rules the face. Most champions carry finished art; a champion
  * without one renders the house sigil on obsidian and says "Portrait incoming"
  * plainly rather than faking a portrait. No owners, prices or supplies are ever
  * drawn here, because the chassis is used on sealed surfaces too.
