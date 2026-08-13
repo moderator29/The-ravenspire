@@ -3,18 +3,27 @@ import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { seedHash } from "@/lib/collectibles/pulls";
 
-/* The commitment: the half of "provably fair" that is usually skipped.
+/* The commitment, and the reveal: both halves of provably fair.
  *
  * A server seed is only a promise if it exists before the member can act on
  * it. Generated at open time it proves nothing, because a server that picks
  * after the fact can pick again. So a member's seed is created the first time
- * they look at the chests, its hash is handed to them immediately, and it does
- * not change until they retire it. Retiring publishes the seed, which is what
- * makes every opening under it checkable after the fact.
+ * they look at the chests and its hash is handed to them immediately.
+ *
+ * And a proof nobody can run is a promise, not a proof. So an opening consumes
+ * its commitment: the seed is revealed and retired and a fresh one is committed
+ * in the same transaction (public.chest_open). A member walks away from every
+ * chest holding everything needed to rerun the roll, without having to know
+ * that a rotation feature exists.
+ *
+ * The order of the two steps is the whole point. The realm publishes the hash
+ * before the member chooses their client seed, so it cannot pick a seed to suit
+ * their choice; the member chooses after, so the realm cannot know their choice
+ * in advance. Both halves are locked in before either side sees the other's.
  *
  * The live seed is a secret and this module is the only thing that reads it.
- * It never appears in a response, never in a log, never in an error. The
- * routes above deal in hashes and in revealed seeds only.
+ * It never appears in a response, never in a log, never in an error, until the
+ * opening that spends it publishes it.
  */
 
 export type Commitment = {
@@ -90,15 +99,12 @@ export function publicCommitment(row: SeedRow): Commitment {
   };
 }
 
-/* Retire the live commitment, publishing its seed, and commit a fresh one.
+/* Retire the live commitment by hand, publishing its seed, and commit a fresh
+ * one. An opening does this for itself, so this exists for the member who wants
+ * a new seed without opening anything: the standard courtesy of the scheme, and
+ * the way a member who suspects the realm can force it to commit again.
  *
- * This is the only way a client seed changes, and that is deliberate. A client
- * seed edited under a live commitment would let a member re-roll a chest they
- * had already seen the odds of, because both halves of the input would then be
- * theirs to move. Rotating costs them nothing and keeps the scheme honest.
- *
- * Returns the revealed old commitment and the new one. A member who rotates
- * can now verify every chest they opened under the old seed. */
+ * Returns the revealed old commitment and the new one. */
 export async function rotateCommitment(
   db: SupabaseClient,
   profileId: string,
@@ -152,6 +158,39 @@ export async function rotateCommitment(
   }
 
   return { revealed, next: publicCommitment(created as SeedRow) };
+}
+
+/* Set the client seed on the live commitment, without touching the seed behind
+   it. This is step two of the scheme and it is safe precisely because step one
+   already happened: the member has seen the hash, and changing their own half
+   only re-randomises a function whose key they still do not know.
+
+   An earlier version of this module refused to allow it, on the reasoning that
+   a client seed changed under a live commitment would let a member re-roll a
+   chest they had already seen. That was wrong. A roll cannot be seen without
+   consuming an entitlement, and the entitlement is consumed in the same
+   transaction that reveals the seed, so there is no "already seen" to exploit. */
+export async function setClientSeed(
+  db: SupabaseClient,
+  profileId: string,
+  clientSeed: string
+): Promise<Commitment | null> {
+  const { data } = await db
+    .from("chest_seeds")
+    .update({ client_seed: clientSeed })
+    .eq("profile_id", profileId)
+    .eq("active", true)
+    .select("id, seed, seed_hash, client_seed, created_at")
+    .maybeSingle();
+  return data ? publicCommitment(data as SeedRow) : null;
+}
+
+/* A fresh secret and its commitment, for the seed that will be live after the
+   next opening spends this one. Generated in the route so that the reveal and
+   the recommit reach the database as one statement pair. */
+export function nextCommitment(): { seed: string; seedHash: string } {
+  const seed = randomBytes(32).toString("hex");
+  return { seed, seedHash: seedHash(seed) };
 }
 
 /* A client seed is the member's own text, and it goes into an HMAC, so the

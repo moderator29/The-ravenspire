@@ -3,6 +3,7 @@ import { CHEST_TIERS, type ChestTier } from "@/lib/collectibles/warchests";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { NotifyMe } from "@/components/realm/notify-me";
+import { FairnessPanel } from "@/components/collectibles/fairness-panel";
 import { BackButton } from "@/components/shell/back-button";
 
 export const metadata: Metadata = {
@@ -117,11 +118,18 @@ export default function WarchestsPage() {
         ))}
       </div>
 
+      {/* The fairness contract, on the page that makes the promise. It is
+          deliberately not behind the launch flag: a member is entitled to hold
+          the realm to its word before the chests open and long after, and the
+          honesty of the scheme depends on the commitment existing early.
+          Their own live commitment, real, never a specimen. */}
+      <FairnessPanel />
+
       <p className="max-w-2xl text-xs leading-relaxed text-bone-faint">
-        Prices do not exist yet, so none are shown. Odds are the planned
-        specification and are final before launch; every chest carries its
-        guarantee in writing. Chest openings settle on the server, and every
-        pull is auditable.
+        Prices are set and stay off this page until the realm is ready to take
+        payment. Odds are the planned specification and are final before launch;
+        every chest carries its guarantee in writing. Chest openings settle on
+        the server, and every pull is auditable.
       </p>
     </div>
   );

@@ -6,20 +6,27 @@ import {
   cleanClientSeed,
   publicCommitment,
   rotateCommitment,
+  setClientSeed,
 } from "@/lib/collectibles/seeds";
 
 /* The seed commitment.
  *
  * GET  /api/chests/seed   the live commitment's hash, plus every retired one
  *                         with its seed published
- * POST /api/chests/seed   retire the live commitment, publishing its seed,
- *                         and commit a fresh one with a new client seed
+ * POST /api/chests/seed   set your client seed on the live commitment, having
+ *                         seen its hash. Pass rotate:true to also retire the
+ *                         commitment, publishing its seed, and take a new one.
  *
- * This route is what makes the chests provably fair rather than merely
- * verifiable after the fact. The GET creates the member's commitment the first
- * time they ask, which is before they can possibly have opened anything, so
- * the hash is in their hands before the realm knows what they will open. A
- * seed published only at open time would prove nothing at all.
+ * This route is step one and step two of the scheme. The GET creates the
+ * member's commitment the first time they ask, which is before they can
+ * possibly have opened anything, so the hash is in their hands before the realm
+ * knows what they will open. The POST is where they answer it with a client
+ * seed of their own, having already seen the hash. Neither side can pick to
+ * suit the other, which is the whole guarantee.
+ *
+ * Step three is the opening itself, which reveals the seed and commits the next
+ * one in the same transaction. A member never has to come back here to be able
+ * to check a chest.
  *
  * Deliberately NOT flag gated. A member is entitled to hold the realm to its
  * promise before the chests are live and long after they are, and the honesty
@@ -88,14 +95,28 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => null)) as {
     client_seed?: unknown;
+    rotate?: unknown;
   } | null;
 
-  const rotated = await rotateCommitment(
-    db,
-    profile.id,
-    cleanClientSeed(body?.client_seed)
-  );
-  if (!rotated) return json({ error: "unavailable" }, 503);
+  const clientSeed = cleanClientSeed(body?.client_seed);
 
-  return json(rotated);
+  /* Rotating is the member's own choice, not a side effect of naming a seed.
+     Setting a client seed under the live commitment is the ordinary step two;
+     rotating is for the member who wants the realm to commit again before they
+     open anything, which is the standard courtesy of the scheme and the way
+     somebody who suspects the house forces its hand. */
+  if (body?.rotate === true) {
+    const rotated = await rotateCommitment(db, profile.id, clientSeed);
+    if (!rotated) return json({ error: "unavailable" }, 503);
+    return json(rotated);
+  }
+
+  /* Make sure a commitment exists before writing to it: a member who names a
+     client seed on their very first visit should not be told no. */
+  const current = await activeCommitment(db, profile.id);
+  if (!current) return json({ error: "unavailable" }, 503);
+
+  const updated = await setClientSeed(db, profile.id, clientSeed);
+  if (!updated) return json({ error: "unavailable" }, 503);
+  return json({ commitment: updated });
 }
