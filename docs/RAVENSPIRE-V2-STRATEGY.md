@@ -264,7 +264,7 @@ audit and fixes; this is the map):
   Vouchers are bound to the recipient and the chain id and are replay proof.
 - **Money as integers.** Prices and balances in minor units, never floats, or
   rounding steals fractions at scale.
-- **Webhook and signature verification.** Stripe and Privy webhooks verified and
+- **Webhook and signature verification.** Coinbase Commerce and Privy webhooks verified and
   idempotent, so a forged event cannot credit an order or a balance.
 - **Secrets on the server only.** Service role key, Anthropic key, any signer key,
   any payment secret: never imported into a client component, never shipped in the
@@ -377,7 +377,7 @@ build output and security findings.
   confirmed, guardrail: guaranteed floor value at or above price): Squire's 34.99,
   Knight's 41.00, King's Reliquary 54.86, all USD.
 - **Vendor intent**: one print on demand vendor, Gelato (apparel plus fine art
-  prints plus global fulfillment, Stripe compatible, no fixed cost), with Printful
+  prints plus global fulfillment, no fixed cost), with Printful
   as apparel fallback and Prodigi for numbered giclee prints. Built behind a
   fulfillment vendor abstraction so the choice is swappable.
 - **Supply per rarity intent** (per card mint caps, published before mint, real

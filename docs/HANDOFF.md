@@ -107,7 +107,7 @@ commerce engine backend is complete and sealed behind two switches, the
 `chests_live` realm flag and the `COMMERCE_PRICES_CONFIRMED` env gate, both off.
 
 **What shipped this wave** (detail in `RAVENSPIRE-V2.md` section 35): the 3D icon
-slice fix, the commerce engine (Stripe provider, server authoritative checkout,
+slice fix, the commerce engine (Coinbase Commerce crypto provider (ETH on mainnet, ETH or USDC on Base), server authoritative checkout,
 provably fair opening, non custodial redemption, fulfillment abstraction, the
 `20260812130000_commerce_engine.sql` migration applied to the live database), and
 a money safety pass. The `cx` defect, durable rate limiting, and four gate CI
@@ -225,7 +225,7 @@ B. **On chain verification of `tx_hash` on tips and trades.** `/api/tips` and
 - Prices, supply caps and the confirmation gate live server only in
   `lib/commerce/catalog.ts`. Never render a price a client can read until it is
   confirmed. Checkout prices from the catalog, never from the request.
-- The Stripe provider (`lib/commerce/payments/stripe.ts`) verifies the webhook
+- The Coinbase Commerce provider (`lib/commerce/payments/coinbase.ts`) verifies the webhook
   signature over the raw body with a five minute replay window, secret server only.
   Any new provider implements the same `PaymentProvider` interface.
 - Chest opening (`lib/commerce/chest-open.ts`) is a pure, deterministic commit
@@ -252,7 +252,7 @@ card mint caps Rare 5,000, Epic 1,500, Legendary 400, Mythic 75. Art print editi
 The founder has set the numbers below. Encode them server side in
 `lib/commerce/catalog.ts` (chest floors) and a merch catalog, keep them off every
 customer surface, and leave `COMMERCE_PRICES_CONFIRMED` false until the checkout
-frontend, a real Stripe account, and the compliance guardrails are all in place.
+frontend, a real Coinbase Commerce account, and the compliance guardrails are all in place.
 These floors are a platform committed guaranteed value (the no downside promise),
 not a scraped market price, so they are honest to state as our commitment.
 
@@ -273,7 +273,7 @@ checkout (today it is rejected honestly because no price existed).
 Still genuinely founder only, do not block, build sealed and ready:
 - On chain mint: two deployed contracts on Base and a platform voucher signing key
   (the interface is stubbed at `lib/chain/claim-abi.ts`). The mint phase, last.
-- The Gelato fulfillment account and the Stripe payment account (keys go in env,
+- The Gelato fulfillment account and the Coinbase Commerce payment account (keys go in env,
   never in the bundle or a commit).
 - The final yes to flip `COMMERCE_PRICES_CONFIRMED` and the `chests_live` flag,
   once everything above is real.

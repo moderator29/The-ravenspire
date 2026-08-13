@@ -3,7 +3,7 @@
  * Physical orders (the King's Reliquary, the Mercer merch) are printed and
  * shipped by a print-on-demand vendor. The founder's intent is one primary
  * vendor, Gelato (apparel, fine-art prints and global fulfillment, no fixed
- * cost, Stripe-compatible), with Printful as an apparel fallback and Prodigi
+ * cost), with Printful as an apparel fallback and Prodigi
  * for numbered giclee prints. A vendor is exactly the sort of choice that
  * changes, so it sits behind this interface and the pick is an env value
  * (FULFILLMENT_VENDOR), not a code change.

@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const provider = paymentProvider();
   const raw = await req.text();
   const signature =
-    req.headers.get("stripe-signature") ?? req.headers.get("x-signature");
+    req.headers.get("x-cc-webhook-signature") ?? req.headers.get("x-signature");
 
   const event = provider.verifyAndParseWebhook(raw, signature);
   if (!event) return json({ error: "invalid signature" }, 400);
