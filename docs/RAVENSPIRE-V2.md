@@ -2190,7 +2190,8 @@ empty and the route answers honestly that you have no unopened chest of that
 kind. `chests_live` is off as well, so the door is shut on both counts.
 
 The verifier page (mission 6) is the surface this was built for: the revealed
-seeds, the openings under them, and a rerun anybody can check.
+seeds, the openings under them, and a rerun anybody can check. It shipped, at
+`/proof`. See section 47.
 
 ## 43. The commerce frontend, and two things it turned up
 
@@ -2897,3 +2898,166 @@ older migrations fail on that replay because the baseline already creates the
 policies they create, which is pre-existing and unrelated.
 
 Migration `20260817090000_appointments_and_seasons.sql`, not applied.
+
+## 47. Provably fair, as a feature
+
+Shipped. Mission 6, and the gap it closes is not a missing property but a
+missing surface. The chest has been provably fair since section 42: the server
+seed is committed before the member can act, revealed when the chest opens, and
+the roll is a pure function of three inputs with nine tests on it. What did not
+exist was anywhere a person could actually check a draw. A property nobody can
+exercise is a claim, and the realm was making it in prose.
+
+### 47.1 The verification runs in the browser, and that was the decision
+
+The obvious build is a route: post the three inputs, the server imports
+`rollChest`, reruns, compares, answers. Simpler, honest, and worthless against
+the only adversary a fairness feature has. A verifier hosted by the house is the
+house grading its own examination paper: the same server that faked a draw
+returns "verified" for the faked draw, and nothing a member can observe
+separates that from the truthful case. Nearly every provably fair scheme on the
+internet fails at exactly this point, by shipping a verify button that asks the
+house whether the house was honest.
+
+So the rerun happens on the member's machine, from source they can read. The
+server's role is reduced to handing over the record it already published, and it
+is never asked whether the numbers agree.
+
+**What that cost, and how the cost was contained.** The roll lived behind
+`server-only` and `node:crypto`, and neither can reach a browser.
+`crypto.subtle` can, but every digest it offers is a promise, and `rollChest` is
+synchronous and called from the opening route; making it async to suit the
+browser would have rippled through the settle path for a requirement none of it
+has.
+
+The dangerous fix would have been a second implementation for the client. Two
+implementations of one algorithm is the trap: the day they disagree, the
+verifier calls an honest opening a forgery, and nothing distinguishes that from
+the opposite error. So there is exactly one. `lib/collectibles/sha256.ts` is a
+hand written SHA-256 and HMAC-SHA256 in plain TypeScript, synchronous,
+isomorphic, no dependency. `lib/collectibles/roll.ts` holds the algorithm and
+uses it. `lib/collectibles/pulls.ts` is now a `server-only` re-export, so every
+existing server import is unchanged and the browser runs the same bytes the
+realm runs.
+
+A hand written hash is exactly the code that is right for the inputs its author
+tried, so `sha256.test.ts` pins it against `node:crypto` over the empty string,
+the NIST vectors, every length from 0 to 130 bytes across the padding seam,
+UTF-8 beyond ascii, keys either side of the 64 byte HMAC block boundary (which
+is the length the realm's seeds actually are), and 320 random cases. The nine
+existing roll tests pass unchanged, which is the proof that the swap did not
+move a single card.
+
+**The residual trust is stated on the page, not hidden.** The realm could still
+lie about the record. The hash is what closes that, and it is why it is
+published before the member acts: a member who kept the hash they were shown and
+pastes it in is trusting nothing at all, because a swapped seed fails the first
+check in their own browser.
+
+### 47.2 What is public
+
+A settled opening's proof is not a secret. Once a chest is opened its seed has
+been revealed, its commitment is retired and can never draw again, and the cards
+are in a ledger. Two public endpoints, neither requiring an account:
+
+- `GET /api/chests/openings/[id]` returns one settled opening: the chest, the
+  time, the revealed seed, the hash that preceded it, the client seed, the
+  nonce, and the cards recorded.
+- `GET /api/chests/openings` returns recent settled openings as reference, chest
+  and time only.
+
+The list is the half that makes this about the house rather than about one
+member. If the only findable reference were your own, the only draws ever
+audited would be the ones the house had no reason to fear, and a house cheating
+one opening in a thousand would never be caught, because the member who was
+cheated is precisely the one who cannot tell.
+
+**What is deliberately absent, and each omission is load bearing.** No
+`profile_id` and no join to `profiles`, on either endpoint: the draw is public,
+the drawer is not. No filter by member, so the audit log cannot be turned into a
+surveillance feed. No unrevealed seed, ever: both queries require `server_seed`
+to be present and neither reads `chest_seeds` at all. No holdings, no
+entitlements, no other openings. Both projections are explicit column lists
+rather than `select *`, because the service role client is what reads them and a
+`select *` would ship `profile_id` the first time somebody widened the table.
+
+The entitlement id is published, as the nonce, because the draw cannot be rerun
+without it. It confers nothing: `chest_entitlements` is RLS denied, the opening
+route selects an entitlement by profile as well as by id, and the row is
+permanently spent by the time it appears.
+
+The honest residual: on a small realm an opening's timestamp could in principle
+be correlated with a member's public activity. That is a real cost and a smaller
+one than an unauditable house.
+
+### 47.3 Real data only, and this is where it bit
+
+Nobody has ever opened a chest. `chests_live` is off, nothing grants an
+entitlement, and `chest_openings` is empty in production. So the verifier has
+nothing to verify, and the whole temptation of this mission was to demonstrate
+it with a plausible looking sample opening. A fabricated proof is
+indistinguishable from a real one, which makes it the single worst thing this
+page could contain.
+
+There is no worked example anywhere in it. The list of openings renders "No
+chest has been opened in the realm yet", the lookup answers 404 for every
+reference because there are none, and the form works the moment a real opening
+exists.
+
+What the page can honestly show today is the manual mode: the member supplies
+all three inputs themselves and the draw reruns in front of them. That proves
+the function is deterministic and proves nothing about any chest anybody pulled,
+so it returns the verdict `recomputed` and says so in those words. There are
+four verdicts rather than two for exactly this reason. `unusable` is the input
+being incomplete, never an accusation against the house; `recomputed` is a draw
+with nothing behind it; `match` and `mismatch` are the only two that speak to a
+record.
+
+### 47.4 The comparison is the part worth testing
+
+Rerunning is the easy half and was already covered. What decides whether the
+feature is honest is whether it can say NO, so `verify.test.ts` feeds
+`verifyDraw` deliberately corrupted triples: a changed server seed, a changed
+nonce, a changed client seed, a changed committed hash, one recorded card
+altered by a single number, a short record, and the same cards in another order.
+Every one must come back a mismatch.
+
+The instructive case is the changed nonce: the commitment check still PASSES,
+because the seed genuinely is the one the realm promised, and the card check
+fails, because this is a different opening. A verifier that only checked the
+hash would have called that a pass. That is why there are two checks and why
+they are reported separately rather than collapsed into one verdict.
+
+One bug was caught by writing those tests rather than by review. The roll omits
+`guaranteed` on an ordinary card, and a JSON round trip through Postgres can
+return it as an explicit `false`. A literal comparison would have reported every
+honest opening as forged, and it would have been invisible until the first real
+chest was opened, because there is no data to see it with today. The comparison
+normalises the flag and a test pins it.
+
+### 47.5 Where it is linked from
+
+The promise is made in two places and is now keepable in both: the
+`FairnessPanel` on `/warchests`, at step three, and the opening Ceremony itself,
+where the proof block carries the opening's reference into `/proof?draw=`. A
+proof that requires copying a uuid out of a dialog by hand is a proof nobody
+runs.
+
+The page sits at `/proof`, outside the shell on purpose. Everything under
+`app/(shell)` is behind `ShellGate`, and a verifier only members can reach
+quietly undoes the feature: the argument for provable fairness is that a
+stranger with no account and every reason to disbelieve can pick a draw and
+check it. It is a Console, not a Ceremony. The opening keeps its gold; an audit
+that glows is an audit congratulating itself.
+
+### 47.6 Repository versus database
+
+Checked before anything was written, as the handoff requires. `chest_openings`,
+`chest_seeds` and `chest_entitlements` in the live project match this directory
+column for column, and `public.chest_open` carries the ten argument signature
+from `20260813180000_two_step_commit_reveal.sql`. `chest_openings`,
+`chest_entitlements` and `chest_seeds` are all empty, and `chests_live` is
+false. No divergence found.
+
+**No migration.** This work adds no table, no column, no constraint and no
+function. Both new endpoints read existing columns through the service role.
