@@ -23,4 +23,6 @@ export type {
   CheckoutSession,
   CreateCheckoutParams,
   CheckoutLineItem,
+  CreateRefundParams,
+  RefundResult,
 } from "@/lib/commerce/payments/provider";

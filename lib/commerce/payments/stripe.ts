@@ -4,8 +4,10 @@ import type { Currency } from "@/lib/commerce/money";
 import type {
   CheckoutSession,
   CreateCheckoutParams,
+  CreateRefundParams,
   PaymentEvent,
   PaymentProvider,
+  RefundResult,
 } from "@/lib/commerce/payments/provider";
 
 /* The Stripe implementation of PaymentProvider.
@@ -82,8 +84,12 @@ export const stripeProvider: PaymentProvider = {
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
       client_reference_id: params.orderId,
-      /* Recovered on the webhook to match the event to the order. */
+      /* Recovered on the webhook to match the event to the order. Set on the
+         session and copied onto the payment intent so a refund event, which
+         carries the charge and not the session, can also be traced to the
+         order. */
       metadata: { order_id: params.orderId },
+      payment_intent_data: { metadata: { order_id: params.orderId } },
       ...(params.customerEmail
         ? { customer_email: params.customerEmail }
         : {}),
@@ -118,6 +124,57 @@ export const stripeProvider: PaymentProvider = {
       throw new Error("Stripe returned a session with no id or url");
     }
     return { id: session.id, url: session.url };
+  },
+
+  async refund(params: CreateRefundParams): Promise<RefundResult> {
+    const key = secretKey();
+    if (!key) throw new Error("Stripe is not configured");
+    if (!params.sessionRef) {
+      throw new Error("Cannot refund an order with no provider session reference");
+    }
+
+    /* The stored reference is the checkout session id. A refund is issued
+       against the payment intent the session created, so resolve it first. */
+    const sessionRes = await fetch(
+      `${API}/checkout/sessions/${encodeURIComponent(params.sessionRef)}`,
+      { method: "GET", headers: { authorization: `Bearer ${key}` } }
+    );
+    if (!sessionRes.ok) {
+      const detail = await sessionRes.text().catch(() => "");
+      throw new Error(
+        `Stripe session lookup failed (${sessionRes.status}): ${detail}`
+      );
+    }
+    const session = (await sessionRes.json()) as { payment_intent?: string };
+    if (!session.payment_intent) {
+      throw new Error("Stripe session has no payment intent to refund");
+    }
+
+    const body = formEncode({
+      payment_intent: session.payment_intent,
+      ...(params.amountMinor != null ? { amount: params.amountMinor } : {}),
+    });
+
+    const res = await fetch(`${API}/refunds`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${key}`,
+        "content-type": "application/x-www-form-urlencoded",
+        /* Provider-side idempotency: keyed by the order, so a retried refund of
+           the same order never issues a second reversal. */
+        "idempotency-key": `refund:${params.orderId}`,
+      },
+      body: body.toString(),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Stripe refund failed (${res.status}): ${detail}`);
+    }
+    const refund = (await res.json()) as { id?: string; amount?: number };
+    return {
+      providerRef: refund.id ?? null,
+      amountMinor: typeof refund.amount === "number" ? refund.amount : null,
+    };
   },
 
   verifyAndParseWebhook(
@@ -217,6 +274,32 @@ export const stripeProvider: PaymentProvider = {
         providerRef: typeof obj.id === "string" ? obj.id : null,
         amountMinor: null,
         currency: null,
+      };
+    }
+
+    /* A refund issued from the Stripe dashboard arrives as charge.refunded (the
+       object is the charge) or a refund event (the object is the refund). The
+       order id is recovered from the payment intent metadata set at checkout,
+       carried here on the object's metadata. The amount is what was refunded:
+       amount_refunded on a charge, amount on a refund. When the order id cannot
+       be recovered the webhook acknowledges without acting, and the admin refund
+       route remains the authoritative path. */
+    if (event.type === "charge.refunded" || event.type?.startsWith("refund.")) {
+      const amountRefunded =
+        typeof obj.amount_refunded === "number"
+          ? obj.amount_refunded
+          : typeof obj.amount === "number"
+            ? obj.amount
+            : null;
+      const currency =
+        typeof obj.currency === "string" ? (obj.currency as Currency) : null;
+      return {
+        id: event.id,
+        kind: "refunded",
+        orderId: orderIdStr,
+        providerRef: typeof obj.id === "string" ? obj.id : null,
+        amountMinor: amountRefunded,
+        currency,
       };
     }
 
