@@ -72,7 +72,10 @@ export function ReferralPanel({ enabled }: { enabled: boolean }) {
   const copy = async () => {
     if (!link) return;
     const result = await shareOrCopy(link, "Join me on The Ravenspire");
-    if (result !== "failed") {
+    /* "dismissed" means they closed the sheet: nothing was copied, so nothing
+       is confirmed. Only "failed" used to be excluded here, which meant a
+       cancelled share said "Copied" and put nothing on the clipboard. */
+    if (result === "shared" || result === "copied") {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }

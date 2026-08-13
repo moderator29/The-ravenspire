@@ -9,6 +9,7 @@ import { crests, CrestRoundel } from "@/components/brand/crests";
 import { Badge, RarityChip } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
+import { Icon } from "@/components/ui/icon";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/meter";
 import { SegmentedControl } from "@/components/ui/tabs";
@@ -49,6 +50,11 @@ import { ClaimButton } from "@/components/collectibles/claim-button";
 
 interface MeProfile {
   id: string;
+  /* The handle is here for one reason: an earned crest gets its own shareable
+     address at /u/<handle>/crest/<slug>, and this page is where a member finds
+     out they have earned one. A crest nobody can link to is a trophy in a
+     drawer. */
+  handle: string | null;
   tier: string;
   renown: number;
 }
@@ -364,6 +370,26 @@ export default function RenownPage() {
                       whole block is absent rather than present and disabled,
                       because a dead control is a promise the screen cannot
                       keep. */}
+                  {/* A crest you hold has an address of its own, and this is
+                      the only place in the realm you would go looking for it.
+                      Absent for a crest you have not earned, because that page
+                      does not exist for you: the reader answers 404 rather
+                      than rendering an achievement nobody made. */}
+                  {isEarned && me?.handle ? (
+                    <div className="mt-3 flex w-full justify-center">
+                      <Button
+                        variant="glass"
+                        size="sm"
+                        dense
+                        render={
+                          <Link href={`/u/${me.handle}/crest/${c.slug}`} />
+                        }
+                      >
+                        <Icon name="share" className="h-3.5 w-3.5" />
+                        Show it to somebody
+                      </Button>
+                    </div>
+                  ) : null}
                   {isEarned && mint?.open ? (
                     <div className="mt-3 w-full border-t border-hair pt-3">
                       {claims.get(c.slug)?.status === "minted" ? (

@@ -5,6 +5,7 @@ import {
   foldStatement,
   type LedgerRow as FoldRow,
 } from "@/lib/economy/earnings";
+import { privacyFlag } from "@/lib/privacy";
 
 /* Earnings summary for the profile panel, the public half of The Coffers.
 
@@ -128,18 +129,6 @@ const REFERRAL_REASONS = new Set(["banner_raised", "banner_answered"]);
 
 const isReferral = (reason: string | null): boolean =>
   reason !== null && REFERRAL_REASONS.has(reason);
-
-function privacyFlag(settings: unknown, key: string): boolean {
-  /* Default ON: a member is only hidden when they explicitly set it false. */
-  if (settings && typeof settings === "object") {
-    const privacy = (settings as Record<string, unknown>).privacy;
-    if (privacy && typeof privacy === "object") {
-      const val = (privacy as Record<string, unknown>)[key];
-      if (typeof val === "boolean") return val;
-    }
-  }
-  return true;
-}
 
 function readThesis(settings: unknown): string | null {
   if (settings && typeof settings === "object") {
