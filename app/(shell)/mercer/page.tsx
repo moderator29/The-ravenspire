@@ -3,6 +3,7 @@ import { MERCER_SKUS, type MercerSku } from "@/lib/collectibles/mercer";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { NotifyMe } from "@/components/realm/notify-me";
+import { BuyButton } from "@/components/commerce/buy-button";
 import { BackButton } from "@/components/shell/back-button";
 
 export const metadata: Metadata = {
@@ -34,10 +35,16 @@ function SkuCard({ sku }: { sku: MercerSku }) {
           {sku.name}
         </h2>
         <p className="text-xs leading-relaxed text-bone-mut">{sku.blurb}</p>
-        <span className="mt-auto inline-flex items-center gap-1.5 self-start rounded-sm border border-steel-line bg-void/80 px-2.5 py-1.5 pt-1.5 text-[11px] font-semibold text-bone-faint">
-          <Icon name="lock" className="h-3 w-3 text-gold" />
-          Materials, sizes and pricing at launch
-        </span>
+        {/* One control that says the truth for whatever state the realm is
+            in. Sizes and photography still arrive with the first approved
+            samples, which is a separate fact from whether the piece can be
+            bought, so it keeps its own line. */}
+        <div className="mt-auto flex flex-col gap-1.5">
+          <BuyButton kind="merch" sku={sku.sku} size="sm" label="Buy for" />
+          <span className="text-[11px] leading-snug text-bone-faint">
+            Materials and sizes with the first samples
+          </span>
+        </div>
       </div>
     </Card>
   );

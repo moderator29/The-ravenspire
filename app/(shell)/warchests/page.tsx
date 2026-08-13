@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { FairnessPanel } from "@/components/collectibles/fairness-panel";
+import { BuyButton } from "@/components/commerce/buy-button";
+import { OpenChest } from "@/components/collectibles/open-chest";
 import { BackButton } from "@/components/shell/back-button";
 
 export const metadata: Metadata = {
@@ -77,12 +79,16 @@ function TierCard({ tier }: { tier: ChestTier }) {
         {tier.guarantee}
       </p>
 
-      {/* The lock, not a dead buy button. A purchase that does not exist is
-          not rendered as one. */}
-      <span className="mt-auto inline-flex items-center gap-1.5 self-start rounded-sm border border-steel-line bg-void/80 px-2.5 py-1.5 text-[11px] font-semibold text-bone-faint">
-        <Icon name="lock" className="h-3 w-3 text-gold" />
-        Opens at launch
-      </span>
+      {/* One control, which says the truth for whatever state the realm is
+          actually in: sealed, open but unpriced, or open and priced. A dead
+          buy button was here before, and a lock that never becomes a purchase
+          is the same lie in the other direction. */}
+      <div className="mt-auto flex flex-col gap-2">
+        <BuyButton kind="chest" sku={tier.sku} label="Buy for" />
+        {/* A chest already paid for. Absent for everyone until one is, which
+            is every member today. */}
+        <OpenChest sku={tier.sku} name={tier.name} />
+      </div>
     </Card>
   );
 }
