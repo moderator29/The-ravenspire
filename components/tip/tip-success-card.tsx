@@ -45,7 +45,7 @@ export function TipSuccessCard({
   return (
     <Card
       variant="warm"
-      pad="none"
+      pad="xl"
       render={
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -53,7 +53,7 @@ export function TipSuccessCard({
           transition={{ duration: 0.3, ease: "easeOut" }}
         />
       }
-      className="relative w-full max-w-md overflow-hidden p-7 text-center"
+      className="relative w-full max-w-md overflow-hidden text-center"
     >
       {/* Radiant gold wash behind the coin. */}
       <div

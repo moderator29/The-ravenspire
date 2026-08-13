@@ -226,7 +226,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
       </Link>
 
       {authenticated ? (
-        <Card render={<Link href="/keep" />} radius="lg" pad="none" className="mb-1 flex items-center gap-2.5 p-2.5 transition-colors duration-150 hover:border-gold/30">
+        <Card render={<Link href="/keep" />} radius="lg" pad="sm" className="mb-1 flex items-center gap-2.5 transition-colors duration-150 hover:border-gold/30">
           {avatarUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -248,7 +248,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
           <StreakFlame className="shrink-0" />
         </Card>
       ) : (
-        <Card radius="lg" pad="none" className="mb-1 p-2.5">
+        <Card radius="lg" pad="sm" className="mb-1">
           <div className="flex items-center gap-2.5">
             <div className="hairline flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-void text-bone-mut">
               <Icon name="user" className="h-[18px] w-[18px]" />

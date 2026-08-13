@@ -182,9 +182,9 @@ export default function WarPage() {
             <Card
               key={mode.name}
               interactive
-              pad="none"
+              pad="md"
               render={<Link href={mode.href} />}
-              className="block p-4"
+              className="block"
             >
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-panel-warm text-gold">
@@ -214,7 +214,7 @@ export default function WarPage() {
               that are actually open competed for attention with the three that
               are not, and only a small badge told them apart. */}
           {lockedModes.map((mode) => (
-            <Card key={mode.name} variant="raised" pad="none" className="p-4">
+            <Card key={mode.name} variant="raised" pad="md">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-panel text-bone-faint">
                   <Icon name={mode.icon} className="h-5 w-5" />

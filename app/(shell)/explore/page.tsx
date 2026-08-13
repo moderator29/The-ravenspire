@@ -241,12 +241,12 @@ function ExploreBody() {
               <Card key={i} radius="lg" pad="none" className="h-14 animate-pulse" />
             ))
           ) : hits && hits.length === 0 ? (
-            <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
+            <Card radius="lg" pad="xl" className="text-center text-sm text-bone-mut">
               No citizen answers to that name. Try another spelling.
             </Card>
           ) : (
             (hits ?? []).map((p, i) => (
-              <Card key={p.id ?? p.handle ?? i} radius="lg" pad="none" className="flex items-center gap-3 p-3">
+              <Card key={p.id ?? p.handle ?? i} radius="lg" pad="md" className="flex items-center gap-3">
                 <Link
                   href={`/u/${p.handle}`}
                   className="flex min-w-0 flex-1 items-center gap-3"
@@ -307,12 +307,12 @@ function ExploreBody() {
                   <Card key={i} radius="lg" pad="none" className="h-14 animate-pulse" />
                 ))
               ) : people.length === 0 ? (
-                <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
+                <Card radius="lg" pad="xl" className="text-center text-sm text-bone-mut">
                   The realm is yet young. Its first names have not risen.
                 </Card>
               ) : (
                 people.map((p) => (
-                  <Card key={p.id} radius="lg" pad="none" className="flex items-center gap-3 p-3">
+                  <Card key={p.id} radius="lg" pad="md" className="flex items-center gap-3">
                     <Link
                       href={`/u/${p.handle}`}
                       className="flex min-w-0 flex-1 items-center gap-3"
@@ -362,7 +362,7 @@ function ExploreBody() {
                   ))}
                 </div>
               ) : cashtags.length === 0 ? (
-                <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
+                <Card radius="lg" pad="xl" className="text-center text-sm text-bone-mut">
                   No cashtags have taken flight yet. Seal a Call and start the
                   talk.
                 </Card>
@@ -396,7 +396,7 @@ function ExploreBody() {
         {houses.map((h) => {
           const stat = houseStats[h.slug];
           return (
-            <Card key={h.slug} render={<Link href={`/houses/${h.slug}`} />} radius="lg" pad="none" interactive className="flex items-center gap-3 p-3">
+            <Card key={h.slug} render={<Link href={`/houses/${h.slug}`} />} radius="lg" pad="md" interactive className="flex items-center gap-3">
               <span
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                 style={{
@@ -438,13 +438,13 @@ function ExploreBody() {
             <Card key={i} radius="lg" pad="none" className="h-14 animate-pulse" />
           ))
         ) : calls.length === 0 ? (
-          <Card radius="lg" pad="none" className="p-6 text-center text-sm text-bone-mut">
+          <Card radius="lg" pad="xl" className="text-center text-sm text-bone-mut">
             No Calls have been sealed yet. The first bold claim awaits its
             maker.
           </Card>
         ) : (
           calls.map((c) => (
-            <Card key={c.id} render={<Link href={`/post/${c.id}`} />} radius="lg" pad="none" interactive className="flex items-center gap-3 p-3">
+            <Card key={c.id} render={<Link href={`/post/${c.id}`} />} radius="lg" pad="md" interactive className="flex items-center gap-3">
               <Icon
                 name="target"
                 className={`h-4.5 w-4.5 shrink-0 ${

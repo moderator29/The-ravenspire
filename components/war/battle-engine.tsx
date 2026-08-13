@@ -501,8 +501,8 @@ export function BattleEngine({
           <div className="pointer-events-none absolute inset-x-0 top-0 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:mx-auto md:max-w-2xl">
             <div className="flex items-center gap-2.5">
               <Card
-                pad="none"
-                className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2 p-2"
+                pad="xs"
+                className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2"
               >
                 {champion.art && (
                   /* eslint-disable-next-line @next/next/no-img-element */
