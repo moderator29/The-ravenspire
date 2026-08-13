@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { MERCER_SKUS, type MercerSku } from "@/lib/collectibles/mercer";
+import {
+  MERCER_SKUS,
+  MERCER_CATEGORIES,
+  type MercerSku,
+} from "@/lib/collectibles/mercer";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { NotifyMe } from "@/components/realm/notify-me";
@@ -8,7 +12,7 @@ import { BackButton } from "@/components/shell/back-button";
 export const metadata: Metadata = {
   title: "The Mercer",
   description:
-    "The realm's official merch. Five pieces at launch, sealed until then.",
+    "The realm's official merch across four ranges, sealed until launch.",
 };
 
 /* THE MERCER (V2 Part Two, section 26.3). Plain label: official merch.
@@ -56,23 +60,40 @@ export default function MercerPage() {
             The Mercer &middot; Official merch
           </p>
           <h1 className="gold-text mt-1.5 font-display text-2xl font-semibold sm:text-3xl">
-            Five pieces, forged once
+            The realm, worn and displayed
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-bone-mut">
             The realm&rsquo;s official merch, made in small runs and made
-            properly. Every King&rsquo;s Reliquary ships with one of these
-            inside. Photography arrives with the first approved samples;
-            until then, the plates carry the plan.
+            properly: regalia to wear, gear for the table, emblems, and pieces
+            for the hall. Every King&rsquo;s Reliquary ships with one inside.
+            Photography arrives with the first approved samples; until then, the
+            plates carry the plan.
           </p>
         </div>
         <NotifyMe feature="mercer" size="md" className="self-start" />
       </header>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        {MERCER_SKUS.map((sku) => (
-          <SkuCard key={sku.sku} sku={sku} />
-        ))}
-      </div>
+      {MERCER_CATEGORIES.map((cat) => {
+        const items = MERCER_SKUS.filter((s) => s.category === cat.key);
+        if (items.length === 0) return null;
+        return (
+          <section key={cat.key} className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3 border-b border-steel-line pb-2">
+              <h2 className="gold-text font-display text-lg font-semibold">
+                {cat.label}
+              </h2>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-bone-faint">
+                {cat.plain}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+              {items.map((sku) => (
+                <SkuCard key={sku.sku} sku={sku} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

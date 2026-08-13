@@ -97,7 +97,7 @@ const PILLARS = [
     icon: "flag",
     name: "The Mercer",
     plain: "Official merch",
-    body: "Five pieces at launch, made properly. Every physical Warchest ships one.",
+    body: "Regalia, table gear, emblems and prints, made properly. Every physical Warchest ships one.",
   },
 ] as const;
 
