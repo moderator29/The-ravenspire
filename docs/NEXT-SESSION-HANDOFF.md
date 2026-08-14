@@ -6,7 +6,7 @@ the features to build next (the in-app Scrying trading + Swap, fully specced
 from the founder's reference images), and the live bug list with what is done
 and what remains.
 
-Live site: ravenspire.vercel.app (production tracks `main`). Open a PR to
+Live site: theravenspire.xyz (production tracks `main`). Open a PR to
 `main` and merge to ship. (The Scrying/Swap session worked on branch
 `claude/scrying-trading-swap-wbq9p3`; use a fresh branch per chunk of work.)
 

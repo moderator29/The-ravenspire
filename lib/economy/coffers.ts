@@ -13,11 +13,14 @@ import {
 
    TWO LEDGERS, IN TWO UNITS, NEVER ADDED TOGETHER.
 
-   POINTS are a realm score. They are not money, they are not $RSP, they are
-   not redeemable for anything, and there is no rate at which they become
-   anything. The surface this replaces printed "Points convert to $RSP at TGE"
-   under the total, which is a financial promise the product has never made and
-   is not entitled to make.
+   POINTS are a realm score. They convert to $RSP at TGE, which is a founder
+   commitment the surfaces state plainly, and NO RATE IS SET, which they state
+   just as plainly. Those are two different claims and only the first has been
+   made: a rate quoted anywhere would turn a promise about the future into a
+   valuation today, and that is the line this file holds.
+
+   Until then a POINT is never rendered as an amount of $RSP, of a dollar, or of
+   anything else, and it is never added to the ledger below.
 
    VALUE is money that has already moved, on a public chain, into the member's
    own wallet. Every entry has a transaction hash and every entry is verified

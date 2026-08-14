@@ -402,13 +402,13 @@ export function EarningsSection({
               No points earned yet. Send ravens, seal calls, win glory.
             </p>
           )}
-          {/* This line used to read "Points convert to $RSP at TGE", which is a
-              conversion the product has never committed to and is not entitled
-              to imply on an earnings surface. Rule 7 is to show POINTS for an
-              earned balance and never an amount of $RSP; a promised rate is the
-              same claim with the arithmetic left out. */}
+          {/* The conversion is committed and is said plainly. The rate is not,
+              and is not implied: rule 7 shows POINTS for an earned balance and
+              never an amount of $RSP, which stays true whether or not a
+              conversion exists. See components/economy/coffers-console.tsx for
+              the longer form of the same sentence. */}
           <p className="mt-1 text-[11px] text-bone-faint">
-            POINTS are standing in the realm, not money
+            POINTS convert to $RSP at TGE. No rate is set yet
           </p>
         </Coffer>
 
