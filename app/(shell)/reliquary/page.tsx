@@ -1,224 +1,235 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { SET_ONE, type SetOneCard } from "@/lib/collectibles/set-one";
-import { houses } from "@/lib/data/houses";
+import {
+  SET_ONE,
+  COLLECTABLE_NOW_COUNT,
+  type SetOneCard,
+} from "@/lib/collectibles/set-one";
+import { houses, sigilIcon } from "@/lib/data/houses";
 import { RarityChip } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { Chip, ChipRail } from "@/components/console/console-shell";
+import { ForgeCorners, ForgeTicks } from "@/components/ui/forge-frame";
+import { cx } from "@/components/ui/cx";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { BackButton } from "@/components/shell/back-button";
-import { SegmentedControl } from "@/components/ui/tabs";
-import { EmptyState } from "@/components/ui/empty-state";
-import { realmFetch } from "@/lib/auth/api";
-import { cx } from "@/components/ui/cx";
+import type { Rarity } from "@/lib/game/champions";
+
+/* Sigil by full House name, for the sealed-back fallback when a portrait has
+   not landed yet. */
+const sigilByHouseName = new Map(
+  houses.map((h) => [h.name, sigilIcon[h.sigil] ?? "banner"] as const)
+);
 
 /* THE RELIQUARY (V2 Part Two, section 26.1). Plain label: cards and relics.
  *
- * The realm's catalog and, after launch, the member's binder. This page is
- * the sealed preview of Set One: every card rendered from the real roster,
- * teased but locked, with a Notify me that registers real interest.
+ * The realm's catalog and, after launch, the member's binder. Set One, the
+ * legion of the Six Houses, shown portrait-forward: the champions are the
+ * surface, House by House, at the size the art deserves. Each card is two
+ * containers, a forged-gold portrait frame over an obsidian-and-gold info
+ * plate, drawn from the reference card. This is a Forge moment (design law,
+ * rule 21), so the frame carries corner brackets and the tile lifts on hover,
+ * ornament earned by the showcase.
  *
- * The seal is deliberately per card rather than a blur over the whole page.
- * The catalog is the marketing; hiding all of it would defeat the preview.
- * So the checklist reads crisp (a collector wants the list), the art sits
- * behind a sealed veil, and a press or hover lifts the veil on one card at a
- * time. The lift animates opacity only, per the motion law.
- *
- * Honesty rules this surface. No owners, no prices, no supplies, no sale
- * counts: none of that exists yet, so none of it is shown. What is shown is
- * real: forty champions, their names, titles, houses and rarities, straight
- * from lib/game/champions.ts. Twenty cards carry finished art today; the
- * other twenty show the sealed card back until their portraits land, and say
- * so plainly.
- *
- * AND NOW IT KNOWS WHAT YOU HOLD. The catalog was a poster; with a holdings
- * ledger behind it, it becomes a checklist, which is the thing a collector
- * actually returns to. A card you hold is unsealed and wears its rarity frame,
- * because the seal was always about a card you have not pulled yet rather than
- * about a chapter being closed. The progress line, the filter and the frames
- * are all absent until the read lands, so the page never spends a moment
- * claiming you own nothing before it knows. */
+ * The roster is revealed, the mint is sealed. Showing the champion art is
+ * marketing, not a sale: no owners, prices, supplies or sale counts appear,
+ * because none exist yet, and the page says the mint is sealed until launch.
+ * Every name, title, House and rarity is the real record from
+ * lib/game/champions.ts; most cards carry finished art, the few whose
+ * portraits have not landed show the House sigil and say "Portrait incoming".
+ * A card opens the collectible's own inner page, a real door, never a dead one.
+ * Most of the set is locked and held for a future drop; a small genesis wave is
+ * collectable now, and each card wears its drop state. */
 
-const sigilByHouse = new Map(houses.map((h) => [h.name, h.sigil] as const));
+type HouseFilter = "all" | string;
+type RarityFilter = "all" | Rarity;
 
-function CardFace({
-  card,
-  peeked,
-  copies,
-}: {
-  card: SetOneCard;
-  peeked: boolean;
-  /* How many the viewer holds. Zero means sealed, which is everybody today. */
-  copies: number;
-}) {
+const RARITY_FILTERS: { key: RarityFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "mythic", label: "Mythic" },
+  { key: "legendary", label: "Legendary" },
+  { key: "epic", label: "Epic" },
+  { key: "rare", label: "Rare" },
+];
+
+/* One card in the legion, two stacked containers.
+ *
+ * TOP: the portrait, framed in forged gold with corner brackets and a HUD tick
+ * motif drawn from the reference card. No text of any kind sits on the art: the
+ * name, the rarity, the collector number all live in the panel below, so the
+ * portrait is only ever the portrait.
+ *
+ * BOTTOM: the info panel, a slick obsidian-and-gold plate. The name gets its
+ * own full line in the gold gradient, then a details row carries the rarity and
+ * the collector number, the same shape the reference card uses.
+ *
+ * A link, not a dead door: the card opens the collectible's own inner page,
+ * where the edition, traits, kit and lore live. The whole tile lifts on hover
+ * and the portrait pushes in, transform only. The House is not repeated on the
+ * card because the section header above already names it. A locked card is part
+ * of Set One but held for a future drop, marked here and dimmed a touch. */
+function LegionCard({ card }: { card: SetOneCard }) {
   const c = card.champion;
-  const sigil = sigilByHouse.get(c.house) ?? "banner";
-  const owned = copies > 0;
+  const sigil = sigilByHouseName.get(c.house) ?? "banner";
 
   return (
-    <div
-      className={cx(
-        "relative aspect-[5/7] w-full overflow-hidden rounded-lg bg-void",
-        /* A card you hold earns the Forge: its rarity frame and its light. An
-           unheld one stays a flat plate, so the difference between the two is
-           visible from across the room, which is the whole point of the
-           checklist. */
-        owned ? `rarity-${c.rarity} rarity-frame` : "border border-steel-line"
-      )}
+    <Link
+      href={`/reliquary/${c.slug}`}
+      aria-label={`${c.name}, ${c.rarity} of ${c.house}. ${
+        card.locked ? "Held for a future drop." : "In the genesis drop."
+      } Open the collectible.`}
+      className="group flex flex-col gap-2 rounded-lg outline-none transition-transform duration-fast ease-out-quint hover:-translate-y-1 focus-visible:-translate-y-1"
     >
-      {c.art ? (
-        <Image
-          src={c.art}
-          alt=""
-          fill
-          sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 200px"
-          className="object-cover"
-        />
-      ) : (
-        /* The card back: house sigil on obsidian. Honest about the missing
-           portrait rather than faking one. */
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[image:radial-gradient(80%_60%_at_50%_35%,rgba(217,176,64,0.08),transparent_70%)]">
-          <Icon name={sigil} className="h-10 w-10 text-gold/40" />
-          <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-bone-faint">
-            Portrait incoming
-          </span>
-        </div>
-      )}
-
-      {/* The seal. A veil over the art, not over the checklist: backdrop blur
-          plus an obsidian scrim, carrying the padlock. It fades on peek and on
-          hover, opacity only. pointer-events-none so the card button under it
-          receives every tap. */}
-      <div
-        aria-hidden
-        className={cx(
-          "pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2",
-          "bg-obsidian/45 backdrop-blur-[3px]",
-          "transition-opacity duration-base ease-out-quint",
-          /* A card you own is never veiled. The seal is about a card you have
-             not pulled yet, not about a chapter being closed. */
-          owned || peeked ? "opacity-0" : "opacity-100 group-hover:opacity-0"
+      {/* The portrait container. Forged gold frame, no text. */}
+      <div className="relative aspect-[5/7] w-full overflow-hidden rounded-lg border border-gold/25 bg-void shadow-[0_10px_28px_-12px_rgba(0,0,0,0.75)] transition-colors duration-fast group-hover:border-gold/55">
+        {c.art ? (
+          <Image
+            src={c.art}
+            alt=""
+            fill
+            sizes="(min-width:1024px) 300px, (min-width:640px) 33vw, 50vw"
+            className={cx(
+              "object-cover transition-transform duration-slow ease-out-quint group-hover:scale-[1.04]",
+              card.locked && "opacity-85"
+            )}
+          />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[image:radial-gradient(80%_60%_at_50%_35%,rgba(217,176,64,0.08),transparent_70%)]">
+            <Icon name={sigil} className="h-12 w-12 text-gold/40" />
+            <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-bone-faint">
+              Portrait incoming
+            </span>
+          </div>
         )}
-      >
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gold/30 bg-obsidian/80">
-          <Icon name="lock" className="h-4 w-4 text-gold" />
+
+        {/* A warm inner vignette so the gold frame reads against any art. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-lg shadow-[inset_0_0_38px_rgba(0,0,0,0.55)]"
+        />
+
+        {/* Drop state, top-left. Genesis pieces get a gold spark, locked pieces
+            a padlock, so the wave reads at a glance across the grid. */}
+        <span
+          className={cx(
+            "pointer-events-none absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] backdrop-blur-[2px]",
+            card.locked
+              ? "border-steel-line/70 bg-obsidian/70 text-bone-faint"
+              : "border-gold/45 bg-obsidian/70 text-gold-bright"
+          )}
+        >
+          <Icon name={card.locked ? "lock" : "spark"} className="h-2.5 w-2.5" />
+          {card.locked ? "Locked" : "Drop"}
         </span>
-        <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-bone-mut">
-          Sealed
-        </span>
+
+        <ForgeCorners />
+        <ForgeTicks />
       </div>
 
-      {/* Collector number, always visible, the way a printed card carries it. */}
-      <span className="tnum absolute left-1.5 top-1.5 rounded-sm bg-obsidian/70 px-1.5 py-0.5 text-[9px] font-semibold text-bone-faint">
-        {card.number}/{SET_ONE.counts.total}
-      </span>
-
-      {/* Held, and how many. Gold, because a card in your collection is the one
-          thing on this page worth shouting about. */}
-      {owned ? (
-        <span className="tnum absolute right-1.5 top-1.5 rounded-sm bg-obsidian/80 px-1.5 py-0.5 text-[9px] font-semibold text-gold">
-          {copies > 1 ? `${copies} held` : "Held"}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function SetCard({ card, copies }: { card: SetOneCard; copies: number }) {
-  const [peeked, setPeeked] = useState(false);
-  const c = card.champion;
-
-  return (
-    /* A button, not a link: there is nowhere to go yet, and pretending
-       otherwise would be a dead door. Pressing peeks the art; pressing again
-       reseals. Hover peeks on a mouse without the press. */
-    <button
-      type="button"
-      aria-pressed={peeked}
-      aria-label={
-        copies > 0
-          ? `${c.name}, ${c.rarity} of ${c.house}. ${copies > 1 ? `${copies} held` : "Held"}.`
-          : `${c.name}, ${c.rarity} of ${c.house}. Sealed preview.`
-      }
-      onClick={() => setPeeked((v) => !v)}
-      className="touch:min-h-11 touch:min-w-11 group flex flex-col gap-2 rounded-lg text-left"
-    >
-      <CardFace card={card} peeked={peeked} copies={copies} />
-      <span className="flex min-w-0 flex-col gap-1 px-0.5">
-        <span className="truncate font-display text-[13px] font-semibold leading-tight text-bone">
+      {/* The info panel. Name on its own line, then a details row. */}
+      <div className="relative overflow-hidden rounded-md border border-gold/25 bg-gradient-to-b from-panel-warm to-void px-3 py-2.5 transition-colors duration-fast group-hover:border-gold/50">
+        {/* Gold hairline across the top, the reference card's divider. */}
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--gold),transparent)] opacity-70"
+        />
+        <span className="gold-text block font-display text-sm font-semibold leading-tight [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
           {c.name}
         </span>
-        <span className="truncate text-[10px] uppercase tracking-[0.14em] text-bone-faint">
+        <span className="mt-0.5 block truncate text-[10px] uppercase tracking-[0.14em] text-bone-faint">
           {c.title}
         </span>
-        <span className="mt-0.5 flex items-center gap-1.5">
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-steel-line/70 pt-1.5">
           <RarityChip rarity={c.rarity}>{c.rarity}</RarityChip>
-          <span className="truncate text-[10px] text-bone-faint">
-            {c.house.replace("House ", "")}
+          <span className="tnum shrink-0 text-[9px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
+            No. {card.number}
+            <span className="text-bone-faint/60">/{SET_ONE.counts.total}</span>
           </span>
-        </span>
-      </span>
-    </button>
+        </div>
+      </div>
+    </Link>
   );
 }
 
-type Filter = "all" | "held" | "missing";
+/* A House block: a cinematic header (sigil, name, motto, count) over that
+   House's champions. The header is the one place the legion breathes between
+   the dense card grids. */
+function HouseBlock({
+  houseName,
+  cards,
+}: {
+  houseName: string;
+  cards: SetOneCard[];
+}) {
+  const house = houses.find((h) => h.name === houseName);
+  const sigil = house ? sigilIcon[house.sigil] ?? "banner" : "banner";
+  if (cards.length === 0) return null;
 
-const FILTERS = [
-  { value: "all", label: "All" },
-  { value: "held", label: "Held" },
-  { value: "missing", label: "Missing" },
-];
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="flex items-center gap-3 border-b border-steel-line pb-2.5">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gold/25 bg-obsidian/70">
+          <Icon name={sigil} className="h-5 w-5 text-gold" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="gold-text font-display text-lg font-semibold leading-tight">
+            {houseName}
+          </h2>
+          {house ? (
+            <p className="truncate text-[11px] uppercase tracking-[0.18em] text-bone-faint">
+              {house.motto}
+            </p>
+          ) : null}
+        </div>
+        <span className="tnum ml-auto shrink-0 text-xs font-semibold text-bone-faint">
+          {cards.length} {cards.length === 1 ? "champion" : "champions"}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {cards.map((card) => (
+          <LegionCard key={card.champion.slug} card={card} />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function ReliquaryPage() {
   const { counts } = SET_ONE;
-  /* Copies held per champion, from the member's own holdings ledger. Null
-     until the read lands and for anyone signed out, which is the difference
-     between "you hold nothing" and "we do not know yet". A checklist that
-     briefly claims you own nothing is a checklist that lies for a moment. */
-  const [held, setHeld] = useState<Map<string, number> | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [house, setHouse] = useState<HouseFilter>("all");
+  const [rarity, setRarity] = useState<RarityFilter>("all");
 
-  const loadHoldings = useCallback(async () => {
-    const res = await realmFetch<{
-      cards?: { champion_slug: string; set_slug: string }[];
-    }>("/api/inventory");
-    if (!res.ok) {
-      setHeld(new Map());
-      return;
-    }
-    const counted = new Map<string, number>();
-    for (const copy of res.data?.cards ?? []) {
-      if (copy.set_slug !== SET_ONE.slug) continue;
-      counted.set(copy.champion_slug, (counted.get(copy.champion_slug) ?? 0) + 1);
-    }
-    setHeld(counted);
+  /* House order follows the canonical houses list so the legion always reads
+     in the same sequence, then any House the set uses that is not in that list
+     is appended rather than dropped. */
+  const houseOrder = useMemo(() => {
+    const canonical = houses.map((h) => h.name);
+    const present = Array.from(
+      new Set(SET_ONE.cards.map((c) => c.champion.house))
+    );
+    const extra = present.filter((h) => !canonical.includes(h));
+    return [...canonical.filter((h) => present.includes(h)), ...extra];
   }, []);
 
-  useEffect(() => {
-    void loadHoldings();
-  }, [loadHoldings]);
-
-  const holdings = useMemo(() => held ?? new Map<string, number>(), [held]);
-  const distinct = holdings.size;
-
-  const shown = useMemo(
+  const filtered = useMemo(
     () =>
-      SET_ONE.cards.filter((card) =>
-        filter === "all"
-          ? true
-          : filter === "held"
-            ? (holdings.get(card.champion.slug) ?? 0) > 0
-            : (holdings.get(card.champion.slug) ?? 0) === 0
+      SET_ONE.cards.filter(
+        (c) =>
+          (house === "all" || c.champion.house === house) &&
+          (rarity === "all" || c.champion.rarity === rarity)
       ),
-    [filter, holdings]
+    [house, rarity]
   );
 
+  const visibleHouses =
+    house === "all" ? houseOrder : houseOrder.filter((h) => h === house);
+
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-3 py-4 sm:px-4 sm:py-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 py-4 sm:px-4 sm:py-6">
       <div className="flex">
         <BackButton />
       </div>
@@ -232,10 +243,10 @@ export default function ReliquaryPage() {
             Set One: {SET_ONE.name}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-bone-mut">
-            Forty champions drawn from the War&rsquo;s own roster, sealed until
-            launch. Every name, title and rarity on this page is the real
-            record: the same champions you can already muster on the field.
-            Owning the card is owning the champion.
+            The legion of the Six Houses, drawn from the War&rsquo;s own roster.
+            Every name, title and rarity is the real record: the same champions
+            you can already muster on the field. The roster is revealed; the mint
+            stays sealed until launch. Owning the card is owning the champion.
           </p>
         </div>
 
@@ -250,22 +261,7 @@ export default function ReliquaryPage() {
           </Link>
         </div>
 
-        {/* Where the member stands in the set, and it is real or it is absent.
-            Before the holdings read lands there is no progress line at all,
-            rather than a zero that might be wrong. */}
-        {held !== null && distinct > 0 ? (
-          <Card variant="warm" tone="gold" pad="none" radius="lg" className="px-4 py-3">
-            <p className="tnum text-sm font-semibold text-bone">
-              {distinct} of {counts.total} collected
-            </p>
-            <p className="mt-0.5 text-xs text-bone-mut">
-              Every card you hold can be carried to your own wallet.
-            </p>
-          </Card>
-        ) : null}
-
-        {/* The set line, computed from the set itself so it can never drift
-            from the cards below it. */}
+        {/* The set line, computed from the set so it can never drift. */}
         <Card variant="raised" pad="none" radius="lg" className="px-4 py-3">
           <p className="tnum flex flex-wrap gap-x-4 gap-y-1 text-xs text-bone-mut">
             <span className="font-semibold text-bone">{counts.total} cards</span>
@@ -274,43 +270,49 @@ export default function ReliquaryPage() {
             <span>{counts.epic} epic</span>
             <span>{counts.rare} rare</span>
             <span>six Houses</span>
+            <span className="text-gold-bright">
+              {COLLECTABLE_NOW_COUNT} in the genesis drop
+            </span>
           </p>
         </Card>
       </header>
 
-      {/* Three mutually exclusive views of one collection, switched in place,
-          which is the segmented control case. It appears only once the member
-          holds something: a Held and Missing filter over an empty collection is
-          two dead tabs and a full one. */}
-      {held !== null && distinct > 0 ? (
-        <SegmentedControl
-          label="The set"
-          block
-          value={filter}
-          onValueChange={(next) => setFilter(next as Filter)}
-          items={FILTERS}
-        />
-      ) : null}
+      {/* Browse the legion by House, then narrow by rarity. */}
+      <div className="flex flex-col gap-2">
+        <ChipRail label="Filter by House">
+          <Chip active={house === "all"} onClick={() => setHouse("all")}>
+            All Houses
+          </Chip>
+          {houseOrder.map((h) => (
+            <Chip key={h} active={house === h} onClick={() => setHouse(h)}>
+              {h.replace("House ", "")}
+            </Chip>
+          ))}
+        </ChipRail>
+        <ChipRail label="Filter by rarity">
+          {RARITY_FILTERS.map((r) => (
+            <Chip
+              key={r.key}
+              active={rarity === r.key}
+              onClick={() => setRarity(r.key)}
+            >
+              {r.label}
+            </Chip>
+          ))}
+        </ChipRail>
+      </div>
 
-      {shown.length === 0 ? (
-        <Card pad="none">
-          <EmptyState
-            icon3d="cards"
-            title={filter === "held" ? "Nothing from this set yet" : "The set is complete"}
-            body={
-              filter === "held"
-                ? "Cards arrive from Warchests and from the codes printed inside physical boxes. Every one you pull lands here."
-                : "You hold every card in Set One. There is nothing left to find."
-            }
-          />
-        </Card>
+      {filtered.length === 0 ? (
+        <p className="rounded-lg border border-steel-line bg-obsidian/40 px-4 py-8 text-center text-sm text-bone-mut">
+          No champions match that filter.
+        </p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {shown.map((card) => (
-            <SetCard
-              key={card.champion.slug}
-              card={card}
-              copies={holdings.get(card.champion.slug) ?? 0}
+        <div className="flex flex-col gap-8">
+          {visibleHouses.map((h) => (
+            <HouseBlock
+              key={h}
+              houseName={h}
+              cards={filtered.filter((c) => c.champion.house === h)}
             />
           ))}
         </div>
@@ -318,8 +320,8 @@ export default function ReliquaryPage() {
 
       <p className="max-w-2xl text-xs leading-relaxed text-bone-faint">
         Planned supplies are announced before anything mints, and nothing mints
-        until the set is final. No prices, no owners, no sale counts appear
-        here because none exist yet. Press a card to peek at it.
+        until the set is final. No prices, no owners, no sale counts appear here
+        because none exist yet. Open any champion to read its kit in the War.
       </p>
     </div>
   );

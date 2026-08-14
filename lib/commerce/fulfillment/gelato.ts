@@ -10,7 +10,7 @@ import {
 /* Gelato, the primary print-on-demand vendor.
  *
  * Implemented against Gelato's Order API with fetch, no SDK, same reasoning as
- * the Stripe provider: one HTTP call, budget zero, secret server-side only. The
+ * the payment provider: one HTTP call, budget zero, secret server-side only. The
  * api key is GELATO_API_KEY and the platform-to-Gelato product mapping is
  * GELATO_PRODUCT_MAP. Both must be present to be configured; with no mapping,
  * createOrder throws rather than invent a product id.

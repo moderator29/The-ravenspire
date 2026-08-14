@@ -1,6 +1,6 @@
 import "server-only";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
-import { MERCER_SKUS } from "@/lib/collectibles/mercer";
+import { MERCER_SKUS, type MercerKind } from "@/lib/collectibles/mercer";
 import { majorToMinor } from "@/lib/commerce/money";
 import type { Rarity } from "@/lib/game/champions";
 
@@ -156,56 +156,6 @@ export function physicalGoodsFloorMinor(sku: string): number {
   return entry.floorMinor - majorToMinor(worstCaseCardFloorUsd(sku));
 }
 
-/* THE MERCER, priced. Set by the founder.
- *
- * Keyed by the same slugs the customer catalog uses
- * (lib/collectibles/mercer.ts), which carries the names, the blurbs and the
- * plates and deliberately carries no money. A sku here with no product there,
- * or a product there with no price here, breaks the build: a shop that can
- * charge for something it cannot name, or name something it cannot price, is
- * a shop with a hole in it. */
-const MERCH_PRICING: Record<string, number> = {
-  "obsidian-tee": 32,
-  "rookery-hoodie": 68,
-  "banner-cap": 30,
-  "set-one-print": 42,
-  "war-playmat": 48,
-};
-
-export interface MerchCatalogEntry {
-  sku: string;
-  name: string;
-  kind: string;
-  priceMinor: number;
-}
-
-export const MERCH_CATALOG: MerchCatalogEntry[] = MERCER_SKUS.map((product) => {
-  const price = MERCH_PRICING[product.sku];
-  if (price === undefined) {
-    throw new Error(
-      `Mercer product ${product.sku} has no catalog price. Nothing is sellable without one.`
-    );
-  }
-  return {
-    sku: product.sku,
-    name: product.name,
-    kind: product.kind,
-    priceMinor: majorToMinor(price),
-  };
-});
-
-for (const sku of Object.keys(MERCH_PRICING)) {
-  if (!MERCER_SKUS.some((p) => p.sku === sku)) {
-    throw new Error(
-      `Catalog prices ${sku}, which is not a Mercer product. A price with no product is a price for nothing.`
-    );
-  }
-}
-
-export function merchPrice(sku: string): MerchCatalogEntry | null {
-  return MERCH_CATALOG.find((m) => m.sku === sku) ?? null;
-}
-
 export function chestPrice(sku: string): ChestCatalogEntry | null {
   return CHEST_CATALOG.find((c) => c.sku === sku) ?? null;
 }
@@ -223,6 +173,57 @@ export const RARITY_SUPPLY: Record<PackRarity, number> = {
 /* Set One art prints are numbered giclees, this edition per champion. */
 export const SET_ONE_PRINT_EDITION = 250;
 
+/* THE MERCER, priced by product kind. Set by the founder, server only.
+ *
+ * Keyed by kind rather than by sku, so a new sku of an already-priced kind is
+ * priced automatically. Only the kinds the founder has priced appear; an
+ * unpriced kind is left out rather than guessed, which keeps the real-data
+ * rule (no invented price). Every launch piece is priced. */
+const MERCH_PRICE_BY_KIND: Partial<Record<MercerKind, number>> = {
+  tee: 25,
+  hoodie: 35,
+  cap: 10,
+  "long-sleeve": 31,
+  shorts: 17,
+  joggers: 22,
+  tracksuit: 69,
+  belt: 14.49,
+  sleeveless: 21.49,
+  sleeves: 10,
+  "deck-box": 8,
+  playmat: 25,
+  binder: 22,
+};
+
+export interface MerchCatalogEntry {
+  sku: string;
+  name: string;
+  kind: string;
+  priceMinor: number;
+}
+
+/* One priced entry per Mercer sku whose kind the founder has set. Derived from
+   the customer catalog (lib/collectibles/mercer.ts), so the sku, name and kind
+   can never drift from the product, and only the price is added here. An
+   unpriced kind is left out rather than guessed. */
+export const MERCH_CATALOG: MerchCatalogEntry[] = MERCER_SKUS.flatMap((s) => {
+  const major = MERCH_PRICE_BY_KIND[s.kind];
+  return major === undefined
+    ? []
+    : [
+        {
+          sku: s.sku,
+          name: s.name,
+          kind: s.kind,
+          priceMinor: majorToMinor(major),
+        },
+      ];
+});
+
+export function merchPrice(sku: string): MerchCatalogEntry | null {
+  return MERCH_CATALOG.find((m) => m.sku === sku) ?? null;
+}
+
 /* True only when a human has confirmed that the realm may charge these prices.
    Defaults to false, and it is still false: the prices above are the founder's
    final numbers, but confirmation waits on three things that have nothing to do
@@ -233,9 +234,10 @@ export function pricesConfirmed(): boolean {
   return process.env.COMMERCE_PRICES_CONFIRMED === "true";
 }
 
-/* The chosen payment provider, defaulting to Stripe. See lib/commerce/payments. */
+/* The chosen payment provider, defaulting to Coinbase Commerce (crypto, ETH on
+   mainnet and ETH or USDC on Base). See lib/commerce/payments. */
 export function paymentProviderName(): string {
-  return process.env.PAYMENT_PROVIDER?.trim().toLowerCase() || "stripe";
+  return process.env.PAYMENT_PROVIDER?.trim().toLowerCase() || "coinbase";
 }
 
 /* The chosen fulfillment vendor, defaulting to Gelato. See

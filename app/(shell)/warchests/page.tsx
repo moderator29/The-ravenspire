@@ -1,19 +1,29 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CHEST_TIERS, type ChestTier } from "@/lib/collectibles/warchests";
+import { getFlag } from "@/lib/flags";
+import { pricesConfirmed } from "@/lib/commerce/catalog";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { ForgeCorners, ForgeTicks } from "@/components/ui/forge-frame";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { FairnessPanel } from "@/components/collectibles/fairness-panel";
 import { BuyButton } from "@/components/commerce/buy-button";
 import { AlmsPanel } from "@/components/commerce/alms-panel";
 import { OpenChest } from "@/components/collectibles/open-chest";
 import { BackButton } from "@/components/shell/back-button";
+import { WarchestsStore } from "@/components/commerce/warchests-store";
 
 export const metadata: Metadata = {
   title: "Warchests",
   description:
     "Mystery boxes of the realm. Exact odds printed on every chest, sealed until launch.",
 };
+
+/* Flag-dependent: read the chapter flag and the price gate at request time, so
+   opening day is a flag flip and not a deploy, the same posture as GET
+   /api/chests. */
+export const dynamic = "force-dynamic";
 
 /* WARCHESTS (V2 Part Two, section 26.2). Plain label: mystery boxes.
  *
@@ -55,13 +65,34 @@ function OddsTable({ tier }: { tier: ChestTier }) {
 function TierCard({ tier }: { tier: ChestTier }) {
   return (
     <Card variant={tier.kind === "physical" ? "warm" : "default"} radius="xl" className="flex flex-col gap-4">
+      {/* The chest in its forged frame, a real door to the chest's own page. */}
+      <Link
+        href={`/warchests/${tier.sku}`}
+        aria-label={`${tier.name}. Open the chest details.`}
+        className="group relative flex items-center justify-center overflow-hidden rounded-lg border border-gold/25 bg-void/60 p-4 transition-colors duration-fast hover:border-gold/55"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={tier.art.closed}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="h-32 w-auto max-w-full object-contain transition-transform duration-slow ease-out-quint group-hover:scale-[1.05]"
+          style={{ filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.55))" }}
+        />
+        <ForgeCorners />
+        <ForgeTicks />
+      </Link>
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-bone-faint">
           {tier.kind === "physical" ? "Physical box" : "Digital chest"} &middot; {tier.plain}
         </p>
-        <h2 className="gold-text mt-1 font-display text-xl font-semibold">
+        <Link
+          href={`/warchests/${tier.sku}`}
+          className="gold-text mt-1 inline-block font-display text-xl font-semibold transition-opacity duration-fast hover:opacity-80"
+        >
           {tier.name}
-        </h2>
+        </Link>
       </div>
 
       <ul className="flex flex-col gap-1.5">
@@ -94,9 +125,20 @@ function TierCard({ tier }: { tier: ChestTier }) {
   );
 }
 
-export default function WarchestsPage() {
+export default async function WarchestsPage() {
+  /* Two independent switches, both server-read: the chapter flag and the price
+     confirmation gate. The store is shown only when the chapter is live AND
+     prices are confirmed, which is exactly the pair the checkout route enforces.
+     While either is off the page stays sealed, and no price is rendered because
+     none is exposed. */
+  const [live, confirmed] = await Promise.all([
+    getFlag("chests_live"),
+    Promise.resolve(pricesConfirmed()),
+  ]);
+  const open = live && confirmed;
+
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-3 py-4 sm:px-4 sm:py-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-3 py-4 sm:px-4 sm:py-6">
       <div className="flex">
         <BackButton />
       </div>
@@ -116,14 +158,20 @@ export default function WarchestsPage() {
             keys, and a chest never hides its odds.
           </p>
         </div>
-        <NotifyMe feature="warchests" size="md" className="self-start" />
+        {!open && (
+          <NotifyMe feature="warchests" size="md" className="self-start" />
+        )}
       </header>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {CHEST_TIERS.map((tier) => (
-          <TierCard key={tier.sku} tier={tier} />
-        ))}
-      </div>
+      {open ? (
+        <WarchestsStore tiers={CHEST_TIERS} />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          {CHEST_TIERS.map((tier) => (
+            <TierCard key={tier.sku} tier={tier} />
+          ))}
+        </div>
+      )}
 
       {/* The free path, directly under the paid ones and on the same page,
           because a free method of entry that is harder to find than the
@@ -138,10 +186,9 @@ export default function WarchestsPage() {
       <FairnessPanel />
 
       <p className="max-w-2xl text-xs leading-relaxed text-bone-faint">
-        Prices are set and stay off this page until the realm is ready to take
-        payment. Odds are the planned specification and are final before launch;
-        every chest carries its guarantee in writing. Chest openings settle on
-        the server, and every pull is auditable.
+        {open
+          ? "Your exact total is confirmed at secure checkout. Odds are printed on every chest, every chest carries its guarantee in writing, and every pull settles on the server and is auditable."
+          : "Prices are set and stay off this page until the realm is ready to take payment. Odds are the planned specification and are final before launch; every chest carries its guarantee in writing. Chest openings settle on the server, and every pull is auditable."}
       </p>
     </div>
   );

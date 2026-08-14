@@ -91,11 +91,13 @@ describe("the per-rarity floor", () => {
 
 describe("the Mercer", () => {
   it("carries the founder's merch prices exactly", () => {
-    expect(merchPrice("obsidian-tee")?.priceMinor).toBe(3200);
-    expect(merchPrice("rookery-hoodie")?.priceMinor).toBe(6800);
-    expect(merchPrice("banner-cap")?.priceMinor).toBe(3000);
-    expect(merchPrice("set-one-print")?.priceMinor).toBe(4200);
-    expect(merchPrice("war-playmat")?.priceMinor).toBe(4800);
+    expect(merchPrice("watcher-tee")?.priceMinor).toBe(2500);
+    expect(merchPrice("citadel-hoodie")?.priceMinor).toBe(3500);
+    expect(merchPrice("raven-cap")?.priceMinor).toBe(1000);
+    expect(merchPrice("raven-tracksuit")?.priceMinor).toBe(6900);
+    expect(merchPrice("crest-belt")?.priceMinor).toBe(1449);
+    expect(merchPrice("raven-shorts")?.priceMinor).toBe(1700);
+    expect(merchPrice("raven-joggers")?.priceMinor).toBe(2200);
   });
 
   it("prices every product in the customer catalog, and nothing that is not", () => {
