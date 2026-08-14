@@ -21,6 +21,7 @@ import {
   ChampionCardFace,
   type ChampionCardSubject,
 } from "@/components/ui/champion-card";
+import { ForgeCorners } from "@/components/ui/forge-frame";
 import { CopyButton } from "@/components/wallet/copy-button";
 import { cx } from "@/components/ui/cx";
 
@@ -422,12 +423,17 @@ function RevealFace({
                   }
             }
           >
-            <ChampionCardFace
-              champion={c.champion}
-              number={c.number}
-              total={SET_ONE.counts.total}
-              size="sm"
-            />
+            {/* The pulled card wears the same forged frame as the gallery, so a
+                card revealed here and a card in the Reliquary are one object. */}
+            <div className="relative">
+              <ChampionCardFace
+                champion={c.champion}
+                number={c.number}
+                total={SET_ONE.counts.total}
+                size="sm"
+              />
+              <ForgeCorners size="sm" />
+            </div>
           </motion.div>
         ))}
       </div>

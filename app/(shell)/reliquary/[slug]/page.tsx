@@ -10,6 +10,7 @@ import { Icon } from "@/components/ui/icon";
 import { RarityChip } from "@/components/ui/badge";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { BackButton } from "@/components/shell/back-button";
+import { ForgeCorners } from "@/components/ui/forge-frame";
 
 /* THE COLLECTIBLE (V2 Part Two, section 31). The inner page of one Set One card.
  *
@@ -40,17 +41,6 @@ export async function generateMetadata({
   };
 }
 
-function Corners() {
-  const base = "pointer-events-none absolute h-4 w-4 border-gold/50";
-  return (
-    <>
-      <span aria-hidden className={`${base} left-1.5 top-1.5 border-l-2 border-t-2`} />
-      <span aria-hidden className={`${base} right-1.5 top-1.5 border-r-2 border-t-2`} />
-      <span aria-hidden className={`${base} bottom-1.5 left-1.5 border-b-2 border-l-2`} />
-      <span aria-hidden className={`${base} bottom-1.5 right-1.5 border-b-2 border-r-2`} />
-    </>
-  );
-}
 
 function Trait({ label, value }: { label: string; value: string }) {
   return (
@@ -122,7 +112,7 @@ export default async function CollectiblePage({
                 </span>
               </div>
             )}
-            <Corners />
+            <ForgeCorners size="lg" />
           </div>
         </div>
 

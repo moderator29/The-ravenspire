@@ -13,6 +13,7 @@ import { RarityChip } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Chip, ChipRail } from "@/components/console/console-shell";
+import { ForgeCorners, ForgeTicks } from "@/components/ui/forge-frame";
 import { cx } from "@/components/ui/cx";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { BackButton } from "@/components/shell/back-button";
@@ -23,33 +24,6 @@ import type { Rarity } from "@/lib/game/champions";
 const sigilByHouseName = new Map(
   houses.map((h) => [h.name, sigilIcon[h.sigil] ?? "banner"] as const)
 );
-
-/* The four gold corner brackets that give a frame the forged-HUD look. Drawn
-   with borders, no radius, so they read sharp. They brighten with the tile on
-   hover. */
-function Corners() {
-  const base =
-    "pointer-events-none absolute h-3.5 w-3.5 border-gold/45 transition-colors duration-fast group-hover:border-gold-bright/90";
-  return (
-    <>
-      <span aria-hidden className={cx(base, "left-1 top-1 border-l-2 border-t-2")} />
-      <span aria-hidden className={cx(base, "right-1 top-1 border-r-2 border-t-2")} />
-      <span aria-hidden className={cx(base, "bottom-1 left-1 border-b-2 border-l-2")} />
-      <span aria-hidden className={cx(base, "bottom-1 right-1 border-b-2 border-r-2")} />
-    </>
-  );
-}
-
-/* The little HUD tick motif, three forged bars, echoing the reference card. */
-function Ticks() {
-  return (
-    <span aria-hidden className="pointer-events-none absolute right-2.5 top-2 flex items-center gap-[3px]">
-      <span className="h-2.5 w-[2px] -skew-x-12 bg-gold/60" />
-      <span className="h-2.5 w-[2px] -skew-x-12 bg-gold/45" />
-      <span className="h-2.5 w-[2px] -skew-x-12 bg-gold/30" />
-    </span>
-  );
-}
 
 /* THE RELIQUARY (V2 Part Two, section 26.1). Plain label: cards and relics.
  *
@@ -152,8 +126,8 @@ function LegionCard({ card }: { card: SetOneCard }) {
           {card.locked ? "Locked" : "Drop"}
         </span>
 
-        <Corners />
-        <Ticks />
+        <ForgeCorners />
+        <ForgeTicks />
       </div>
 
       {/* The info panel. Name on its own line, then a details row. */}

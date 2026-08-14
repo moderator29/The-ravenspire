@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   MERCER_SKUS,
   MERCER_CATEGORIES,
@@ -6,11 +7,20 @@ import {
 } from "@/lib/collectibles/mercer";
 import { getFlag } from "@/lib/flags";
 import { pricesConfirmed } from "@/lib/commerce/catalog";
-import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import {
+  ForgeCorners,
+  ForgeTicks,
+  ForgeHairline,
+} from "@/components/ui/forge-frame";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { BackButton } from "@/components/shell/back-button";
 import { MercerStore } from "@/components/commerce/mercer-store";
+
+/* Range label for the info panel, so a card names its range plainly. */
+const RANGE_LABEL = new Map(
+  MERCER_CATEGORIES.map((c) => [c.key, c.label] as const)
+);
 
 export const metadata: Metadata = {
   title: "The Mercer",
@@ -32,38 +42,57 @@ export const dynamic = "force-dynamic";
  * route enforces. While either is off the page stays a sealed preview, and no
  * price is rendered because none is exposed to a client surface (rule 4). */
 
+/* One preview piece, two stacked containers drawn from the reference card: a
+   forged-gold framed product shot over an obsidian-and-gold info plate. The
+   whole tile is a link into the piece's own inner page, and it lifts on hover,
+   transform only. No price appears, because none is exposed to a client surface
+   (rule 4); the plate carries the range and a launch note instead. */
 function PreviewCard({ sku }: { sku: MercerSku }) {
   return (
-    <Card
-      variant="default"
-      radius="xl"
-      pad="none"
-      className="flex flex-col overflow-hidden"
+    <Link
+      href={`/mercer/${sku.sku}`}
+      aria-label={`${sku.name}. ${sku.blurb} Open the piece.`}
+      className="group flex flex-col gap-2 rounded-lg outline-none transition-transform duration-fast ease-out-quint hover:-translate-y-1 focus-visible:-translate-y-1"
     >
-      <div className="flex aspect-square items-center justify-center bg-[image:radial-gradient(70%_55%_at_50%_42%,rgba(217,176,64,0.10),transparent_72%)]">
-        {/* The product render on obsidian; its dark ground blends into the
-            card. */}
+      {/* The product shot, framed in forged gold. No text on the art. */}
+      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-gold/25 bg-void shadow-[0_10px_28px_-12px_rgba(0,0,0,0.75)] transition-colors duration-fast group-hover:border-gold/55">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[image:radial-gradient(70%_55%_at_50%_42%,rgba(217,176,64,0.10),transparent_72%)]"
+        />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={sku.art}
-          alt={sku.name}
+          alt=""
           draggable={false}
-          className="h-full w-full object-contain p-3"
+          className="relative h-full w-full object-contain p-3"
           style={{ filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.5))" }}
         />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-lg shadow-[inset_0_0_38px_rgba(0,0,0,0.55)]"
+        />
+        <ForgeCorners />
+        <ForgeTicks />
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 border-t border-steel-line p-4">
-        <h2 className="font-display text-base font-semibold text-bone">
+      {/* The info plate. Name on its own line, then the range and a launch note. */}
+      <div className="relative overflow-hidden rounded-md border border-gold/25 bg-gradient-to-b from-panel-warm to-void px-3 py-2.5 transition-colors duration-fast group-hover:border-gold/50">
+        <ForgeHairline />
+        <span className="gold-text block font-display text-sm font-semibold leading-tight">
           {sku.name}
-        </h2>
-        <p className="text-xs leading-relaxed text-bone-mut">{sku.blurb}</p>
-        <span className="mt-auto inline-flex items-center gap-1.5 self-start rounded-sm border border-steel-line bg-void/80 px-2.5 py-1.5 text-[11px] font-semibold text-bone-faint">
-          <Icon name="lock" className="h-3 w-3 text-gold" />
-          Sizes and pricing at launch
         </span>
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-steel-line/70 pt-1.5">
+          <span className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-bone-faint">
+            {RANGE_LABEL.get(sku.category) ?? "The Mercer"}
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
+            <Icon name="lock" className="h-2.5 w-2.5 text-gold" />
+            At launch
+          </span>
+        </div>
       </div>
-    </Card>
+    </Link>
   );
 }
 

@@ -14,6 +14,11 @@ import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, useIsMobile } from "@/components/ui/sheet";
+import {
+  ForgeCorners,
+  ForgeTicks,
+  ForgeHairline,
+} from "@/components/ui/forge-frame";
 import { cx } from "@/components/ui/cx";
 
 /* The live Mercer store (V2 Part Two, section 26.3, buy flow).
@@ -273,6 +278,12 @@ function QtyStepper({
   );
 }
 
+/* One piece in the live store, drawn in the same forged-gold vocabulary as the
+   Reliquary card: a framed product shot over an obsidian-and-gold info plate.
+   Unlike the preview card this one carries two jobs, navigation and add-to-cart,
+   so it is not one big link: the shot and the name are their own focusable link
+   into the piece's inner page, and the qty stepper and Add button are sibling
+   controls in the footer. No nested interactives. */
 function StoreCard({
   sku,
   qty,
@@ -284,52 +295,71 @@ function StoreCard({
 }) {
   const inCart = qty > 0;
   return (
-    <Card
-      variant="default"
-      radius="xl"
-      pad="none"
-      className={cx(
-        "flex flex-col overflow-hidden transition-colors duration-fast",
-        inCart && "border-gold/45"
-      )}
-    >
-      <div className="relative flex aspect-square items-center justify-center bg-[image:radial-gradient(70%_55%_at_50%_42%,rgba(217,176,64,0.10),transparent_72%)]">
-        {/* The product shot on obsidian; its dark ground blends into the card. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={sku.art}
-          alt={sku.name}
-          draggable={false}
-          className="h-full w-full object-contain p-3"
-          style={{ filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.5))" }}
-        />
-        {inCart && (
-          <Badge variant="gold" className="absolute right-2 top-2">
-            {qty}
-          </Badge>
+    <div className="group flex flex-col gap-2">
+      <Link
+        href={`/mercer/${sku.sku}`}
+        aria-label={`${sku.name}. ${sku.blurb} Open the piece.`}
+        className="flex flex-col gap-2 rounded-lg outline-none transition-transform duration-fast ease-out-quint hover:-translate-y-1 focus-visible:-translate-y-1"
+      >
+        {/* The product shot, framed in forged gold. No text on the art. */}
+        <div
+          className={cx(
+            "relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border bg-void shadow-[0_10px_28px_-12px_rgba(0,0,0,0.75)] transition-colors duration-fast",
+            inCart ? "border-gold/55" : "border-gold/25 group-hover:border-gold/55"
+          )}
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[image:radial-gradient(70%_55%_at_50%_42%,rgba(217,176,64,0.10),transparent_72%)]"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={sku.art}
+            alt=""
+            draggable={false}
+            className="relative h-full w-full object-contain p-3"
+            style={{ filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.5))" }}
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-lg shadow-[inset_0_0_38px_rgba(0,0,0,0.55)]"
+          />
+          {inCart && (
+            <Badge variant="gold" className="absolute right-2 top-2">
+              {qty}
+            </Badge>
+          )}
+          <ForgeCorners />
+          <ForgeTicks />
+        </div>
+
+        {/* The info plate. Name on its own line in the gold gradient. */}
+        <div className="relative overflow-hidden rounded-md border border-gold/25 bg-gradient-to-b from-panel-warm to-void px-3 py-2.5 transition-colors duration-fast group-hover:border-gold/50">
+          <ForgeHairline />
+          <span className="gold-text block font-display text-sm font-semibold leading-tight">
+            {sku.name}
+          </span>
+          <span className="mt-0.5 block truncate text-[10px] uppercase tracking-[0.14em] text-bone-faint">
+            {sku.blurb}
+          </span>
+        </div>
+      </Link>
+
+      {/* Cart controls, siblings of the link so the two interactives never nest. */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
+          {inCart ? "In cart" : "Add"}
+        </span>
+        {inCart ? (
+          <QtyStepper qty={qty} setQty={setQty} label={sku.name} />
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => setQty(1)}>
+            <Icon name="plus" className="h-3.5 w-3.5 text-gold" />
+            Add
+          </Button>
         )}
       </div>
-
-      <div className="flex flex-1 flex-col gap-2 border-t border-steel-line p-4">
-        <h3 className="font-display text-base font-semibold text-bone">
-          {sku.name}
-        </h3>
-        <p className="text-xs leading-relaxed text-bone-mut">{sku.blurb}</p>
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
-            {inCart ? "In cart" : "Add"}
-          </span>
-          {inCart ? (
-            <QtyStepper qty={qty} setQty={setQty} label={sku.name} />
-          ) : (
-            <Button variant="ghost" size="sm" onClick={() => setQty(1)}>
-              <Icon name="plus" className="h-3.5 w-3.5 text-gold" />
-              Add
-            </Button>
-          )}
-        </div>
-      </div>
-    </Card>
+    </div>
   );
 }
 

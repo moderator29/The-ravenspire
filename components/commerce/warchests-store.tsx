@@ -11,6 +11,7 @@ import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { cx } from "@/components/ui/cx";
+import { ForgeCorners, ForgeTicks } from "@/components/ui/forge-frame";
 import { PackCeremony } from "@/components/commerce/pack-ceremony";
 
 /* The live Warchests store (V2 Part Two, section 38, slice 1).
@@ -201,27 +202,36 @@ function TierCard({
       radius="xl"
       className="flex flex-col gap-4"
     >
-      <div className="flex items-center justify-center py-1">
-        {/* The chest itself, the store hero. Sits on obsidian, so the art's
-            dark ground blends into the card. */}
+      {/* The chest in its forged frame, the store hero and a door to the
+          chest's own page. */}
+      <Link
+        href={`/warchests/${tier.sku}`}
+        aria-label={`${tier.name}. Open the chest details.`}
+        className="group relative flex items-center justify-center overflow-hidden rounded-lg border border-gold/25 bg-void/60 p-4 transition-colors duration-fast hover:border-gold/55"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={tier.art.closed}
           alt=""
           aria-hidden="true"
           draggable={false}
-          className="h-32 w-auto max-w-full object-contain"
+          className="h-32 w-auto max-w-full object-contain transition-transform duration-slow ease-out-quint group-hover:scale-[1.05]"
           style={{ filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.55))" }}
         />
-      </div>
+        <ForgeCorners />
+        <ForgeTicks />
+      </Link>
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-bone-faint">
           {tier.kind === "physical" ? "Physical box" : "Digital chest"} &middot;{" "}
           {tier.plain}
         </p>
-        <h2 className="gold-text mt-1 font-display text-xl font-semibold">
+        <Link
+          href={`/warchests/${tier.sku}`}
+          className="gold-text mt-1 inline-block font-display text-xl font-semibold transition-opacity duration-fast hover:opacity-80"
+        >
           {tier.name}
-        </h2>
+        </Link>
       </div>
 
       <ul className="flex flex-col gap-1.5">
