@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CHEST_TIERS, type ChestTier } from "@/lib/collectibles/warchests";
 import { getFlag } from "@/lib/flags";
 import { pricesConfirmed } from "@/lib/commerce/catalog";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { ForgeCorners, ForgeTicks } from "@/components/ui/forge-frame";
 import { NotifyMe } from "@/components/realm/notify-me";
 import { FairnessPanel } from "@/components/collectibles/fairness-panel";
 import { BuyButton } from "@/components/commerce/buy-button";
@@ -63,25 +65,34 @@ function OddsTable({ tier }: { tier: ChestTier }) {
 function TierCard({ tier }: { tier: ChestTier }) {
   return (
     <Card variant={tier.kind === "physical" ? "warm" : "default"} radius="xl" className="flex flex-col gap-4">
-      <div className="flex items-center justify-center py-1">
-        {/* The chest, on obsidian so its dark ground blends into the card. */}
+      {/* The chest in its forged frame, a real door to the chest's own page. */}
+      <Link
+        href={`/warchests/${tier.sku}`}
+        aria-label={`${tier.name}. Open the chest details.`}
+        className="group relative flex items-center justify-center overflow-hidden rounded-lg border border-gold/25 bg-void/60 p-4 transition-colors duration-fast hover:border-gold/55"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={tier.art.closed}
           alt=""
           aria-hidden="true"
           draggable={false}
-          className="h-32 w-auto max-w-full object-contain"
+          className="h-32 w-auto max-w-full object-contain transition-transform duration-slow ease-out-quint group-hover:scale-[1.05]"
           style={{ filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.55))" }}
         />
-      </div>
+        <ForgeCorners />
+        <ForgeTicks />
+      </Link>
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-bone-faint">
           {tier.kind === "physical" ? "Physical box" : "Digital chest"} &middot; {tier.plain}
         </p>
-        <h2 className="gold-text mt-1 font-display text-xl font-semibold">
+        <Link
+          href={`/warchests/${tier.sku}`}
+          className="gold-text mt-1 inline-block font-display text-xl font-semibold transition-opacity duration-fast hover:opacity-80"
+        >
           {tier.name}
-        </h2>
+        </Link>
       </div>
 
       <ul className="flex flex-col gap-1.5">
