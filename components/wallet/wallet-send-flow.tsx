@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSendTransaction } from "@privy-io/react-auth";
 import {
   encodeFunctionData,
@@ -64,24 +64,8 @@ export function WalletSendFlow({
   const chain = evmChainById(token.chainId);
   const recipientValid = isAddress(to.trim());
 
-  const balanceRaw = useMemo(() => {
-    try {
-      return BigInt(token.balanceRaw);
-    } catch {
-      return 0n;
-    }
-  }, [token.balanceRaw]);
-
-  const parsedAmount = useMemo(() => {
-    const v = amount.trim();
-    if (v === "") return null;
-    try {
-      const wei = parseUnits(v, token.decimals);
-      return wei > 0n ? wei : null;
-    } catch {
-      return null;
-    }
-  }, [amount, token.decimals]);
+  const balanceRaw = safeBigInt(token.balanceRaw);
+  const parsedAmount = parseAmount(amount, token.decimals);
 
   const overBalance = parsedAmount !== null && parsedAmount > balanceRaw;
   const availableText = formatUnits(balanceRaw, token.decimals);
@@ -164,16 +148,7 @@ export function WalletSendFlow({
           };
 
       const result = await sendTransaction(tx, { address: wallet.address });
-      const record: TxRecord = {
-        hash: result.hash,
-        chainId: token.chainId,
-        to: recipient,
-        symbol: token.symbol,
-        amount: formatUnits(parsedAmount, token.decimals),
-        contract: token.contract,
-        at: Date.now(),
-      };
-      onRecorded(record);
+      onRecorded(makeTxRecord(result.hash, token, recipient, parsedAmount));
       setHash(result.hash);
       setStep("sent");
       onSent?.();
@@ -431,4 +406,44 @@ function formatBalance(v: string): string {
   const n = Number(v);
   if (!Number.isFinite(n)) return v;
   return n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
+/* Stamped at send time, in a module helper so the impure clock read lives
+   outside the render scope the compiler analyzes. */
+function makeTxRecord(
+  hash: string,
+  token: WalletToken,
+  to: `0x${string}`,
+  amountWei: bigint
+): TxRecord {
+  return {
+    hash,
+    chainId: token.chainId,
+    to,
+    symbol: token.symbol,
+    amount: formatUnits(amountWei, token.decimals),
+    contract: token.contract,
+    at: Date.now(),
+  };
+}
+
+/* Pure parses, cheap enough to run per render. As useMemo bodies their
+   try/catch kept the whole component out of the compiler. */
+function safeBigInt(v: string): bigint {
+  try {
+    return BigInt(v);
+  } catch {
+    return 0n;
+  }
+}
+
+function parseAmount(amount: string, decimals: number): bigint | null {
+  const v = amount.trim();
+  if (v === "") return null;
+  try {
+    const wei = parseUnits(v, decimals);
+    return wei > 0n ? wei : null;
+  } catch {
+    return null;
+  }
 }

@@ -68,6 +68,11 @@ export function AlmsPanel() {
   const [message, setMessage] = useState<string | null>(null);
   const [granted, setGranted] = useState(false);
   const [needsAge, setNeedsAge] = useState(false);
+  /* The clock reading `waiting` compares against, captured when the state was
+     read rather than during render: calling Date.now() in render is impure and
+     kept the panel out of the compiler. Waiting-as-of-load is the honest
+     reading anyway, since next_at itself is only as fresh as the load. */
+  const [loadedAt, setLoadedAt] = useState(0);
   const showSkeleton = useDelayedLoading(status === "loading", 300);
 
   const load = useCallback(async () => {
@@ -89,6 +94,7 @@ export function AlmsPanel() {
     setLive(res.data.live === true);
     setPolicy(res.data.policy);
     setState(res.data.state);
+    setLoadedAt(Date.now());
     setStatus("ready");
   }, []);
 
@@ -162,7 +168,7 @@ export function AlmsPanel() {
 
   const held = state.unopened > 0;
   const waiting =
-    state.next_at !== null && new Date(state.next_at).getTime() > Date.now();
+    state.next_at !== null && new Date(state.next_at).getTime() > loadedAt;
   const exhausted = state.remaining_today <= 0;
   const busy = status === "claiming";
 

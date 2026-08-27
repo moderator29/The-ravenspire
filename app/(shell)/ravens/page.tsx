@@ -43,9 +43,12 @@ export default function RavensPage() {
   const [items, setItems] = useState<NotifView[] | null>(null);
 
   /* Keep the latest list in a ref so the realtime handler and the mark-read
-     call can read it without re-subscribing on every state change. */
+     call can read it without re-subscribing on every state change. Synced in
+     an effect: writing it during render kept the page out of the compiler. */
   const itemsRef = useRef<NotifView[] | null>(null);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const load = useCallback(async () => {
     const res = await realmFetch<{ notifications?: Notif[] }>(

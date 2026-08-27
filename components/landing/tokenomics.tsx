@@ -35,6 +35,14 @@ const slices: Slice[] = [
 const R = 52;
 const C = 2 * Math.PI * R;
 
+/* Start angle per wedge, derived once at module scope. Accumulating into a
+   mutable local inside the render map kept the component out of the compiler. */
+const positioned = slices.map((s, i) => ({
+  ...s,
+  startDeg:
+    (slices.slice(0, i).reduce((sum, prev) => sum + prev.pct, 0) / 100) * 360,
+}));
+
 /* A hairline of page ground between wedges.
 
    Four of the seven slices are rungs of the same forged gold, which is correct
@@ -53,7 +61,6 @@ const rise: Variants = {
 
 function Donut() {
   const reduce = useReducedMotion();
-  let acc = 0;
 
   return (
     <div className="relative mx-auto h-60 w-60 sm:h-72 sm:w-72">
@@ -67,10 +74,8 @@ function Donut() {
           stroke="var(--steel-deep)"
           strokeWidth="13"
         />
-        {slices.map((s, i) => {
+        {positioned.map((s, i) => {
           const len = (s.pct / 100) * C;
-          const startDeg = (acc / 100) * 360;
-          acc += s.pct;
           return (
             <motion.circle
               key={s.label}
@@ -82,7 +87,7 @@ function Donut() {
               strokeWidth="13"
               strokeLinecap="butt"
               strokeDasharray={`${Math.max(len - WEDGE_GAP, 1)} ${C}`}
-              transform={`rotate(${startDeg} 60 60)`}
+              transform={`rotate(${s.startDeg} 60 60)`}
               initial={{ strokeDashoffset: reduce ? 0 : len }}
               whileInView={{ strokeDashoffset: 0 }}
               viewport={{ once: true, margin: "-40px" }}
