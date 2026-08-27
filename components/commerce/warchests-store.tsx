@@ -10,7 +10,6 @@ import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
-import { cx } from "@/components/ui/cx";
 import { ForgeCorners, ForgeTicks } from "@/components/ui/forge-frame";
 import { PackCeremony } from "@/components/commerce/pack-ceremony";
 
@@ -99,7 +98,6 @@ export function WarchestsStore({ tiers }: { tiers: ChestTier[] }) {
           lines={lines}
           count={count}
           hasPhysical={hasPhysical}
-          setQty={setQty}
           ready={ready}
           authenticated={authenticated}
           enabled={enabled}
@@ -302,7 +300,6 @@ function CartPanel({
   lines,
   count,
   hasPhysical,
-  setQty,
   ready,
   authenticated,
   enabled,
@@ -312,7 +309,6 @@ function CartPanel({
   lines: CartLine[];
   count: number;
   hasPhysical: boolean;
-  setQty: (sku: string, qty: number) => void;
   ready: boolean;
   authenticated: boolean;
   enabled: boolean;

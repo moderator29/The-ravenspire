@@ -160,7 +160,6 @@ export function MercerStore({ skus }: { skus: MercerSku[] }) {
       address={address}
       setAddress={setAddress}
       setQty={setQty}
-      addressOk={addressOk}
       error={error}
       busy={busy}
       ready={ready}
@@ -370,7 +369,6 @@ function CartPanel({
   address,
   setAddress,
   setQty,
-  addressOk,
   error,
   busy,
   ready,
@@ -385,7 +383,6 @@ function CartPanel({
   address: ShippingAddress;
   setAddress: React.Dispatch<React.SetStateAction<ShippingAddress>>;
   setQty: (sku: string, qty: number) => void;
-  addressOk: boolean;
   error: string | null;
   busy: boolean;
   ready: boolean;

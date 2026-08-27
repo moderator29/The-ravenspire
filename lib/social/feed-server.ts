@@ -228,9 +228,8 @@ async function loadReposts(
     .filter((r) => Boolean(r.post) && !r.post!.deleted)
     .filter((r) => canView(r.post as Gated, viewer))
     .map((r) => {
-      const { deleted: _deleted, ...post } = r.post as Post & {
-        deleted?: boolean;
-      };
+      const post = { ...(r.post as Post & { deleted?: boolean }) };
+      delete post.deleted;
       return {
         ...(post as Post),
         repostedBy: r.reposter
@@ -367,7 +366,8 @@ export async function loadPost(
   const row = (data as unknown as (Post & Gated & { deleted?: boolean })) ?? null;
   if (!row || row.deleted) return null;
   if (!canView(row, viewer)) return null;
-  const { deleted: _deleted, ...post } = row;
+  const post = { ...row };
+  delete post.deleted;
   const [withFlags] = await attachViewerFlags(db, [post as Post], viewer.id);
   return withFlags;
 }

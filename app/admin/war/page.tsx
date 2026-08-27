@@ -12,7 +12,6 @@ import {
   AdminStack,
   Board,
   BoardCard,
-  BoardSkeleton,
   SealedChamber,
   StatSkeleton,
   StatTile,

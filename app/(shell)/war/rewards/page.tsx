@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Icon } from "@/components/ui/icon";
 import { useDelayedLoading } from "@/components/ui/skeleton";
 import { Ceremony } from "@/components/realm/ceremony";
 import {

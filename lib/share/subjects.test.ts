@@ -75,7 +75,7 @@ function stubDb(tables: Record<string, TableData>) {
         filters.push([col, vals[0]]);
         return api;
       },
-      not(col: string, _op: string, _val: unknown) {
+      not(col: string) {
         notNull.push(col);
         return api;
       },

@@ -74,12 +74,6 @@ async function fetchChain(
           (contract?.toLowerCase() === NATIVE_SENTINEL);
         const decimals = it.contract_decimals ?? 18;
         const raw = it.balance ?? "0";
-        let amount = 0;
-        try {
-          amount = Number(formatUnits(BigInt(raw), decimals));
-        } catch {
-          amount = 0;
-        }
 
         // Native coins are always shown (they are the gas coin for the chain).
         // Other tokens are kept only when the wallet actually holds some.

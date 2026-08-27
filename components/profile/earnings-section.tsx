@@ -159,11 +159,12 @@ export function EarningsSection({
 
   /* Keep the balance live: re-read the chain totals on a gentle cadence so the
      FOMO figure tracks the real wallet in near real time. */
+  const refreshWallet = wallet.refresh;
   useEffect(() => {
     if (!address) return;
-    const t = setInterval(() => wallet.refresh(), BALANCE_POLL_MS);
+    const t = setInterval(() => refreshWallet(), BALANCE_POLL_MS);
     return () => clearInterval(t);
-  }, [address, wallet.refresh]);
+  }, [address, refreshWallet]);
 
   const load = useCallback(async () => {
     const res = await realmFetch<EarningsResponse>(

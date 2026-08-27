@@ -10,7 +10,6 @@ import { realmFetch } from "@/lib/auth/api";
 import {
   ENDOWMENT_REFUSAL_TEXT,
   planEndowment,
-  splitEndowment,
 } from "@/lib/houses/endowment";
 import type { HouseEndowmentView } from "@/lib/houses/view";
 import { TREASURY_POWERS } from "@/lib/houses/endowment";
