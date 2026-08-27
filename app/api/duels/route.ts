@@ -4,6 +4,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { emit } from "@/lib/realm/events";
 import { duelPrompts } from "@/lib/game/quests";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
@@ -11,6 +12,20 @@ export async function POST(req: Request) {
   if (!profile.onboarded) return json({ error: "Finish onboarding first" }, 403);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* C4: every action here writes rows and can mint capped Renown (a vote pays
+     the voter, a settle pays the winner), so it gets the same account-keyed
+     ceiling as the other mutating social routes. Thirty an hour is a busy
+     evening of duelling; a script farming votes trips it at once. */
+  const rl = await rateLimit(profileKey("duels", profile.id), 30, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "Even duelists rest between bouts. Return shortly.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     action?: "create" | "enter" | "vote";
@@ -152,11 +167,15 @@ export async function POST(req: Request) {
         .eq("status", "voting")
         .select("id");
       if (settled && settled.length === 1) {
+        /* A duel win is minted by other members' votes, which two colluding
+           accounts can manufacture, so it draws on the daily social allowance
+           like the votes that produced it. */
         await award(db, winner, {
           glory: 60,
           points: 30,
           reason: "duel_won",
           ref: duel.id,
+          category: "social",
         });
         await db.from("notifications").insert({
           profile_id: winner,

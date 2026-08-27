@@ -3,6 +3,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { parseUnits } from "viem";
 import { verifyTribute } from "@/lib/chain/verify-transfer";
+import { tradeChainById } from "@/lib/trade/config";
 
 /* Tips are REAL, non-custodial, wallet-to-wallet transfers. The transfer
    itself is signed and broadcast client-side from the tipper's Privy embedded
@@ -27,6 +28,16 @@ import { verifyTribute } from "@/lib/chain/verify-transfer";
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const AMOUNT_RE = /^\d*\.?\d+$/;
 const TOKEN_RE = /^[A-Za-z0-9]{1,12}$/;
+
+/* The chains a tribute may claim. The trade allowlist covers every mainnet the
+   product touches; the two testnets are where the flow is rehearsed and the
+   tip dialog's own chain table includes them, so a rehearsal receipt is not
+   refused. Anything else is a chain the realm can neither name nor read, and a
+   receipt on an unnameable chain is a claim that can never be checked. */
+const TIP_TESTNET_IDS = new Set([11155111, 84532]); // Sepolia, Base Sepolia
+function tipChainKnown(chainId: number): boolean {
+  return Boolean(tradeChainById(chainId)) || TIP_TESTNET_IDS.has(chainId);
+}
 
 /* The claimed amount in wei. The amount has already been matched against
    AMOUNT_RE, so this cannot throw on shape; a value with more than eighteen
@@ -117,6 +128,15 @@ export async function POST(req: Request) {
   if (!TOKEN_RE.test(token)) return json({ error: "bad token" }, 400);
   if (!TX_HASH_RE.test(txHash))
     return json({ error: "bad transaction hash" }, 400);
+  /* chain_id is required, mirroring the trade recorder. It used to be
+     optional, and omitting it skipped on-chain verification entirely: a
+     receipt with no chain named could never be disproved, which made
+     "unverified" a state a caller could simply choose. Now the unverified
+     state is reserved for its genuine causes: a transfer the chain has not
+     settled yet, a chain the realm has no RPC for (chainUncheckable inside
+     verifyTribute), or a wallet not yet on file. */
+  if (chainId === null || !tipChainKnown(chainId))
+    return json({ error: "Name the chain the tribute rode on" }, 400);
   if (to === profile.id)
     return json(
       { error: "You cannot pay tribute to yourself, however deserving" },

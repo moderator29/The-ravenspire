@@ -8,6 +8,7 @@ import { emit } from "@/lib/realm/events";
 import { screenAndFlag } from "@/lib/moderation/screen";
 import { prepareCall, type CallInput } from "@/lib/calls/create";
 import { escrowCallStake } from "@/lib/calls/escrow";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
@@ -16,6 +17,20 @@ export async function POST(req: Request) {
     return json({ error: "Finish onboarding first" }, 403);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* C4, same reasoning as the comments route: a raven is cheap for a script
+     and expensive for the realm (a post row, a notification fan-out, a points
+     award, and an @raven mention wakes the Herald, which is a paid Anthropic
+     call). Keyed on the account, not the IP. */
+  const rl = await rateLimit(profileKey("posts", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "The rookery needs a rest. Send the next raven shortly.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     body?: string;
@@ -197,26 +212,39 @@ export async function POST(req: Request) {
       .eq("profile_id", profile.id)
       .maybeSingle();
     if (ref && !ref.activated) {
-      await db
+      /* Guarded flip, mirroring the duel settlement: only the request that
+         actually turns activated from false to true pays out. Two third-raven
+         requests racing here used to both read activated=false and both
+         award, doubling the banner reward. */
+      const { data: activated } = await db
         .from("referrals")
         .update({ activated: true })
-        .eq("profile_id", profile.id);
-      await award(db, ref.referrer_id, {
-        points: 60,
-        glory: 30,
-        reason: "banner_raised",
-        ref: profile.id,
-      });
-      await award(db, profile.id, {
-        points: 20,
-        reason: "banner_answered",
-      });
-      await db.from("notifications").insert({
-        profile_id: ref.referrer_id,
-        kind: "banner_raised",
-        actor_id: profile.id,
-        body: "A banner you raised now flies in the realm. The reward is yours.",
-      });
+        .eq("profile_id", profile.id)
+        .eq("activated", false)
+        .select("profile_id");
+      if (activated && activated.length === 1) {
+        /* Both awards draw on the daily social allowance: a referral is a
+           social action two colluding accounts can manufacture, so it must
+           spend the same capped budget as the likes and replies it rides on. */
+        await award(db, ref.referrer_id, {
+          points: 60,
+          glory: 30,
+          reason: "banner_raised",
+          ref: profile.id,
+          category: "social",
+        });
+        await award(db, profile.id, {
+          points: 20,
+          reason: "banner_answered",
+          category: "social",
+        });
+        await db.from("notifications").insert({
+          profile_id: ref.referrer_id,
+          kind: "banner_raised",
+          actor_id: profile.id,
+          body: "A banner you raised now flies in the realm. The reward is yours.",
+        });
+      }
     }
   }
 

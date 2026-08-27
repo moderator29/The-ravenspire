@@ -111,7 +111,28 @@ export async function POST(req: Request) {
     }));
 
   if (rows.length > 0) {
-    await db.from("inventory").insert(rows);
+    const granted = await db.from("inventory").insert(rows);
+    if (granted.error) {
+      /* The claim succeeded but the twins did not land. Reporting redeemed
+         here would burn the code while granting nothing, so the claim is
+         released (only if this request still holds it) and the member is told
+         to present the code again. The attempts counter above keeps its
+         record either way. */
+      log.error("inventory grant failed after claim", {
+        profileId: profile.id,
+        redemptionId,
+        err: granted.error,
+      });
+      await db
+        .from("redemptions")
+        .update({ redeemed_by: null, redeemed_at: null })
+        .eq("id", redemptionId)
+        .eq("redeemed_by", profile.id);
+      return json(
+        { error: "The reliquary faltered. Your code still stands; present it again." },
+        503
+      );
+    }
   }
 
   return json({ redeemed: true, granted: rows.length });
