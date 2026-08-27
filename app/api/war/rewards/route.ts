@@ -2,25 +2,9 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { champions } from "@/lib/game/champions";
+import { warState } from "@/lib/game/war-state";
 
 const UPGRADE_BASE_COST = 120;
-
-async function getState(db: NonNullable<ReturnType<typeof adminClient>>, profileId: string) {
-  let { data: state } = await db
-    .from("war_state")
-    .select("*")
-    .eq("profile_id", profileId)
-    .maybeSingle();
-  if (!state) {
-    const { data: created } = await db
-      .from("war_state")
-      .insert({ profile_id: profileId })
-      .select("*")
-      .single();
-    state = created;
-  }
-  return state;
-}
 
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
@@ -34,7 +18,7 @@ export async function POST(req: Request) {
   } | null;
   if (!body?.action) return json({ error: "bad request" }, 400);
 
-  const state = await getState(db, profile.id);
+  const state = await warState(db, profile.id);
   if (!state) return json({ error: "unavailable" }, 503);
 
   if (body.action === "daily") {

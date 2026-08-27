@@ -1,8 +1,32 @@
-import { json } from "@/lib/auth/server";
+import { getProfile, json } from "@/lib/auth/server";
+import { callerKey, rateLimit } from "@/lib/rate-limit";
 import { WATCH_CHAINS } from "@/lib/tools/watch-types";
 import { fetchGoPlus, fetchHoneypot, buildReport } from "@/lib/tools/goplus";
 
+/* C4: the tightest of the public market limits. GoPlus and honeypot.is are
+   both keyless and both budget the caller by IP, so every scan the realm
+   relays is spent from one shared allowance that belongs to the whole
+   platform: an unmetered relay here does not cost money, it costs everyone
+   else's ability to scan a contract. Open to visitors, because checking a
+   token before you touch it is exactly the thing nobody should have to sign in
+   to do. */
 export async function GET(req: Request) {
+  const profile = await getProfile(req);
+  const rl = await rateLimit(
+    callerKey("watch", req, profile?.id),
+    profile ? 120 : 60,
+    3600
+  );
+  if (!rl.ok)
+    return json(
+      {
+        error: "The Watch has scanned enough for you this hour. Return shortly.",
+        status: "rate_limited",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
+
   const url = new URL(req.url);
   const address = (url.searchParams.get("address") ?? "").toLowerCase();
   const chain = url.searchParams.get("chain") ?? "1";

@@ -8,6 +8,12 @@ import { emit } from "@/lib/realm/events";
 import { screenAndFlag } from "@/lib/moderation/screen";
 import { prepareCall, type CallInput } from "@/lib/calls/create";
 import { escrowCallStake } from "@/lib/calls/escrow";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
+
+/* A raven that tags the Herald. Matched here as well as in lib/ai/mention.ts
+   because this route has to know, before it writes anything, whether the post
+   it is about to accept will spend Anthropic budget. */
+const TAGS_RAVEN = /@raven\b/i;
 
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
@@ -16,6 +22,20 @@ export async function POST(req: Request) {
     return json({ error: "Finish onboarding first" }, 403);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* Authoring costs the realm the same things a reply does (a row, a fan-out,
+     a points award, a screen) and one more besides, so it is metered on the
+     account exactly as /api/comments is. Sixty ravens an hour is far above any
+     real composing session. */
+  const rl = await rateLimit(profileKey("posts", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "You have sent plenty of ravens for one hour. Return shortly.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     body?: string;
@@ -31,6 +51,30 @@ export async function POST(req: Request) {
   if (!text && !body.media?.length)
     return json({ error: "An empty raven carries no word" }, 400);
   if (text.length > 1000) return json({ error: "Too long" }, 400);
+
+  /* Calling the Herald is metered separately, and far tighter, because it is
+     the only thing on this route that spends real money. The per-thread ceiling
+     in lib/ai/mention.ts counts the Raven's replies under ONE raven, so a
+     member who keeps sending fresh @raven posts mints himself a fresh quota
+     every time and the thread cap never binds. This is the cap that does.
+     Refused before anything is written, so a member who has spent the hour can
+     still post: they simply cannot summon the Herald again with it. */
+  if (TAGS_RAVEN.test(text)) {
+    const heraldRl = await rateLimit(
+      profileKey("posts:raven", profile.id),
+      10,
+      3600
+    );
+    if (!heraldRl.ok)
+      return json(
+        {
+          error:
+            "The Herald has answered you enough this hour. Send your raven without the summons, or return later.",
+          retryAfter: heraldRl.retryAfter,
+        },
+        429
+      );
+  }
 
   /* Who may see this raven. Unknown values fall back to public so an older
      client that omits the field keeps its existing all-realm reach. */
@@ -184,39 +228,55 @@ export async function POST(req: Request) {
   });
 
   /* Raise Your Banners: a referral activates on real activity, the
-     referred member's third raven, not on signup. Sybil-resistant. */
+     referred member's third raven, not on signup. Sybil-resistant.
+
+     The test is "three or more", not "exactly three". An equality test only
+     ever fires on the one request that observes the count at exactly three,
+     and there are two ordinary ways to miss it: a member who deletes a raven
+     and writes another walks the count 3, 2, 3 without a request ever seeing
+     the third as new, and two ravens landing together can both read four. The
+     milestone would then be skipped forever, silently, for a member who did
+     everything asked of them. `activated` is what makes the reward single use,
+     so a threshold is safe where an equality is fragile. */
   const { count: postCount } = await db
     .from("posts")
     .select("id", { count: "exact", head: true })
     .eq("author_id", profile.id)
     .eq("deleted", false);
-  if (postCount === 3) {
+  if ((postCount ?? 0) >= 3) {
     const { data: ref } = await db
       .from("referrals")
       .select("referrer_id, activated")
       .eq("profile_id", profile.id)
       .maybeSingle();
     if (ref && !ref.activated) {
-      await db
+      /* The flip is the guard. Only the request that actually moves activated
+         from false to true pays the reward, so the widened threshold above
+         cannot pay a referrer twice when two ravens land together. */
+      const { data: activated } = await db
         .from("referrals")
         .update({ activated: true })
-        .eq("profile_id", profile.id);
-      await award(db, ref.referrer_id, {
-        points: 60,
-        glory: 30,
-        reason: "banner_raised",
-        ref: profile.id,
-      });
-      await award(db, profile.id, {
-        points: 20,
-        reason: "banner_answered",
-      });
-      await db.from("notifications").insert({
-        profile_id: ref.referrer_id,
-        kind: "banner_raised",
-        actor_id: profile.id,
-        body: "A banner you raised now flies in the realm. The reward is yours.",
-      });
+        .eq("profile_id", profile.id)
+        .eq("activated", false)
+        .select("profile_id");
+      if (activated && activated.length > 0) {
+        await award(db, ref.referrer_id, {
+          points: 60,
+          glory: 30,
+          reason: "banner_raised",
+          ref: profile.id,
+        });
+        await award(db, profile.id, {
+          points: 20,
+          reason: "banner_answered",
+        });
+        await db.from("notifications").insert({
+          profile_id: ref.referrer_id,
+          kind: "banner_raised",
+          actor_id: profile.id,
+          body: "A banner you raised now flies in the realm. The reward is yours.",
+        });
+      }
     }
   }
 

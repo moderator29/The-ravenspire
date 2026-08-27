@@ -3,9 +3,42 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { emit } from "@/lib/realm/events";
+import { getFlag } from "@/lib/flags";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { quests, type Quest } from "@/lib/game/quests";
 import { computeBounds, verifyQuest } from "@/lib/game/quest-verify";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+/* SEALED, and not deleted.
+ *
+ * The Throne's mechanics, quests and duels, have no caller anywhere in the
+ * product: no page, no component, no library reaches either route. What they
+ * do have is an economy. This one awards points and Glory, Glory decides the
+ * Clash and the Throne and the Season, and Season standing is what converts.
+ * A live, unwatched, unlinked route that mints the convertible currency is the
+ * worst shape a surface can have: nobody is looking at it and everybody can
+ * reach it.
+ *
+ * Deleting it would be the wrong answer too. The V2 plan dissolves these
+ * mechanics into the Ravenry rather than restoring the Throne as a
+ * destination, and the verification work in lib/game/quest-verify.ts is the
+ * hard half of that. So the code stays and the door closes.
+ *
+ * throne_mechanics_live is the door. It follows the same posture as every
+ * other chapter flag: FAIL CLOSED. There is no row for it in realm_flags and
+ * that is deliberate, because getFlag reads an unknown key, a missing table
+ * and an unreachable database all as false. The flag needs no migration to
+ * seal, only a row to open, and until somebody writes that row on purpose
+ * these routes answer as though they do not exist.
+ */
+const THRONE_FLAG = "throne_mechanics_live";
+
+/* What a sealed route answers with. Not 423 (sealed until launch), which tells
+   a caller there is something here worth waiting for: while the mechanics have
+   no surface, the honest answer is that this is not a thing the realm offers. */
+function sealed() {
+  return json({ error: "not found" }, 404);
+}
 
 /* The period key a quest completion is bucketed under, derived from cadence:
    daily quests reset every day, weekly quests every ISO week, seasonal quests
@@ -55,6 +88,7 @@ async function periodFor(
 }
 
 export async function GET(req: Request) {
+  if (!(await getFlag(THRONE_FLAG))) return sealed();
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
@@ -78,11 +112,26 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  if (!(await getFlag(THRONE_FLAG))) return sealed();
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
   if (!profile.onboarded) return json({ error: "Finish onboarding first" }, 403);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* The second lock, for the day the flag is opened. There are eighteen quests
+     across three cadences, so a member with a full board claims eighteen times
+     and never sixty; anything past that is a loop, and this route awards the
+     convertible currency. */
+  const rl = await rateLimit(profileKey("quests", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "You have claimed enough for one hour. Return shortly.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as { quest?: string } | null;
   const quest = quests.find((q) => q.slug === body?.quest);

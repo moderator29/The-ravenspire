@@ -1,6 +1,7 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 type Db = NonNullable<ReturnType<typeof adminClient>>;
 
@@ -108,6 +109,20 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* C4: a whisper writes a row, a broadcast per participant and a notification
+     per participant, so a script in a group thread multiplies every send. Set
+     above a fast real conversation rather than at it: two messages a minute,
+     sustained for an hour, is a lively exchange and nowhere near this. */
+  const rl = await rateLimit(profileKey("whispers", profile.id), 120, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "You have whispered enough for one hour. Take a breath.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     conversation?: string;

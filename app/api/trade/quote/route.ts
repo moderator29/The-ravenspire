@@ -1,4 +1,5 @@
 import { requireProfile, json } from "@/lib/auth/server";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { zeroxPrice, zeroxQuote, zeroxEnabled } from "@/lib/trade/zerox";
 import { tradeChainById } from "@/lib/trade/config";
 
@@ -23,6 +24,21 @@ function validToken(v: unknown): v is string {
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
+
+  /* C4: generous on purpose. The swap panel repolls the indicative price while
+     a member is typing an amount, so a ceiling set at "one quote per trade"
+     would break the surface rather than protect the 0x quota. Five a minute
+     sustained for an hour is well past an honest session and still a hard stop
+     on a script pointed at a paid upstream. */
+  const rl = await rateLimit(profileKey("trade:quote", profile.id), 300, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "Too many quotes for one hour. Let the price settle.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   if (!zeroxEnabled()) {
     return json(

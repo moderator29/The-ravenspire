@@ -3,14 +3,45 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { emit } from "@/lib/realm/events";
+import { getFlag } from "@/lib/flags";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { duelPrompts } from "@/lib/game/quests";
 
+/* SEALED, and not deleted. The reasoning is written out in full at the head of
+   app/api/quests/route.ts, which this route shares a flag with: the Throne's
+   mechanics have no caller anywhere in the product, they award the currency
+   that converts, and the V2 plan dissolves them into the Ravenry rather than
+   restoring the Throne. So the code stays and the door closes, on the same
+   fail-closed flag with no row behind it.
+
+   Duels carry two things quests do not: arbitrary member-authored text, the
+   prompt and the entries, which render wherever a duel is shown, and a
+   settlement that pays 60 Glory and 30 points on five votes. Neither should be
+   reachable while nothing in the realm is watching them. */
+const THRONE_FLAG = "throne_mechanics_live";
+
 export async function POST(req: Request) {
+  if (!(await getFlag(THRONE_FLAG))) return json({ error: "not found" }, 404);
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
   if (!profile.onboarded) return json({ error: "Finish onboarding first" }, 403);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* The second lock, for the day the flag is opened. One key across all three
+     actions on purpose: opening duels, answering them and voting on them are
+     one appetite, and the abuse the audit found (junk duels burying the real
+     ones, alt accounts voting a duel to settlement) spends whichever of the
+     three is cheapest. */
+  const rl = await rateLimit(profileKey("duels", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "The circle has seen enough of you this hour. Return shortly.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     action?: "create" | "enter" | "vote";

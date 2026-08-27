@@ -1,4 +1,5 @@
-import { json } from "@/lib/auth/server";
+import { getProfile, json } from "@/lib/auth/server";
+import { callerKey, rateLimit } from "@/lib/rate-limit";
 import { lookupToken } from "@/lib/data/tokens";
 import { tradeChainByDex } from "@/lib/trade/config";
 
@@ -231,7 +232,24 @@ async function fetchDecimals(
   }
 }
 
+/* C4: one coin read is a DexScreener search, a GeckoTerminal OHLCV page and an
+   RPC decimals call. The route stays open to visitors, because a coin page is
+   the thing a member shares outward and it must open for whoever taps it, so
+   it is metered the way the glass is: on the account when we know it, on the
+   (spoofable) address only when we do not. */
 export async function GET(req: Request) {
+  const profile = await getProfile(req);
+  const rl = await rateLimit(
+    callerKey("coin", req, profile?.id),
+    profile ? 300 : 120,
+    3600
+  );
+  if (!rl.ok)
+    return json(
+      { error: "rate_limited", retryAfter: rl.retryAfter },
+      429
+    );
+
   const url = new URL(req.url);
   const rawId = (url.searchParams.get("address") ?? "").trim();
   const net = url.searchParams.get("net"); // GeckoTerminal network id, optional

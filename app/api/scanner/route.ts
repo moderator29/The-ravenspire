@@ -1,6 +1,7 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { askRaven, ravenEnabled } from "@/lib/ai/raven";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* The AI Account Scanner: a personal read of the MEMBER'S OWN account by a real
    LLM (the Herald's mind) reasoning over the member's real data only, never
@@ -10,10 +11,16 @@ import { askRaven, ravenEnabled } from "@/lib/ai/raven";
    moves. Real data only: every figure handed to the model is fetched here; the
    model is told never to invent a number.
 
-   Rate-limited per member because the mind costs real coin. */
+   Rate-limited per member because the mind costs real coin.
 
-const usage = new Map<string, { count: number; windowStart: number }>();
-const WINDOW_MS = 3600_000;
+   C4: that limit used to be a module-level Map, which is the exact pattern
+   lib/rate-limit.ts was written to retire. A Map lives inside one lambda, is
+   wiped on every cold start and is never shared between instances, so on
+   serverless it counted almost nothing: the same member spread across six
+   instances got six windows, and a scanner request fans out to GoldRush and
+   then to a long Anthropic completion. The counter is now the shared
+   Supabase-backed one, keyed on the account. */
+
 const MAX_PER_WINDOW = 6;
 
 interface WalletHolding {
@@ -66,15 +73,19 @@ export async function POST(req: Request) {
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  const now = Date.now();
-  const u = usage.get(profile.id);
-  if (!u || now - u.windowStart > WINDOW_MS) {
-    usage.set(profile.id, { count: 1, windowStart: now });
-  } else if (u.count >= MAX_PER_WINDOW) {
-    return json({ error: "The Oracle has read you enough this hour. Return later." }, 429);
-  } else {
-    u.count += 1;
-  }
+  const rl = await rateLimit(
+    profileKey("scanner", profile.id),
+    MAX_PER_WINDOW,
+    3600
+  );
+  if (!rl.ok)
+    return json(
+      {
+        error: "The Oracle has read you enough this hour. Return later.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   // Owner's own posts (real engagement only).
   const { data: posts } = await db

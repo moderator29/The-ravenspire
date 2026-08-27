@@ -1,4 +1,5 @@
 import { requireProfile, json } from "@/lib/auth/server";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { tradeChainById } from "@/lib/trade/config";
 import { chainLogo } from "@/lib/trade/token-list";
 
@@ -76,6 +77,20 @@ async function fetchPage(
 export async function GET(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
+
+  /* C4: the heaviest of the four trade reads. One request is nine
+     GeckoTerminal pages, so it is metered tightest of them: the picker opens,
+     the roll is cached upstream, and nobody needs sixty fresh rolls an hour. */
+  const rl = await rateLimit(profileKey("trade:top", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        results: [],
+        error: "The roll has been read enough this hour. Return shortly.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const chainId = Number(new URL(req.url).searchParams.get("chain") ?? "");
   const chain = tradeChainById(chainId);

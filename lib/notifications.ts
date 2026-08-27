@@ -115,11 +115,59 @@ export async function createNotification(
   }
 }
 
+/* How many ids ride in one PostgREST `in` filter, and how many rows in one
+   insert. Both are URL and statement size guards rather than policy: a
+   thousand ids in a single query string is how a fan-out starts failing for
+   the most-followed members and nobody else. */
+const READ_CHUNK = 200;
+const INSERT_CHUNK = 500;
+
+/* How many broadcasts are in flight at once. Concurrent, because a thousand
+   sequential HTTP calls is what made this fan-out take minutes; bounded,
+   because a thousand at once is a burst against the realtime endpoint that
+   would be throttled and drop notices the rows already promised. */
+const BROADCAST_CONCURRENCY = 16;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/* Run `task` over every id, at most `limit` at a time. Failures are the
+   caller's to swallow; nothing here throws. */
+async function pooled(
+  ids: string[],
+  limit: number,
+  task: (id: string) => Promise<void>
+): Promise<void> {
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, ids.length) }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= ids.length) return;
+      await task(ids[i]);
+    }
+  });
+  await Promise.all(workers);
+}
+
 /* Fan a raven out to everyone who follows `actorId`: used for follow alerts
    when a member you follow makes a trade or seals a Call. Each recipient's
-   per-type toggle is honored (createNotification checks it), and the actor is
-   never notified about their own action. Capped so a very-followed member does
-   not fan out unbounded. Best effort throughout. */
+   per-type toggle is honored, and the actor is never notified about their own
+   action. Capped so a very-followed member does not fan out unbounded. Best
+   effort throughout.
+
+   BATCHED, and that is the whole of what changed. This used to call
+   createNotification in a loop, which meant a settings SELECT, an INSERT and a
+   broadcast per follower, one after another, up to a thousand times: three
+   thousand round trips on the tail of a single Call, inside `after`, where a
+   serverless function is still being paid for and can be cut off before the
+   last follower is reached. The work is identical now and the shape is not:
+   one read of the followers, one read of their settings, one insert per batch,
+   and the broadcasts concurrent behind a small pool. Per-type toggles are
+   still honored, the actor is still skipped, and a member whose settings row
+   cannot be read is still notified rather than silently dropped. */
 export async function notifyFollowers(
   db: Db,
   opts: {
@@ -139,17 +187,53 @@ export async function notifyFollowers(
       .select("follower_id")
       .eq("followee_id", opts.actorId)
       .limit(1000);
-    for (const row of data ?? []) {
-      const recipient = row.follower_id as string;
-      if (!recipient || recipient === opts.actorId) continue;
-      await createNotification(db, {
-        profile_id: recipient,
-        kind: opts.kind,
-        actor_id: opts.actorId,
-        body: opts.body ?? null,
-        ref: opts.ref ?? null,
-      });
+
+    const followers = [
+      ...new Set(
+        (data ?? [])
+          .map((row) => row.follower_id as string)
+          .filter((id) => id && id !== opts.actorId)
+      ),
+    ];
+    if (!followers.length) return;
+
+    /* Everyone's toggles in one pass. A follower whose row does not come back
+       keeps the default the single-notice path uses: allowed. */
+    const settingsById = new Map<string, unknown>();
+    for (const ids of chunk(followers, READ_CHUNK)) {
+      const { data: rows } = await db
+        .from("profiles")
+        .select("id, settings")
+        .in("id", ids);
+      for (const row of rows ?? [])
+        settingsById.set(row.id as string, row.settings);
     }
+
+    const recipients = followers.filter((id) =>
+      settingsById.has(id)
+        ? kindAllowedBySettings(settingsById.get(id), opts.kind)
+        : true
+    );
+    if (!recipients.length) return;
+
+    const body = opts.body ? opts.body.slice(0, 240) : null;
+    const delivered: string[] = [];
+    for (const ids of chunk(recipients, INSERT_CHUNK)) {
+      const { error } = await db.from("notifications").insert(
+        ids.map((id) => ({
+          profile_id: id,
+          kind: opts.kind,
+          actor_id: opts.actorId,
+          subject_id: opts.ref ?? null,
+          body,
+        }))
+      );
+      /* Only broadcast what actually landed. A refresh nudge for a notice that
+         was never written sends a member to an empty center. */
+      if (!error) delivered.push(...ids);
+    }
+
+    await pooled(delivered, BROADCAST_CONCURRENCY, broadcastToMember);
   } catch {
     /* best effort */
   }

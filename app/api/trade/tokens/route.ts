@@ -1,4 +1,5 @@
 import { requireProfile, json } from "@/lib/auth/server";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { isEvmDexChain, tradeChainByDex } from "@/lib/trade/config";
 import { trustWalletLogo } from "@/lib/trade/token-list";
 
@@ -36,6 +37,21 @@ export interface SwapTokenResult {
 export async function GET(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
+
+  /* C4: a search is one DexScreener call per keystroke burst. Members only was
+     the whole of the protection, and an account is free, so the ceiling is
+     what actually holds. Two a minute for an hour is far more searching than
+     anyone does before a trade. */
+  const rl = await rateLimit(profileKey("trade:tokens", profile.id), 120, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        results: [],
+        error: "Too many searches for one hour. Return shortly.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   // Strip a leading cashtag $ so "$NAKA" searches "NAKA".
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim().replace(/^\$/, "");

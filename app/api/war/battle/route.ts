@@ -2,6 +2,7 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { champions } from "@/lib/game/champions";
+import { warState } from "@/lib/game/war-state";
 
 const BATTLEFIELDS = new Set([
   "river-crossing",
@@ -130,19 +131,7 @@ export async function POST(req: Request) {
 
   const glory = Math.min(400, (victory ? 120 : 30) + kills * 2);
 
-  let { data: state } = await db
-    .from("war_state")
-    .select("*")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
-  if (!state) {
-    const { data: created } = await db
-      .from("war_state")
-      .insert({ profile_id: profile.id })
-      .select("*")
-      .single();
-    state = created;
-  }
+  const state = await warState(db, profile.id);
   if (!state) return json({ error: "unavailable" }, 503);
   if (!state.unlocked_champions.includes(body.champion))
     return json({ error: "That champion is not yet sworn to you" }, 403);
@@ -222,23 +211,17 @@ export async function POST(req: Request) {
   });
 }
 
+/* The member's standing, created from the table's own defaults on first read.
+   This used to answer a member with no row yet from a hand-written object that
+   listed the champions and the gold and forgot `chests` and `mastery`, so a
+   new member was told "No chests" while the database was already granting them
+   one. The row is the only honest answer, so the row is what is made. */
 export async function GET(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
-  const { data: state } = await db
-    .from("war_state")
-    .select("*")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
-  return json({
-    state: state ?? {
-      unlocked_champions: ["aeron-the-black", "ser-willas", "mira-stormborn"],
-      gold: 200,
-      war_glory: 0,
-      battles: 0,
-      wins: 0,
-    },
-  });
+  const state = await warState(db, profile.id);
+  if (!state) return json({ error: "unavailable" }, 503);
+  return json({ state });
 }

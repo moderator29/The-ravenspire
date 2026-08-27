@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* Realtime chat and reactions for a live court. Chat is persisted in
    room_messages and read back on open (and by a polling fallback); every send
@@ -150,6 +151,22 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* C4: the loosest limit in the realm, and deliberately so. This one route
+     carries both the chat line and the reaction rail of a live court, and a
+     reaction is a tap: a member cheering through a lively hour is doing
+     nothing wrong. Four a minute sustained for a whole hour is still far above
+     that, and it is a hard ceiling on a route that broadcasts to every watcher
+     in the room. */
+  const rl = await rateLimit(profileKey("rooms", profile.id), 240, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "The court has heard enough from you this hour. Listen a while.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     room?: string;

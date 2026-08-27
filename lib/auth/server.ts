@@ -62,6 +62,44 @@ async function verifyPrivyId(req: Request): Promise<string | null> {
   }
 }
 
+/* The wallet address Privy itself holds for a user, read server side from the
+   Privy API rather than taken from a request body.
+ *
+ * WHY THIS EXISTS. /api/profile/sync used to set wallet_address from whatever
+ * the client posted. It was set-once and self-only, so the worst case was a
+ * member writing a wrong address onto their own profile, but that address is
+ * what the Ledger reads, what the scanner hands to a model as "your holdings",
+ * and what a future payout would look at. An account's own claim about which
+ * wallet is theirs is not evidence, and there is no reason to accept a claim
+ * when the truth is one authenticated call away.
+ *
+ * Preference order: the embedded wallet Privy created for this account
+ * (walletClientType 'privy'), then any linked EVM wallet, then the user's most
+ * recently linked wallet. Non-EVM chains are skipped: every reader of this
+ * column is an EVM reader. Returns null on any failure, which leaves the field
+ * unset rather than guessed; the next sync fills it. */
+export async function privyWalletAddress(
+  privyId: string
+): Promise<string | null> {
+  if (!privy) return null;
+  try {
+    const user = await privy.getUser(privyId);
+    const wallets = user.linkedAccounts.filter(
+      (a): a is Extract<typeof a, { type: "wallet" }> => a.type === "wallet"
+    );
+    const evm = wallets.filter((w) => w.chainType === "ethereum");
+    const embedded = evm.find((w) => w.walletClientType === "privy");
+    const chosen = embedded ?? evm[0] ?? null;
+    if (chosen?.address) return chosen.address;
+    const fallback = user.wallet;
+    if (fallback?.chainType === "ethereum" && fallback.address)
+      return fallback.address;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /* Read a single profile by privy id. Tries the full column set first and
    falls back to the base set if the is_banned/is_verified columns are not
    present yet, so authorization keeps working across the column migration. */
