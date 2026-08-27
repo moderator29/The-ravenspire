@@ -28,15 +28,11 @@ jobs:
 
       - run: npm ci
 
-      # Report only, deliberately. There are 6 pre-existing errors and 73
-      # warnings from the React 19 hook rules in eslint-config-next 16
-      # (react-hooks/refs and react-hooks/set-state-in-effect), spread across
-      # 20+ files. Gating on them today would land a permanently red CI, which
-      # teams learn to ignore within a week. Typecheck and build are the hard
-      # gates now; flip this to a gate once the backlog is cleared.
-      - name: Lint (report only)
+      # A hard gate since the error backlog reached zero. Warnings do not fail
+      # eslint, so the remaining react-hooks/set-state-in-effect family stays
+      # visible without turning CI red; a new error now blocks the merge.
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
 
       # Two founder rules are absolute and easy to break by accident. Both had
       # already regressed once each after being swept clean, because a rule
