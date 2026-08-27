@@ -40,8 +40,11 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
    the server knows about those tiers, so every rung of it was invented. The
    panel that replaces it says the pass has not opened, which is true.
 
-   Every number on this page is read from /api/war/rewards state. Gold, Glory,
-   chests and mastery all settle server side; the upgrade price is mirrored
+   Every number on this page is read from the war state /api/war/battle
+   returns. /api/war/rewards is the write side, and this page posts to it to
+   claim tribute, open a chest and buy a mastery rung; it is not where the
+   figures come from, and this comment said it was. Gold, Glory, chests and
+   mastery all settle server side either way; the upgrade price is mirrored
    here only so the button can name it, and the server is what enforces it. */
 
 interface WarState {

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import { Meter } from "@/components/ui/meter";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { BackButton } from "@/components/shell/back-button";
@@ -100,6 +101,19 @@ export default function RenownPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [mint, setMint] = useState<MintState | null>(null);
   const [claims, setClaims] = useState<Map<string, ClaimState>>(new Map());
+  /* Your standing arrives from the server; the crest catalogue does not, so
+     only the standing has anything to wait for. The tier ladder and the crest
+     plates render immediately either way, which is why there is one skeleton on
+     this page rather than a page of them. Gated behind the delay, so a read
+     that lands quickly simply appears.
+
+     `read` records that the answer arrived, whatever the answer was. Waiting on
+     `me` alone would leave the skeleton pulsing forever for anybody the read
+     came back empty for. */
+  const [read, setRead] = useState(false);
+  const showStandingSkeleton = useDelayedLoading(
+    ready && authenticated && !read
+  );
 
   /* Read the claim state once per visit. Refreshed by the claim control's own
      callback rather than by polling: the only thing that changes it is the
@@ -135,6 +149,7 @@ export default function RenownPage() {
       });
       const profile = res.data?.profile ?? null;
       setMe(profile);
+      setRead(true);
       if (profile) {
         const db = createClient();
         const { data } = await db
@@ -265,6 +280,16 @@ export default function RenownPage() {
               You stand at the summit. There is no higher tier to climb.
             </p>
           )}
+        </Card>
+      ) : showStandingSkeleton ? (
+        /* Shaped like the panel that is arriving: the road line, the figure
+           beside it, and the bar under both. */
+        <Card>
+          <div className="flex items-baseline justify-between gap-3">
+            <Skeleton radius="sm" className="h-3.5 w-32" />
+            <Skeleton radius="sm" className="h-3 w-24" />
+          </div>
+          <Skeleton radius="sm" className="mt-3 h-2 w-full" />
         </Card>
       ) : null}
 

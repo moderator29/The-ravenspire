@@ -117,14 +117,27 @@ export const comingSoonNav: NavItem[] = [
     icon3d: "season",
     blurb: "The Raven reads your holdings, your watchlist and the realm's calls into one morning briefing.",
   },
+  /* The Mint promises what the Swap does not do yet, and nothing else.
+
+     Its blurb read "Trade any token across chains, shielded from MEV, gasless"
+     while the live Swap entry two groups above said "Trade any coin": one
+     realm, two navigation entries, and the coming soon one advertising a thing
+     that had already shipped. A member who read both learned only that the
+     realm does not know what it has built.
+
+     The landing teaser had already drawn this line honestly (the Swap trades
+     non-custodially on one chain today, the Mint is what it becomes when the
+     routing crosses chains), so this now says the same thing in one line:
+     cross-chain routing, the order desk on top of a trade, and settlement the
+     member does not pay gas for. None of those three exist. */
   {
     slug: "mint",
     href: "/soon/mint",
     themed: "The Mint",
-    plain: "Trading",
+    plain: "Advanced trading",
     icon: "coin",
     icon3d: "coins",
-    blurb: "Trade any token across chains, shielded from MEV, gasless.",
+    blurb: "Cross-chain routing, limit orders and gasless settlement, on top of the Swap that already trades today.",
   },
   {
     slug: "prophecies",

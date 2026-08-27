@@ -61,9 +61,14 @@ function KeepBody() {
 
   const { ready, authenticated, enabled } = useRealmAuth();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
-  const [state, setState] = useState<"loading" | "anon" | "onboard" | "ok">(
-    "loading"
-  );
+  /* Five states, and the fifth is the one that was missing. A Keep whose read
+     did not land used to sit on the skeleton forever: the member saw the shape
+     of their own Keep pulsing and was never told anything had gone wrong, and
+     had no control to try again. A failed read is a state of its own, and it
+     is the only one here with a way out that the member can operate. */
+  const [state, setState] = useState<
+    "loading" | "anon" | "onboard" | "failed" | "ok"
+  >("loading");
   const [editOpen, setEditOpen] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [tries, setTries] = useState(0);
@@ -76,6 +81,7 @@ function KeepBody() {
       return;
     }
     let cancelled = false;
+    setState("loading");
     void (async () => {
       const res = await realmFetch<{
         profile?: { handle: string | null; onboarded: boolean };
@@ -101,10 +107,15 @@ function KeepBody() {
         return;
       }
       const full = await fetchProfile(me.handle);
-      if (full && !cancelled) {
-        setProfile(full);
-        setState("ok");
+      if (cancelled) return;
+      if (!full) {
+        /* The realm knows this member and knows their handle, so the Keep is
+           there. The read of it simply did not land. */
+        setState("failed");
+        return;
       }
+      setProfile(full);
+      setState("ok");
     })();
     return () => {
       cancelled = true;
@@ -139,6 +150,23 @@ function KeepBody() {
         action={
           <Button variant="gold" size="lg" render={<Link href="/welcome" />}>
             See the Maester
+          </Button>
+        }
+      />
+    );
+
+  if (state === "failed")
+    return (
+      <DossierMissing
+        title="Your Keep would not open"
+        body="The gates are yours and everything behind them is intact. The read simply did not reach the realm."
+        action={
+          <Button
+            variant="glass"
+            size="lg"
+            onClick={() => setRefresh((n) => n + 1)}
+          >
+            Try again
           </Button>
         }
       />

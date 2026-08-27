@@ -6,13 +6,24 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/field";
-import { IconButton } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { BackButton } from "@/components/shell/back-button";
+import { Avatar } from "@/components/social/avatar";
 import { realmFetch } from "@/lib/auth/api";
 import { StreamColumn } from "@/components/stream/stream-shell";
 
 /* Global search: members, cashtags and posts from anywhere in the realm. Real
-   data only, live as you type, with honest empty states. */
+   data only, live as you type, with honest empty states.
+
+   A FAILED SEARCH IS NOT AN EMPTY REALM, and for a while this page said it was.
+   Any error from /api/search, a dropped connection included, fell through the
+   `res.data ?? { users: [], posts: [], cashtags: [] }` default and rendered as
+   "Nothing found for ...", which is the product asserting a fact about the
+   realm on the strength of a request that never landed. The two states are
+   branched apart now: an empty result is an empty result, and a read that did
+   not complete says so and offers the retry, because a search is the one thing
+   here a member will happily run twice. */
 
 interface UserResult {
   id: string;
@@ -73,30 +84,39 @@ function SearchBody() {
   const [query, setQuery] = useState(() => params.get("q") ?? "");
   const [results, setResults] = useState<Results | null>(null);
   const [searching, setSearching] = useState(false);
+  const [failed, setFailed] = useState(false);
+  /* Bumped by the retry control. The effect already owns the read, so the
+     retry asks for the same read again rather than growing a second one. */
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (query.trim().length < 2) {
       setResults(null);
       setSearching(false);
+      setFailed(false);
       return;
     }
     let cancelled = false;
     setSearching(true);
+    setFailed(false);
     const t = setTimeout(async () => {
       const res = await realmFetch<Results>(
         `/api/search?q=${encodeURIComponent(query.trim())}`
       );
       if (cancelled) return;
-      setResults(
-        res.data ?? { users: [], posts: [], cashtags: [] }
-      );
       setSearching(false);
+      if (!res.ok || !res.data) {
+        setResults(null);
+        setFailed(true);
+        return;
+      }
+      setResults(res.data);
     }, 280);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [query]);
+  }, [query, attempt]);
 
   const empty =
     results !== null &&
@@ -167,9 +187,30 @@ function SearchBody() {
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
             Searching the realm...
           </div>
+        ) : failed ? (
+          <Card pad="none">
+            <EmptyState
+              icon="search"
+              title="The search did not reach the realm"
+              body="Nothing was found and nothing was missing: the read itself failed. Ask again and it will most likely land."
+              action={
+                <Button
+                  variant="glass"
+                  size="md"
+                  onClick={() => setAttempt((n) => n + 1)}
+                >
+                  Try again
+                </Button>
+              }
+            />
+          </Card>
         ) : empty ? (
-          <Card pad="xl" className="text-center text-sm text-bone-mut">
-            Nothing found for &ldquo;{query.trim()}&rdquo;.
+          <Card pad="none">
+            <EmptyState
+              icon3d="search"
+              title={`Nothing found for "${query.trim()}"`}
+              body="No member, cashtag or raven in the realm answers to that. Try a shorter name or a different cashtag."
+            />
           </Card>
         ) : (
           results && (
@@ -203,18 +244,20 @@ function SearchBody() {
                       u.displayName ?? (u.handle ? `@${u.handle}` : "A member");
                     return (
                       <Card key={u.id} render={<Link href={u.handle ? `/u/${u.handle}` : "#"} />} radius="lg" pad="none" className="flex items-center gap-3 px-3.5 py-3 transition hover:border-gold/30">
-                        {u.avatarUrl ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img
-                            src={u.avatarUrl}
-                            alt=""
-                            className="h-10 w-10 shrink-0 rounded-full border border-steel-line object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-void text-bone-mut">
-                            <Icon name="user" className="h-5 w-5" />
-                          </div>
-                        )}
+                        {/* The realm's own face, rather than a third copy of
+                            one. The hand rolled pair this replaced drew a bare
+                            portrait with no House tint and, with no portrait,
+                            a grey glyph where every other surface draws the
+                            member's initial. */}
+                        <Avatar
+                          author={{
+                            handle: u.handle,
+                            display_name: u.displayName,
+                            avatar_url: u.avatarUrl,
+                            house_slug: null,
+                          }}
+                          size={40}
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
                             <p className="truncate text-sm font-medium text-bone">
@@ -246,18 +289,15 @@ function SearchBody() {
                     return (
                       <Card key={p.id} render={<Link href={`/post/${p.id}`} />} radius="lg" pad="none" className="flex flex-col gap-1.5 px-3.5 py-3 transition hover:border-gold/30">
                         <div className="flex items-center gap-2">
-                          {p.author.avatarUrl ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img
-                              src={p.author.avatarUrl}
-                              alt=""
-                              className="h-6 w-6 shrink-0 rounded-full border border-steel-line object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-void text-bone-mut">
-                              <Icon name="user" className="h-3.5 w-3.5" />
-                            </div>
-                          )}
+                          <Avatar
+                            author={{
+                              handle: p.author.handle,
+                              display_name: p.author.displayName,
+                              avatar_url: p.author.avatarUrl,
+                              house_slug: null,
+                            }}
+                            size={24}
+                          />
                           <span className="truncate text-xs font-medium text-bone-mut">
                             {name}
                           </span>

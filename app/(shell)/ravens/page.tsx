@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -36,11 +37,36 @@ interface NotifView extends Notif {
   fresh: boolean;
 }
 
+/* Shaped like the row that is arriving: a face, two lines, a timestamp. The
+   page used to draw three grey slabs the instant it mounted, which on a read
+   that lands in eighty milliseconds reads as the layout breaking and repairing
+   itself rather than as loading. Gated behind useDelayedLoading now, so a fast
+   read simply appears. */
+function RavenRowSkeleton() {
+  return (
+    <Card radius="lg" pad="md" className="flex items-start gap-3">
+      <Skeleton radius="full" className="h-10 w-10 shrink-0" />
+      <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
+        <Skeleton radius="sm" className="h-3 w-3/5" />
+        <Skeleton radius="sm" className="h-3 w-2/5" />
+      </div>
+      <Skeleton radius="sm" className="h-3 w-8 shrink-0" />
+    </Card>
+  );
+}
+
 export default function RavensPage() {
   const { ready, authenticated } = useRealmAuth();
   const supabase = useMemo(() => createClient(), []);
   const [me, setMe] = useState<string | null>(null);
   const [items, setItems] = useState<NotifView[] | null>(null);
+  /* An inbox that could not be read is not an empty inbox. Any failure used to
+     fall through `res.data?.notifications ?? []` and render as "No ravens have
+     arrived for you yet", which tells a member nothing happened when in truth
+     the realm was never asked. */
+  const [failed, setFailed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const showSkeleton = useDelayedLoading(loading);
 
   /* Keep the latest list in a ref so the realtime handler and the mark-read
      call can read it without re-subscribing on every state change. Synced in
@@ -54,7 +80,16 @@ export default function RavensPage() {
     const res = await realmFetch<{ notifications?: Notif[] }>(
       "/api/notifications"
     );
-    const incoming = res.data?.notifications ?? [];
+    setLoading(false);
+    if (!res.ok || !res.data) {
+      /* A failed refresh behind a list that already landed keeps the list. The
+         ravens on screen are real and merely a little stale, and blanking them
+         for a poll that missed would be the worse lie of the two. */
+      if (itemsRef.current === null) setFailed(true);
+      return;
+    }
+    setFailed(false);
+    const incoming = res.data.notifications ?? [];
     const priorFresh = new Map(
       (itemsRef.current ?? []).map((n) => [n.id, n.fresh])
     );
@@ -148,22 +183,38 @@ export default function RavensPage() {
               }
             />
           </Card>
-        ) : items === null ? (
-          [0, 1, 2].map((i) => (
-            <Card key={i} radius="lg" pad="none" className="h-16 animate-pulse" />
-          ))
-        ) : items.length === 0 ? (
-          <Card pad="xl" className="text-center">
-            <Icon
-              name="raven"
-              className="mx-auto h-8 w-8 text-bone-faint"
+        ) : failed ? (
+          <Card pad="none">
+            <EmptyState
+              icon="bell"
+              title="The ravens could not be counted"
+              body="Your inbox did not answer just now. Nothing has been lost: ask again and it will come."
+              action={
+                <Button
+                  variant="glass"
+                  size="md"
+                  onClick={() => {
+                    setFailed(false);
+                    setLoading(true);
+                    void load();
+                  }}
+                >
+                  Try again
+                </Button>
+              }
             />
-            <p className="mt-3 text-sm text-bone-mut">
-              No ravens have arrived for you yet.
-            </p>
-            <p className="mt-1 text-xs text-bone-faint">
-              Post, follow, and duel, and the realm will answer.
-            </p>
+          </Card>
+        ) : items === null ? (
+          showSkeleton ? (
+            [0, 1, 2].map((i) => <RavenRowSkeleton key={i} />)
+          ) : null
+        ) : items.length === 0 ? (
+          <Card pad="none">
+            <EmptyState
+              icon3d="notifications"
+              title="No ravens have arrived for you yet"
+              body="Post, follow, and make a Call, and the realm will answer."
+            />
           </Card>
         ) : (
           items.map((n) => (

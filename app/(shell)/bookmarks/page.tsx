@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { BackButton } from "@/components/shell/back-button";
 import { PostCard } from "@/components/social/post-card";
@@ -12,16 +13,58 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import type { Post } from "@/lib/social/types";
 import { StreamColumn } from "@/components/stream/stream-shell";
 
+/* The shelf of saved ravens.
+
+   Two things were wrong with the read and they were the same thing twice. The
+   page drew two grey slabs the instant it mounted, which on a shelf that
+   usually lands in under a tenth of a second reads as the layout flinching
+   rather than as loading; and a read that failed fell through
+   `res.data?.posts ?? []` into "Nothing saved yet", telling a member their
+   shelf is empty on the strength of a request that never came back. A shelf
+   that could not be read is not an empty shelf. */
+
+/* Shaped like the raven that is arriving: a face, a name, two lines of body. */
+function SavedRavenSkeleton() {
+  return (
+    <Card radius="lg" pad="md" className="flex items-start gap-3">
+      <Skeleton radius="full" className="h-10 w-10 shrink-0" />
+      <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
+        <Skeleton radius="sm" className="h-3 w-2/5" />
+        <Skeleton radius="sm" className="h-3 w-full" />
+        <Skeleton radius="sm" className="h-3 w-3/5" />
+      </div>
+    </Card>
+  );
+}
+
 export default function BookmarksPage() {
   const { ready, authenticated } = useRealmAuth();
   const [posts, setPosts] = useState<Post[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  /* Derived rather than held. There is no state here that a fourth flag would
+     record: the shelf is loading exactly when the realm has been asked and has
+     not answered either way. Keeping it as state would mean setting it inside
+     the effect for the signed out case, which is a cascading render for a fact
+     already on screen. */
+  const loading = ready && authenticated && posts === null && !failed;
+  const showSkeleton = useDelayedLoading(loading);
 
   useEffect(() => {
     if (!ready || !authenticated) return;
-    void realmFetch<{ posts?: Post[] }>("/api/bookmarks").then((res) =>
-      setPosts(res.data?.posts ?? [])
-    );
-  }, [ready, authenticated]);
+    let cancelled = false;
+    void realmFetch<{ posts?: Post[] }>("/api/bookmarks").then((res) => {
+      if (cancelled) return;
+      if (!res.ok || !res.data) {
+        setFailed(true);
+        return;
+      }
+      setPosts(res.data.posts ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, authenticated, attempt]);
 
   return (
     <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
@@ -48,13 +91,37 @@ export default function BookmarksPage() {
               }
             />
           </Card>
+        ) : failed ? (
+          <Card pad="none">
+            <EmptyState
+              icon="bookmark"
+              title="The shelf would not open"
+              body="Your saved ravens could not be read just now. Nothing has been lost from the shelf."
+              action={
+                <Button
+                  variant="glass"
+                  size="md"
+                  onClick={() => {
+                    setFailed(false);
+                    setAttempt((n) => n + 1);
+                  }}
+                >
+                  Try again
+                </Button>
+              }
+            />
+          </Card>
         ) : posts === null ? (
-          [0, 1].map((i) => (
-            <Card key={i} radius="lg" pad="none" className="h-24 animate-pulse" />
-          ))
+          showSkeleton ? (
+            [0, 1].map((i) => <SavedRavenSkeleton key={i} />)
+          ) : null
         ) : posts.length === 0 ? (
-          <Card pad="xl" className="text-center text-sm text-bone-mut">
-            Nothing saved yet. The bookmark mark on any raven places it here.
+          <Card pad="none">
+            <EmptyState
+              icon3d="archive"
+              title="Nothing saved yet"
+              body="The bookmark mark on any raven places it here."
+            />
           </Card>
         ) : (
           posts.map((p) => <PostCard key={p.id} post={p} />)

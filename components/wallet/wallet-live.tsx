@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { useWallets } from "@privy-io/react-auth";
 import { Icon } from "@/components/ui/icon";
 import { Button, IconButton } from "@/components/ui/button";
@@ -12,7 +13,6 @@ import { CopyButton } from "@/components/wallet/copy-button";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import { WalletModal } from "@/components/wallet/wallet-modal";
 import { WalletReceive } from "@/components/wallet/wallet-receive";
-import { WalletSwap } from "@/components/wallet/wallet-swap";
 import { WalletEarn } from "@/components/wallet/wallet-earn";
 import { WalletSettings } from "@/components/wallet/wallet-settings";
 import { CoinList } from "@/components/wallet/coin-list";
@@ -31,7 +31,6 @@ type Panel =
   | "coin"
   | "send-pick"
   | "receive"
-  | "swap"
   | "earn"
   | "manage"
   | "history"
@@ -237,11 +236,13 @@ export function WalletLive({ address }: { address?: string }) {
             label="Receive"
             onClick={() => setPanel("receive")}
           />
-          <ActionButton
-            icon="repost"
-            label="Swap"
-            onClick={() => setPanel("swap")}
-          />
+          {/* The Swap is a surface of its own now, so the Vault points at it
+              rather than opening a modal that apologised for not being one.
+              The modal held a placeholder saying swaps were "on its way" while
+              a working Swap was already in the nav: the Vault was the one place
+              a member would look for it and the one place that denied it
+              existed. */}
+          <ActionButton icon="repost" label="Swap" href="/swap" />
           <ActionButton
             icon="crown"
             label="Earn"
@@ -364,16 +365,6 @@ export function WalletLive({ address }: { address?: string }) {
       </WalletModal>
 
       <WalletModal
-        open={panel === "swap"}
-        onClose={() => setPanel(null)}
-        title="Swap"
-        caption="In-wallet"
-        icon="repost"
-      >
-        <WalletSwap chainMeta={defaultChainMeta} />
-      </WalletModal>
-
-      <WalletModal
         open={panel === "earn"}
         onClose={() => setPanel(null)}
         title="Earn"
@@ -448,23 +439,31 @@ function ActionButton({
   icon,
   label,
   onClick,
+  href,
   primary = false,
   iconClassName = "",
 }: {
   icon: string;
   label: string;
-  onClick: () => void;
+  /* Every action on this row is one of two things: a panel this view opens, or
+     a surface elsewhere in the realm. Give it an `onClick` or an `href`, never
+     both, and the tile is identical either way, because a member reading the
+     row should not have to know which actions happen to be modals. */
+  onClick?: () => void;
+  href?: string;
   primary?: boolean;
   iconClassName?: string;
 }) {
   /* A rounded rectangle tile, not a circle. Circles belong to avatars, and a
-     56px gold disc on a Console reads as a toy. */
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="touch:min-h-11 touch:min-w-11 group flex flex-1 flex-col items-center gap-1.5"
-    >
+     56px gold disc on a Console reads as a toy.
+
+     The touch floor is written out on both tags rather than hoisted into a
+     shared constant. It is a hand rolled control either way, so the two classes
+     that carry rule 12's 44px minimum have to be legible on the element itself:
+     a `className={tile}` tells the next reader nothing about whether this
+     control is hittable. */
+  const body = (
+    <>
       <span
         aria-hidden
         className={`flex h-11 w-11 items-center justify-center rounded-lg border transition-[border-color,background-color,filter] duration-fast ease-out-quint md:h-9 md:w-9 ${
@@ -478,6 +477,27 @@ function ActionButton({
       <span className="text-xs font-medium text-bone-mut transition-colors duration-fast group-hover:text-bone md:text-[11px]">
         {label}
       </span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="touch:min-h-11 touch:min-w-11 group flex flex-1 flex-col items-center gap-1.5"
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="touch:min-h-11 touch:min-w-11 group flex flex-1 flex-col items-center gap-1.5"
+    >
+      {body}
     </button>
   );
 }
