@@ -218,6 +218,30 @@ export function ProfileView({
     void fetchFollowCounts(profile.id).then(setCounts);
   }, [profile.id]);
 
+  /* The full settled-call record, from the same endpoint the caller board
+     ranks by, so the number on this Keep and the number on the board can
+     never disagree. The posts window above holds at most fifty posts, and a
+     hit rate computed from it was quietly wrong for any prolific caller
+     (finding B3). Until the record arrives, or if the read fails, the badge
+     falls back to the windowed figures, which are real, just narrower. */
+  const [callRecord, setCallRecord] = useState<{
+    total: number;
+    hits: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!profile.handle) return;
+    let cancelled = false;
+    void realmFetch<{ record?: { total: number; hits: number } }>(
+      `/api/calls/caller?handle=${encodeURIComponent(profile.handle)}`
+    ).then((res) => {
+      if (cancelled || !res.ok || !res.data?.record) return;
+      setCallRecord(res.data.record);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.handle]);
+
   const house = houses.find((h) => h.slug === profile.house_slug);
   /* Profile with any freshly uploaded portrait applied for instant preview. */
   const displayProfile = {
@@ -227,9 +251,12 @@ export function ProfileView({
   };
   const portraitAccept = "image/jpeg,image/png,image/webp,image/gif";
   const callPosts = posts.filter((p) => p.kind === "call");
-  const callsWon = callPosts.filter((p) => p.call?.verdict === "hit").length;
-  const callsLost = callPosts.filter((p) => p.call?.verdict === "miss").length;
-  const settledCalls = callsWon + callsLost;
+  const windowWon = callPosts.filter((p) => p.call?.verdict === "hit").length;
+  const windowLost = callPosts.filter((p) => p.call?.verdict === "miss").length;
+  const callsWon = callRecord ? callRecord.hits : windowWon;
+  const settledCalls = callRecord
+    ? callRecord.total
+    : windowWon + windowLost;
   /* Hit-rate on settled calls only, an honest track record, blank until at
      least a few calls have resolved so a lone lucky call can't read as 100%. */
   const hitRate =
