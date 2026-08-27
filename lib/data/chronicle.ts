@@ -76,10 +76,6 @@ export const chronicle: ChronicleSection[] = [
     notes: [
       {
         status: "in-development",
-        text: "The event stream is written and readable, but the Ravenry does not yet render event cards alongside ravens. Until it does, those events reach you through the surfaces they belong to and through your Ravens.",
-      },
-      {
-        status: "in-development",
         text: "Quests and duels of wit run on the server and emit their events, but they have no surface yet. They are dissolving into the Ravenry and the House halls rather than returning as a destination, which is why Claim the Throne is no longer a place you visit.",
       },
     ],
@@ -101,10 +97,6 @@ export const chronicle: ChronicleSection[] = [
       "Renown drawn from social actions is capped at two hundred a day, which a genuinely active member never notices and a pair of colluding accounts hits inside an hour. Renown from resolved Calls is deliberately uncapped, and the flat award a landing Call pays is scaled by how hard the Call actually was, so a coin flip pays almost nothing.",
     ],
     notes: [
-      {
-        status: "in-development",
-        text: "The composer does not yet carry the confidence slider or show you the frozen difficulty before you seal. Until it does, a Call is sealed at the bottom of the band, 0.55, which is the least you could have meant and can never inflate a score.",
-      },
       {
         status: "planned",
         text: "Community and admin resolvers are designed but not built. A Call that asks for one is refused when you seal it rather than accepted and left open forever.",
