@@ -99,9 +99,9 @@ export function TheGames() {
             </h3>
             <p className="mt-2 text-[13px] leading-relaxed text-bone-mut">
               A public, timestamped claim with your name on it. The realm reads
-              the token's own volatility to work out how hard your Call actually
-              is, and freezes that difficulty the moment you seal, so an easy
-              Call and a hard one can never score the same.
+              the token&apos;s own volatility to work out how hard your Call
+              actually is, and freezes that difficulty the moment you seal, so
+              an easy Call and a hard one can never score the same.
             </p>
             <ul className="mt-4 flex flex-col gap-2">
               {callFeatures.map((f) => (

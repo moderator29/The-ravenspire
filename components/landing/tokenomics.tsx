@@ -53,7 +53,11 @@ const rise: Variants = {
 
 function Donut() {
   const reduce = useReducedMotion();
-  let acc = 0;
+  /* Cumulative start angle per slice, derived up front rather than mutated
+     inside the render loop, which the React compiler rejects. */
+  const startPct = slices.map((_, i) =>
+    slices.slice(0, i).reduce((sum, s) => sum + s.pct, 0)
+  );
 
   return (
     <div className="relative mx-auto h-60 w-60 sm:h-72 sm:w-72">
@@ -69,8 +73,7 @@ function Donut() {
         />
         {slices.map((s, i) => {
           const len = (s.pct / 100) * C;
-          const startDeg = (acc / 100) * 360;
-          acc += s.pct;
+          const startDeg = (startPct[i] / 100) * 360;
           return (
             <motion.circle
               key={s.label}

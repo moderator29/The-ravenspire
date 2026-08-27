@@ -68,6 +68,10 @@ export function AlmsPanel() {
   const [message, setMessage] = useState<string | null>(null);
   const [granted, setGranted] = useState(false);
   const [needsAge, setNeedsAge] = useState(false);
+  /* The clock is read when the state loads, never during render, so the
+     component stays pure. next_at only moves on load or claim, and both paths
+     refresh this stamp. */
+  const [readAt, setReadAt] = useState(0);
   const showSkeleton = useDelayedLoading(status === "loading", 300);
 
   const load = useCallback(async () => {
@@ -89,6 +93,7 @@ export function AlmsPanel() {
     setLive(res.data.live === true);
     setPolicy(res.data.policy);
     setState(res.data.state);
+    setReadAt(Date.now());
     setStatus("ready");
   }, []);
 
@@ -162,7 +167,7 @@ export function AlmsPanel() {
 
   const held = state.unopened > 0;
   const waiting =
-    state.next_at !== null && new Date(state.next_at).getTime() > Date.now();
+    state.next_at !== null && new Date(state.next_at).getTime() > readAt;
   const exhausted = state.remaining_today <= 0;
   const busy = status === "claiming";
 

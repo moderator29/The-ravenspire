@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSendTransaction } from "@privy-io/react-auth";
 import {
   encodeFunctionData,
@@ -35,6 +35,34 @@ export interface SendCapableWallet {
 
 type Step = "recipient" | "amount" | "sent";
 
+/* Pure and cheap, so no memoization is needed. Living outside the component
+   also keeps the React compiler able to optimize the component itself. */
+function toBigIntOrZero(raw: string): bigint {
+  try {
+    return BigInt(raw);
+  } catch {
+    return 0n;
+  }
+}
+
+/* Stamps the record at the moment the transaction was accepted. Lives at
+   module level so the timestamp is unambiguously taken in the handler path,
+   never during render. */
+function recordSentTx(fields: Omit<TxRecord, "at">): TxRecord {
+  return { ...fields, at: Date.now() };
+}
+
+function parseAmountOrNull(value: string, decimals: number): bigint | null {
+  const v = value.trim();
+  if (v === "") return null;
+  try {
+    const wei = parseUnits(v, decimals);
+    return wei > 0n ? wei : null;
+  } catch {
+    return null;
+  }
+}
+
 /* The improved, two-step send flow scoped to one coin on one chain (Exodus /
    Trust style). Step 1 collects and validates the 0x recipient; step 2 takes
    the amount with the live available balance, a MAX button, and a hard block
@@ -64,24 +92,8 @@ export function WalletSendFlow({
   const chain = evmChainById(token.chainId);
   const recipientValid = isAddress(to.trim());
 
-  const balanceRaw = useMemo(() => {
-    try {
-      return BigInt(token.balanceRaw);
-    } catch {
-      return 0n;
-    }
-  }, [token.balanceRaw]);
-
-  const parsedAmount = useMemo(() => {
-    const v = amount.trim();
-    if (v === "") return null;
-    try {
-      const wei = parseUnits(v, token.decimals);
-      return wei > 0n ? wei : null;
-    } catch {
-      return null;
-    }
-  }, [amount, token.decimals]);
+  const balanceRaw = toBigIntOrZero(token.balanceRaw);
+  const parsedAmount = parseAmountOrNull(amount, token.decimals);
 
   const overBalance = parsedAmount !== null && parsedAmount > balanceRaw;
   const availableText = formatUnits(balanceRaw, token.decimals);
@@ -164,15 +176,14 @@ export function WalletSendFlow({
           };
 
       const result = await sendTransaction(tx, { address: wallet.address });
-      const record: TxRecord = {
+      const record = recordSentTx({
         hash: result.hash,
         chainId: token.chainId,
         to: recipient,
         symbol: token.symbol,
         amount: formatUnits(parsedAmount, token.decimals),
         contract: token.contract,
-        at: Date.now(),
-      };
+      });
       onRecorded(record);
       setHash(result.hash);
       setStep("sent");

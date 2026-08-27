@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -42,29 +42,25 @@ export default function RavensPage() {
   const [me, setMe] = useState<string | null>(null);
   const [items, setItems] = useState<NotifView[] | null>(null);
 
-  /* Keep the latest list in a ref so the realtime handler and the mark-read
-     call can read it without re-subscribing on every state change. */
-  const itemsRef = useRef<NotifView[] | null>(null);
-  itemsRef.current = items;
-
   const load = useCallback(async () => {
     const res = await realmFetch<{ notifications?: Notif[] }>(
       "/api/notifications"
     );
     const incoming = res.data?.notifications ?? [];
-    const priorFresh = new Map(
-      (itemsRef.current ?? []).map((n) => [n.id, n.fresh])
-    );
-    const merged: NotifView[] = incoming.map((n) => ({
-      ...n,
-      /* A known raven keeps whatever glow it already had; a newly seen one
-         glows when it arrived unread. */
-      fresh: priorFresh.has(n.id) ? priorFresh.get(n.id)! : !n.read,
-    }));
-    setItems(merged);
+    /* Merge against the previous list inside the updater so the realtime
+       handler never needs to re-subscribe on state changes. A known raven
+       keeps whatever glow it already had; a newly seen one glows when it
+       arrived unread. */
+    setItems((prev) => {
+      const priorFresh = new Map((prev ?? []).map((n) => [n.id, n.fresh]));
+      return incoming.map((n) => ({
+        ...n,
+        fresh: priorFresh.has(n.id) ? priorFresh.get(n.id)! : !n.read,
+      }));
+    });
     /* Clear the server-side unread flag for the batch just shown. The glow is
        driven by `fresh`, so the page still highlights what was new this visit. */
-    if (merged.some((n) => !n.read)) {
+    if (incoming.some((n) => !n.read)) {
       await realmFetch("/api/notifications", { method: "POST" });
     }
   }, []);
