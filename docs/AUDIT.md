@@ -1,5 +1,10 @@
 # The Grand Audit of the Realm
 
+> HISTORICAL. Most of these 261 findings have since been fixed across the V2
+> rebuild and later waves. The current, verified state of the platform lives
+> in `docs/FUNDING-READINESS.md`. Treat nothing below as an open bug without
+> re-verifying it against the code.
+
 An adversarial, eight-area review of the entire platform against the founder's brief.
 
 **261 findings** across 8 areas: 13 critical, 74 high, 108 medium, 43 low, 23 idea.

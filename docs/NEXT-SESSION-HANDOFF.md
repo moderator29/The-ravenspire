@@ -1,5 +1,11 @@
 # The Ravenspire, Next-Session Handoff
 
+> HISTORICAL. This handoff predates the V2 rebuild and the funding-readiness
+> sprint, and much of its bug list and status is no longer accurate. Read
+> `docs/FUNDING-READINESS.md` for the current state, `docs/RAVENSPIRE-V2.md`
+> for the V2 plan, and `AGENTS.md` for the rules that stand. Kept for the
+> founder rules and the feature specs it records.
+
 This is the single source of truth for whoever picks up The Ravenspire next.
 Read it fully before writing code. It captures the founder's rules and style,
 the features to build next (the in-app Scrying trading + Swap, fully specced
