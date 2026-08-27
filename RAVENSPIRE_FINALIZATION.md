@@ -27,21 +27,38 @@ equality), B7 (notifyFollowers loop), B9 remainder (two orphan files), 39.6
 
 ## NOW (currently being built)
 
-- Agent 3 (backend): rate limits on posts, scanner, whispers, rooms, coin,
-  token, watch and the four trade routes; checkout shipping persistence;
-  fulfill cron entry; notifyFollowers batching; referral activation >= 3;
-  upload magic-byte sniffing; war_state upsert on GET; battle_id enforcement
-  check; quests and duels routes gated behind a fail-closed flag; orphan
-  module deletion; wagmi and playwright-core removal; dead API route
-  verification and deletion; profile/sync wallet derivation.
-- Agent 2 (frontend): generateMetadata on post, call, profile and house detail
-  routes; search and notifications error states; bookmarks and renown
-  skeletons; keep error state; Vault swap action pointed at /swap; sitemap
-  corrections; kitchen-sink production gate; search page on primitives; war
-  rewards comment correction; soon/mint blurb; admin commerce panels
-  (stretch).
+Nothing. The sprint's work packages are complete and pushed.
 
 ## DONE (verified complete)
+
+- Backend hardening (Agent 3, all items landed): per-profile rate limits on
+  posts (with a tighter @raven allowance), scanner, whispers, rooms and the
+  four trade routes; callerKey metering on the public coin, token and watch
+  routes; upload admission by magic bytes; quests and duels sealed behind a
+  fail-closed realm flag with limits; referral activation >= 3 with a guarded
+  flip; notifyFollowers batched (one read, chunked settings, bulk inserts,
+  bounded broadcast pool); war_state created from the table's own defaults,
+  hand-written fallback deleted; profile/sync derives the wallet from the
+  verified Privy token.
+- Checkout persists the shipping address the stores were already sending,
+  refuses a physical cart without one server-side, and the normaliser accepts
+  the `postal` spelling the stores actually send (a new finding: every real
+  address would have normalised to null). The fulfillment worker is on the
+  cron schedule.
+- Frontend (Agent 2, all items landed): generateMetadata on the raven, Call,
+  Keep and House hall detail routes; honest error states with retry on
+  search, ravens, bookmarks, renown and the Keep, behind delayed skeletons;
+  Vault Swap action opens /swap and the placeholder is deleted; sitemap ranks
+  /calls and demotes /throne; kitchen sink is dev-only; search on the Avatar
+  and EmptyState primitives; Mint teaser narrowed to what is genuinely
+  unbuilt; admin commerce panels for redemption codes and refunds.
+- Dead code: nine orphan modules and four caller-less API routes deleted
+  after independent re-verification; wagmi and playwright-core removed.
+  components/coin/watchlist.ts kept, it has a live import.
+- battle_id enforcement checked and deliberately not tightened: the current
+  war client never calls the start action, so requiring a session today would
+  break every settle. The session path exists; wiring the client start call
+  is the prerequisite, queued below.
 
 - Baseline verified green at sprint start: typecheck clean, 874 tests, 18
   house rules, production build passing.
@@ -52,6 +69,17 @@ equality), B7 (notifyFollowers loop), B9 remainder (two orphan files), 39.6
 - Stray 814KB screenshot removed from the repo root.
 - Profile hit rate reads the full settled-call record from /api/calls/caller
   instead of the fifty-post window (closes B3).
+
+## NEXT (ready to build, prioritized)
+
+- Wire the war client to call the battle start action, then require
+  battle_id server-side so a settle can no longer be entirely
+  client-asserted (house rule 8; the route's session path is ready).
+- Founder decision then flag flips: chests_live, mercer_live, reliquary_live
+  once prices are confirmed and the payment provider account exists (V2
+  section 40 founder-only list).
+- Set ZEROX_API_KEY and PLATFORM_FEE_RECIPIENT in Vercel to take the trading
+  surfaces out of their honest warming-up state.
 
 ## DEFERRED (good idea, not this sprint)
 
