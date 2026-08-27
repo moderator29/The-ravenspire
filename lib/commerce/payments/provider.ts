@@ -87,6 +87,13 @@ export interface PaymentEvent {
 
 export interface PaymentProvider {
   readonly name: string;
+  /* The request header the provider carries its webhook signature in,
+     lowercase. The webhook route reads this rather than naming a processor's
+     header itself, which is the whole point of the abstraction: the route once
+     hardcoded another processor's header name, so every real webhook arrived
+     unsigned as far as verification could tell and no order could ever be
+     marked paid. */
+  readonly signatureHeader: string;
   /* Whether the provider is configured (secrets present). A route checks this
      to fail honestly rather than attempt an unconfigured call. */
   isConfigured(): boolean;

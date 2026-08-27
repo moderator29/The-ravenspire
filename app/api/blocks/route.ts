@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { uuid } from "@/lib/validate";
 
 export async function GET(req: Request) {
   const profile = await requireProfile(req);
@@ -23,7 +24,10 @@ export async function POST(req: Request) {
     profile_id?: string;
     on?: boolean;
   } | null;
-  if (!body?.profile_id) return json({ error: "bad request" }, 400);
+  /* The id is proven to be a uuid before it goes anywhere near a query. It
+     used to be interpolated raw into an .or() filter string, where , ( ) and .
+     are grammar, so a crafted "id" could rewrite the delete's scope. */
+  if (!uuid(body?.profile_id)) return json({ error: "bad request" }, 400);
   if (body.profile_id === profile.id)
     return json({ error: "You cannot banish yourself from your own sight" }, 400);
 
@@ -31,13 +35,19 @@ export async function POST(req: Request) {
     await db
       .from("blocks")
       .upsert({ blocker_id: profile.id, blocked_id: body.profile_id });
-    /* Blocking also severs the follow threads both ways. */
+    /* Blocking also severs the follow threads both ways: two deletes, each
+       scoped by plain .eq() filters, so no client value ever rides inside
+       filter grammar. */
     await db
       .from("follows")
       .delete()
-      .or(
-        `and(follower_id.eq.${profile.id},followee_id.eq.${body.profile_id}),and(follower_id.eq.${body.profile_id},followee_id.eq.${profile.id})`
-      );
+      .eq("follower_id", profile.id)
+      .eq("followee_id", body.profile_id);
+    await db
+      .from("follows")
+      .delete()
+      .eq("follower_id", body.profile_id)
+      .eq("followee_id", profile.id);
   } else {
     await db
       .from("blocks")

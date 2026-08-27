@@ -31,8 +31,15 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const provider = paymentProvider();
   const raw = await req.text();
+  /* The provider names its own signature header (Coinbase Commerce sends
+     X-CC-Webhook-Signature). This route once read only stripe-signature and
+     x-signature, neither of which Coinbase sends, so every real webhook failed
+     verification and no order could ever become paid. The two generic names
+     stay as fallbacks for a proxy that renames the header. */
   const signature =
-    req.headers.get("stripe-signature") ?? req.headers.get("x-signature");
+    req.headers.get(provider.signatureHeader) ??
+    req.headers.get("stripe-signature") ??
+    req.headers.get("x-signature");
 
   const event = provider.verifyAndParseWebhook(raw, signature);
   if (!event) return json({ error: "invalid signature" }, 400);

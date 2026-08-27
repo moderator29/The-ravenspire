@@ -47,6 +47,11 @@ function minorToMajor(minor: number): string {
 export const coinbaseProvider: PaymentProvider = {
   name: "coinbase-commerce",
 
+  /* Coinbase Commerce signs the raw body and sends the HMAC in this header.
+     Header names are case-insensitive on the wire; the fetch Headers API
+     normalises to lowercase. */
+  signatureHeader: "x-cc-webhook-signature",
+
   isConfigured(): boolean {
     return apiKey() !== null;
   },
