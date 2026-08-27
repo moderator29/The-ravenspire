@@ -2,6 +2,7 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { champions } from "@/lib/game/champions";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 const UPGRADE_BASE_COST = 120;
 
@@ -27,6 +28,17 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* The RPCs below are each atomic and self-limiting (one daily claim, a
+     chest per chest held, gold per upgrade), so this ceiling only bounds how
+     hard a script can hammer them. A member claims, opens and upgrades a few
+     times an evening. */
+  const rl = await rateLimit(profileKey("war_rewards", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      { error: "The quartermaster needs a moment. Return shortly.", retryAfter: rl.retryAfter },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     action?: "daily" | "open_chest" | "upgrade";

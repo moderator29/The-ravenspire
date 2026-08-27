@@ -507,10 +507,13 @@ export async function POST(req: Request) {
      A member keying on their own id cannot rotate an X-Forwarded-For to get a
      fresh bucket. */
   const profile = await getProfile(req);
+  /* Fails closed: each allowed read is a paid Anthropic call, so a limiter
+     outage refuses rather than spending unmetered. */
   const rl = await rateLimit(
     callerKey("dna", req, profile?.id),
     profile ? 60 : 20,
-    3600
+    3600,
+    { failClosed: true }
   );
   if (!rl.ok)
     return json(

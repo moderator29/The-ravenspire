@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* Mint a LiveKit access token so a member can join a court's real audio stage.
    Non-forgeable: the token is an HS256 JWT signed server-side with the LiveKit
@@ -55,6 +56,16 @@ function signToken(
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
+
+  /* Each call mints a signed LiveKit credential and can write a roster row.
+     A member joins a handful of courts an hour; a script minting tokens in a
+     loop is the only caller this refuses. */
+  const rl = await rateLimit(profileKey("rooms_token", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      { error: "The stage doors need a rest. Return shortly.", retryAfter: rl.retryAfter },
+      429
+    );
 
   const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
   const apiKey = process.env.LIVEKIT_API_KEY;

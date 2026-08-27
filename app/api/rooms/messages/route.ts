@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* Realtime chat and reactions for a live court. Chat is persisted in
    room_messages and read back on open (and by a polling fallback); every send
@@ -150,6 +151,16 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* Live chat sends in bursts and reactions ride the same route, so the
+     ceiling sits above any human floor and below a flood script. Every send
+     broadcasts to the whole court, which is the amplification worth bounding. */
+  const rl = await rateLimit(profileKey("rooms_messages", profile.id), 240, 3600);
+  if (!rl.ok)
+    return json(
+      { error: "The court has heard you plenty this hour.", retryAfter: rl.retryAfter },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     room?: string;

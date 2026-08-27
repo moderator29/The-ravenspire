@@ -1,6 +1,7 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { askRaven, ravenEnabled } from "@/lib/ai/raven";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* The AI Account Scanner: a personal read of the MEMBER'S OWN account by a real
    LLM (the Herald's mind) reasoning over the member's real data only, never
@@ -10,11 +11,9 @@ import { askRaven, ravenEnabled } from "@/lib/ai/raven";
    moves. Real data only: every figure handed to the model is fetched here; the
    model is told never to invent a number.
 
-   Rate-limited per member because the mind costs real coin. */
-
-const usage = new Map<string, { count: number; windowStart: number }>();
-const WINDOW_MS = 3600_000;
-const MAX_PER_WINDOW = 6;
+   Rate-limited per member because the mind costs real coin. Through the
+   shared Supabase limiter, not a module-level Map: a Map is per-lambda, wiped
+   on cold start and never pruned, so under serverless it limited nothing. */
 
 interface WalletHolding {
   symbol: string;
@@ -66,15 +65,19 @@ export async function POST(req: Request) {
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  const now = Date.now();
-  const u = usage.get(profile.id);
-  if (!u || now - u.windowStart > WINDOW_MS) {
-    usage.set(profile.id, { count: 1, windowStart: now });
-  } else if (u.count >= MAX_PER_WINDOW) {
-    return json({ error: "The Oracle has read you enough this hour. Return later." }, 429);
-  } else {
-    u.count += 1;
-  }
+  /* Fails closed: every allowed request here is a paid Anthropic call, so a
+     limiter outage refuses rather than spending unmetered. */
+  const rl = await rateLimit(profileKey("scanner", profile.id), 6, 3600, {
+    failClosed: true,
+  });
+  if (!rl.ok)
+    return json(
+      {
+        error: "The Oracle has read you enough this hour. Return later.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   // Owner's own posts (real engagement only).
   const { data: posts } = await db

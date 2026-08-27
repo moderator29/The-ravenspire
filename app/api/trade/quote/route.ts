@@ -1,4 +1,5 @@
 import { requireProfile, json } from "@/lib/auth/server";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { zeroxPrice, zeroxQuote, zeroxEnabled } from "@/lib/trade/zerox";
 import { tradeChainById } from "@/lib/trade/config";
 
@@ -23,6 +24,20 @@ function validToken(v: unknown): v is string {
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
+
+  /* The route is members-only precisely so anonymous callers cannot burn the
+     0x quota, but one member's script could still burn it for everyone. The
+     panel re-quotes as the member types, so the ceiling is high; only a loop
+     left running meets it. */
+  const rl = await rateLimit(profileKey("trade_quote", profile.id), 300, 3600);
+  if (!rl.ok)
+    return json(
+      {
+        error: "The market has quoted you plenty this hour. Pause a moment.",
+        retryAfter: rl.retryAfter,
+      },
+      429
+    );
 
   if (!zeroxEnabled()) {
     return json(
@@ -67,8 +82,16 @@ export async function POST(req: Request) {
       400
     );
   }
-  // A firm quote needs the taker (the member's wallet) to build calldata.
-  if (mode === "quote" && !validToken(body.taker)) {
+  /* A firm quote needs the taker (the member's wallet) to build calldata.
+     When the client omits it, the profile's own linked wallet fills in: that
+     is the only wallet the quote should ever be built for anyway, since the
+     member's own Privy wallet is what signs. */
+  const taker = validToken(body.taker)
+    ? body.taker
+    : validToken(profile.wallet_address)
+      ? profile.wallet_address
+      : undefined;
+  if (mode === "quote" && !taker) {
     return json({ error: "A wallet address is required for a firm quote." }, 400);
   }
   const slippageBps =
@@ -84,7 +107,7 @@ export async function POST(req: Request) {
     buyToken: body.buyToken,
     sellAmount: hasSell ? sellAmount : undefined,
     buyAmount: hasBuy ? buyAmount : undefined,
-    taker: body.taker,
+    taker,
     slippageBps,
     feeToken: validToken(body.feeToken) ? body.feeToken : undefined,
   };

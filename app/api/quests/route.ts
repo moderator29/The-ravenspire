@@ -5,6 +5,7 @@ import { award } from "@/lib/points";
 import { emit } from "@/lib/realm/events";
 import { quests, type Quest } from "@/lib/game/quests";
 import { computeBounds, verifyQuest } from "@/lib/game/quest-verify";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /* The period key a quest completion is bucketed under, derived from cadence:
@@ -83,6 +84,16 @@ export async function POST(req: Request) {
   if (!profile.onboarded) return json({ error: "Finish onboarding first" }, 403);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* There are only so many quests to claim in a period, so honest use is a
+     handful of calls; every call runs the verification reads, which is what a
+     script hammering claims would otherwise spend for free. */
+  const rl = await rateLimit(profileKey("quests", profile.id), 60, 3600);
+  if (!rl.ok)
+    return json(
+      { error: "The quest board is crowded. Return shortly.", retryAfter: rl.retryAfter },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as { quest?: string } | null;
   const quest = quests.find((q) => q.slug === body?.quest);

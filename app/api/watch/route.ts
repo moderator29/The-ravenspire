@@ -1,8 +1,16 @@
 import { json } from "@/lib/auth/server";
+import { ipKey, rateLimit } from "@/lib/rate-limit";
 import { WATCH_CHAINS } from "@/lib/tools/watch-types";
 import { fetchGoPlus, fetchHoneypot, buildReport } from "@/lib/tools/goplus";
 
 export async function GET(req: Request) {
+  /* Public proxy over GoPlus and honeypot.is, both free tiers the whole realm
+     shares. Generous per address; a scraper burning the upstream quota is the
+     only caller this ever refuses. */
+  const rl = await rateLimit(ipKey("watch", req), 120, 3600);
+  if (!rl.ok)
+    return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
+
   const url = new URL(req.url);
   const address = (url.searchParams.get("address") ?? "").toLowerCase();
   const chain = url.searchParams.get("chain") ?? "1";

@@ -1,5 +1,6 @@
 import { json } from "@/lib/auth/server";
 import { lookupToken } from "@/lib/data/tokens";
+import { ipKey, rateLimit } from "@/lib/rate-limit";
 import { tradeChainByDex } from "@/lib/trade/config";
 
 /*
@@ -232,6 +233,14 @@ async function fetchDecimals(
 }
 
 export async function GET(req: Request) {
+  /* A public proxy over free upstreams (DexScreener, GeckoTerminal), so the
+     ceiling protects their quotas, not ours: without one a single scraper can
+     spend the realm's upstream allowance and cloud the glass for everyone.
+     Generous enough that no member browsing coins ever meets it. */
+  const rl = await rateLimit(ipKey("coin", req), 120, 3600);
+  if (!rl.ok)
+    return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
+
   const url = new URL(req.url);
   const rawId = (url.searchParams.get("address") ?? "").trim();
   const net = url.searchParams.get("net"); // GeckoTerminal network id, optional

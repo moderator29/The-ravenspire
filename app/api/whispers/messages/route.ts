@@ -1,6 +1,7 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 type Db = NonNullable<ReturnType<typeof adminClient>>;
 
@@ -108,6 +109,16 @@ export async function POST(req: Request) {
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* Roomier than the comments ceiling because a live back-and-forth sends in
+     bursts, but each send writes a message, fires broadcasts and rings the
+     other member's ravens, so a flooder still meets a wall. */
+  const rl = await rateLimit(profileKey("whispers", profile.id), 240, 3600);
+  if (!rl.ok)
+    return json(
+      { error: "Even whispers need breath. Return in a moment.", retryAfter: rl.retryAfter },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     conversation?: string;

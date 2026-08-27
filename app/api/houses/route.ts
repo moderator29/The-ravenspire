@@ -1,6 +1,7 @@
 import { json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { houseLevel } from "@/lib/data/houses";
+import { ipKey, rateLimit } from "@/lib/rate-limit";
 import { loadSeasonWindow } from "@/lib/houses/oath";
 import {
   buildStandings,
@@ -27,7 +28,15 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
+  /* Public and computed live from the ledger on every call, which is exactly
+     the shape worth metering: the standings query fans out across the whole
+     contribution table. Generous per address; a member refreshing the board
+     never meets it. */
+  const rl = await rateLimit(ipKey("houses", req), 120, 3600);
+  if (!rl.ok)
+    return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
+
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 

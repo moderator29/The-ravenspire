@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { json } from "@/lib/auth/server";
+import { ipKey, rateLimit } from "@/lib/rate-limit";
 import { normalizeCall, type CallCategory, type CallData } from "@/lib/calls/types";
 import {
   RANKED_MINIMUM,
@@ -39,6 +40,13 @@ interface CallRow {
 }
 
 export async function GET(req: NextRequest) {
+  /* Public, and each call reads a member's entire settled history (up to two
+     thousand rows) to recompute the record. Generous per address; a scraper
+     walking every profile is the only caller this refuses. */
+  const rl = await rateLimit(ipKey("caller", req), 120, 3600);
+  if (!rl.ok)
+    return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
+
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
