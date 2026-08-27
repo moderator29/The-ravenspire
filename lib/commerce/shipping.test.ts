@@ -66,6 +66,13 @@ describe("normalizeShipping", () => {
     });
   });
 
+  it("accepts the `postal` spelling both stores send", () => {
+    const withPostal = { ...COMPLETE } as Record<string, unknown>;
+    delete withPostal.postalCode;
+    withPostal.postal = "90210";
+    expect(normalizeShipping(withPostal)?.postalCode).toBe("90210");
+  });
+
   it("upcases a two-letter country code but leaves a full name alone", () => {
     expect(normalizeShipping({ ...COMPLETE, country: "gb" })?.country).toBe("GB");
     expect(

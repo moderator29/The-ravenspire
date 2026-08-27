@@ -42,7 +42,14 @@ export function normalizeShipping(raw: unknown): ShippingAddress | null {
   const name = firstStr(s.name, s.fullName, s.full_name);
   const line1 = firstStr(s.line1, s.address1, s.address, s.line, s.street);
   const city = str(s.city);
+  /* `postal` is first among the spellings because it is the one the realm's
+     own two stores send. The reader was written from the vendors' side and
+     accepted every spelling except that one, so the address a member typed at
+     checkout normalised to null and their box would have sat pending forever
+     with no field missing from the form. Lenient on input is only lenient if
+     it covers the input you actually receive. */
   const postalCode = firstStr(
+    s.postal,
     s.postalCode,
     s.postal_code,
     s.zip,

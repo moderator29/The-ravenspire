@@ -10,6 +10,7 @@ import { paymentProvider } from "@/lib/commerce/payments";
 import type { CheckoutLineItem } from "@/lib/commerce/payments";
 import { checkoutGuardParams, guardReasonMessage, isGuardReason } from "@/lib/commerce/compliance";
 import { geoVerdict, resolveCountry } from "@/lib/commerce/geo";
+import { normalizeShipping } from "@/lib/commerce/shipping";
 
 /* POST /api/commerce/checkout (V2 Part Two, section 33, Phase D; guardrails in
  * section 48).
@@ -50,6 +51,17 @@ import { geoVerdict, resolveCountry } from "@/lib/commerce/geo";
  * It is applied before the guard runs and its refusal is written to the same
  * ledger. Read lib/commerce/geo.ts for the honest size of what it can do, which
  * is smaller than the word "geo" suggests.
+ *
+ * THE SHIPPING ADDRESS, which the contract used to drop on the floor.
+ * Both stores have always sent one, this route's body type named only `items`
+ * and `idempotencyKey`, and the fulfillment worker reads normalizeShipping off
+ * the order row. So a member filled in an address, the field was ignored here,
+ * orders.shipping kept its '{}' default, and every physical order would have
+ * swept forever as "waiting on an address" with nothing anywhere saying which
+ * address it was waiting for. It is read through the same normaliser the worker
+ * uses, so what is stored is exactly what a vendor will be handed, and a cart
+ * with anything physical in it is refused without a complete one. The client
+ * checks that too; a check only the client makes is not a check.
  *
  * NOBODY WHO WROTE THIS IS A LAWYER and it claims compliance with no law. What
  * each guardrail does and does not cover is written out in
@@ -95,6 +107,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as {
     items?: unknown;
     idempotencyKey?: unknown;
+    shipping?: unknown;
   } | null;
 
   const idempotencyKey =
@@ -110,7 +123,15 @@ export async function POST(req: Request) {
   /* Validate and price every line against the server catalog. The client names
      a kind, a sku and a quantity, and nothing else: the price and the label
      both come from the server, so a cart cannot name its own price. */
-  const lines: (CartLine & { unitMinor: number; name: string })[] = [];
+  const lines: (CartLine & {
+    unitMinor: number;
+    name: string;
+    /* Whether this line is printed and posted to a real address. Merch always
+       is; a chest only when its tier is the physical box. Mirrors
+       physicalLines in app/api/commerce/fulfill/route.ts, which is the reader
+       on the other end of the same decision. */
+    physical: boolean;
+  })[] = [];
   for (const raw of body.items as unknown[]) {
     const line = raw as Partial<CartLine>;
     if (
@@ -134,6 +155,7 @@ export async function POST(req: Request) {
         qty,
         unitMinor: price.priceMinor,
         name: tier.name,
+        physical: tier.kind === "physical",
       });
     } else {
       const price = merchPrice(line.sku);
@@ -144,6 +166,7 @@ export async function POST(req: Request) {
         qty,
         unitMinor: price.priceMinor,
         name: price.name,
+        physical: true,
       });
     }
   }
@@ -156,6 +179,21 @@ export async function POST(req: Request) {
   }
   if (lines.some((l) => l.kind === "merch") && !(await getFlag("mercer_live"))) {
     return json({ error: "The Mercer is sealed until launch" }, 423);
+  }
+
+  /* The address, read through the fulfillment worker's own normaliser so the
+     shape stored is the shape a vendor is handed. A cart with nothing physical
+     in it needs none, and a digital-only order stores none rather than an
+     empty husk of one. */
+  const shipping = normalizeShipping(body.shipping);
+  if (lines.some((l) => l.physical) && !shipping) {
+    return json(
+      {
+        error:
+          "A physical order needs a complete delivery address: name, street, city, postal code and country.",
+      },
+      400
+    );
   }
 
   const totalMinor = sumMinor(lines.map((l) => lineTotal(l.unitMinor, l.qty)));
@@ -253,6 +291,22 @@ export async function POST(req: Request) {
 
   const orderId = result.order_id;
   if (!orderId) return json({ error: "unavailable" }, 503);
+
+  /* The address lands on the order the guard just created, before any session
+     exists and therefore before any money can move. Written on a reuse too: an
+     idempotent retry is often exactly the member correcting a typo in their
+     street, and the last address they gave for this cart is the one the printer
+     should get. If the write fails there is no session and no charge, and the
+     pending order is retried by the same idempotency key, which is the honest
+     failure: a physical order whose address never reached the row would sit in
+     the fulfillment sweep forever. */
+  if (shipping) {
+    const stored = await db
+      .from("orders")
+      .update({ shipping, updated_at: new Date().toISOString() })
+      .eq("id", orderId);
+    if (stored.error) return json({ error: "unavailable" }, 503);
+  }
 
   if (result.reused !== true) {
     /* First creation of this order: write its items. A reused order already
