@@ -1,7 +1,13 @@
 # The Ravenspire, Next-Session Handoff
 
-This is the single source of truth for whoever picks up The Ravenspire next.
-Read it fully before writing code. It captures the founder's rules and style,
+HISTORICAL. This document predates the V2 transformation and much of it has
+shipped or been superseded. The living source of truth is
+`docs/RAVENSPIRE-V2.md`, and the current sprint board is
+`RAVENSPIRE_FINALIZATION.md` at the repo root. Verify anything here against
+the code before acting on it.
+
+This was the single source of truth for whoever picked up The Ravenspire next.
+It captures the founder's rules and style,
 the features to build next (the in-app Scrying trading + Swap, fully specced
 from the founder's reference images), and the live bug list with what is done
 and what remains.
