@@ -57,14 +57,27 @@ export function callerKey(
   return profileId ? profileKey(action, profileId) : ipKey(action, req);
 }
 
+export interface RateLimitOptions {
+  /* Refuse the request when the store cannot be consulted, instead of the
+     default fail-open. Opt in only where each allowed request spends real
+     money (the paid Anthropic surfaces): there, a limiter outage that waves
+     everything through converts an availability bug into an unbounded bill,
+     and refusing until the store answers is the cheaper failure. Everywhere
+     else the default stands, because a limiter outage must never take free
+     surfaces down. */
+  failClosed?: boolean;
+}
+
 /* Record one hit against `key` and report whether it is within `limit` per
    `windowSeconds`. Fails open (allows the request) when Supabase is not
    configured or the store is unreachable, so a limiter outage never takes the
-   platform down; the audit's concern is abuse, not availability. */
+   platform down; the audit's concern is abuse, not availability. Callers whose
+   requests cost real coin pass { failClosed: true } to invert that trade. */
 export async function rateLimit(
   key: string,
   limit: number,
-  windowSeconds: number
+  windowSeconds: number,
+  opts: RateLimitOptions = {}
 ): Promise<RateLimitResult> {
   const allow = (count: number): RateLimitResult => ({
     ok: count <= limit,
@@ -74,19 +87,26 @@ export async function rateLimit(
     retryAfter: count <= limit ? 0 : windowSeconds,
   });
 
+  /* The store could not answer. Fail open by default, closed on request; a
+     closed failure suggests a short retry rather than the full window. */
+  const unavailable = (): RateLimitResult =>
+    opts.failClosed
+      ? { ok: false, count: limit, limit, remaining: 0, retryAfter: 60 }
+      : allow(0);
+
   const db = adminClient();
-  if (!db) return allow(0); // unconfigured: fail open
+  if (!db) return unavailable(); // unconfigured
 
   try {
     const { data, error } = await db.rpc("rate_limit_hit", {
       p_key: key,
       p_window_seconds: windowSeconds,
     });
-    if (error) return allow(0); // store error: fail open
+    if (error) return unavailable(); // store error
     const count = typeof data === "number" ? data : Number(data);
-    if (!Number.isFinite(count)) return allow(0);
+    if (!Number.isFinite(count)) return unavailable();
     return allow(count);
   } catch {
-    return allow(0); // unreachable: fail open
+    return unavailable(); // unreachable
   }
 }

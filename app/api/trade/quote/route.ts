@@ -83,8 +83,16 @@ export async function POST(req: Request) {
       400
     );
   }
-  // A firm quote needs the taker (the member's wallet) to build calldata.
-  if (mode === "quote" && !validToken(body.taker)) {
+  /* A firm quote needs the taker (the member's wallet) to build calldata.
+     When the client omits it, the profile's own linked wallet fills in: that
+     is the only wallet the quote should ever be built for anyway, since the
+     member's own Privy wallet is what signs. */
+  const taker = validToken(body.taker)
+    ? body.taker
+    : validToken(profile.wallet_address)
+      ? profile.wallet_address
+      : undefined;
+  if (mode === "quote" && !taker) {
     return json({ error: "A wallet address is required for a firm quote." }, 400);
   }
   const slippageBps =
@@ -100,7 +108,7 @@ export async function POST(req: Request) {
     buyToken: body.buyToken,
     sellAmount: hasSell ? sellAmount : undefined,
     buyAmount: hasBuy ? buyAmount : undefined,
-    taker: body.taker,
+    taker,
     slippageBps,
     feeToken: validToken(body.feeToken) ? body.feeToken : undefined,
   };

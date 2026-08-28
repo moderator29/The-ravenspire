@@ -2,6 +2,7 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award, grantCrest } from "@/lib/points";
 import { createNotification } from "@/lib/notifications";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 const HOUSES = new Set([
@@ -20,6 +21,16 @@ export async function POST(req: Request) {
     return json({ error: "The Maester has already welcomed you." }, 409);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  /* Light, because a member onboards once: the ceiling only exists so a
+     script cannot hammer the handle-availability check or race the welcome
+     award below. Ten attempts covers every taken-handle retry a person makes. */
+  const rl = await rateLimit(profileKey("onboard", profile.id), 10, 3600);
+  if (!rl.ok)
+    return json(
+      { error: "The Maester needs a moment. Try again shortly.", retryAfter: rl.retryAfter },
+      429
+    );
 
   const body = (await req.json().catch(() => null)) as {
     handle?: string;
@@ -46,7 +57,12 @@ export async function POST(req: Request) {
     .maybeSingle();
   if (taken) return json({ error: "That handle is already claimed" }, 409);
 
-  const { error } = await db
+  /* Guarded flip: only the request that actually turns onboarded from false
+     to true proceeds to the joining rites below. The profile check at the top
+     already refuses an onboarded member, but two first requests racing past it
+     together used to both run the rites, and the welcome award further down
+     paid twice. Zero rows changed means the other request won. */
+  const { data: flipped, error } = await db
     .from("profiles")
     .update({
       handle,
@@ -54,8 +70,12 @@ export async function POST(req: Request) {
       display_name: body.display_name?.slice(0, 40) || profile.display_name || handle,
       onboarded: true,
     })
-    .eq("id", profile.id);
+    .eq("id", profile.id)
+    .eq("onboarded", false)
+    .select("id");
   if (error) return json({ error: "Could not save" }, 500);
+  if (!flipped || flipped.length === 0)
+    return json({ error: "The Maester has already welcomed you." }, 409);
 
   await db
     .from("house_members")

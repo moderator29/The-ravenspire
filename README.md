@@ -60,18 +60,14 @@ Everything below is labelled with what it actually is. See
 - **Safety**: mute, block and report, backed by an admin moderation queue.
 - **The realm event spine** (`lib/realm/events.ts`, `/api/events`): every
   meaningful act emits one audience-scoped record. Seven of the nine declared
-  kinds are emitted today.
+  kinds are emitted today, and the Ravenry interleaves them with ravens
+  through the feed card registry (`lib/feed/`, `lib/realm/feed-events.ts`).
 - **The Admin panel** (`/admin`): bans and verification, moderation takedowns,
   an audit log, real stats, and Season, House, Crest, War, Clash and Flag
   management.
 
 ### In development
 
-- Event cards in the Ravenry. The stream is written and readable; the feed does
-  not render it yet.
-- The Calls composer controls. The scoring engine takes a stated confidence and
-  freezes a difficulty baseline, but the composer sends neither, so a Call is
-  currently sealed at the floor of the confidence band (0.55).
 - Quests and duels. Both run server-side and emit events, but have no surface.
   They are dissolving into the Ravenry and the House halls rather than
   returning as a destination, which is why Claim the Throne is not a nav item.

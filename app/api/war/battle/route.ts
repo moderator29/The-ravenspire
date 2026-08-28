@@ -1,6 +1,7 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
+import { DAILY_WAR_GOLD_CAP } from "@/lib/economy/allowances";
 import { champions } from "@/lib/game/champions";
 import { warState } from "@/lib/game/war-state";
 
@@ -93,30 +94,33 @@ export async function POST(req: Request) {
   if (kills > duration * 2)
     return json({ error: "The heralds count blades, not boasts." }, 400);
 
-  /* If a battle session id was issued at start, verify it. The row must belong
-     to this profile, be unsettled, and the reported duration cannot exceed the
-     real wall clock elapsed since start (a scripted client cannot claim a full
-     150s battle in 2s). Finish without an id degrades to the stateless path so
-     the current client keeps working. */
-  let sessionId: string | null = null;
-  if (body.battle_id) {
-    const { data: row } = await db
-      .from("war_battles")
-      .select("id, started_at, settled")
-      .eq("id", body.battle_id)
-      .eq("profile_id", profile.id)
-      .maybeSingle();
-    if (!row || row.settled)
-      return json({ error: "That battle has already been settled" }, 409);
-    const elapsedS = row.started_at
-      ? (Date.now() - new Date(row.started_at).getTime()) / 1000
-      : 0;
-    if (duration > elapsedS + 5)
-      return json({ error: "The heralds measure the sun; your tale runs long." }, 400);
-    if (victory && elapsedS < MIN_VICTORY_SECONDS)
-      return json({ error: "No battle is won in a blink. The heralds doubt you." }, 400);
-    sessionId = row.id;
-  }
+  /* The battle session id is mandatory. The row must belong to this profile,
+     be unsettled, and the reported duration cannot exceed the real wall clock
+     elapsed since start (a scripted client cannot claim a full 150s battle in
+     2s). The old stateless fallback let a client that never called start
+     simply declare victories, which made every wall-clock check above it
+     decorative; a finish with no id is now refused outright. */
+  if (!body.battle_id)
+    return json(
+      { error: "No battle was started. Begin one before you claim it." },
+      400
+    );
+  const { data: row } = await db
+    .from("war_battles")
+    .select("id, started_at, settled")
+    .eq("id", body.battle_id)
+    .eq("profile_id", profile.id)
+    .maybeSingle();
+  if (!row || row.settled)
+    return json({ error: "That battle has already been settled" }, 409);
+  const elapsedS = row.started_at
+    ? (Date.now() - new Date(row.started_at).getTime()) / 1000
+    : 0;
+  if (duration > elapsedS + 5)
+    return json({ error: "The heralds measure the sun; your tale runs long." }, 400);
+  if (victory && elapsedS < MIN_VICTORY_SECONDS)
+    return json({ error: "No battle is won in a blink. The heralds doubt you." }, 400);
+  const sessionId = row.id;
 
   /* No more than a dozen settled battles an hour; even legends rest. */
   const hourAgo = new Date(Date.now() - 3600_000).toISOString();
@@ -136,29 +140,12 @@ export async function POST(req: Request) {
   if (!state.unlocked_champions.includes(body.champion))
     return json({ error: "That champion is not yet sworn to you" }, 403);
 
-  if (sessionId) {
-    /* Single use settle: only the finish that flips settled from false to true
-       banks the reward. A replayed finish for the same session changes zero
-       rows and is rejected. */
-    const { data: settled } = await db
-      .from("war_battles")
-      .update({
-        champion_slug: body.champion,
-        battlefield,
-        result: body.result,
-        glory_earned: glory,
-        kills,
-        duration_s: duration,
-        settled: true,
-      })
-      .eq("id", sessionId)
-      .eq("settled", false)
-      .select("id");
-    if (!settled || settled.length === 0)
-      return json({ error: "That battle has already been settled" }, 409);
-  } else {
-    await db.from("war_battles").insert({
-      profile_id: profile.id,
+  /* Single use settle: only the finish that flips settled from false to true
+     banks the reward. A replayed finish for the same session changes zero
+     rows and is rejected. */
+  const { data: settled } = await db
+    .from("war_battles")
+    .update({
       champion_slug: body.champion,
       battlefield,
       result: body.result,
@@ -166,24 +153,37 @@ export async function POST(req: Request) {
       kills,
       duration_s: duration,
       settled: true,
-    });
-  }
+    })
+    .eq("id", sessionId)
+    .eq("settled", false)
+    .select("id");
+  if (!settled || settled.length === 0)
+    return json({ error: "That battle has already been settled" }, 409);
 
   const gold = victory ? 40 : 10;
   /* B6: one statement banks the battle and hands back the running totals, so
      two battles settling together cannot each write over the other's, and the
      numbers reported are the true post-battle standing rather than the values
-     read before the write. */
-  const { data: settledTotals } = await db.rpc("war_settle_battle", {
+     read before the write. The capped variant also enforces the daily gold
+     ceiling inside the same row lock, so gold gets the treatment Glory already
+     has and two settles racing at the ceiling cannot both spend the room. */
+  const { data: settledTotals } = await db.rpc("war_settle_battle_capped", {
     p_profile_id: profile.id,
     p_victory: victory,
     p_glory: glory,
     p_gold: gold,
+    p_daily_gold_cap: DAILY_WAR_GOLD_CAP,
   });
   const totals = (
     Array.isArray(settledTotals) ? settledTotals[0] : settledTotals
   ) as
-    | { battles: number; wins: number; war_glory: number; gold: number }
+    | {
+        battles: number;
+        wins: number;
+        war_glory: number;
+        gold: number;
+        gold_granted: number;
+      }
     | null
     | undefined;
 
@@ -201,10 +201,12 @@ export async function POST(req: Request) {
     ok: true,
     /* What was actually banked, not what the battle was worth. A member who
        has spent the day's allowance is told so rather than shown a number the
-       ledger did not write. */
+       ledger did not write. Gold reports the same way: the granted figure,
+       which the ceiling may have trimmed. */
     glory: granted.glory,
     glory_capped: granted.capped,
-    gold,
+    gold: totals?.gold_granted ?? gold,
+    gold_capped: (totals?.gold_granted ?? gold) < gold,
     battles: totals?.battles ?? state.battles + 1,
     wins: totals?.wins ?? state.wins + (victory ? 1 : 0),
     war_glory: totals?.war_glory ?? state.war_glory + glory,

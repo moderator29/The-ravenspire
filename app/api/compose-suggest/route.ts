@@ -22,8 +22,11 @@ export async function POST(req: Request) {
     return json({ error: "The rookery is quiet. Try again later." }, 503);
 
   /* C4: every call here is a paid Anthropic call and the composer can fire it
-     on a keystroke. Metered per account, shared across instances. */
-  const rl = await rateLimit(profileKey("compose", profile.id), 40, 3600);
+     on a keystroke. Metered per account, shared across instances, and failing
+     closed: a limiter outage refuses rather than spending unmetered. */
+  const rl = await rateLimit(profileKey("compose", profile.id), 40, 3600, {
+    failClosed: true,
+  });
   if (!rl.ok)
     return json(
       {

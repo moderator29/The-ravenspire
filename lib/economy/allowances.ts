@@ -52,3 +52,11 @@ export const DAILY_SOCIAL_RENOWN_CAP = 200;
    under it; a grind crosses it in about ninety minutes and earns nothing
    beyond. The War stays worth playing and stops being worth farming. */
 export const DAILY_WAR_GLORY_CAP = 1500;
+
+/* The daily ceiling on War gold from settled battles, the Glory cap's twin.
+   Glory got a ceiling and gold did not, so the grind the Glory cap ended was
+   still worth running for the currency that buys chests and mastery upgrades.
+   A victory banks 40 gold, so 400 a day is the same long evening the Glory
+   ceiling allows (ten decisive victories) priced in gold. Enforced inside
+   war_settle_battle_capped, atomically with the settle itself. */
+export const DAILY_WAR_GOLD_CAP = 400;

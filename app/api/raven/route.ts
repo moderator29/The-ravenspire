@@ -135,10 +135,13 @@ export async function POST(req: Request) {
       401
     );
 
+  /* Fails closed: every allowed request is a paid Anthropic call, so a
+     limiter outage refuses rather than spending unmetered. */
   const rl = await rateLimit(
     profileKey("raven", profile.id),
     RAVEN_PER_HOUR,
-    3600
+    3600,
+    { failClosed: true }
   );
   if (!rl.ok)
     return json(

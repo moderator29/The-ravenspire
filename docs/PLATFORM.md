@@ -115,9 +115,9 @@ Every row carries an audience: `realm`, `house`, `followers` or `actor`. The
 database RLS policy exposes only `audience = 'realm'` to browser roles, and
 `GET /api/events` resolves the narrower audiences with the service-role client.
 
-**In development**: the Ravenry does not yet render event cards alongside
-ravens. The stream is written and readable; the card registry in the feed is
-the remaining work.
+The Ravenry renders the spine: `/api/feed` interleaves ravens with events
+through `lib/realm/feed-events.ts` and the card registry in
+`components/stream/cards/registry` draws them.
 
 **In development**: quests (`/api/quests`) and duels (`/api/duels`) run
 server-side and emit their events, but no UI consumes either route. Their
@@ -227,13 +227,10 @@ inside the UPDATE, so a concurrent re-run cannot double-award.
   `difficultyWeight(S)`, so a coin flip pays almost nothing.
 - House-mates excluded from each other's peer baseline.
 
-### In development
-
-The composer does not yet send a confidence or a threshold, and does not show
-the frozen `pi_0` before a member seals. `prepareCall` defaults a missing
-confidence to the floor of the band, 0.55, which is the least the member could
-have meant and can never inflate a score. The confidence slider and the
-difficulty preview are the remaining work.
+The composer sends confidence, threshold and timeframe and shows the
+difficulty read before a member seals. `prepareCall` still defaults a missing
+confidence to the floor of the band, 0.55, so an older or hostile client can
+never inflate a score by omission.
 
 ## Houses
 

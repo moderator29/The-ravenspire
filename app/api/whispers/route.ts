@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { uuid } from "@/lib/validate";
 
 export async function GET(req: Request) {
   const profile = await requireProfile(req);
@@ -61,7 +62,9 @@ export async function POST(req: Request) {
   if (!db) return json({ error: "unavailable" }, 503);
 
   const body = (await req.json().catch(() => null)) as { with?: string } | null;
-  if (!body?.with) return json({ error: "bad request" }, 400);
+  /* Proven to be a uuid before it reaches the blocks .or() filter below,
+     where , ( ) and . are grammar a crafted "id" could otherwise rewrite. */
+  if (!uuid(body?.with)) return json({ error: "bad request" }, 400);
   if (body.with === profile.id)
     return json({ error: "Talking to yourself is what the Raven is for" }, 400);
 

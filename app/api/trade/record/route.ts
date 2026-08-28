@@ -20,6 +20,14 @@ import { verifyTrade } from "@/lib/chain/verify-transfer";
    by that member's own wallet, and where the trade names a coin it received,
    that coin moved into that wallet.
 
+   WHAT THE FEED VOUCHES FOR, exactly. The verification above proves the
+   transaction and the received token, and those are the only figures the feed
+   serves: kind, chain, hash and symbols. The amounts and the USD value are
+   client-supplied and unproven, so serving them under the feed's verified
+   framing would launder a claim into a fact; those fields are returned as null
+   until they are read off the chain too. The member's own Vault history still
+   shows their own claimed figures, where they read as the member's claim.
+
    An unproven trade is still recorded and still shows in the member's own Vault
    history. It just does not enter the shared feed and rings nobody's ravens,
    because the thing being defended is the audience, not the record. */
@@ -60,7 +68,7 @@ export async function GET(req: Request) {
   const { data, error } = await db
     .from("trades")
     .select(
-      "id, kind, chain_id, tx_hash, sell_symbol, sell_amount, buy_symbol, buy_amount, buy_contract, usd_value, created_at, trader:profiles!trades_profile_id_fkey (handle, display_name, avatar_url)"
+      "id, kind, chain_id, tx_hash, sell_symbol, buy_symbol, buy_contract, created_at, trader:profiles!trades_profile_id_fkey (handle, display_name, avatar_url)"
     )
     /* Verified only. An unproven trade is a claim, and the realm feed is the
        one surface where a claim reads as a fact about somebody else. */
@@ -76,11 +84,8 @@ export async function GET(req: Request) {
     chain_id: number;
     tx_hash: string;
     sell_symbol: string | null;
-    sell_amount: string | null;
     buy_symbol: string | null;
-    buy_amount: string | null;
     buy_contract: string | null;
-    usd_value: number | null;
     created_at: string;
     trader: {
       handle: string | null;
@@ -95,11 +100,17 @@ export async function GET(req: Request) {
     chainId: t.chain_id,
     txHash: t.tx_hash,
     sellSymbol: t.sell_symbol,
-    sellAmount: t.sell_amount,
     buySymbol: t.buy_symbol,
-    buyAmount: t.buy_amount,
     buyContract: t.buy_contract,
-    usdValue: t.usd_value,
+    /* Client-claimed figures, deliberately withheld: the feed's verification
+       proves the transaction and the token, never these numbers, and a
+       verified badge over an unproven figure is exactly the fabricated social
+       proof the verification exists to end. Kept as nulls rather than removed
+       so the client's shape is stable; they come back when they are read off
+       the chain. */
+    sellAmount: null,
+    buyAmount: null,
+    usdValue: null,
     createdAt: t.created_at,
     trader: {
       handle: t.trader?.handle ?? null,

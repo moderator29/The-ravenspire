@@ -1,8 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { askRaven, ravenEnabled } from "@/lib/ai/raven";
+import { fenceMemberText } from "@/lib/ai/herald";
 import { lookupToken, describeTokenForRaven } from "@/lib/data/tokens";
 import { detectHouses, describeHousesForRaven } from "@/lib/ai/raven-voice";
+import { rateLimit } from "@/lib/rate-limit";
 
 /* The Herald answers inline when a member calls on it: a raven or comment that
    tags @raven, or a reply to one of the Raven's own comments. It always speaks
@@ -15,6 +17,25 @@ const RAVEN_HANDLE = "raven";
 /* A thread cannot become an endless Raven monologue: once the Herald has
    spoken this many times under a single raven, it falls silent there. */
 const MAX_RAVEN_PER_POST = 8;
+
+/* The realm-wide ceiling on mention replies per day, mirroring the caps every
+   other paid Herald surface carries (thread summaries run 300 a day). Each
+   reply is a paid Anthropic call that any member can trigger by typing @raven,
+   so the per-post quota above bounds one thread but nothing bounded the realm:
+   a script spraying fresh posts could spend without limit. Five hundred is
+   far above any day the realm has actually had, so an honest community never
+   notices it, and it turns the worst case from an unbounded bill into a fixed
+   one. Counted through the shared limiter so it holds across instances, and
+   it fails closed: when the store cannot answer, the Herald stays silent
+   rather than spending unmetered. */
+const REALM_MENTION_DAILY = 500;
+
+async function realmMentionAllowed(): Promise<boolean> {
+  const realm = await rateLimit("raven-mention:realm", REALM_MENTION_DAILY, 86400, {
+    failClosed: true,
+  });
+  return realm.ok;
+}
 
 async function ravenProfileId(db: SupabaseClient): Promise<string | null> {
   const { data } = await db
@@ -113,6 +134,7 @@ export async function maybeRavenReplyToPost(
   const ravenId = await ravenProfileId(db);
   if (!ravenId) return;
   if (!(await ravenUnderQuota(db, postId, ravenId))) return;
+  if (!(await realmMentionAllowed())) return;
 
   await fileRavenReply(db, {
     ravenId,
@@ -120,7 +142,7 @@ export async function maybeRavenReplyToPost(
     parentId: null,
     notifyProfileId: authorId,
     text,
-    prompt: `A member of the realm${authorHandle ? ` (@${authorHandle})` : ""} tagged you in the Ravenry and said:\n\n"${text}"\n\nReply inline as @raven. Keep it under 120 words.`,
+    prompt: `A member of the realm${authorHandle ? ` (@${authorHandle})` : ""} tagged you in the Ravenry and said:\n\n${fenceMemberText(text)}\n\nReply inline as @raven. Keep it under 120 words.`,
   });
 }
 
@@ -146,6 +168,7 @@ export async function maybeRavenReplyToComment(
   /* A member cannot be the Raven; guards against the agent answering itself. */
   if (opts.authorId && opts.authorId === ravenId) return;
   if (!(await ravenUnderQuota(db, opts.postId, ravenId))) return;
+  if (!(await realmMentionAllowed())) return;
 
   const lead =
     tagged || !opts.parentAuthorIsRaven
@@ -158,6 +181,6 @@ export async function maybeRavenReplyToComment(
     parentId: opts.commentId,
     notifyProfileId: opts.authorId,
     text: opts.text,
-    prompt: `${lead}\n\n"${opts.text}"\n\nContinue the conversation inline as @raven, staying on the thread's topic. Keep it under 120 words.`,
+    prompt: `${lead}\n\n${fenceMemberText(opts.text)}\n\nContinue the conversation inline as @raven, staying on the thread's topic. Keep it under 120 words.`,
   });
 }

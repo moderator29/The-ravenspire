@@ -28,16 +28,15 @@ export async function POST(req: Request) {
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  /* The second lock, for the day the flag is opened. One key across all three
-     actions on purpose: opening duels, answering them and voting on them are
-     one appetite, and the abuse the audit found (junk duels burying the real
-     ones, alt accounts voting a duel to settlement) spends whichever of the
-     three is cheapest. */
-  const rl = await rateLimit(profileKey("duels", profile.id), 60, 3600);
+  /* C4: every action here writes rows and can mint capped Renown (a vote pays
+     the voter, a settle pays the winner), so it gets the same account-keyed
+     ceiling as the other mutating social routes. Thirty an hour is a busy
+     evening of duelling; a script farming votes trips it at once. */
+  const rl = await rateLimit(profileKey("duels", profile.id), 30, 3600);
   if (!rl.ok)
     return json(
       {
-        error: "The circle has seen enough of you this hour. Return shortly.",
+        error: "Even duelists rest between bouts. Return shortly.",
         retryAfter: rl.retryAfter,
       },
       429
@@ -183,11 +182,15 @@ export async function POST(req: Request) {
         .eq("status", "voting")
         .select("id");
       if (settled && settled.length === 1) {
+        /* A duel win is minted by other members' votes, which two colluding
+           accounts can manufacture, so it draws on the daily social allowance
+           like the votes that produced it. */
         await award(db, winner, {
           glory: 60,
           points: 30,
           reason: "duel_won",
           ref: duel.id,
+          category: "social",
         });
         await db.from("notifications").insert({
           profile_id: winner,

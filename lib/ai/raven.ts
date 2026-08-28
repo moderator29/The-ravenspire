@@ -1,6 +1,10 @@
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
-import { MODEL_REASONING, heraldClient } from "@/lib/ai/herald";
+import {
+  MEMBER_CONTENT_GUARD,
+  MODEL_REASONING,
+  heraldClient,
+} from "@/lib/ai/herald";
 import { splitFollowUps } from "@/lib/ai/followups";
 import {
   RAVEN_SYSTEM_PROMPT,
@@ -94,6 +98,13 @@ function buildSystem(context: string | undefined, opts: AskRavenOptions): string
   parts.push(
     `## Follow-ups\n\nAfter your answer, always end your message with a block in exactly this form, and nothing after it:\n\n<<<FOLLOWUPS>>>\nfirst follow-up\nsecond follow-up\nthird follow-up\n\nRules for that block: exactly two or three lines, one per line, no numbering, no bullets, no quotes. Each must be a natural next thing THIS member would actually say next given what you just told them, written in their voice as if they were typing it, under about nine words. They must follow from the specific content of your answer, never generic prompts. If you named a token, a House, a Call, a champion or a feature, a good follow-up digs into that specific thing. Never offer a follow-up whose answer you already gave in full. Write them in the same language as your reply.`
   );
+
+  /* The standing rule that member-written text is material, never
+     instructions. The Herald in conversation reads more member prose than any
+     other surface (the mention path hands it whole posts), and its replies
+     publish under the platform's own account, so this is where the guard
+     matters most. */
+  parts.push(MEMBER_CONTENT_GUARD);
 
   /* Last, deliberately. The realm context above is written in English and the
      voice prompt is a wall of English, so a language instruction placed before

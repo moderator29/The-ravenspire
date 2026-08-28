@@ -11,17 +11,9 @@ import { profileKey, rateLimit } from "@/lib/rate-limit";
    moves. Real data only: every figure handed to the model is fetched here; the
    model is told never to invent a number.
 
-   Rate-limited per member because the mind costs real coin.
-
-   C4: that limit used to be a module-level Map, which is the exact pattern
-   lib/rate-limit.ts was written to retire. A Map lives inside one lambda, is
-   wiped on every cold start and is never shared between instances, so on
-   serverless it counted almost nothing: the same member spread across six
-   instances got six windows, and a scanner request fans out to GoldRush and
-   then to a long Anthropic completion. The counter is now the shared
-   Supabase-backed one, keyed on the account. */
-
-const MAX_PER_WINDOW = 6;
+   Rate-limited per member because the mind costs real coin. Through the
+   shared Supabase limiter, not a module-level Map: a Map is per-lambda, wiped
+   on cold start and never pruned, so under serverless it limited nothing. */
 
 interface WalletHolding {
   symbol: string;
@@ -73,11 +65,11 @@ export async function POST(req: Request) {
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  const rl = await rateLimit(
-    profileKey("scanner", profile.id),
-    MAX_PER_WINDOW,
-    3600
-  );
+  /* Fails closed: every allowed request here is a paid Anthropic call, so a
+     limiter outage refuses rather than spending unmetered. */
+  const rl = await rateLimit(profileKey("scanner", profile.id), 6, 3600, {
+    failClosed: true,
+  });
   if (!rl.ok)
     return json(
       {

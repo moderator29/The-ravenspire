@@ -259,16 +259,21 @@ export async function POST(req: Request) {
         .eq("profile_id", profile.id)
         .eq("activated", false)
         .select("profile_id");
-      if (activated && activated.length > 0) {
+      if (activated && activated.length === 1) {
+        /* Both awards draw on the daily social allowance: a referral is a
+           social action two colluding accounts can manufacture, so it must
+           spend the same capped budget as the likes and replies it rides on. */
         await award(db, ref.referrer_id, {
           points: 60,
           glory: 30,
           reason: "banner_raised",
           ref: profile.id,
+          category: "social",
         });
         await award(db, profile.id, {
           points: 20,
           reason: "banner_answered",
+          category: "social",
         });
         await db.from("notifications").insert({
           profile_id: ref.referrer_id,

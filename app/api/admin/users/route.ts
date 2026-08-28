@@ -22,10 +22,20 @@ export async function GET(req: Request) {
     .limit(PAGE_SIZE + 1);
 
   if (q) {
-    /* Escape the ilike wildcards so a literal % or _ in a handle search does
-       not match everything. */
-    const safe = q.replace(/[%_,]/g, (m) => `\\${m}`);
-    query = query.or(`handle.ilike.%${safe}%,display_name.ilike.%${safe}%`);
+    /* Two different escapes, because the value crosses two grammars. Handles
+       are [a-z0-9_] and display names are free text, so unlike the id routes
+       this cannot demand a safe shape; instead the reserved characters of the
+       .or() filter grammar (comma, parens, dots would also terminate a quoted
+       value via the quote itself) are removed outright, then the ilike
+       wildcards are escaped so a literal % or _ does not match everything.
+       Stripping loses nothing a handle or a sane display-name search needs. */
+    const safe = q
+      .slice(0, 60)
+      .replace(/[,()"\\]/g, "")
+      .replace(/[%_]/g, (m) => `\\${m}`);
+    if (safe) {
+      query = query.or(`handle.ilike.%${safe}%,display_name.ilike.%${safe}%`);
+    }
   }
   if (cursor) {
     query = query.lt("created_at", cursor);

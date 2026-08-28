@@ -2,9 +2,11 @@
 
 HISTORICAL. This document predates the V2 transformation and much of it has
 shipped or been superseded. The living source of truth is
-`docs/RAVENSPIRE-V2.md`, and the current sprint board is
+`docs/RAVENSPIRE-V2.md`; `docs/FUNDING-READINESS.md` records the
+funding-readiness sprint, and the finalization sprint board is
 `RAVENSPIRE_FINALIZATION.md` at the repo root. Verify anything here against
-the code before acting on it.
+the code before acting on it. Kept for the founder rules and the feature
+specs it records.
 
 This was the single source of truth for whoever picked up The Ravenspire next.
 It captures the founder's rules and style,
