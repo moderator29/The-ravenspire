@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import {
   AdaptiveDialog,
   Badge,
@@ -65,6 +66,13 @@ const BADGE_VARIANTS: BadgeVariant[] = [
 ];
 
 export default function KitchenSinkPage() {
+  /* Dev only, enforced rather than assumed. "Not linked from navigation" is
+     not the same as "not shipped": this page was reachable at its URL on the
+     hosted realm, a whole showroom of controls wired to nothing, which is
+     exactly what an investor poking at routes should never find. NODE_ENV is
+     inlined at build time, so the production bundle compiles this branch to a
+     straight 404 and the primitives below are tree shaken out with it. */
+  if (process.env.NODE_ENV === "production") notFound();
   return (
     <ToastProvider>
       <TooltipProvider>

@@ -63,7 +63,12 @@ const PILLARS = [
 
 const previewCards = [
   { label: "Season I", value: "The First Throne", sub: "Opens after presale" },
-  { label: "Your rank", value: "Smallfolk", sub: "Rise to King or Queen" },
+  /* "Starting rank", not "Your rank". This page is a static preview of an
+     unopened game, so it knows nothing about the viewer; a card that said
+     "Your rank: Smallfolk" was a personal reading nobody had performed, which
+     is an invented figure wearing words instead of digits (rule 4). The
+     ladder's first rung is a fact about the game and is presented as one. */
+  { label: "Starting rank", value: "Smallfolk", sub: "Rise to King or Queen" },
   { label: "House", value: "Choose your banner", sub: "Six Houses, one crown" },
 ];
 
