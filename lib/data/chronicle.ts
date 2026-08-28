@@ -1,4 +1,5 @@
 import type { Icon3DName } from "@/components/ui/icon-3d-names";
+import { SEASON_ZERO } from "@/lib/season-zero";
 
 /* The Chronicle: the realm's own documentation, rendered at /chronicle.
 
@@ -101,10 +102,6 @@ export const chronicle: ChronicleSection[] = [
       "Renown drawn from social actions is capped at two hundred a day, which a genuinely active member never notices and a pair of colluding accounts hits inside an hour. Renown from resolved Calls is deliberately uncapped, and the flat award a landing Call pays is scaled by how hard the Call actually was, so a coin flip pays almost nothing.",
     ],
     notes: [
-      {
-        status: "in-development",
-        text: "The composer does not yet carry the confidence slider or show you the frozen difficulty before you seal. Until it does, a Call is sealed at the bottom of the band, 0.55, which is the least you could have meant and can never inflate a score.",
-      },
       {
         status: "planned",
         text: "Community and admin resolvers are designed but not built. A Call that asks for one is refused when you seal it rather than accepted and left open forever.",
@@ -234,7 +231,7 @@ export const chronicle: ChronicleSection[] = [
       "The realm runs in seasons. Season Rating and House standings reset when a season turns; Renown and Crests do not, because they are permanent legacy. The season countdown sits in the strip above the Ravenry, and oaths may be sworn only in the window between seasons.",
       "Points are earned for real actions: entering the realm and finishing onboarding, sending a raven, sealing a Call, replying to someone, being liked, landing a Call, winning a duel, and bringing in a member who becomes genuinely active. Points and Glory settle on the server against verified events, never on the word of a browser. Renown drawn from social actions is capped daily so two accounts cannot farm each other into the tiers.",
       "Earned balances are shown as POINTS everywhere in the realm. No $RSP figure is displayed against your name, because none has been distributed.",
-      "The realm's token is $RSP, with a total supply of ten billion. Points convert to $RSP at the token generation event. The presale runs on an external launchpad and never on this platform. Presale coming soon, and the details will be announced in the open when it is ready.",
+      "The realm's token is $RSP, with a total supply of ten billion. Points convert to $RSP at the token generation event. Season Zero, the founding round, runs inside the realm itself from September 1 to September 20, 2026; it has its own section below, and any later sale phases will be announced before they run.",
       "One honest note, stated plainly: points reward participation and creativity. They are not an investment, and nothing here promises a financial return. Come for the realm. Anything else is a bonus you verify yourself.",
     ],
     notes: [
@@ -242,6 +239,20 @@ export const chronicle: ChronicleSection[] = [
         status: "planned",
         text: "The claim itself does not exist yet. There is no claim route, no published distribution and nothing on chain. When it ships it will be non-custodial from end to end: you claim to your own wallet and the realm never takes possession in the middle.",
       },
+    ],
+  },
+
+  {
+    slug: "season-zero",
+    icon3d: "brazier",
+    title: "Season Zero",
+    plain: "The founding round, run inside the realm, September 1 to 20, 2026.",
+    status: "in-development",
+    body: [
+      `Season Zero is the founding round of the realm, and it runs inside the realm itself, at its own page, from September 1 to September 20, 2026 (UTC). It sells ${SEASON_ZERO.supplyPct} percent of the total supply, ${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP of the ${SEASON_ZERO.totalSupply.toLocaleString("en-US")}, drawn from within the twenty percent Presale allocation shown in the tokenomics, at a fixed rate of ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per 1 ETH. The softcap is ${SEASON_ZERO.softcapEth} ETH and the hardcap is ${SEASON_ZERO.hardcapEth} ETH.`,
+      "Contributing is non-custodial in the same sense as everything else here. You send ETH from your own wallet straight to the realm treasury, on Base or on Ethereum mainnet, and the platform is never in the path of the funds. The server verifies each transaction on chain before recording it, so the raised total is always a real, verified number and your exact allocation is fixed the moment you contribute.",
+      "The rate is fixed, so a backer knows their allocation at the moment they contribute, whatever the round finally raises. Tokens are delivered at the token generation event, not before. If the softcap is not reached, the round does not stand and every contribution is returned to its sending wallet.",
+      "One honest note, stated plainly: this is a crypto contribution and it carries real risk, including the total loss of what you put in. No token value is promised, nothing here is financial advice, and participation is only permitted where lawful in your jurisdiction. Bring only what you can afford to lose.",
     ],
   },
 

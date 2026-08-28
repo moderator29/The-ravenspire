@@ -7,7 +7,7 @@ import { Icon3D } from "@/components/ui/icon-3d";
 import { icon3dFor } from "@/lib/nav";
 
 /*
-  Two forward-looking teasers built to stoke presale hype. Each is clearly
+  Two forward-looking teasers for the chapters ahead. Each is clearly
   marked Coming soon, on-brand with the realm, and purely aspirational: no
   fabricated numbers, no promises of return.
 */

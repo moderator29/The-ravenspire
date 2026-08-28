@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     "The terms that govern your use of The Ravenspire, a non-custodial competitive realm. No financial advice, no securities offering, and standing earned rather than bought.",
 };
 
-const EFFECTIVE_DATE = "July 19, 2026";
+const EFFECTIVE_DATE = "August 28, 2026";
 
 type Section = {
   id: string;
@@ -77,13 +77,36 @@ const sections: Section[] = [
     id: "token",
     heading: "5. The $RSP token",
     body: [
-      "$RSP is a utility and social token intended for use within the realm. It is not an investment product, and The Ravenspire does not offer it as a security. A presale is coming soon, and its terms will be announced openly when ready. Standing and rewards are earned through participation, never bought.",
+      "$RSP is a utility and social token intended for use within the realm. It is not an investment product, and The Ravenspire does not offer it as a security. The token's founding round, Season Zero, is described in the next section; any later sale phases will be announced before they run. Standing and rewards are earned through participation, never bought, and a purchased Season Zero allocation confers no standing in the realm.",
       "Nothing in these terms or on the platform should be read as a promise of profit, price, or future value. You should not acquire or hold $RSP with the expectation of financial return.",
     ],
   },
   {
+    id: "season-zero",
+    heading: "6. Season Zero, the founding round",
+    body: [
+      "Season Zero is the founding round of the realm. It runs inside the platform, on the realm's own Season Zero page, from September 1 to September 20, 2026 (UTC). It offers 700,000,000 $RSP, 7 percent of the total supply of 10,000,000,000, at a fixed rate of 46,666,666 $RSP per 1 ETH, with a softcap of 6 ETH and a hardcap of 15 ETH. Reaching the hardcap closes the round early.",
+      "To participate:",
+    ],
+    list: [
+      "1. Create your account. A non-custodial wallet is minted to you at sign-up, and the keys are yours alone.",
+      "2. Read these terms and the round's numbers on the Season Zero page before contributing.",
+      "3. Send ETH from your own wallet to the realm treasury address shown on the Season Zero page, on Base or Ethereum mainnet, during the round window. Contributions below the stated minimum cannot be processed.",
+      "4. Your transaction is verified on chain, and your exact $RSP allocation is recorded at the fixed rate the moment it is confirmed.",
+    ],
+  },
+  {
+    id: "season-zero-terms",
+    heading: "7. Season Zero: delivery, refunds, and risk",
+    body: [
+      "Contributions are non-custodial and wallet to wallet. You send ETH from your own wallet directly to the realm treasury, and the platform never takes custody of your funds or your keys at any point. Because contributions are on-chain transactions you sign yourself, you are responsible for sending to the correct address on a supported chain; the realm cannot reverse a transaction you have signed.",
+      "Tokens are delivered at the token generation event, not at the moment of contribution. If the softcap of 6 ETH is not reached by the close of the round, the round does not stand and every contribution is returned to its sending wallet. If the softcap is met, the round stands and contributions are non-refundable.",
+      "You may participate only where doing so is lawful in your jurisdiction, and you are responsible for knowing whether it is. No token value, price, liquidity, or future return is promised or implied, and you may lose the entire value of your contribution. Nothing about the round is financial advice. What the round records about a contribution, and why, is described in the Privacy Policy at /legal/privacy.",
+    ],
+  },
+  {
     id: "user-content",
-    heading: "6. User-generated content",
+    heading: "8. User-generated content",
     body: [
       "You are responsible for the content you post, including ravens, whispers, Calls, House activity, and any other material you contribute. You retain ownership of your content, and you grant The Ravenspire a license to host, display, and distribute it as needed to operate the service.",
       "You agree not to post content that is unlawful, infringing, deceptive, harassing, or otherwise harmful. We may remove content that violates these terms or that we reasonably consider harmful to the realm.",
@@ -91,7 +114,7 @@ const sections: Section[] = [
   },
   {
     id: "prohibited",
-    heading: "7. Prohibited conduct",
+    heading: "9. Prohibited conduct",
     body: ["When using The Ravenspire, you agree not to:"],
     list: [
       "Break any applicable law or regulation, or use the realm to facilitate unlawful activity.",
@@ -104,21 +127,21 @@ const sections: Section[] = [
   },
   {
     id: "rewards",
-    heading: "8. Points, rewards, and standing",
+    heading: "10. Points, rewards, and standing",
     body: [
       "Points, crests, Glory, and other measures of standing are features of the realm and hold no guaranteed monetary value. We may adjust how they are earned, calculated, or converted, and we may correct errors or reverse gains obtained through abuse or exploitation.",
     ],
   },
   {
     id: "third-parties",
-    heading: "9. Third-party services",
+    heading: "11. Third-party services",
     body: [
       "The Ravenspire relies on third-party providers, including Privy for wallet infrastructure and Supabase for data storage, and interacts with public blockchains. These services operate under their own terms, and we are not responsible for their performance, availability, or actions. On-chain activity is public and permanent by nature.",
     ],
   },
   {
     id: "disclaimers",
-    heading: "10. Disclaimers and limitation of liability",
+    heading: "12. Disclaimers and limitation of liability",
     body: [
       "The Ravenspire is provided on an as-is and as-available basis, without warranties of any kind, whether express or implied. We do not guarantee that the service will be uninterrupted, secure, or error-free.",
       "To the fullest extent permitted by law, The Ravenspire and its contributors will not be liable for any indirect, incidental, or consequential damages, or for any loss of assets, data, or profits arising from your use of the service.",
@@ -126,21 +149,21 @@ const sections: Section[] = [
   },
   {
     id: "termination",
-    heading: "11. Termination",
+    heading: "13. Termination",
     body: [
       "You may stop using The Ravenspire at any time and export your keys. We may suspend or terminate your access if you violate these terms or act in a way that harms the realm or its members. Because the service is non-custodial, ending your access does not affect ownership of assets held in your own wallet.",
     ],
   },
   {
     id: "changes",
-    heading: "12. Changes to these terms",
+    heading: "14. Changes to these terms",
     body: [
       "We may update these terms from time to time. When we do, we will revise the effective date above and, where appropriate, provide additional notice within the realm. Your continued use of The Ravenspire after changes take effect means you accept the updated terms.",
     ],
   },
   {
     id: "contact",
-    heading: "13. Contact",
+    heading: "15. Contact",
     body: [
       "If you have questions about these terms, reach us at legal@ravenspire.xyz.",
     ],

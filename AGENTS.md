@@ -37,9 +37,14 @@ The full V2 plan lives in `docs/RAVENSPIRE-V2.md`.
    real data. Never fake, stub, canned, or hardcode model output.
 6. **Non-custodial only.** Every value transfer is signed by the member's own
    Privy embedded wallet. The platform never takes custody and never holds keys.
-7. Ticker is `$RSP`, total supply 10,000,000,000. Presale runs on an external
-   launchpad, never on the platform. Copy is always "Presale coming soon",
-   never "no presale". Show POINTS for earned balances, never $RSP amounts.
+7. Ticker is `$RSP`, total supply 10,000,000,000. Season Zero, the founding
+   round, runs inside the platform September 1 to 20, 2026 (UTC): softcap
+   6 ETH, hardcap 15 ETH, 7 percent of supply at a fixed rate, non-custodial
+   and wallet to wallet. `lib/season-zero.ts` is the single source of truth
+   for its numbers. Any later sale phases will be announced before they run.
+   Show POINTS for earned balances, never $RSP amounts; the Season Zero
+   allocation is purchased, not earned, so showing its $RSP amount is
+   consistent with that rule.
 8. **Server-authoritative rewards.** Points and Glory settle on the server
    against verified events. Never trust the client.
 

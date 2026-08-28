@@ -1593,7 +1593,7 @@ product already exist here, live, tested, and on brand:
 | Ceremony register (Forge) | Shipped | The pack-opening moment |
 | Privy embedded wallet per member, non-custodial | Shipped | NFT custody with zero onboarding. The hardest problem in NFT UX is already solved for every member |
 | Server-authoritative POINTS and inventory precedent | Shipped | Chest contents and card grants settle server-side, same law as Glory |
-| $RSP at TGE, presale on external launchpad | Planned | The economy connective tissue |
+| $RSP at TGE; Season Zero, the founding round, in-platform September 2026 | Planned | The economy connective tissue |
 
 The honest gap: no commerce, no NFT infrastructure, no fulfillment. All of
 that is in section 30.
@@ -1757,7 +1757,8 @@ and notify preferences per sealed feature.
    in `lineup.png` is replaced along with the concept-art backdrops).
 4. Roadmap gains the Collection chapter with honest states: preview now,
    chests at launch, mint after.
-5. Presale copy unchanged by law: "Presale coming soon", POINTS never $RSP.
+5. Token copy per AGENTS.md rule 7: Season Zero is the founding round, POINTS
+   never $RSP for earned balances.
 6. Tokenomics section notes chest and merch revenue as realm revenue, no
    invented figures.
 

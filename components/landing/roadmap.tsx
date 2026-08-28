@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { SEASON_ZERO } from "@/lib/season-zero";
 
 /*
   The Roadmap. A phased march along the Ethereum chain, drawn as a vertical
@@ -102,15 +103,15 @@ const phases: Phase[] = [
   },
   {
     tag: "Phase VI",
-    title: "Presale",
-    body: "Presale coming soon, announced plainly and in the open.",
+    title: "Season Zero, the founding round (September 2026)",
+    body: "The founding round runs inside the realm itself, September 1 to 20, 2026.",
     points: [
-      "Runs on an external launchpad, never on the platform",
-      "Terms, caps and timing shared openly",
-      "No seats sold that must be earned",
+      `${SEASON_ZERO.supplyPct} percent of supply (${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP) at a fixed rate of ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per ETH`,
+      `Softcap ${SEASON_ZERO.softcapEth} ETH, hardcap ${SEASON_ZERO.hardcapEth} ETH; below softcap, every contribution is returned to its sending wallet`,
+      "Non-custodial, wallet to wallet on Base or Ethereum mainnet; tokens delivered at TGE",
     ],
     icon: "coin",
-    status: "planned",
+    status: "building",
   },
   {
     tag: "Phase VII",
@@ -274,10 +275,10 @@ export function Roadmap() {
         className="mt-3 max-w-prose text-[15px] leading-relaxed text-bone-mut"
       >
         Ten phases from foundation to a full ecosystem: build, social launch,
-        contracts and audit, community campaigns, presale, TGE, marketing and
-        partnerships, play-to-earn and the grand House contest, and exchange
-        listings. These are intentions, not oaths, and we will say so plainly
-        when they shift.
+        contracts and audit, community campaigns, Season Zero the founding
+        round, TGE, marketing and partnerships, play-to-earn and the grand
+        House contest, and exchange listings. These are intentions, not oaths,
+        and we will say so plainly when they shift.
       </motion.p>
 
       <motion.ol variants={rise} className="relative mt-8 flex flex-col gap-5">
