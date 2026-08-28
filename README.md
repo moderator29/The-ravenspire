@@ -68,6 +68,13 @@ Everything below is labelled with what it actually is. See
 
 ### In development
 
+- Season Zero, the founding round (`/season-zero`): September 1 to 20, 2026
+  (UTC), run inside the platform. Softcap 6 ETH, hardcap 15 ETH, 7 percent of
+  supply (700,000,000 $RSP) at a fixed rate of 46,666,666 $RSP per ETH,
+  non-custodial and wallet to wallet on Base or Ethereum mainnet, with every
+  contribution verified on chain. Below softcap, every contribution is
+  returned. `lib/season-zero.ts` is the single source of truth for the
+  numbers.
 - Quests and duels. Both run server-side and emit events, but have no surface.
   They are dissolving into the Ravenry and the House halls rather than
   returning as a destination, which is why Claim the Throne is not a nav item.
@@ -108,10 +115,12 @@ a human confirms it.
 
 `app/page.tsx` is the public gate. It opens on the hero and the "Enter the
 Realm" call to action, then reveals motion-led sections: the realm intro, the
-stats strip, the Tools rail, Meet @raven, the non-custodial promise, the Games
-and the Champions gallery drawn from real roster data, a platform preview,
-coming-soon teasers, $RSP tokenomics, the roadmap, how the realm works, the
-chapters ahead, the crests, an FAQ, and the risk band. Section components live
+stats strip, the Season Zero founding-round section (dates, caps, rate and
+steps, drawn from `lib/season-zero.ts`), the Tools rail, Meet @raven, the
+non-custodial promise, the Games and the Champions gallery drawn from real
+roster data, a platform preview, coming-soon teasers, $RSP tokenomics, the
+roadmap, how the realm works, the chapters ahead, the crests, an FAQ, and the
+risk band. Section components live
 in `components/landing/`. Motion is Framer Motion. The footer links the Privacy
 Policy at `/legal/privacy` and the Terms of Service at `/legal/terms`.
 
@@ -145,9 +154,12 @@ Policy at `/legal/privacy` and the Terms of Service at `/legal/terms`.
 - Reputation is earned, never bought. No keys, no tickets, no NFTs.
 - Server-authoritative rewards. Points and Glory settle on the server against
   verified events, never on the word of a client.
-- Ticker is `$RSP`, total supply 10,000,000,000. The presale runs on an
-  external launchpad, never on the platform. Presale coming soon. Earned
-  balances are shown as POINTS, never as a $RSP amount.
+- Ticker is `$RSP`, total supply 10,000,000,000. Season Zero, the founding
+  round, runs inside the platform September 1 to 20, 2026 (UTC), non-custodial
+  and wallet to wallet; any later sale phases will be announced before they
+  run. Earned balances are shown as POINTS, never as a $RSP amount. The
+  Season Zero allocation is purchased, not earned, so its $RSP amount is
+  shown.
 - No em dashes, anywhere. See `AGENTS.md`.
 
 ## Getting started
@@ -180,10 +192,13 @@ live in `app/globals.css`.
 ## Legal
 
 Ravenspire is a competitive social realm. $RSP is a utility and social token,
-not an investment, and nothing on the platform is financial advice. The presale
-runs on an external launchpad and never on the platform; presale coming soon.
-Crypto carries real risk; bring only what you can afford to lose. See the
-Privacy Policy at `/legal/privacy` and the Terms of Service at `/legal/terms`.
+nothing on the platform is financial advice, and no token value is promised.
+Season Zero, the founding round, runs inside the platform September 1 to 20,
+2026 (UTC), non-custodially and wallet to wallet, with its terms stated in the
+Terms of Service; participation is only permitted where lawful in your
+jurisdiction. Crypto carries real risk; bring only what you can afford to
+lose. See the Privacy Policy at `/legal/privacy` and the Terms of Service at
+`/legal/terms`.
 
 See `docs/PLATFORM.md` for a full tour of the platform and its architecture,
 `docs/RAVENSPIRE-V2.md` for the V2 plan, and `docs/AUDIT.md` for the adversarial

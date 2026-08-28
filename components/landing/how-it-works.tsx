@@ -63,8 +63,8 @@ export function HowItWorks() {
         variants={rise}
         className="mt-3 max-w-prose text-[15px] leading-relaxed text-bone-mut"
       >
-        Presale coming soon. No seat to buy, no shortcut. Everything of worth is
-        earned in the open, and the road is short.
+        No shortcut, and no rank for sale. Everything of worth is earned in the
+        open, and the road is short.
       </motion.p>
 
       <ol className="relative mt-8 flex flex-col gap-4">

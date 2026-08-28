@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, MotionConfig } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,15 +31,52 @@ const assurances: { icon: LandingIconName; title: string; body: string }[] = [
   {
     icon: "badge",
     title: "Earned, never bought",
-    body: "Presale coming soon. Standing in the realm is earned in the open.",
+    body: "Standing in the realm is earned in the open, never sold. No shortcut buys a name.",
   },
 ];
 
+/* Only a path inside this site may be a return destination. A single leading
+   slash and nothing else: "//host", "/\host" and anything carrying a scheme
+   are how an open redirect walks a member off the site, so they are refused
+   and the default flow stands. */
+function safeNextPath(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/")) return null;
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return null;
+  return raw;
+}
+
+/* useSearchParams() opts a component out of static rendering, so Next
+   requires it to sit under a Suspense boundary; without one the production
+   build fails while prerendering this route. */
 export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignInBody />
+    </Suspense>
+  );
+}
+
+function SignInBody() {
   /* Routing into the realm after sign-in is handled globally by the
-     PostAuthGate, so it works no matter where the login completes. */
+     PostAuthGate, so it works no matter where the login completes. The one
+     exception is a ?next= return destination: a member sent here from a
+     specific door (for example /season-zero) goes back through it, and this
+     page carries them there itself the moment auth completes. Leaving
+     /signin cancels the PostAuthGate's own pending redirect. */
   const { ready, enabled, authenticated, signInX, signInEmail, connectWallet } =
     useRealmAuth();
+  const router = useRouter();
+  const params = useSearchParams();
+  const next = safeNextPath(params.get("next"));
+  const sent = useRef(false);
+
+  useEffect(() => {
+    if (!ready || !authenticated || !next) return;
+    if (sent.current) return;
+    sent.current = true;
+    router.replace(next);
+  }, [ready, authenticated, next, router]);
 
   return (
     <MotionConfig reducedMotion="user">

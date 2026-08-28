@@ -25,6 +25,7 @@ type NavLink = {
 
 const links: NavLink[] = [
   { label: "Overview", target: "overview", icon: "overview" },
+  { label: "Season Zero", target: "season-zero", icon: "flame" },
   { label: "Features", target: "features", icon: "features" },
   { label: "Games", target: "games", icon: "games" },
   { label: "The Realm", target: "realm", icon: "realm" },

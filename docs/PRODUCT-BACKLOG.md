@@ -64,4 +64,5 @@ On a profile, between the identity header and the Ravens/Calls/Media tabs:
   history, watchlist, filters, settings.
 - @raven: bottom input bar, chat history, settings sheet.
 - Landing: $RSP tokenomics (10B), Ethereum roadmap, crisp champions, coming-soon
-  teasers, presale coming soon. Claim the Throne is a coming-soon sneak peek.
+  teasers, and (since August 2026) the Season Zero founding-round section.
+  Claim the Throne is a coming-soon sneak peek.

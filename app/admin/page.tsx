@@ -193,6 +193,12 @@ export default function AdminOverviewPage() {
      sub-console, with a live attention badge where the platform is waiting. */
   const controls = [
     {
+      href: "/admin/retention",
+      icon: "signal",
+      label: "Retention",
+      desc: "Cohorts, activation and habit depth",
+    },
+    {
       href: "/admin/users",
       icon: "user",
       label: "Users",

@@ -33,9 +33,10 @@ Live site: theravenspire.xyz (production tracks `main`). Open a PR to
   state. This is a hard line.
 - 2030, NEXT-GEN bar. Every surface must feel years ahead: cinematic motion,
   depth, and polish. If it reads like a template or an MVP, rebuild it.
-- Presale runs on an EXTERNAL LAUNCHPAD (Gempad or Pinksale, not yet decided),
-  NOT on the platform. Never build an on-platform presale or whitelist flow.
-  Keep only "Presale coming soon" copy.
+- SUPERSEDED (August 2026): the founding round, Season Zero, runs INSIDE the
+  platform at /season-zero, September 1 to 20, 2026 (UTC). The old rule that
+  the presale was external-launchpad-only no longer holds; `lib/season-zero.ts`
+  is the single source of truth for the round's numbers.
 - NO em-dashes anywhere. Use commas, periods, or restructure.
 - NO emojis as icons. Use the `Icon` / `LandingIcon` components only.
 - Premium, next-gen, cinematic UI. Obsidian and forged gold, restrained ember,
@@ -46,7 +47,8 @@ Live site: theravenspire.xyz (production tracks `main`). Open a PR to
 - Non-custodial only. Every value transfer is signed by the member's own Privy
   embedded wallet. The Ravenspire never takes custody and never holds keys.
 - Ticker is `$RSP`. Total supply 10,000,000,000 (10B).
-- "Presale coming soon" everywhere. Never "no presale".
+- SUPERSEDED (August 2026): "Presale coming soon" copy is retired. The round
+  is Season Zero, the founding round, with real dates; see `lib/season-zero.ts`.
 - Members earn POINTS through real actions. Points convert to $RSP at TGE.
   Show points, not $RSP, for earned balances.
 - Realm lexicon: The Ravenry (feed), The Crossroads (explore), The Rookery
@@ -198,9 +200,9 @@ These are the ten high-value picks from the 261-audit + backlog that were put to
 the founder, with the exact decision on each. Build the greenlit ones (mostly
 alongside the Scrying/Swap work), skip the rest.
 
-1. Presale page + register/whitelist flow. DECISION: NO. The presale runs on an
-   external launchpad (Gempad or Pinksale, TBD), not on the platform. Do not
-   build it here; keep "Presale coming soon" copy only.
+1. Presale page + register/whitelist flow. DECISION: NO at the time, later
+   SUPERSEDED (August 2026): Season Zero, the founding round, now runs inside
+   the platform at /season-zero. See `lib/season-zero.ts`.
 2. AI Account Scanner: a personal AI with full read access to the member's OWN
    account (posts, wallet, activity) surfacing insights, risks, alpha. DECISION:
    YES, build clean and end to end. Real LLM over the owner's real data only,

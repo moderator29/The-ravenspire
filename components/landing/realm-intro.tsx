@@ -67,8 +67,8 @@ export function RealmIntro() {
           <span className="gold-text">real crypto beneath it</span>
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-relaxed text-bone-mut sm:text-base">
-          The Ravenspire is a competitive realm where communities earn reputation
-          through participation. You post, you argue, you swear to a House and
+          The Ravenspire is the competitive arena where crypto conviction earns
+          a name that can&rsquo;t be bought. You post, you argue, you swear to a House and
           you make Calls the realm keeps a record of, while a full suite of
           portfolio, safety and market tools works underneath, reading only real
           on-chain data. A wallet is minted to you on sign-up and the keys are
