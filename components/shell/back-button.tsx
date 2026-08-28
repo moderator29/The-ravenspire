@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, IconButton } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { canRetrace } from "@/components/shell/nav-depth";
 
 type BackButtonProps = {
   /** Where to go when there is no history to step back into. */
@@ -23,8 +23,11 @@ type BackButtonProps = {
   A single, consistent way back. When the member arrived through the realm we
   simply retrace their last step; when they landed here cold (a shared link, a
   fresh tab) there is nothing behind them, so we send them somewhere sensible
-  instead of trapping them. Styled as a small glass control to sit calmly above
-  page content.
+  instead of out of the realm or into a trap. Whether a step exists to retrace
+  is answered at press time by canRetrace (Navigation API where the browser
+  has it, the per-tab depth counter where it does not): asked on click rather
+  than cached at mount, because the answer can change while the page is open.
+  Styled as a small glass control to sit calmly above page content.
 */
 export function BackButton({
   href = "/home",
@@ -32,15 +35,9 @@ export function BackButton({
   circle = false,
 }: BackButtonProps) {
   const router = useRouter();
-  const [canGoBack, setCanGoBack] = useState(false);
-
-  useEffect(() => {
-    /* history.length > 1 means there is a step to retrace within this tab. */
-    setCanGoBack(window.history.length > 1);
-  }, []);
 
   const handleClick = () => {
-    if (canGoBack) router.back();
+    if (canRetrace()) router.back();
     else router.push(href);
   };
 
