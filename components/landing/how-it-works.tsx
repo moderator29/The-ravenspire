@@ -79,13 +79,12 @@ export function HowItWorks() {
             variants={rise}
             className="relative flex items-start gap-4"
           >
+            {/* No halo behind the step number. Four glowing discs on a plain
+                four step ladder is ornament going ambient (rule 21); the gold
+                ring, the gold numeral and the gradient spine already light
+                the rail. */}
             <span className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-void">
-              <span
-                aria-hidden="true"
-                className="absolute inset-0 rounded-full opacity-40 blur-md"
-                style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.5), transparent 70%)" }}
-              />
-              <span className="relative font-display text-sm font-semibold text-gold">
+              <span className="font-display text-sm font-semibold text-gold">
                 {i + 1}
               </span>
             </span>

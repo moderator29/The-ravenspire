@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
+import { xUrl } from "@/lib/site";
 
 /*
   Landing footer. Legal routes (/legal/privacy, /legal/terms) are owned by a
@@ -32,8 +33,10 @@ const legalLinks = [
   { href: "/legal/terms", label: "Terms of Service" },
 ];
 
+/* The X link comes from lib/site.ts, where the handle is recorded as
+   unverified: correct it there and every surface that names it follows. */
 const socials = [
-  { href: "https://x.com/ravenspire", label: "X", icon: "xlogo" },
+  { href: xUrl(), label: "X", icon: "xlogo" },
   { href: "/rookery", label: "Live", icon: "signal" },
 ];
 

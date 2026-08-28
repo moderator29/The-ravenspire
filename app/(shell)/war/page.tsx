@@ -70,7 +70,12 @@ const openModes = [
     icon: "medal",
     name: "Rewards and Progression",
     plain: "Tribute and mastery",
-    desc: "Daily tribute, relic chests, the War Pass and champion mastery.",
+    /* No "War Pass" here. The pass exists on the rewards page only as a
+       sealed "Soon" card with no ladder behind it, and a hub card is a
+       promise about the door it opens: naming the one thing inside that does
+       not work yet is the promise most likely to be broken on arrival. It
+       joins this line when the ladder is posted. */
+    desc: "Daily tribute, relic chests and champion mastery.",
   },
 ];
 

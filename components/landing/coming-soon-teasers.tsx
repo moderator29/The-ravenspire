@@ -95,11 +95,10 @@ export function ComingSoonTeasers() {
       <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2">
         {teasers.map((t) => (
           <Card key={t.eyebrow} render={<motion.article variants={rise} />} pad="none" interactive className="relative overflow-hidden p-6 sm:p-7">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full opacity-25 blur-3xl"
-              style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.4), transparent 70%)" }}
-            />
+            {/* No corner orb. Each teaser leads with a 96px 3D icon, which is
+                the Forge-register weight a coming soon chapter has earned; a
+                blur behind it on top of that is ornament going ambient
+                (rule 21). */}
             <div className="flex items-center justify-between gap-3">
               <Icon3D name={icon3dFor(t.href) ?? "portal"} size="lg" />
               <span className="inline-flex items-center rounded-sm border border-gold/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-gold/80">
