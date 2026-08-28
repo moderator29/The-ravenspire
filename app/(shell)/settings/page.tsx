@@ -211,6 +211,9 @@ export default function SettingsPage() {
         <ConsoleHeader
           title="Settings"
           kicker="Your keep, your rules"
+          /* Cold entry falls back to the Keep: these are the Keep's own
+             rules, as the kicker says. */
+          backHref="/keep"
           actions={
             saveState !== "idle" && !locked ? (
               saveState === "error" ? (

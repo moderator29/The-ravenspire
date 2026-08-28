@@ -72,6 +72,9 @@ export default function ForgePage() {
       <ConsoleHeader
         title="The Forge"
         kicker="Staking"
+        /* Cold entry falls back to the Vault: what the Forge stakes is what
+           the Vault holds. */
+        backHref="/vault"
         badge={
           live === null ? undefined : stoking ? (
             <Badge variant="beta" icon="flame">

@@ -77,7 +77,12 @@ export function FloatingCompose() {
           type="button"
           aria-label="Close"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-30 cursor-default bg-black/40 backdrop-blur-[2px]"
+          /* z-nav, same rung as the button stack below and above the dock's
+             own z-nav in source order, so opening the speed dial dims the dock
+             under the scrim. At a raw 30 the scrim sat UNDER the dock (200):
+             the one navigation surface a modal speed dial exists to eclipse
+             stayed fully lit and fully clickable behind it. */
+          className="fixed inset-0 z-nav cursor-default bg-black/40 backdrop-blur-[2px]"
         />
       )}
 
@@ -92,7 +97,7 @@ export function FloatingCompose() {
       <div
         ref={fabRef}
         style={{ position: "fixed" }}
-        className="bottom-[calc(var(--dock-height,4.5rem)+0.75rem)] right-4 z-40 flex flex-col items-end gap-3 lg:bottom-8 lg:right-8"
+        className="bottom-[calc(var(--dock-height,4.5rem)+0.75rem)] right-4 z-nav flex flex-col items-end gap-3 lg:bottom-8 lg:right-8"
       >
         {open && (
           <>

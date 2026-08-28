@@ -460,6 +460,9 @@ export default function SwapPage() {
       <ConsoleHeader
         title="The Swap"
         kicker="Trade any EVM coin"
+        /* Cold entry falls back to the Vault: the Swap trades the wallet the
+           Vault holds. */
+        backHref="/vault"
         badge={<Badge variant="beta">Beta</Badge>}
       />
 

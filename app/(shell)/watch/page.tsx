@@ -315,6 +315,9 @@ export default function WatchPage() {
       <ConsoleHeader
         title="The Watch"
         kicker="Token security scanner"
+        /* Cold entry falls back to the Vault, not the feed: the Watch guards
+           what the wallet is about to touch, so its parent is the wallet. */
+        backHref="/vault"
         badge={<Badge icon="shield">Live chain reads</Badge>}
       />
 

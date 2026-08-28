@@ -29,10 +29,14 @@ import { houses } from "@/lib/data/houses";
   WHAT IT IS NOW. The same four rooms, the same craft, and not one invented
   figure. Two of the frames carry genuinely real data: the six Houses are the
   live roster with their real sigils and real mottos, and the Keep shows the
-  real crest set with its real names. The other two show the chrome of a room
-  with its content deliberately empty, which is what a room looks like before
-  anybody has spoken in it, and is the same honest empty state the product
-  itself renders.
+  real crest set with its real names. The other two are drawn from the
+  product's own chrome, piece for piece: the Ravenry frame is the real feed's
+  chip rail, its real inline composer line and a card's real action bar; the
+  Whispers frame is a real thread with @raven, who exists, as the counterpart,
+  carrying one of the Herald's own opener prompts as the sent whisper and the
+  real composer beneath it. Between "three grey bars" and "an invented
+  conversation" there is a third thing, which is the interface itself, and the
+  interface is real.
 
   Live figures are not absent from this page. They are in LiveRealmStats, which
   reads them from the realm, which is where a number belongs.
@@ -78,26 +82,58 @@ function EmptyRoom({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ----- The Ravenry: the composer and the actions, with nothing put in them ----- */
+/* ----- The Ravenry: the feed's own chrome, in miniature ----- */
 function RavenryRoom() {
+  /* The first three of the real feed views, exactly as components/social/
+     feed.tsx names them, drawn in the chip rail pattern the design system
+     assigns to feed tabs: no track, the active one filled gold at low
+     opacity. Decoration here, controls there, same vocabulary. */
+  const views = ["For You", "Following", "My House"];
+
   return (
     <Frame title="The Ravenry" icon="home">
-      <div className="rounded-lg border border-steel-line bg-panel p-3">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gradient-to-b from-panel-warm to-void text-gold">
-            <Icon name="feather" className="h-4 w-4" />
+      <div className="flex items-center gap-1.5" aria-hidden="true">
+        {views.map((v, i) => (
+          <span
+            key={v}
+            className={
+              i === 0
+                ? "rounded-md border border-gold/30 bg-gold/10 px-2.5 py-1 text-[10px] font-semibold text-gold"
+                : "rounded-md border border-steel-line/70 px-2.5 py-1 text-[10px] text-bone-faint"
+            }
+          >
+            {v}
           </span>
-          <span className="text-[12px] text-bone-faint">
-            Send a raven to the realm
-          </span>
-        </div>
-        {/* The action row, real icons, no counts. A count here would be the
-            same invented number in a smaller font. */}
-        <div className="mt-3 flex items-center gap-5 border-t border-steel-line/60 pt-2.5 text-bone-faint">
-          <Icon name="heart" className="h-3.5 w-3.5" />
-          <Icon name="reply" className="h-3.5 w-3.5" />
-          <Icon name="repost" className="h-3.5 w-3.5" />
-          <Icon name="target" className="ml-auto h-3.5 w-3.5 text-gold" />
+        ))}
+      </div>
+
+      {/* The inline composer, word for word the one the feed opens with. */}
+      <div className="mt-2.5 flex items-center gap-2.5 rounded-lg border border-steel-line bg-panel px-3 py-2.5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gradient-to-b from-panel-warm to-void text-gold">
+          <Icon name="feather" className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-bone-faint">
+          Send a raven, or seal a Call
+        </span>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gold/30 bg-gold/10 text-gold">
+          <Icon name="plus" className="h-3.5 w-3.5" />
+        </span>
+      </div>
+
+      {/* A raven card's shell: the 2px gold accent rail the chassis gives a
+          member's post, and the real action bar. Real icons, no counts. A
+          count here would be the same invented number in a smaller font. */}
+      <div className="mt-2.5 overflow-hidden rounded-lg border border-steel-line bg-panel">
+        <div className="border-l-2 border-gold/70 px-3 py-2.5">
+          <p className="text-[12px] leading-relaxed text-bone-mut">
+            Your ravens land here, judged in the open.
+          </p>
+          <div className="mt-2.5 flex items-center gap-5 border-t border-steel-line/60 pt-2 text-bone-faint">
+            <Icon name="heart" className="h-3.5 w-3.5" />
+            <Icon name="reply" className="h-3.5 w-3.5" />
+            <Icon name="repost" className="h-3.5 w-3.5" />
+            <Icon name="target" className="ml-auto h-3.5 w-3.5 text-gold" />
+          </div>
         </div>
       </div>
       <EmptyRoom>
@@ -108,29 +144,48 @@ function RavenryRoom() {
   );
 }
 
-/* ----- Whispers: a thread with nothing in it ----- */
+/* ----- Whispers: a real thread, with the one counterpart who exists ----- */
 function WhispersRoom() {
   return (
     <Frame title="Whispers" icon="mail">
-      <div className="flex flex-col gap-2.5">
-        {/* Two empty bubbles, one each side, which is the shape of a
-            conversation without inventing one. */}
-        <div className="flex justify-start">
-          <div className="h-7 w-[62%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel" />
-        </div>
-        <div className="flex justify-end">
-          <div className="h-7 w-[48%] rounded-2xl rounded-br-md bg-panel-warm" />
-        </div>
-        <div className="flex justify-start">
-          <div className="h-7 w-[54%] rounded-2xl rounded-bl-md border border-steel-line/70 bg-panel" />
+      {/* The thread header as /whispers draws it: the way back, then who you
+          are speaking with. @raven is the counterpart because the Herald is
+          real; an invented member here is exactly what this section was
+          rebuilt to remove. */}
+      <div className="-mx-4 -mt-4 flex items-center gap-2.5 border-b border-steel-line/60 px-4 py-2.5">
+        <Icon name="arrow" className="h-3.5 w-3.5 rotate-180 text-bone-faint" />
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-panel-warm text-gold">
+          <Icon name="raven" className="h-3.5 w-3.5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[12px] font-semibold leading-tight text-bone">
+            @raven
+          </p>
+          <p className="text-[10px] leading-tight text-bone-faint">The Herald</p>
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-2 rounded-lg border border-steel-line bg-panel px-3 py-2">
-        <span className="text-[12px] text-bone-faint">Whisper something</span>
-        <Icon name="send" className="ml-auto h-4 w-4 text-gold" />
+
+      {/* One sent whisper, and it is not invented dialogue: it is one of the
+          Herald's own opener prompts, the exact line the Raven surface offers
+          as a first message. The reply is deliberately absent, because a real
+          AI answer cannot be typed into a landing page (rule 5), and the
+          whisper reads complete without one. */}
+      <div className="mt-3 flex flex-col items-end">
+        <div className="max-w-[80%] rounded-xl rounded-br-sm bg-panel-warm px-3 py-2">
+          <p className="text-[12px] text-bone">Settle a debate for me</p>
+        </div>
+        <span className="mt-0.5 px-1 text-[10px] text-bone-faint">now</span>
+      </div>
+
+      {/* The composer, piece for piece: attach, the real placeholder, send. */}
+      <div className="mt-3 flex items-center gap-2 rounded-lg border border-steel-line bg-panel px-3 py-2 text-bone-faint">
+        <Icon name="image" className="h-4 w-4 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-[12px]">Speak softly</span>
+        <Icon name="send" className="h-4 w-4 shrink-0 text-gold" />
       </div>
       <EmptyRoom>
         Private, member to member, with images and tribute in the same thread.
+        Whisper @raven and the Herald answers.
       </EmptyRoom>
     </Frame>
   );
@@ -240,17 +295,10 @@ export function PlatformPreview() {
       pad="none"
       className="relative scroll-mt-28 overflow-hidden p-7 sm:p-9"
     >
-      {/* Ambient premium glow: warm gold meeting a cool steel edge */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-30 blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(229,112,42,0.18), transparent 70%)" }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full opacity-25 blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(110,118,131,0.22), transparent 70%)" }}
-      />
+      {/* No ambient orbs. This card used to carry two, an ember one and a
+          steel one, on a page whose budget is the hero's aura, the mark's halo
+          and the two game cards. Ornament is earned, never ambient (rule 21),
+          and the four frames below are the ornament this section earned. */}
 
       <motion.div variants={rise} className="relative flex flex-wrap items-center gap-3">
         <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">

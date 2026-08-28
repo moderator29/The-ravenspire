@@ -74,7 +74,13 @@ export default function BannersPage() {
   return (
     <BoardPage width="narrow">
       <BoardStack>
-        <BoardHeader title="Raise Your Banners" kicker="Refer and earn" />
+        {/* A social surface with no deeper parent: cold entry falls back to
+            the feed, stated rather than inherited. */}
+        <BoardHeader
+          title="Raise Your Banners"
+          kicker="Refer and earn"
+          backHref="/home"
+        />
 
         {!ready || loading ? (
           showSkeleton ? <Skeleton radius="xl" className="h-48" /> : null

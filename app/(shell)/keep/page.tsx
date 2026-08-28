@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EditProfile } from "@/components/social/edit-profile";
 import { ProfileView, type ProfileTab } from "@/components/social/profile-view";
 import { fetchProfile } from "@/lib/social/queries";
+import { withDeadline } from "@/lib/deadline";
 import type { PublicProfile } from "@/lib/social/types";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -18,9 +19,9 @@ import {
 /* The member's own Keep. The Dossier is ProfileView, which the public
    /u/handle route renders too; this route resolves who the viewer is and
    answers honestly in the three states where there is no Keep to show yet.
-   The back control lives in ProfileView, which carries it on both routes:
-   the Keep is a dock destination but it is also navigated into, from a raven,
-   a roster and the desktop sidebar, where there is no dock at all. */
+   The back control comes from ProfileView's DossierHeader, the same one the
+   public route carries: a dock destination still deserves a way back when a
+   member arrived by link rather than by dock. */
 
 /* The panel lives in the URL, so the Keep's tab line survives a reload and
    a shared link opens on the panel it names. The dock strip that once wrote
@@ -62,13 +63,8 @@ function KeepBody() {
 
   const { ready, authenticated, enabled } = useRealmAuth();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
-  /* Five states, and the fifth is the one that was missing. A Keep whose read
-     did not land used to sit on the skeleton forever: the member saw the shape
-     of their own Keep pulsing and was never told anything had gone wrong, and
-     had no control to try again. A failed read is a state of its own, and it
-     is the only one here with a way out that the member can operate. */
   const [state, setState] = useState<
-    "loading" | "anon" | "onboard" | "failed" | "ok"
+    "loading" | "anon" | "onboard" | "ok" | "error"
   >("loading");
   const [editOpen, setEditOpen] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -82,11 +78,29 @@ function KeepBody() {
       return;
     }
     let cancelled = false;
-    setState("loading");
     void (async () => {
-      const res = await realmFetch<{
-        profile?: { handle: string | null; onboarded: boolean };
-      }>("/api/me", { method: "POST" });
+      /* Both reads sit under the same deadline the Ledger uses. A promise
+         that never settles is not caught by a catch, and this effect's only
+         other exits are the retry loop below and the two redirect states, so
+         a hung read used to leave the Dossier skeleton pulsing for as long as
+         the member stayed on their own Keep. */
+      let res: Awaited<
+        ReturnType<
+          typeof realmFetch<{
+            profile?: { handle: string | null; onboarded: boolean };
+          }>
+        >
+      >;
+      try {
+        res = await withDeadline(
+          realmFetch<{
+            profile?: { handle: string | null; onboarded: boolean };
+          }>("/api/me", { method: "POST" })
+        );
+      } catch {
+        if (!cancelled) setState("error");
+        return;
+      }
       if (cancelled) return;
       const me = res.data?.profile;
       if (!me) {
@@ -107,16 +121,24 @@ function KeepBody() {
         setState("onboard");
         return;
       }
-      const full = await fetchProfile(me.handle);
-      if (cancelled) return;
-      if (!full) {
-        /* The realm knows this member and knows their handle, so the Keep is
-           there. The read of it simply did not land. */
-        setState("failed");
-        return;
+      /* fetchProfile answers null for both "no such Keep" and "the read
+         failed", and this route has already proven the handle exists via
+         /api/me, so a null here is a failed read wearing a quiet face. The
+         missing else branch was the /keep hang: nothing ever moved state off
+         "loading", so the skeleton's claim that a Keep was arriving stayed
+         false for as long as the member watched it. */
+      try {
+        const full = await withDeadline(fetchProfile(me.handle));
+        if (cancelled) return;
+        if (full) {
+          setProfile(full);
+          setState("ok");
+        } else {
+          setState("error");
+        }
+      } catch {
+        if (!cancelled) setState("error");
       }
-      setProfile(full);
-      setState("ok");
     })();
     return () => {
       cancelled = true;
@@ -143,6 +165,26 @@ function KeepBody() {
       />
     );
 
+  if (state === "error")
+    return (
+      <DossierMissing
+        title="The Keep could not be reached"
+        body="The realm did not answer in time. Your Keep is safe; the read is what failed."
+        action={
+          <Button
+            variant="gold"
+            size="lg"
+            onClick={() => {
+              setState("loading");
+              setRefresh((n) => n + 1);
+            }}
+          >
+            Try again
+          </Button>
+        }
+      />
+    );
+
   if (state === "onboard")
     return (
       <DossierMissing
@@ -151,23 +193,6 @@ function KeepBody() {
         action={
           <Button variant="gold" size="lg" render={<Link href="/welcome" />}>
             See the Maester
-          </Button>
-        }
-      />
-    );
-
-  if (state === "failed")
-    return (
-      <DossierMissing
-        title="Your Keep would not open"
-        body="The gates are yours and everything behind them is intact. The read simply did not reach the realm."
-        action={
-          <Button
-            variant="glass"
-            size="lg"
-            onClick={() => setRefresh((n) => n + 1)}
-          >
-            Try again
           </Button>
         }
       />

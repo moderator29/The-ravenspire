@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Dialog } from "@base-ui/react/dialog";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -28,6 +29,17 @@ const steps = [
   },
 ];
 
+/* The welcome tour, on Base UI Dialog rather than a hand rolled overlay.
+ *
+ * The hand rolled version claimed `aria-modal` at `z-50` while the mobile dock
+ * paints at `z-nav` (200), so the one surface that told assistive tech
+ * "nothing else is reachable" was itself painted under a row of five fully
+ * clickable tabs. It also trapped no focus and answered no Escape, which made
+ * the claim doubly false. Dialog portals to document.body, traps and restores
+ * focus, closes on Escape, and the viewport sits on the z-modal rung where a
+ * modal belongs. Escape and the backdrop both read as "skip", the same choice
+ * the Skip button offers, because a tour a member is trying to leave has
+ * already finished its job. */
 export function Tour({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState(0);
   const reduce = useReducedMotion();
@@ -40,64 +52,82 @@ export function Tour({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: reduce ? 1 : 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Welcome tour"
+    <Dialog.Root
+      open
+      onOpenChange={(open) => {
+        if (!open) onDone();
+      }}
     >
-      <Card
-        key={step}
-        pad="xl"
-        render={
-          <motion.div
-            initial={
-              reduce ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 8 }
-            }
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          />
-        }
-        className="w-full max-w-sm text-center"
-      >
-        <div
-          className="mb-4 flex items-center justify-center gap-1.5"
-          aria-label={`Step ${step + 1} of ${steps.length}`}
-        >
-          {steps.map((_, i) => (
-            <span
-              key={i}
-              className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                i === step ? "bg-gold" : "bg-steel-line"
-              }`}
-            />
-          ))}
-        </div>
-        <h2 className="font-display text-xl font-semibold text-bone">
-          {current.title}
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-bone-mut">
-          {current.text}
-        </p>
-        <div className="mt-6 flex items-center gap-3">
-          {!last && (
-            <Button
-              variant="glass"
-              size="md"
-              className="text-bone-mut"
-              onClick={onDone}
+      <Dialog.Portal>
+        <Dialog.Backdrop
+          className={
+            "fixed inset-0 z-overlay bg-black/70 backdrop-blur-sm " +
+            "transition-opacity duration-base ease-out-quint " +
+            "data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-fast"
+          }
+        />
+        <Dialog.Viewport className="fixed inset-0 z-modal flex items-center justify-center px-4">
+          <Dialog.Popup className="w-full max-w-sm outline-none">
+            <Card
+              key={step}
+              pad="xl"
+              render={
+                <motion.div
+                  initial={
+                    reduce ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 8 }
+                  }
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                />
+              }
+              className="w-full text-center"
             >
-              Skip
-            </Button>
-          )}
-          <Button variant="gold" size="md" className="flex-1" onClick={next}>
-            {last ? "Begin my reign" : "Next"}
-          </Button>
-        </div>
-      </Card>
-    </motion.div>
+              <div
+                className="mb-4 flex items-center justify-center gap-1.5"
+                aria-label={`Step ${step + 1} of ${steps.length}`}
+              >
+                {steps.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                      i === step ? "bg-gold" : "bg-steel-line"
+                    }`}
+                  />
+                ))}
+              </div>
+              <Dialog.Title
+                render={
+                  <h2 className="font-display text-xl font-semibold text-bone" />
+                }
+              >
+                {current.title}
+              </Dialog.Title>
+              <Dialog.Description
+                render={
+                  <p className="mt-2 text-sm leading-relaxed text-bone-mut" />
+                }
+              >
+                {current.text}
+              </Dialog.Description>
+              <div className="mt-6 flex items-center gap-3">
+                {!last && (
+                  <Button
+                    variant="glass"
+                    size="md"
+                    className="text-bone-mut"
+                    onClick={onDone}
+                  >
+                    Skip
+                  </Button>
+                )}
+                <Button variant="gold" size="md" className="flex-1" onClick={next}>
+                  {last ? "Begin my reign" : "Next"}
+                </Button>
+              </div>
+            </Card>
+          </Dialog.Popup>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

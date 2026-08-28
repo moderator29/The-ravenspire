@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
+import { isOnboardedLocal } from "@/lib/auth/session";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { isPublicSharePath } from "@/lib/share/links";
 
@@ -61,7 +62,26 @@ export function ShellGate({ children }: { children: React.ReactNode }) {
     }
     if (!ready) return;
     if (!authenticated) {
-      router.replace("/");
+      /* To the Gatehouse, carrying where they were going.
+       *
+       * This used to bounce to "/", which turned every landing CTA into a
+       * silent no-op: the hero chips, the tools rail, the games and the
+       * champion rail all point at gated routes, so a curious stranger tapped
+       * "Calls", flashed the gates and was set back down on the page they
+       * started from with nothing explaining why. A funnel that ends where it
+       * began is not a funnel.
+       *
+       * They go to /signin instead, with the attempted path in `next` so the
+       * PostAuthGate can finish the journey the tap started. The pathname
+       * comes from the router rather than from anything an attacker controls,
+       * but the same guard the reader applies is applied here anyway: a
+       * single leading slash, so the value can never smuggle an absolute URL
+       * ("//evil.example" is scheme-relative and counts as one). */
+      const next =
+        pathname && pathname.startsWith("/") && !pathname.startsWith("//")
+          ? `?next=${encodeURIComponent(pathname)}`
+          : "";
+      router.replace(`/signin${next}`);
       return;
     }
     let cancelled = false;
@@ -72,7 +92,21 @@ export function ShellGate({ children }: { children: React.ReactNode }) {
           { method: "POST" }
         );
         if (cancelled) return;
-        if (res.ok && res.data?.profile?.onboarded === false) {
+        /* The server is the authority on onboarded status, with one narrow
+           exception that /welcome already decided: when /api/onboard fails for
+           any reason other than validation, the Maester marks the member
+           onboarded locally and carries them into the realm rather than dead
+           ending the gate. Bouncing that member back to /welcome here made the
+           two surfaces contradict each other in a loop, welcome to home to
+           welcome, each disagreeing with the other's answer. So the local
+           flag is honoured as the record of that earlier decision, exactly as
+           components/auth/post-auth-gate.tsx honours it, and the server wins
+           again the moment it starts saying yes. */
+        if (
+          res.ok &&
+          res.data?.profile?.onboarded === false &&
+          !isOnboardedLocal()
+        ) {
           router.replace("/welcome");
           return;
         }
@@ -84,7 +118,7 @@ export function ShellGate({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, enabled, authenticated, publicPage, router]);
+  }, [ready, enabled, authenticated, publicPage, pathname, router]);
 
   if (!enabled) return <>{children}</>;
 

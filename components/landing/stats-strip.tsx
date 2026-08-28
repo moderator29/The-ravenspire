@@ -10,12 +10,15 @@ import {
   type Variants,
 } from "framer-motion";
 import { Icon } from "@/components/ui/icon";
+import { champions } from "@/lib/game/champions";
+import { houses } from "@/lib/data/houses";
+import { crests } from "@/components/brand/crests";
+import { TOOL_COUNT } from "@/components/landing/the-tools";
 
 /*
   The realm in numbers. A compact feature strip that counts up once when it
-  scrolls into view. Values mirror what the rest of the page states (sixty
-  champions, six Houses, ten crests, five tools, two games) so nothing drifts.
-  Reduced-motion users get the final numbers with no animation.
+  scrolls into view. Reduced-motion users get the final numbers with no
+  animation.
 */
 
 type Stat = {
@@ -26,16 +29,20 @@ type Stat = {
   label: string;
 };
 
-/* Every figure here is counted from the code, not rounded for effect.
-   Champions from lib/game/champions, Houses and the top-N rule from
-   lib/data/houses, Crests from components/brand/crests, tools from the
-   landing rail, ladders from the leaderboards route. "Games at launch" used
-   to read 2 and counted Claim the Throne, which is not a game you can play. */
+/* Every figure here is counted from its source, not typed. The typed version
+   of this list opened at "62 champions" while the roster is the roster, which
+   held true only until the next champion landed; the same strip once said
+   "Games at launch: 2" by counting Claim the Throne, which is not a game you
+   can play. Champions from lib/game/champions, Houses from lib/data/houses,
+   crests from components/brand/crests, tools from the rail that draws them.
+   The four ladders stay typed: the leaderboards METRICS list lives inside
+   that route's own page module, and importing a page to count it would drag
+   the whole Roll of Honour into the landing bundle for one integer. */
 const stats: Stat[] = [
-  { icon: "user", value: 62, label: "Champions to muster" },
-  { icon: "banner", value: 6, label: "Houses to swear to" },
-  { icon: "medal", value: 10, label: "Crests designed" },
-  { icon: "sliders", value: 8, label: "Serious tools" },
+  { icon: "user", value: champions.length, label: "Champions to muster" },
+  { icon: "banner", value: houses.length, label: "Houses to swear to" },
+  { icon: "medal", value: crests.length, label: "Crests designed" },
+  { icon: "sliders", value: TOOL_COUNT, label: "Serious tools" },
   { icon: "crown", value: 4, label: "Ladders on the Roll of Honour" },
   { icon: "shield", value: 100, suffix: "%", label: "Your keys, always" },
 ];
@@ -76,14 +83,12 @@ function Counter({ value, suffix }: { value: number; suffix?: string }) {
 export function StatsStrip() {
   return (
     <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
-      {/* Soft gold aura, gently pulsing behind the numbers */}
-      <motion.div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-24 left-1/2 h-56 w-[36rem] max-w-full -translate-x-1/2 rounded-full opacity-30 blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.35), transparent 70%)" }}
-        animate={{ opacity: [0.2, 0.4, 0.2] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-      />
+      {/* No aura. This strip carried a six second pulsing orb behind the
+          numbers, permanent motion on a Ledger surface, which section 6 names
+          outright: a card that pulses forever says "look at me" and becomes
+          noise inside one session. The gold-gradient counters are the shine
+          this section earned; the page's glow budget stays with the hero, the
+          mark and the two game cards. */}
       <motion.div
         variants={rise}
         className="relative flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold"

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,40 @@ function BattleInner() {
   const [key, setKey] = useState(0);
   const [mastery, setMastery] = useState(0);
 
+  /* The server-side battle session, opened the moment the member presses
+     Begin. The settle route refuses a finish that carries no battle_id (the
+     stateless path let a client simply declare victories, so it is gone), and
+     it verifies the reported duration against the session's wall clock, which
+     is why the session opens at Begin and not at mount: a member can read the
+     how-to and walk away, and the clock should start when the fight does.
+
+     Held as a promise rather than a value because a fast defeat can end the
+     fight before the start request has answered; the finish awaits whatever
+     the start resolved to instead of racing it. */
+  const startRef = useRef<Promise<string | null> | null>(null);
+
+  const handleStart = useCallback(() => {
+    if (!authenticated) return;
+    startRef.current = (async () => {
+      try {
+        const res = await realmFetch<{ battle_id?: string }>(
+          "/api/war/battle",
+          {
+            method: "POST",
+            json: {
+              action: "start",
+              champion: champion.slug,
+              battlefield: field,
+            },
+          }
+        );
+        return res.ok && res.data?.battle_id ? res.data.battle_id : null;
+      } catch {
+        return null;
+      }
+    })();
+  }, [authenticated, champion.slug, field]);
+
   useEffect(() => {
     if (!authenticated) return;
     void realmFetch<{ state?: { mastery?: Record<string, number> } }>(
@@ -85,6 +119,19 @@ function BattleInner() {
     }
     setSettling(true);
     setSettleError(null);
+    /* No session, no settle. When the start call failed (or never fired),
+       the server would refuse the finish anyway; saying so here is the same
+       honesty one round trip earlier, and it never dresses a client tally up
+       as a banked reward. */
+    const battleId = startRef.current ? await startRef.current : null;
+    if (!battleId) {
+      setSettling(false);
+      setSettleError(
+        "The heralds never opened the book on this battle, so nothing could be recorded. Your run stands; fight again to bank the next one."
+      );
+      if (o.result === "victory") setCeremony(true);
+      return;
+    }
     const res = await realmFetch<{
       glory?: number;
       wins?: number;
@@ -94,6 +141,7 @@ function BattleInner() {
     }>("/api/war/battle", {
       method: "POST",
       json: {
+        battle_id: battleId,
         champion: champion.slug,
         battlefield: field,
         result: o.result,
@@ -130,6 +178,8 @@ function BattleInner() {
     setTotals(null);
     setSettleError(null);
     setCeremony(false);
+    /* A session settles exactly once; the next fight opens its own at Begin. */
+    startRef.current = null;
     setKey((k) => k + 1);
   };
 
@@ -151,6 +201,7 @@ function BattleInner() {
             champion={champion}
             mastery={mastery}
             field={field}
+            onStart={handleStart}
             onEnd={handleEnd}
           />
         ) : (
@@ -264,7 +315,12 @@ function BattleInner() {
           body={
             serverGlory !== null
               ? `${champion.name} broke the enemy host at ${FIELDS[field]}.`
-              : `${champion.name} broke the enemy host at ${FIELDS[field]}. Enter the realm to bank what you win.`
+              : authenticated
+                ? /* Signed in but nothing banked: the settle failed or the
+                     session never opened. Saying "enter the realm" to a member
+                     who is already in it would be the wrong sentence twice. */
+                  `${champion.name} broke the enemy host at ${FIELDS[field]}. The heralds could not record it, so nothing was banked.`
+                : `${champion.name} broke the enemy host at ${FIELDS[field]}. Enter the realm to bank what you win.`
           }
           action={{ label: "Fight again", onClick: again }}
           secondary={{ label: "See the tally", onClick: () => setCeremony(false) }}

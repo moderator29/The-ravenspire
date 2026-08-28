@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
+import { withDeadline } from "@/lib/deadline";
 import { createClient } from "@/lib/supabase/client";
 import { houses } from "@/lib/data/houses";
 import { Button } from "@/components/ui/button";
@@ -15,30 +16,13 @@ import { fetchTopPeople, type PersonHit } from "@/lib/social/explore-queries";
 
 /* A promise that never settles is not caught by a `catch`.
  *
- * Both cards below already fall to an honest empty state when a fetch rejects.
- * Neither had anything to say about a fetch that simply never answers, and that
- * is not a hypothetical: a request that hangs on a dead connection or a stalled
- * socket resolves nothing, rejects nothing, and leaves a skeleton pulsing for
- * as long as the member stays on the page. Measured on a build with no realm
- * reachable, four seconds after the network had gone quiet: three grey bars in
- * "Who to follow" and three more in "What the realm watches", on every screen
- * in the product, forever.
- *
- * A skeleton is a claim that something is arriving. This puts a deadline on the
- * claim. Six seconds is well past any honest load and well short of the point
- * where a member has decided the product is broken. */
-const SETTLE_MS = 6000;
-
-/* Rejects rather than resolving a stand in, so a hang lands in the same
-   `catch` a failure already lands in. One path to the empty state, not two. */
-function withDeadline<T>(work: Promise<T>): Promise<T> {
-  return Promise.race([
-    work,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error("deadline")), SETTLE_MS)
-    ),
-  ]);
-}
+ * Both cards below already fall to an honest empty state when a fetch rejects,
+ * so every read here runs under the canonical deadline from lib/deadline.ts,
+ * which rejects a hang into the same `catch` a failure lands in. This file
+ * used to carry its own six second copy of that function, written before the
+ * shared one existed; two implementations of one idea is how the two drift,
+ * and the shared budget is the one every other money surface already answers
+ * to. */
 
 interface HouseRow {
   slug: string;
@@ -245,11 +229,16 @@ export function RightRail() {
             The Houses are still gathering. First to move claims the lead.
           </p>
         )}
+        {/* To the standings, not to /throne. Claim the Throne is retired as a
+            destination (its mechanics dissolve into the Ravenry and the House
+            halls; see lib/nav.ts), and this card's content is the season race:
+            the countdown and the leading House. The standings page is where
+            that race actually lives. */}
         <Link
-          href="/throne"
+          href="/houses"
           className="mt-2 block text-center text-xs text-gold hover:text-gold-bright"
         >
-          Enter Claim the Throne
+          See the season standings
         </Link>
       </Card>
 

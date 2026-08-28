@@ -111,6 +111,31 @@ Product and funnel (frontend):
   `/home`.
 - The landing glow budget cut to earned ornament only (rule 21).
 
+## 3b. Sprint outcome
+
+Everything in sections 2 and 3 landed on this branch and the full gate is
+green: typecheck, 19 house rules, 893 tests across 51 files, zero lint
+errors, and a clean production build of 184 pages. Two deliberate
+deviations are recorded in code comments: tips accept the two testnet chain
+ids the tip dialog itself offers (Sepolia, Base Sepolia), and after signin
+the onboarding oath deliberately outranks the stashed `next` destination.
+
+Residuals the sprint surfaced but did not take (now tracked in section 4):
+
+- `/api/posts/[id]/summary` and `/api/compose-suggest` interpolate member
+  text without the new fences; both inherit the standing member-content
+  guard through `heraldProse`, so exposure is partial, not open.
+- `GET /api/tips` lets a member enumerate any profile's wallet address by
+  id; the tip flow needs the read, but it is unmetered.
+- The Whispers realtime broadcast relies on the conversation UUID staying
+  secret; the room reaction broadcast allows spectators by design.
+- `lib/social/feed-server.ts` keeps a local UUID regex copy that could
+  consolidate onto `lib/validate.ts`.
+- The founder must confirm the realm owns x.com/ravenspire; the handle now
+  lives in one place, `lib/site.ts`.
+- Two typed counts remain beside derived ones ("Eight instruments" prose in
+  the tools rail, the "4 ladders" stat), each with a comment saying why.
+
 ## 4. P2 backlog (post-sprint, pre-launch)
 
 - Standardize error bodies on `{ error: code, message?: prose }` so clients

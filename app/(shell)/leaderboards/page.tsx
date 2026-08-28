@@ -199,6 +199,9 @@ export default function LeaderboardsPage() {
         <BoardHeader
           title="The Roll of Honour"
           kicker="Leaderboards"
+          /* Cold entry falls back to the Crossroads: the Roll ranks the
+             realm's people, and finding people is the Crossroads' job. */
+          backHref="/explore"
           lede={`The realm's highest standing, ranked by real deeds. ${active.blurb}.`}
         />
 

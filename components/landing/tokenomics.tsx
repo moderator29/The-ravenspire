@@ -116,12 +116,9 @@ function Donut() {
 export function Tokenomics() {
   return (
     <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-25 blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(217, 176, 64,0.4), transparent 70%)" }}
-      />
-
+      {/* No corner orb. The allocation ring is drawn in gold already; a blur
+          behind a chart is glow on a surface whose job is to be read (rule
+          21), and the page's glow budget is spent elsewhere. */}
       <motion.div
         variants={rise}
         className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold"

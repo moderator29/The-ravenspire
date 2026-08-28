@@ -31,7 +31,13 @@ export default function VaultPage() {
 
   return (
     <ConsolePage width="data">
-      <ConsoleHeader title="The Vault" kicker="Non-custodial, keys and coin" />
+      {/* The Vault is an account anchor with no deeper parent, so its cold
+          entry destination is the feed, stated rather than inherited. */}
+      <ConsoleHeader
+        title="The Vault"
+        kicker="Non-custodial, keys and coin"
+        backHref="/home"
+      />
 
       <div className="mt-4 md:mt-3">
         {!ready ? (

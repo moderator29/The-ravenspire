@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { SET_ONE } from "@/lib/collectibles/set-one";
+import { MERCER_SKUS } from "@/lib/collectibles/mercer";
 
 /*
   The Roadmap. A phased march along the Ethereum chain, drawn as a vertical
@@ -92,10 +94,15 @@ const phases: Phase[] = [
     tag: "New chapter",
     title: "The Collection: cards, chests and merch",
     body: "The trading card game steps out of the War and into your hands.",
+    /* Counted from the catalogs, not typed. "Forty champions" was written
+       while the set was still being drawn up, and "five pieces" was written
+       when the Mercer held five: the second was already wrong by a factor of
+       nearly three when this was fixed, on the most public page in the
+       product. A number nobody types is a number that cannot drift. */
     points: [
-      "Set One preview live: forty champions, sealed, real roster data",
+      `Set One preview live: ${SET_ONE.counts.total} champions, sealed, real roster data`,
       "Warchests with exact odds printed on every box",
-      "The Mercer: five pieces of official merch, and a physical box that mints digital twins to your own wallet",
+      `The Mercer: ${MERCER_SKUS.length} pieces of official merch, and a physical box that mints digital twins to your own wallet`,
     ],
     icon: "layers",
     status: "building",
@@ -183,16 +190,12 @@ function PhaseNode({ p }: { p: Phase }) {
   const st = statusStyle[p.status];
   return (
     <li className="relative flex items-start gap-4">
+      {/* No halo inside the node. Ten glowing discs down one timeline is
+          ambient ornament (rule 21); the gold ring and glyph against the void
+          carry the node, and the gradient spine already gives the column its
+          light. */}
       <span className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-void">
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 rounded-full opacity-40 blur-md"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(217, 176, 64,0.5), transparent 70%)",
-          }}
-        />
-        <LandingIcon name={p.icon} className="relative h-5 w-5 text-gold" />
+        <LandingIcon name={p.icon} className="h-5 w-5 text-gold" />
       </span>
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex flex-wrap items-center gap-2">
@@ -237,15 +240,9 @@ export function Roadmap() {
 
   return (
     <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full opacity-20 blur-3xl"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(229,112,42,0.35), transparent 70%)",
-        }}
-      />
-
+      {/* No corner orb. The landing's glow budget is spent on the hero, the
+          mark and the two game cards; the roadmap's ornament is its gold
+          spine, which is doing actual work. */}
       <motion.div
         variants={rise}
         className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold"

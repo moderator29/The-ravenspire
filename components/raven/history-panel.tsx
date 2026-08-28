@@ -6,6 +6,7 @@ import { Menu, MenuItem } from "@/components/ui/menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/field";
+import { Takeover } from "@/components/ui/takeover";
 import type { Conversation } from "@/components/raven/types";
 
 function relTime(ts: number): string {
@@ -35,6 +36,11 @@ function relTime(ts: number): string {
  * `close` glyph exists in the icon set. And the empty case was a hand written
  * centred sentence that reported an absence without offering a way out of it,
  * which is exactly what `EmptyState` exists to stop.
+ *
+ * A fourth followed: the dialog role was claimed at a raw `z-50` on an inline
+ * div, under the dock's `z-nav` (200) and with no focus trap behind the claim.
+ * It sits on the Takeover primitive now, which portals to document.body, traps
+ * and restores focus, answers Escape itself, and paints on the z-modal rung.
  */
 export function HistoryPanel({
   open,
@@ -99,23 +105,16 @@ export function HistoryPanel({
     if (!q) return conversations;
     return conversations.filter((c) => c.title.toLowerCase().includes(q));
   }, [conversations, query]);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
+  /* Escape is the Takeover's job now; the hand rolled window listener that
+     answered it here is gone with the hand rolled overlay it belonged to. */
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Conversations"
-      className="fixed inset-0 z-50 flex flex-col bg-obsidian/97 backdrop-blur-xl"
+    <Takeover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      label="Conversations"
+      className="bg-obsidian/97 backdrop-blur-xl"
     >
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-steel-line/70 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-4 sm:px-6">
         <div className="flex items-center gap-2.5">
@@ -326,6 +325,6 @@ export function HistoryPanel({
           </Button>
         </div>
       </div>
-    </div>
+    </Takeover>
   );
 }

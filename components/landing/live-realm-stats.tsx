@@ -7,10 +7,14 @@ import { Icon } from "@/components/ui/icon";
    proof. Honest: it shows only the counts that are actually above zero, so an
    early realm never inflates itself. Fetched from the public /api/stats. */
 
+/* The exact shape app/api/stats/route.ts returns, houses included even though
+   the hero does not show it: a partial mirror of a payload is how a renamed
+   field breaks a display with no type anywhere going red. */
 interface Stats {
   members: number;
   ravens: number;
   trades: number;
+  houses: number;
 }
 
 function fmt(n: number): string {
@@ -29,6 +33,11 @@ export function LiveRealmStats({ className = "" }: { className?: string }) {
     void (async () => {
       try {
         const res = await fetch("/api/stats");
+        /* A 500 page is not JSON. Without this guard the json() below threw
+           on error responses and the catch hid it, which happened to be the
+           right outcome by accident; an HTML error page that parsed as JSON
+           would have been the wrong outcome with no error at all. */
+        if (!res.ok) return;
         const body = (await res.json()) as Stats;
         if (!cancelled) setStats(body);
       } catch {

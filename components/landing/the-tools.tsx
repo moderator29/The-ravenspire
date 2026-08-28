@@ -80,6 +80,13 @@ const tools: Tool[] = [
   },
 ];
 
+/* The shelf's own count, exported so the stats strip states the number of
+   tools from the list that draws them. The strip used to carry its own copy
+   of this figure, and this file's history is the argument against that: the
+   rail listed five while eight shipped, and every surface that had typed
+   "five" stayed wrong after the rail was fixed. */
+export const TOOL_COUNT = tools.length;
+
 const rise: Variants = {
   hidden: { opacity: 0, y: 24 },
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },

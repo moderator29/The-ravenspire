@@ -77,6 +77,9 @@ export default function ScannerPage() {
       <ConsoleHeader
         title="The Oracle"
         kicker="Account scanner"
+        /* Cold entry falls back to the Keep: the Oracle reads your own
+           standing and nobody else's, so its parent is your own hall. */
+        backHref="/keep"
         badge={<Badge variant="beta">Beta</Badge>}
       />
 

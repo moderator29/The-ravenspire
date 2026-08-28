@@ -15,30 +15,19 @@ import { champions } from "@/lib/game/champions";
   sit in a caption BELOW the artwork, never over the character.
 */
 
-/*
-  Only the full-resolution portraits (roughly 218px wide source art) are
-  featured here so the roster stays crisp. The smaller thumbnail-sized files
-  in the roster are deliberately left out to avoid any upscaling blur.
-*/
-const featuredSlugs = [
-  "aeron-the-black",
-  "the-faceless",
-  "mira-stormborn",
-  "ser-aldric",
-  "grommash",
-  "sable-nightwood",
-  "lady-ysolde",
-  "torvald-ironhand",
-  "nymeria-vale",
-  "ser-elyra",
-  "karn-the-reaver",
-  "bael-the-bard",
-];
-
-const bySlug = new Map(champions.map((c) => [c.slug, c]));
-const featured = featuredSlugs
-  .map((s) => bySlug.get(s))
-  .filter((c): c is (typeof champions)[number] => Boolean(c && c.art));
+/* The rail is derived from the roster, not curated by hand.
+ *
+ * A hand kept list of twelve slugs sat here, and a hand kept list has the
+ * same failure mode as a hand typed number: it was written once, the roster
+ * kept moving, and nothing anywhere would have said so. A renamed champion
+ * silently shrank the rail; a newly painted portrait never joined it.
+ *
+ * The honest rule the list was approximating is "champions whose art has
+ * landed", so that is the rule, applied to the roster in the roster's own
+ * order. Capped at twelve because a landing rail is a taste of the legion,
+ * not the legion: the full roster is one tap away and says its own count. */
+const FEATURED_MAX = 12;
+const featured = champions.filter((c) => Boolean(c.art)).slice(0, FEATURED_MAX);
 
 /* The ceilings the stat bars are drawn against, derived from the roster rather
    than typed. They were hand written as 3800 and 1600 and described as rough,

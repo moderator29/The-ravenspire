@@ -65,6 +65,9 @@ function HousesSurface() {
         <BoardHeader
           title="Houses"
           kicker="Six banners, one season"
+          /* A primary dock destination: cold entry falls back to the feed,
+             stated rather than inherited. */
+          backHref="/home"
           actions={
             /* The desktop half of one control. Below lg the dock's contextual
                strip carries these same views, so this one is hidden there

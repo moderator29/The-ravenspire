@@ -443,6 +443,40 @@ export const RULES = [
   },
 
   {
+    id: "floating-chrome-names-a-z-rung",
+    title: "Rule 10: fixed and sticky elements sit on a named z rung",
+    globs: ["*.tsx"],
+    /* The off-scale-token rule catches `z-[93]`, an arbitrary value naming a
+       number the scale does not know. It never looked at `z-40`, because that
+       is Tailwind's own utility and resolves fine, which is precisely the
+       problem: it resolves to a number chosen against nothing. That is how an
+       aria-modal tour shipped at z-50 underneath a dock at z-nav (200), a
+       claim of "nothing else is reachable" painted under five clickable tabs.
+       No arbitrary-value check can see that, because nothing about `z-50`
+       is arbitrary except the choice.
+     *
+     * Scoped to elements that are also `fixed` or `sticky`, because those are
+       the ones entering the page-wide stacking contest the scale exists to
+       referee. A `relative z-10` inside a card is a local ordering between
+       siblings, is everywhere, and is fine: flagging it would fire on dozens
+       of innocent lines and get this rule turned off within the hour.
+       Per-line, like the other class checks, so a class list split across
+       lines can slip past; the gate catches the way these are actually
+       written, and every one found in the sweep that added this rule was on
+       one line. */
+    check: (file, text) =>
+      byLine(stripComments(text), (line) => {
+        if (!/\b(?:fixed|sticky)\b/.test(line)) return null;
+        const m = line.match(/(?:^|[\s"'`])(-?z-\d+)\b/);
+        if (!m) return null;
+        return (
+          `${m[1]} on a fixed or sticky element is a raw number in the ` +
+          `page-wide stacking contest. Name a rung: z-base through z-tooltip.`
+        );
+      }),
+  },
+
+  {
     id: "focus-ring-not-defeated",
     title: "Rule 12: nothing may remove the focus ring",
     globs: ["*.tsx", "*.ts", "*.css"],

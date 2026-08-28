@@ -46,3 +46,19 @@ export function siteUrl(): string {
     return CANONICAL;
   }
 }
+
+/* WHERE THE REALM SPEAKS ON X, in one place, for the same reason the origin
+ * is: an account handle written out by hand in the footer is a handle that
+ * gets corrected in the footer and nowhere else.
+ *
+ * UNVERIFIED, and stated so. "ravenspire" was typed into the footer without
+ * anyone confirming the realm owns that account on X, and a social link that
+ * points at somebody else's account is worse than no link. It lives here so
+ * the day the founder confirms the real handle, one edit fixes every surface
+ * that names it.
+ */
+export const X_HANDLE = "ravenspire";
+
+export function xUrl(): string {
+  return `https://x.com/${X_HANDLE}`;
+}
