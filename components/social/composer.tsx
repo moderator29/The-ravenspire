@@ -17,6 +17,7 @@ import {
   draftSentence,
   type CallDraft,
 } from "@/components/calls/call-form";
+import { canRetrace } from "@/components/shell/nav-depth";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import type { Post } from "@/lib/social/types";
@@ -210,10 +211,19 @@ export function Composer({
     <div className={page ? "flex min-h-[calc(100dvh-3.5rem)] flex-col" : "p-4"}>
       {page && (
         <div className="sticky top-0 z-sticky flex items-center justify-between gap-3 border-b border-steel-line bg-void/95 px-3 py-2.5 backdrop-blur-[14px]">
+          {/* Close abandons the draft, so it belongs wherever the member was
+              when they opened the composer. It pushed /home unconditionally,
+              which meant composing from a Call, a Keep or a House hall and then
+              changing your mind dropped you in the Ravenry with the surface you
+              were reading gone. Retrace the step that got here; /home is only
+              the floor for a /compose opened cold. */}
           <Button
             variant="glass"
             size="md"
-            onClick={() => router.push("/home")}
+            onClick={() => {
+              if (canRetrace()) router.back();
+              else router.push("/home");
+            }}
             className="group"
           >
             <Icon

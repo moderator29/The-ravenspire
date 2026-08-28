@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icon } from "@/components/ui/icon";
 import { Icon3D } from "@/components/ui/icon-3d";
 import { Card } from "@/components/ui/card";
 import { AtAGlance, type GlancePoint } from "@/components/legal/at-a-glance";
@@ -151,10 +152,18 @@ export default function TermsOfServicePage() {
   return (
     <main className="realm-bg relative min-h-screen">
       <div className="relative mx-auto max-w-3xl px-4 py-10 sm:py-14">
+        {/* The way out of a legal page. Landing register, so this is not the
+            shell's BackButton: these two pages are reached from a footer and
+            from the Gatehouse, both outside the shell. Terms and Privacy are
+            one page in two subjects, so the control is identical on both, arrow
+            included. The arrow was missing here and on Privacy, which left the
+            only leftward mark on any of the three landing-register back
+            controls sitting on /signin. */}
         <Link
           href="/"
           className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-bone-mut transition hover:text-gold"
         >
+          <Icon name="chevron-left" className="h-4 w-4 text-gold" />
           Back to the realm
         </Link>
 

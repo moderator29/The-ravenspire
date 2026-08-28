@@ -18,8 +18,9 @@ import {
 /* The member's own Keep. The Dossier is ProfileView, which the public
    /u/handle route renders too; this route resolves who the viewer is and
    answers honestly in the three states where there is no Keep to show yet.
-   The Keep itself carries no back control, because it is a dock destination
-   rather than somewhere a member was navigated into. */
+   The back control lives in ProfileView, which carries it on both routes:
+   the Keep is a dock destination but it is also navigated into, from a raven,
+   a roster and the desktop sidebar, where there is no dock at all. */
 
 /* The panel lives in the URL, so the Keep's tab line survives a reload and
    a shared link opens on the panel it names. The dock strip that once wrote

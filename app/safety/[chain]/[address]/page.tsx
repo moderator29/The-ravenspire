@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { RavenMark } from "@/components/brand/raven-mark";
+import { BackButton } from "@/components/shell/back-button";
 import { fetchGoPlus, fetchHoneypot, buildReport } from "@/lib/tools/goplus";
 import {
   WATCH_CHAINS,
@@ -117,6 +118,18 @@ export default async function SafetyReportPage({
   return (
     <div className="realm-bg min-h-screen">
       <div className="mx-auto w-full max-w-2xl px-4 py-8">
+        {/* House rule 16. A shared report is navigated into as often as it is
+            landed on: a member reading the in-app Watch follows the share link
+            and then has nothing but the brand mark, which leads to the landing
+            page rather than back to the scan they were running. BackButton
+            retraces that step when there is one and falls back to The Watch
+            when a stranger arrived here cold, which is the surface this page is
+            a public view of. It is a client component; importing it into a
+            server page is ordinary in the App Router. */}
+        <div className="mb-4 flex">
+          <BackButton href="/watch" label="The Watch" />
+        </div>
+
         {/* Brand header */}
         <div className="flex items-center justify-between">
           {/* 203 x 28 measured on a phone, and on a page a stranger arrives at

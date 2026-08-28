@@ -32,8 +32,11 @@ export function KeepView({ handle }: { handle: string }) {
       <DossierMissing
         title="No such Keep"
         body="No one by that name holds land in this realm."
+        /* The same parent a Keep that does exist falls back to. A name that
+           turns out to be wrong should not land the member somewhere else. */
+        backHref="/explore"
       />
     );
 
-  return <ProfileView profile={profile} back />;
+  return <ProfileView profile={profile} />;
 }

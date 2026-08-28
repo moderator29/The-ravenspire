@@ -72,7 +72,8 @@ export default async function CollectiblePage({
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-3 py-4 sm:px-4 sm:py-6">
       <div className="flex">
-        <BackButton />
+        {/* One card's parent is the Reliquary it belongs to, not the Ravenry. */}
+        <BackButton href="/reliquary" />
       </div>
 
       <div className="lg:grid lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start lg:gap-6">

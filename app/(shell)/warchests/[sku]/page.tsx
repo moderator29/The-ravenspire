@@ -70,7 +70,9 @@ export default async function ChestPage({
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-3 py-4 sm:px-4 sm:py-6">
       <div className="flex">
-        <BackButton />
+        {/* One chest's parent is the shelf it sits on, not the Ravenry. Only
+            the floor changes: a member who walked here still retraces. */}
+        <BackButton href="/warchests" />
       </div>
 
       <div className="lg:grid lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start lg:gap-6">
@@ -198,7 +200,7 @@ export default async function ChestPage({
                 href="/warchests"
                 className="inline-flex min-h-9 touch:min-h-11 items-center gap-1.5 rounded-md px-2 text-[13px] font-semibold text-bone-mut transition-colors duration-fast hover:text-bone"
               >
-                <Icon name="chevron-right" className="h-4 w-4 text-gold" />
+                <Icon name="chevron-left" className="h-4 w-4 text-gold" />
                 Back to all chests
               </Link>
             </div>

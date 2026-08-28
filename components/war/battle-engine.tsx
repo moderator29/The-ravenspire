@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Champion } from "@/lib/game/champions";
 import { champions } from "@/lib/game/champions";
 import {
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { canRetrace } from "@/components/shell/nav-depth";
 
 /*
   The War, real-time and simple. Your champion leads a small host against an
@@ -108,6 +110,7 @@ export function BattleEngine({
   field: string;
   onEnd: (o: BattleOutcome) => void;
 }) {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [phase, setPhase] = useState<"howto" | "playing">("howto");
   const [landscape, setLandscape] = useState(true);
@@ -474,6 +477,16 @@ export function BattleEngine({
     };
   }, [phase, spawnHost, releaseFoe, finish, field]);
 
+  /* Leaving the field. Both the how-to's Exit and the HUD's Retreat used a bare
+     `history.back()`, which on a battle opened from a shared link or a fresh
+     tab steps out of the realm entirely: the fullscreen canvas is the last
+     thing the member sees before the browser leaves. Same answer as every other
+     way back in the realm, retrace a real step or fall back to the War. */
+  const retreat = useCallback(() => {
+    if (canRetrace()) router.back();
+    else router.push("/war");
+  }, [router]);
+
   const progress = 1 - hud.remaining / totalFoes;
 
   return (
@@ -483,7 +496,7 @@ export function BattleEngine({
           champion={champion}
           totalFoes={totalFoes}
           onBegin={() => setPhase("playing")}
-          onExit={() => history.back()}
+          onExit={retreat}
         />
       ) : (
         <>
@@ -545,7 +558,7 @@ export function BattleEngine({
                 icon="chevron-left"
                 label="Retreat"
                 className="pointer-events-auto shrink-0"
-                onClick={() => history.back()}
+                onClick={retreat}
               />
             </div>
 

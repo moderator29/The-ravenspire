@@ -95,6 +95,7 @@ export function ConsoleHeader({
   badge,
   actions,
   backHref,
+  backLabel,
   className,
 }: {
   title: ReactNode;
@@ -102,11 +103,20 @@ export function ConsoleHeader({
   badge?: ReactNode;
   actions?: ReactNode;
   backHref?: string;
+  /* The word beside the arrow, for naming the parent rather than saying
+     "Back". Board and Dossier headers both took one; a Console could only ever
+     name where the control fell back to, never where it led. Optional, and the
+     default is BackButton's own, so nothing that already passes backHref
+     alone moves. */
+  backLabel?: string;
   className?: string;
 }) {
   return (
     <div className={cx("flex flex-col gap-3 md:gap-2", className)}>
-      <BackButton {...(backHref ? { href: backHref } : {})} />
+      <BackButton
+        {...(backHref ? { href: backHref } : {})}
+        {...(backLabel ? { label: backLabel } : {})}
+      />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

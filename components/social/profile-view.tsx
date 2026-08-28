@@ -70,17 +70,12 @@ export type ProfileTab = "posts" | "calls" | "media" | "hoard";
 export function ProfileView({
   profile,
   own = false,
-  back = false,
   onEdit,
   tab: controlledTab,
   onTabChange,
 }: {
   profile: PublicProfile;
   own?: boolean;
-  /* House rule 16. A Keep reached from a raven, a board or a roster is
-     navigated into and needs a way back; the member's own Keep is a dock
-     destination and does not. */
-  back?: boolean;
   onEdit?: () => void;
   /* Optionally controlled, so a route that carries the panel in its URL can
      drive it. The member's own Keep does, because the dock's contextual strip
@@ -305,7 +300,26 @@ export function ProfileView({
 
   return (
     <DossierPage>
-      {back ? <DossierHeader /> : null}
+      {/* House rule 16, with the opt-out removed. A Keep used to take a `back`
+          flag: /u/handle set it, /keep did not, on the reading that the member's
+          own Keep is a dock destination. That reading only holds for the one
+          member who arrived by pressing Keep in the dock. Reached any other
+          way, from a raven, a roster, Renown or the sidebar's own avatar,
+          /keep was a Dossier with no way out, and above `md` there is no dock
+          to fall back on at all.
+
+          The control is always here now; only where it falls back to changes,
+          and it falls back only when there is no real step to retrace. A
+          stranger's Keep falls back to the Crossroads (/explore in the routes,
+          The Crossroads in the lexicon), because that is the surface the realm
+          discovers people on. The member's own falls back to the Ravenry, which
+          is what the dock treats as the ground floor. `own` rather than `isOwn`,
+          because isOwn resolves after a fetch and a back control must not
+          change its target under the member's finger. */}
+      <DossierHeader
+        backHref={own ? "/home" : "/explore"}
+        backLabel={own ? "The Ravenry" : "The Crossroads"}
+      />
 
       {/* Hero band. The one place in a Dossier that may carry any weight. */}
       <DossierHero>

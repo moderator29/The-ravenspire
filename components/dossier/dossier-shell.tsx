@@ -368,13 +368,24 @@ export function DossierMissing({
   action?: ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-md px-4 py-16 text-center">
-      <div className="mb-6 flex justify-center">
+    <div className="mx-auto w-full max-w-md px-4 py-16">
+      {/* The message is centred because an honest absence reads as a notice
+          rather than as a page of content. The back control is not part of that
+          notice: it is the same navigation chrome every other Dossier carries,
+          and every one of them puts it top left. Centred, it read as the
+          missing page's primary action, which is what `action` below is for.
+          The text-center wrapper moved off this box and onto the copy so the
+          control can sit where the eye already looks for it. */}
+      <div className="mb-6 flex">
         <BackButton {...(backHref ? { href: backHref } : {})} />
       </div>
-      <h1 className="font-display text-xl font-semibold text-bone">{title}</h1>
-      <p className="mt-2 text-sm text-bone-mut">{body}</p>
-      {action ? <div className="mt-6">{action}</div> : null}
+      <div className="text-center">
+        <h1 className="font-display text-xl font-semibold text-bone">
+          {title}
+        </h1>
+        <p className="mt-2 text-sm text-bone-mut">{body}</p>
+        {action ? <div className="mt-6">{action}</div> : null}
+      </div>
     </div>
   );
 }

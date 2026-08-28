@@ -14,6 +14,7 @@ import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { RoomAudio } from "@/components/rooms/room-audio";
+import { BackButton } from "@/components/shell/back-button";
 import { useIsMobile } from "@/components/ui/sheet";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import { timeAgo } from "@/lib/social/types";
@@ -671,15 +672,13 @@ export function RoomLive({ roomId }: { roomId: string }) {
     <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
       <style>{RISE_KEYFRAMES}</style>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2"
-        render={<Link href="/rookery" />}
-      >
-        <Icon name="arrow" className="h-3.5 w-3.5 rotate-180" />
-        The Rookery
-      </Button>
+      {/* A hand rolled copy of BackButton: a ghost Button around a Link to
+          /rookery, arrow and all. It looked right and behaved differently,
+          because a Link always walks forward to /rookery, so a court opened
+          from a raven or a Keep sent the member to the room list rather than
+          back where they came from. The primitive retraces first and keeps
+          /rookery as the floor. */}
+      <BackButton href="/rookery" label="The Rookery" />
 
       {/* Hero band. The one place in a Dossier that may carry warmth. */}
       <Card variant="warm" pad="lg" className="mt-3 overflow-hidden">

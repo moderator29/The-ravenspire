@@ -396,10 +396,16 @@ export default function WhispersPage() {
   const threadHeader = (
     <div className="flex items-center gap-3 border-b border-steel-line px-3 py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] md:pt-2.5">
       {/* 44px under md, dense above it. There is no arrow-left glyph in the
-          set, so the one arrow is turned around. */}
+          set, so the one arrow is turned around.
+
+          It dismisses a pane rather than navigating: the thread and the list
+          are one route, and closeThread only clears the active conversation.
+          The name says so. "Back to whispers" promised a step a screen reader
+          user could reasonably expect the browser's Back to undo, and it
+          cannot. */}
       <IconButton
         icon="arrow"
-        label="Back to whispers"
+        label="Close conversation"
         size="lg"
         onClick={closeThread}
         className="shrink-0 md:h-9 md:w-9 [&_svg]:rotate-180"
