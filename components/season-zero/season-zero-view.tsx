@@ -226,6 +226,13 @@ function RaiseCard({
           >
             {softcapMet ? "Softcap met" : "Softcap missed, refunds due"}
           </span>
+        ) : phase === "live" && softcapMet ? (
+          /* Said the moment it becomes true, not only in the post-mortem:
+             once the softcap is met the round stands and every backer's
+             refund question is answered. */
+          <span className="rounded-sm border border-gold/40 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-bright">
+            Softcap met, the round stands
+          </span>
         ) : null}
       </div>
 
@@ -257,6 +264,7 @@ function RaiseCard({
         <StatTile
           label="Raised"
           value={`${formatEthFixed(raisedWei)} ETH`}
+          hint={raisedEth > 0 ? `${pct.toFixed(1)}% of hardcap` : undefined}
           live={phase === "live"}
         />
         <StatTile
