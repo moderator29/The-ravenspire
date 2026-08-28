@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { createNotification } from "@/lib/notifications";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { parseUnits } from "viem";
 import { verifyTribute } from "@/lib/chain/verify-transfer";
@@ -221,11 +222,13 @@ export async function POST(req: Request) {
      one is on the record and can be verified later; what it cannot do is
      interrupt somebody on the strength of an unchecked claim. */
   if (verifiedAt) {
-    await db.from("notifications").insert({
+    /* B3: through createNotification, so the recipient's "tips" toggle governs
+       it and the realtime nudge fires. */
+    await createNotification(db, {
       profile_id: to,
       kind: "tip",
       actor_id: profile.id,
-      subject_id: body?.subject_id ?? null,
+      ref: body?.subject_id ?? null,
       body: `${amount} ${token}`,
     });
   }

@@ -4,6 +4,7 @@ import { rateLimit, profileKey } from "@/lib/rate-limit";
 import { marketGate } from "@/lib/commerce/market-config";
 import { priceInTokenUnits } from "@/lib/commerce/market";
 import { verifyMarketLeg } from "@/lib/chain/verify-transfer";
+import { txHash as isTxHash, uuid } from "@/lib/validate";
 
 /* POST /api/market/[id]/pay: hand back a transaction and let the realm read it.
  *
@@ -44,8 +45,6 @@ import { verifyMarketLeg } from "@/lib/chain/verify-transfer";
 export const dynamic = "force-dynamic";
 
 const UNDEFINED_TABLE = "42P01";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 
 /* Polling a pending payment is the normal case, so the window is wide enough
    to poll every few seconds for several minutes on both legs and still leave
@@ -123,12 +122,14 @@ export async function POST(
   }
 
   const { id } = await ctx.params;
-  if (!UUID.test(id)) return json({ error: "No such listing" }, 404);
+  if (!uuid(id)) return json({ error: "No such listing" }, 404);
 
   const body = (await req.json().catch(() => null)) as { tx_hash?: unknown } | null;
   const txHash =
     typeof body?.tx_hash === "string" ? body.tx_hash.trim().toLowerCase() : null;
-  if (!txHash || !TX_HASH_RE.test(txHash)) {
+  /* A3: the shared shape check, aliased because this file's own variable is
+     already called txHash. */
+  if (!isTxHash(txHash)) {
     return json({ error: "bad transaction hash" }, 400);
   }
 

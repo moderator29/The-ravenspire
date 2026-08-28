@@ -3,6 +3,7 @@ import type { adminClient } from "@/lib/supabase/admin";
 import type { SessionProfile } from "@/lib/auth/server";
 import type { Post } from "@/lib/social/types";
 import { postFeedId } from "@/lib/feed/types";
+import { uuid } from "@/lib/validate";
 
 /* C1: the single place where a raven's audience is decided.
  *
@@ -113,15 +114,21 @@ export function canView(p: Gated, v: FeedViewer): boolean {
    cannot carry them are ever interpolated. Handles are [a-z0-9_] and ids are
    uuids by schema; these guards make that a property of this file rather than
    an assumption about a table three layers away. */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/* A3: the uuid check is lib/validate.ts's, which is the same shape this file
+   spelled out for itself. The handle guard stays local and deliberately wider
+   than the 3-20 that /api/onboard enforces: this one is not validating a
+   member's chosen handle, it is proving that a value already in the database
+   cannot carry .or() grammar, and refusing to narrow it means a legacy handle
+   outside today's rules is still shown its own ravens rather than silently
+   dropped from its own feed. */
 const HANDLE_RE = /^[a-z0-9_]{1,30}$/;
 
 /* SQL narrowing that keeps ravens this reader may not see off the wire. Public
    is always allowed; every other branch mirrors canView above. */
 function visibilityOrClause(v: FeedViewer): string {
   const parts = ["visibility.eq.public"];
-  const id = v.id && UUID_RE.test(v.id) ? v.id : null;
-  const following = v.followingIds.filter((f) => UUID_RE.test(f));
+  const id = uuid(v.id) ? v.id : null;
+  const following = v.followingIds.filter((f) => uuid(f));
   const handle =
     v.handle && HANDLE_RE.test(v.handle.toLowerCase())
       ? v.handle.toLowerCase()

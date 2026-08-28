@@ -2,6 +2,7 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { rateLimit, profileKey } from "@/lib/rate-limit";
 import { marketGate } from "@/lib/commerce/market-config";
+import { uuid } from "@/lib/validate";
 
 /* DELETE /api/market/[id]: withdraw a listing.
  *
@@ -24,7 +25,6 @@ import { marketGate } from "@/lib/commerce/market-config";
 export const dynamic = "force-dynamic";
 
 const UNDEFINED_TABLE = "42P01";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const CANCEL_LIMIT = 60;
 const CANCEL_WINDOW_SECONDS = 3600;
@@ -70,7 +70,7 @@ export async function DELETE(
   }
 
   const { id } = await ctx.params;
-  if (!UUID.test(id)) return json({ error: "No such listing" }, 404);
+  if (!uuid(id)) return json({ error: "No such listing" }, 404);
 
   const { data, error } = await db.rpc("market_cancel", {
     p_profile_id: profile.id,

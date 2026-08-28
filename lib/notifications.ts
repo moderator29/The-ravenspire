@@ -178,10 +178,17 @@ export async function notifyFollowers(
   }
 ): Promise<void> {
   try {
-    /* C3: this filtered `followed_id`, a column that does not exist. PostgREST
-       answered with an error, the catch swallowed it, and so every follower
-       fan-out (follow_call, follow_trade) has silently never fired. The column
-       is followee_id. */
+    /* C3, fixed: this filtered `followed_id`, a column that does not exist.
+       PostgREST answered with an error, the catch swallowed it, and so every
+       follower fan-out (follow_call, follow_trade) silently never fired. The
+       column is followee_id, which is what it reads now.
+
+       follow_trade needed a second fix to actually land, and it is in the
+       database rather than here: its ref is the traded coin's contract
+       address, and notifications.subject_id was a uuid column, so every one of
+       these inserts was rejected with 22P02 and swallowed by the same best
+       effort catch. Migration 20260828093353 makes that column text. Without
+       it, this query being correct changes nothing for follow_trade. */
     const { data } = await db
       .from("follows")
       .select("follower_id")

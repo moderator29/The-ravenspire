@@ -166,26 +166,75 @@ export async function POST(req: Request) {
      numbers reported are the true post-battle standing rather than the values
      read before the write. The capped variant also enforces the daily gold
      ceiling inside the same row lock, so gold gets the treatment Glory already
-     has and two settles racing at the ceiling cannot both spend the room. */
-  const { data: settledTotals } = await db.rpc("war_settle_battle_capped", {
+     has and two settles racing at the ceiling cannot both spend the room.
+
+     A1: THE ERROR IS READ, AND THE CLAIM IS RELEASED WHEN IT FAILS. This call
+     used to destructure { data } alone. If the capped RPC was not migrated the
+     call answered 42883 (undefined function), data came back null, and every
+     number below fell through to its `??` and reported a battle that war_state
+     never recorded: fabricated totals, no gold, no Glory, and the row already
+     flipped to settled so the member could never replay it. Now: the older
+     war_settle_battle (20260811120100, four arguments, no gold cap) is tried
+     when the capped one is simply absent, and when neither can settle, the
+     settled flag is put back and the request refuses honestly. The guarded
+     flip above stays where it is because it is the claim that makes settling
+     single use; releasing it is what makes a failed claim retryable. */
+  type SettleTotals = {
+    battles: number;
+    wins: number;
+    war_glory: number;
+    gold: number;
+    gold_granted: number;
+  };
+  const firstRow = (rows: unknown): SettleTotals | null => {
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    return (row ?? null) as SettleTotals | null;
+  };
+  /* An RPC Postgres has never heard of, rather than one that ran and failed. */
+  const rpcMissing = (code: string | undefined) =>
+    code === "42883" || code === "42P01";
+
+  const capped = await db.rpc("war_settle_battle_capped", {
     p_profile_id: profile.id,
     p_victory: victory,
     p_glory: glory,
     p_gold: gold,
     p_daily_gold_cap: DAILY_WAR_GOLD_CAP,
   });
-  const totals = (
-    Array.isArray(settledTotals) ? settledTotals[0] : settledTotals
-  ) as
-    | {
-        battles: number;
-        wins: number;
-        war_glory: number;
-        gold: number;
-        gold_granted: number;
-      }
-    | null
-    | undefined;
+  let totals = capped.error ? null : firstRow(capped.data);
+  if (capped.error && rpcMissing(capped.error.code)) {
+    /* The uncapped ancestor. It banks the battle and returns four columns, so
+       the day's gold ceiling is not enforced on this path; that is a smaller
+       wrong than telling a member they won a battle the realm never recorded,
+       and it disappears the moment the migration lands. */
+    const legacy = await db.rpc("war_settle_battle", {
+      p_profile_id: profile.id,
+      p_victory: victory,
+      p_glory: glory,
+      p_gold: gold,
+    });
+    const legacyRow = legacy.error
+      ? null
+      : (firstRow(legacy.data) as Omit<SettleTotals, "gold_granted"> | null);
+    totals = legacyRow ? { ...legacyRow, gold_granted: gold } : null;
+  }
+
+  if (!totals) {
+    /* Nothing was banked. Release the claim so the battle can be finished
+       again, and say so rather than reporting numbers off the pre-battle read. */
+    await db
+      .from("war_battles")
+      .update({ settled: false })
+      .eq("id", sessionId)
+      .eq("settled", true);
+    return json(
+      {
+        error:
+          "The heralds could not enter your battle in the rolls. Nothing was banked; claim it again shortly.",
+      },
+      503
+    );
+  }
 
   /* Categorised, so it draws on the daily War allowance rather than minting
      Glory without limit. Twelve settled battles an hour against a 400 Glory
@@ -205,11 +254,14 @@ export async function POST(req: Request) {
        which the ceiling may have trimmed. */
     glory: granted.glory,
     glory_capped: granted.capped,
-    gold: totals?.gold_granted ?? gold,
-    gold_capped: (totals?.gold_granted ?? gold) < gold,
-    battles: totals?.battles ?? state.battles + 1,
-    wins: totals?.wins ?? state.wins + (victory ? 1 : 0),
-    war_glory: totals?.war_glory ?? state.war_glory + glory,
+    /* Read straight off the settle now, with no fallback to the standing that
+       was read before the write: a settle that did not happen refuses above
+       rather than reaching this and guessing. */
+    gold: totals.gold_granted,
+    gold_capped: totals.gold_granted < gold,
+    battles: totals.battles,
+    wins: totals.wins,
+    war_glory: totals.war_glory,
   });
 }
 

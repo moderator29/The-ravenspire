@@ -1,5 +1,6 @@
 import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { escapeFilterTerm } from "@/lib/validate";
 
 /* Global search across the realm: members, cashtags and posts. Real data only.
    Members only (no anonymous scraping). Private posts are never returned. */
@@ -21,20 +22,30 @@ export async function GET(req: Request) {
   if (q.length < 2) return json({ users: [], posts: [], cashtags: [] });
 
   const like = `%${escapeLike(q)}%`;
-  // For the .or() filter string, also drop characters that would break
-  // PostgREST's filter grammar (commas and parentheses split the expression).
-  const orLike = `%${escapeLike(q).replace(/[,()]/g, "")}%`;
+  /* A4: the .or() filter term goes through the shared escape in
+     lib/validate.ts, which is the stronger of the two this route and
+     /api/admin/users had grown apart into. This one stripped only , ( ) and
+     left the double quote and the backslash inside a string where both are
+     grammar. One helper, one answer, both routes.
+
+     An empty term means the query was nothing but reserved characters. That
+     is not a filter that matches everyone: the member search is simply
+     skipped, because `%%` on both columns would hand back the realm. */
+  const safe = escapeFilterTerm(q);
+  const orLike = `%${safe}%`;
   const bare = q.replace(/^\$/, "").toLowerCase();
 
   const [usersRes, postsRes, cashtagRes] = await Promise.all([
-    db
-      .from("profiles")
-      .select("id, handle, display_name, avatar_url, tier, is_verified")
-      .eq("is_banned", false)
-      .eq("onboarded", true)
-      .not("handle", "is", null)
-      .or(`handle.ilike.${orLike},display_name.ilike.${orLike}`)
-      .limit(8),
+    safe
+      ? db
+          .from("profiles")
+          .select("id, handle, display_name, avatar_url, tier, is_verified")
+          .eq("is_banned", false)
+          .eq("onboarded", true)
+          .not("handle", "is", null)
+          .or(`handle.ilike.${orLike},display_name.ilike.${orLike}`)
+          .limit(8)
+      : Promise.resolve({ data: [] }),
     db
       .from("posts")
       .select(

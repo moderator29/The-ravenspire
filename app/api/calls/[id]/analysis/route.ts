@@ -82,7 +82,14 @@ export async function POST(
     );
   }
 
-  const realm = await rateLimit("call-analysis:realm", REALM_DAILY, 86400);
+  /* B5: fails closed, like every other realm-wide ceiling over a paid
+     Anthropic call. This is the only limit standing between a limiter outage
+     and an unbounded bill, and a limiter that waves everything through when
+     the store is unreachable is not that limit. The per-member ceiling above
+     stays fail-open: it protects the realm's budget only through this one. */
+  const realm = await rateLimit("call-analysis:realm", REALM_DAILY, 86400, {
+    failClosed: true,
+  });
   if (!realm.ok) {
     return json(
       {

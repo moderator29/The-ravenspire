@@ -50,6 +50,8 @@ const GROUPS: { id: CheckGroup; label: string }[] = [
 ];
 
 interface WatchResult {
+  /* Machine code in `error` ("rate_limited"), member prose in `message`. */
+  message?: string;
   score?: number;
   verdict?: WatchVerdict;
   headline?: string;
@@ -171,7 +173,11 @@ export default function WatchPage() {
           `/api/watch?address=${encodeURIComponent(addr.trim())}&chain=${chainId}`
         ).then((res) => res.json() as Promise<WatchResult>)
       );
-      setResult(body);
+      /* The wall answers with a machine code in `error` and, where it has
+         one, a sentence for the member in `message`. Show the sentence. */
+      setResult(
+        body.error && body.message ? { ...body, error: body.message } : body
+      );
       if (!body.error) setScanned({ address: addr.trim(), chain: chainId });
     } catch {
       setResult({ error: "The Watch could not reach the wall" });

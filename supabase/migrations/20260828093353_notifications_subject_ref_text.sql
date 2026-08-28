@@ -1,0 +1,49 @@
+-- notifications.subject_id becomes text, because the product never used it as
+-- a uuid.
+--
+-- WHAT THE COLUMN ACTUALLY HOLDS. The baseline schema declared
+-- notifications.subject_id as uuid, and for a post id or a comment id that was
+-- right. But the realm's own reader disagrees with the type: read
+-- lib/notification-view.ts, which is the single place that decides where a
+-- raven carries you when you tap it. A follow_trade routes to
+-- /coin/<subject_id>, and what rides there is the traded coin's contract
+-- address, a 0x string. A crest raven carries the crest slug. Neither is a
+-- uuid, and neither ever will be: a contract address is an address and a slug
+-- is a name.
+--
+-- WHAT THAT COST. Postgres refuses a non-uuid literal for a uuid column with
+-- 22P02 (invalid input syntax for type uuid), and every write site that fills
+-- subject_id with one of those values swallows its insert error by design,
+-- because a notification must never break the action that caused it. So the
+-- inserts failed, silently, in four places:
+--
+--   app/api/trade/record/route.ts   the follow_trade fan-out, coin contract
+--   lib/crests.ts                   the crest earned raven, crest slug
+--   app/api/cron/clock/route.ts     the season champion crest, crest slug
+--   app/api/admin/seasons/route.ts  the same crest from the admin close
+--
+-- A member who earned a crest was never told, and a follower never learned
+-- their Keep had traded. The rows were not written, so there is nothing to
+-- backfill: the notices are simply gone, and the fix is that the next ones
+-- land.
+--
+-- WHY TEXT RATHER THAN A SECOND COLUMN. subject_id is a reference to whatever
+-- the kind says it is, and kinds already disagree about what that is (a post,
+-- a comment, a conversation, a coin, a crest). A uuid-shaped column beside a
+-- text-shaped one would mean every reader picking between them by kind, which
+-- is the same decision notifHref already makes, made twice. One text column,
+-- one reader.
+--
+-- NOTHING ELSE READS IT AS A UUID. The table's only indexes are on
+-- (profile_id, created_at), (profile_id, read, created_at) and the unread
+-- partial; its RLS policy is `using (false)`; its two foreign keys are on
+-- profile_id and actor_id. No constraint, index, policy or function joins on
+-- subject_id, so this is a widening with no dependents. The uuids already
+-- stored cast to their canonical text form and keep pointing at the same rows.
+--
+-- realm_events.subject_id, a different column on a different table, has been
+-- text since 20260812000000 for exactly this reason ('standings:4:2026-W33').
+-- This brings notifications into line with it.
+
+alter table public.notifications
+  alter column subject_id type text using subject_id::text;

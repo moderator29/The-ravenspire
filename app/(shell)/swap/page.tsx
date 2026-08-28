@@ -260,7 +260,11 @@ export default function SwapPage() {
     }
     setQuoteLoading(true);
     setQuoteError(null);
-    const res = await realmFetch<{ quote?: NormalizedQuote; error?: string }>(
+    const res = await realmFetch<{
+      quote?: NormalizedQuote;
+      error?: string;
+      message?: string;
+    }>(
       "/api/trade/quote",
       {
         method: "POST",
@@ -278,7 +282,9 @@ export default function SwapPage() {
     if (res.ok && res.data?.quote) setQuote(res.data.quote);
     else {
       setQuote(null);
-      setQuoteError(res.data?.error ?? "No quote right now.");
+      setQuoteError(
+        res.data?.message ?? res.data?.error ?? "No quote right now."
+      );
     }
     setQuoteLoading(false);
   }, [sellRaw, chainId, from, to]);

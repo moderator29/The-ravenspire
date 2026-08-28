@@ -1,5 +1,6 @@
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
 import { rollChest, seedHash, type PulledCard } from "@/lib/collectibles/roll";
+import { uuid } from "@/lib/validate";
 
 /* The verifier's judgement. This is the part of mission 6 worth testing hard.
  *
@@ -241,9 +242,6 @@ export type PublicOpening = {
 /* Openings are addressed by uuid and nothing else. Checked before the id
    reaches Postgres, because a malformed uuid raises 22P02 there and a database
    error rendered at a member is both useless and a small information leak. */
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export function isDrawReference(value: string): boolean {
-  return UUID.test(value.trim());
+  return uuid(value.trim());
 }

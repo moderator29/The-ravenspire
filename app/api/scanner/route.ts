@@ -114,8 +114,10 @@ export async function POST(req: Request) {
 
   // Follower / following counts (real).
   const [{ count: followers }, { count: following }] = await Promise.all([
-    /* C3: the follows columns are follower_id and followee_id. `followed_id`
-       does not exist, so both of these read zero for every member. */
+    /* C3, fixed: the follows columns are follower_id and followee_id. These
+       two filtered `followed_id`, a column that does not exist, so both counts
+       read zero for every member and the Herald was handed a realm where
+       nobody followed anybody. They read the real columns now. */
     db.from("follows").select("follower_id", { count: "exact", head: true }).eq("followee_id", profile.id),
     db.from("follows").select("followee_id", { count: "exact", head: true }).eq("follower_id", profile.id),
   ]);

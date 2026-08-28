@@ -13,6 +13,7 @@ import {
   type ListingRefusal,
   type MarketCopy,
 } from "@/lib/commerce/market";
+import { uuid } from "@/lib/validate";
 
 /* The Bazaar: the native, non-custodial secondary market.
  *
@@ -37,8 +38,6 @@ import {
 export const dynamic = "force-dynamic";
 
 const UNDEFINED_TABLE = "42P01";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /* Listing is cheap for the realm and consequential for the member, so this is
    generous for anybody actually selling their collection and closed to a loop
@@ -200,8 +199,7 @@ export async function POST(req: Request) {
   const priceMinor = body?.price_minor;
 
   if (
-    typeof inventoryId !== "string" ||
-    !UUID.test(inventoryId) ||
+    !uuid(inventoryId) ||
     typeof priceMinor !== "number"
   ) {
     return json({ error: "bad request" }, 400);

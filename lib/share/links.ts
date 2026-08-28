@@ -21,6 +21,8 @@
  * table below.
  */
 
+import { uuid } from "@/lib/validate";
+
 /* Every moment the realm can hand to somebody who is not in it. */
 export type ShareKind =
   | "keep"
@@ -49,8 +51,6 @@ export type ShareTarget =
    A handle is what /api/onboard enforces; a uuid is what every id in the
    schema is; a house or crest slug is lowercase words joined by hyphens. */
 const HANDLE = /^[a-z0-9_]{3,20}$/;
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /* Handles are stored lowercase and compared lowercase everywhere else in the
@@ -70,7 +70,7 @@ function normaliseSlug(raw: string): string | null {
 
 function normaliseId(raw: string): string | null {
   const id = raw.trim();
-  return UUID.test(id) ? id.toLowerCase() : null;
+  return uuid(id) ? id.toLowerCase() : null;
 }
 
 /* The path for a target, or null when the target does not describe anything

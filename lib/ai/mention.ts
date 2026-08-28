@@ -5,6 +5,7 @@ import { fenceMemberText } from "@/lib/ai/herald";
 import { lookupToken, describeTokenForRaven } from "@/lib/data/tokens";
 import { detectHouses, describeHousesForRaven } from "@/lib/ai/raven-voice";
 import { rateLimit } from "@/lib/rate-limit";
+import { createNotification } from "@/lib/notifications";
 
 /* The Herald answers inline when a member calls on it: a raven or comment that
    tags @raven, or a reply to one of the Raven's own comments. It always speaks
@@ -111,11 +112,15 @@ async function fileRavenReply(
 
   /* Tell the member the Raven answered them, not the raven's original author. */
   if (opts.notifyProfileId && opts.notifyProfileId !== opts.ravenId) {
-    await db.from("notifications").insert({
+    /* B3: through createNotification, so the realtime nudge fires the way it
+       does for every other raven. raven_reply has no toggle in
+       lib/notification-prefs.ts and is not meant to: the Herald answering a
+       question the member explicitly asked cannot be muted from that panel. */
+    await createNotification(db, {
       profile_id: opts.notifyProfileId,
       kind: "raven_reply",
       actor_id: opts.ravenId,
-      subject_id: comment?.id ?? opts.postId,
+      ref: comment?.id ?? opts.postId,
       body: "The Raven has answered.",
     });
   }

@@ -1,4 +1,5 @@
 import { json } from "@/lib/auth/server";
+import { escapeFilterTerm } from "@/lib/validate";
 import { requireAdmin, isResponse, logAdminAction } from "../_admin";
 
 const USER_SELECT =
@@ -24,15 +25,10 @@ export async function GET(req: Request) {
   if (q) {
     /* Two different escapes, because the value crosses two grammars. Handles
        are [a-z0-9_] and display names are free text, so unlike the id routes
-       this cannot demand a safe shape; instead the reserved characters of the
-       .or() filter grammar (comma, parens, dots would also terminate a quoted
-       value via the quote itself) are removed outright, then the ilike
-       wildcards are escaped so a literal % or _ does not match everything.
-       Stripping loses nothing a handle or a sane display-name search needs. */
-    const safe = q
-      .slice(0, 60)
-      .replace(/[,()"\\]/g, "")
-      .replace(/[%_]/g, (m) => `\\${m}`);
+       this cannot demand a safe shape. A4: the escape itself now lives in
+       lib/validate.ts, unchanged, and /api/search calls the same one; it used
+       to carry a weaker copy that left the quote and the backslash in. */
+    const safe = escapeFilterTerm(q);
     if (safe) {
       query = query.or(`handle.ilike.%${safe}%,display_name.ilike.%${safe}%`);
     }

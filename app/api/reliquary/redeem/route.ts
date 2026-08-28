@@ -41,10 +41,24 @@ export async function POST(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
 
+  /* D7: the flag is chests_live and the message now says so. The flag choice
+     is deliberate, not a mistake to correct: a printed card rides the chest
+     machinery, so the reliquary opens when the chests do. What was wrong was
+     telling a member "the reliquary is sealed" while the switch that seals it
+     is the chests chapter, which is the sentence that sends somebody looking
+     for a reliquary flag that does not exist. */
   const live = await getFlag("chests_live");
-  if (!live) return json({ error: "The reliquary is sealed until launch" }, 423);
+  if (!live)
+    return json({ error: "The chests are sealed until launch" }, 423);
 
-  const rl = await rateLimit(profileKey("redeem", profile.id), 10, 3600);
+  /* D4: fails closed. This is the guess ceiling on a bearer secret that mints
+     real collectibles into a member's holdings, so a limiter outage that waves
+     every attempt through hands an attacker unmetered guessing at the one
+     thing in the realm worth guessing at. Ten an hour is generous for somebody
+     typing a code off a card; unlimited is a different product. */
+  const rl = await rateLimit(profileKey("redeem", profile.id), 10, 3600, {
+    failClosed: true,
+  });
   if (!rl.ok) return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
 
   const body = (await req.json().catch(() => null)) as { code?: unknown } | null;

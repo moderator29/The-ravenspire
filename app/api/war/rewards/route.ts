@@ -33,6 +33,20 @@ export async function POST(req: Request) {
   const state = await warState(db, profile.id);
   if (!state) return json({ error: "unavailable" }, 503);
 
+  /* D2: every settle below is an RPC whose false answer is a real refusal a
+     member has to believe ("already claimed today", "no chests to open", "your
+     purse is short"). All three used to read { data } alone, so an RPC that
+     was never migrated, or a call that errored, came back as data === null,
+     which is not true, which rendered as that same permanent-looking refusal.
+     A member would be told they had already claimed a tribute they had never
+     been paid. An error is not a false: it is the quartermaster being absent,
+     and it answers 503 so the surface can say "come back" and mean it. */
+  const unreachable = () =>
+    json(
+      { error: "The quartermaster is not at his post. Return shortly." },
+      503
+    );
+
   if (body.action === "daily") {
     const today = new Date().toISOString().slice(0, 10);
     const gold = 60;
@@ -40,13 +54,14 @@ export async function POST(req: Request) {
     /* B6: the "already claimed today" test lives inside the update, so two
        taps arriving together cannot both pass a check the other is about to
        invalidate. Only the call that actually paid gets true back. */
-    const { data: claimed } = await db.rpc("war_claim_daily", {
+    const claim = await db.rpc("war_claim_daily", {
       p_profile_id: profile.id,
       p_today: today,
       p_gold: gold,
       p_chests: chest,
     });
-    if (claimed !== true)
+    if (claim.error) return unreachable();
+    if (claim.data !== true)
       return json({ error: "Today's tribute is already claimed. Return with the dawn." }, 409);
     /* The daily muster draws on the same War allowance as a battle does. Ten
        Glory will never reach the ceiling on its own, and it is categorised
@@ -78,12 +93,13 @@ export async function POST(req: Request) {
     }
     /* B6: the purse test is the update's WHERE clause. Two opens racing on a
        single chest used to both pass the check above and both pay out. */
-    const { data: opened } = await db.rpc("war_open_chest", {
+    const opened = await db.rpc("war_open_chest", {
       p_profile_id: profile.id,
       p_gold: gold,
       p_unlock: unlocked,
     });
-    if (opened !== true)
+    if (opened.error) return unreachable();
+    if (opened.data !== true)
       return json({ error: "No relic chests to open. Battles and devotion earn them." }, 409);
     return json({ ok: true, gold, unlocked });
   }
@@ -101,12 +117,13 @@ export async function POST(req: Request) {
     mastery[champ.slug] = level + 1;
     /* B6: the purse test and the spend are one statement, so two upgrades
        racing on the same gold cannot both be forged. */
-    const { data: spent } = await db.rpc("war_spend_gold", {
+    const spent = await db.rpc("war_spend_gold", {
       p_profile_id: profile.id,
       p_cost: cost,
       p_mastery: mastery,
     });
-    if (spent !== true)
+    if (spent.error) return unreachable();
+    if (spent.data !== true)
       return json({ error: `The forge asks ${cost} gold; your purse holds ${state.gold}.` }, 409);
     return json({ ok: true, level: level + 1, cost });
   }

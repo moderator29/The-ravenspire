@@ -210,12 +210,26 @@ export async function POST(req: Request) {
   const verdict = geoVerdict(geo);
   if (!verdict.allowed) {
     /* Written to the same refusal ledger as every database-side guardrail, so
-       "show me that geo fires" has one place to look rather than two. */
-    await db.rpc("commerce_guard_event", {
+       "show me that geo fires" has one place to look rather than two.
+       D5: the error is read and logged. The refusal stands either way, which
+       is right, but the ledger write failing silently means the one place
+       somebody looks to prove geo fires can be empty while geo is firing, and
+       nothing anywhere says so. A missing commerce_guard_event (unmigrated) is
+       exactly that case. */
+    const ledgered = await db.rpc("commerce_guard_event", {
       p_profile_id: profile.id,
       p_kind: verdict.reason,
       p_detail: { country: verdict.country, source: verdict.source },
     });
+    if (ledgered.error) {
+      console.error("commerce.checkout: guard event not recorded", {
+        profileId: profile.id,
+        kind: verdict.reason,
+        country: verdict.country,
+        source: verdict.source,
+        err: ledgered.error,
+      });
+    }
     return json(
       { error: guardReasonMessage(verdict.reason), reason: verdict.reason },
       403
@@ -291,6 +305,45 @@ export async function POST(req: Request) {
 
   const orderId = result.order_id;
   if (!orderId) return json({ error: "unavailable" }, 503);
+
+  /* C6: A REUSED ORDER MUST BE THE SAME CART.
+     The guard's idempotency check is keyed on (profile, idempotency key) and
+     nothing else, so a request that reuses a key while carrying different
+     items answers ok with the ORIGINAL order id. Everything after this point
+     then ran off the new request: checkoutLines below were built from the new
+     cart and priced at the new total, while orders.total_minor still held the
+     old one. The provider would charge the new total, the webhook compares the
+     amount it is told against orders.total_minor
+     (app/api/commerce/webhook/route.ts), sees a mismatch, and refuses to mark
+     the order paid. The member's money has moved and their order never
+     advances: the single worst outcome this file can produce.
+
+     The client mints a fresh key whenever the cart changes (see cartKey in
+     components/commerce/warchests-store.tsx), so this is not a shape any
+     shipping client produces; it is what a stale tab, a crafted request or the
+     next client to forget that rule produces. It is refused before a session
+     exists, so nothing is charged, and the member is told the one thing that
+     fixes it. */
+  if (result.reused === true) {
+    const existing = await db
+      .from("orders")
+      .select("total_minor")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (existing.error) return json({ error: "unavailable" }, 503);
+    const storedTotal = (existing.data as { total_minor: number | null } | null)
+      ?.total_minor;
+    if (typeof storedTotal !== "number" || storedTotal !== totalMinor) {
+      return json(
+        {
+          error:
+            "Your cart changed since this checkout was opened. Empty it and choose again, and the charge will match what you picked.",
+          reason: "cart_changed",
+        },
+        409
+      );
+    }
+  }
 
   /* The address lands on the order the guard just created, before any session
      exists and therefore before any money can move. Written on a reuse too: an

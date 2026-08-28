@@ -8,6 +8,7 @@ import {
   type CraftCopy,
   type CraftRefusal,
 } from "@/lib/collectibles/crafting";
+import { uuid } from "@/lib/validate";
 
 /* Crafting: the card sink.
  *
@@ -56,9 +57,6 @@ const UNDEFINED_TABLE = "42P01";
    member is not looking at a broken realm, they are looking at their own card
    being on the board. */
 const LISTED_ON_THE_BAZAAR = "RS001";
-
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /* A craft destroys a member's own property, so this is deliberately tighter
    than the chest's sixty an hour. Nobody crafts thirty times in an hour by
@@ -178,7 +176,7 @@ export async function POST(req: Request) {
        invalid input syntax error, which this route would then report as an
        unavailable realm: a 503 for what is plainly a malformed request, and a
        confusing one to debug from the outside. */
-    !burnIds.every((id) => typeof id === "string" && UUID.test(id))
+    !burnIds.every((id) => uuid(id))
   ) {
     return json({ error: "bad request" }, 400);
   }

@@ -1,6 +1,7 @@
 import { json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
+import { createNotification } from "@/lib/notifications";
 import { emit } from "@/lib/realm/events";
 import { normalizeCall, CALL_TIMEFRAMES } from "@/lib/calls/types";
 import { resolvePriceCall } from "@/lib/calls/resolvers/price";
@@ -208,10 +209,14 @@ export async function GET(req: Request) {
             ? ` ${stakeSettled.burned.toLocaleString()} POINTS burned, and the House pardoned ${stakeSettled.pardon.toLocaleString()}.`
             : ` ${stakeSettled.burned.toLocaleString()} POINTS burned.`
           : "";
-    await db.from("notifications").insert({
+    /* B3: through createNotification, like every other raven in the realm, so
+       the member's own "calls" toggle governs it and the realtime nudge fires.
+       A raw insert honored neither. Per notification rather than batched on
+       purpose: this loop settles a bounded page of Calls, not a fan-out. */
+    await createNotification(db, {
       profile_id: post.author_id,
       kind: "call_verdict",
-      subject_id: post.id,
+      ref: post.id,
       body: hit
         ? `Your Call on ${subject} struck true.${stakeLine}`
         : `Your Call on ${subject} missed its mark.${stakeLine}`,
@@ -308,16 +313,26 @@ export async function GET(req: Request) {
         .in("status", ["open", "voting"])
         .select("id");
       if (closed && closed.length === 1) {
+        /* C5: the same category /api/duels puts on the identical reward. Both
+           routes pay a duel win of 60 Glory and 30 POINTS, and this one named
+           no category, so the award skipped the daily social allowance
+           entirely: two colluding accounts could not farm duel wins through
+           the vote path, and could through the expiry path, for exactly the
+           same act. A duel win is minted by other members' votes, so it draws
+           on the social budget wherever it is settled. */
         await award(db, winner, {
           glory: 60,
           points: 30,
           reason: "duel_won",
           ref: duel.id,
+          category: "social",
         });
-        await db.from("notifications").insert({
+        /* B3: through createNotification, so the winner's "duels" toggle is
+           honored and the realtime nudge fires. */
+        await createNotification(db, {
           profile_id: winner,
           kind: "duel_won",
-          subject_id: duel.id,
+          ref: duel.id,
           body: "The hour struck and the realm had spoken. The duel is yours.",
         });
       }

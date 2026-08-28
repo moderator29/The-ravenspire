@@ -100,6 +100,42 @@ export async function privyWalletAddress(
   }
 }
 
+/* The profile photo Privy itself holds for a user, read server side rather
+ * than taken from a request body.
+ *
+ * WHY THIS EXISTS, and why it is not an origin allowlist. /api/profile/sync
+ * used to write avatar_url from whatever string the client posted, with no
+ * check of any kind, while /api/profile refused anything outside the realm's
+ * own media shelf. One route enforced the allowlist and the other walked
+ * around it, so any URL at all could be planted as a member's portrait and
+ * rendered to everyone who read their ravens.
+ *
+ * The obvious repair, pointing sync at the same media-shelf predicate, would
+ * have quietly killed the feature: the whole purpose of that field is to
+ * backfill the X profile photo when the server side enrichment in
+ * ensureProfile came back empty, and an X photo lives on Twitter's CDN and
+ * never on our shelf. So this takes the same road privyWalletAddress took for
+ * exactly the same reason: the truth is one authenticated call away, keyed on
+ * the verified token's user id, and a claim from the client is not evidence.
+ * A client that still sends avatar_url is ignored.
+ *
+ * Twitter serves a tiny "_normal" crop by default, so this asks for a real
+ * size, matching what ensureProfile stores on first entrance. Returns null on
+ * any failure, which leaves the field unset rather than guessed. */
+export async function privyAvatarUrl(
+  privyId: string
+): Promise<string | null> {
+  if (!privy) return null;
+  try {
+    const user = await privy.getUser(privyId);
+    const pic = user.twitter?.profilePictureUrl ?? null;
+    if (!pic) return null;
+    return pic.replace("_normal", "_400x400");
+  } catch {
+    return null;
+  }
+}
+
 /* Read a single profile by privy id. Tries the full column set first and
    falls back to the base set if the is_banned/is_verified columns are not
    present yet, so authorization keeps working across the column migration. */

@@ -31,10 +31,14 @@ export async function POST(req: Request) {
      sustained for an hour is well past an honest session and still a hard stop
      on a script pointed at a paid upstream. */
   const rl = await rateLimit(profileKey("trade:quote", profile.id), 300, 3600);
+  /* B7: the shared envelope. The machine token in `error`, the realm's words
+     in `message`, matching /api/watch and every limiter that already answered
+     { error: "rate_limited", retryAfter }. */
   if (!rl.ok)
     return json(
       {
-        error: "Too many quotes for one hour. Let the price settle.",
+        error: "rate_limited",
+        message: "Too many quotes for one hour. Let the price settle.",
         retryAfter: rl.retryAfter,
       },
       429

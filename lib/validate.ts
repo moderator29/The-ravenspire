@@ -41,6 +41,37 @@ export function boundedString(value: unknown, max: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= max;
 }
 
+/* Make a free-text search term safe to interpolate into a PostgREST .or()
+ * filter string as an ilike pattern.
+ *
+ * WHY IT IS HERE. Two routes searched profiles by handle and display name, and
+ * they escaped the same value two different ways. /api/search stripped , ( )
+ * and escaped % _ \ for the ilike, but left the double quote and the backslash
+ * in the value it put inside the .or() string. /api/admin/users stripped
+ * , ( ) " and \ and then escaped % and _. The admin version is the stronger of
+ * the two and it is the one that lives here now, so "what is safe to put in a
+ * filter" has a single answer rather than a stronger and a weaker one that
+ * drift further apart every time somebody touches one of them.
+ *
+ * TWO GRAMMARS, TWO TREATMENTS, in this order and it matters. The reserved
+ * characters of the .or() grammar (comma and parens split the expression, and
+ * a quote or a backslash can terminate or escape its way out of a quoted
+ * value) are REMOVED, because there is no escape for them inside that string.
+ * Then the LIKE wildcards % and _ are ESCAPED, so a search for "100%" means a
+ * literal percent and a query of "%" cannot match every member in the realm.
+ * Escaping first would leave backslashes the strip then removed.
+ *
+ * Stripping loses nothing a handle or a sane display-name search needs. The
+ * result can be empty (a query of only reserved characters), and a caller must
+ * treat that as "no filter to apply" rather than as a filter that matches
+ * everything. */
+export function escapeFilterTerm(value: string, maxLength = 60): string {
+  return value
+    .slice(0, maxLength)
+    .replace(/[,()"\\]/g, "")
+    .replace(/[%_]/g, (m) => `\\${m}`);
+}
+
 /* A finite integer within [min, max]. Rejects floats rather than flooring
    them, so a caller that wants to accept 3.7 as 3 must say so itself. */
 export function boundedInt(

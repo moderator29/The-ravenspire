@@ -84,11 +84,15 @@ export async function POST(req: Request) {
               .eq("ref", subject_id)
               .maybeSingle();
             if (!prior) {
-              await db.from("notifications").insert({
+              /* B3: through createNotification, so the recipient's "likes"
+                 toggle governs it and the realtime nudge fires. A raw insert
+                 honored neither, which is how a member who had turned likes
+                 off kept getting them. */
+              await createNotification(db, {
                 profile_id: row.author_id,
                 kind: "like",
                 actor_id: profile.id,
-                subject_id,
+                ref: subject_id,
               });
               /* The first like from this member is already un-farmable by
                  unlike-and-relike. What it was not protected against is a
@@ -193,11 +197,13 @@ export async function POST(req: Request) {
           .single();
         if (row) {
           if (row.author_id !== profile.id)
-            await db.from("notifications").insert({
+            /* B3: same reasoning as the like above, governed by the
+               recipient's "reposts" toggle. */
+            await createNotification(db, {
               profile_id: row.author_id,
               kind: "reraven",
               actor_id: profile.id,
-              subject_id: body.subject_id,
+              ref: body.subject_id,
             });
         }
       }

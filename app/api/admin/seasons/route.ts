@@ -1,6 +1,7 @@
 import { json } from "@/lib/auth/server";
 import { emit } from "@/lib/realm/events";
 import { grantCrest } from "@/lib/points";
+import { createNotification } from "@/lib/notifications";
 import {
   SEASON_CHAMPION_CREST_SLUG,
   SEASON_CHAMPION_RANKS,
@@ -232,10 +233,13 @@ export async function POST(req: Request) {
         .maybeSingle();
       await grantCrest(db, champion.profile_id, SEASON_CHAMPION_CREST_SLUG);
       if (held) continue;
-      await db.from("notifications").insert({
+      /* B3: through createNotification, so the realtime nudge fires. The crest
+         slug in ref is why notifications.subject_id had to become text
+         (20260828093353); as a uuid column it rejected the slug with 22P02. */
+      await createNotification(db, {
         profile_id: champion.profile_id,
         kind: "crest",
-        subject_id: SEASON_CHAMPION_CREST_SLUG,
+        ref: SEASON_CHAMPION_CREST_SLUG,
         body: `You finished among the highest when the season closed and earned the Champion of the Season crest.`,
       });
       await emit(db, {

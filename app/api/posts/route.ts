@@ -3,7 +3,13 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
 import { maybeRavenReplyToPost } from "@/lib/ai/mention";
-import { notifyMentions, notifyFollowers } from "@/lib/notifications";
+import {
+  createNotification,
+  notifyMentions,
+  notifyFollowers,
+  parseHandles,
+} from "@/lib/notifications";
+import { isRealmMediaUrl } from "@/lib/social/media-url";
 import { emit } from "@/lib/realm/events";
 import { screenAndFlag } from "@/lib/moderation/screen";
 import { prepareCall, type CallInput } from "@/lib/calls/create";
@@ -86,37 +92,27 @@ export async function POST(req: Request) {
     : "public";
 
   /* Handles named in the raven, lowercased and de-duped. Stored so a
-     mentions-only raven can be shown to exactly the members it names. */
-  const mentions = [
-    ...new Set(
-      [...text.matchAll(/@([a-z0-9_]{2,20})\b/gi)].map((m) =>
-        m[1].toLowerCase()
-      )
-    ),
-  ];
+     mentions-only raven can be shown to exactly the members it names.
+
+     C9: parsed by the SAME function that decides who gets a mention raven.
+     This route matched {2,20} while lib/notifications parseHandles matches
+     {3,20} (the length /api/onboard actually enforces), so a two-letter
+     @ab was stored in posts.mentions, admitted a member who could never hold
+     that handle to a mentions-only raven, and notified nobody. One parser, one
+     answer. parseHandles also drops "raven", which is right here too: the
+     Herald has its own inline reply flow and is not an audience member. */
+  const mentions = parseHandles(text);
 
   /* Media must live in our own public media shelf; no hotlinked strangers.
-     We match on the storage path segment rather than the full origin so a
-     trailing slash, a custom storage domain, or any drift between the upload
-     host and NEXT_PUBLIC_SUPABASE_URL cannot silently strip every image (the
-     bug that left every post with media = []). The url must still be an
-     absolute https URL that resolves to /storage/v1/object/public/media/. */
-  const MEDIA_PATH = "/storage/v1/object/public/media/";
-  const isOwnMedia = (url: unknown): url is string => {
-    if (typeof url !== "string") return false;
-    try {
-      const u = new URL(url);
-      return u.protocol === "https:" && u.pathname.startsWith(MEDIA_PATH);
-    } catch {
-      return false;
-    }
-  };
+     The check itself is lib/social/media-url.ts, shared with whispers and both
+     profile routes so the allowlist cannot drift apart again. */
   const media = (body.media ?? [])
     .slice(0, 4)
-    .filter(
-      (m) =>
-        isOwnMedia(m?.url) && (m.type === "image" || m.type === "video")
-    );
+    /* C8: images only. "video" was accepted here and no upload path in the
+       product can produce one, so the only client that could ever set it was a
+       crafted one, and the reward was a <video> element rendered over a PNG.
+       Re-admit it when an upload path exists that can. */
+    .filter((m) => isRealmMediaUrl(m?.url) && m.type === "image");
 
   const cashtags = [...text.matchAll(/\$([a-zA-Z]{2,12})\b/g)].map((m) =>
     m[1].toUpperCase()
@@ -275,10 +271,22 @@ export async function POST(req: Request) {
           reason: "banner_answered",
           category: "social",
         });
-        await db.from("notifications").insert({
+        /* C3: kind "referral", not "banner_raised". lib/notification-view.ts
+           is the only reader of these rows and it has no entry for
+           banner_raised, so the center printed the raw kind string and, having
+           fallen through to the default case with the referred member's
+           profile id in subject_id, linked the referrer to /post/<a profile
+           id>, which is nothing. "referral" is the kind that already means
+           this ("joined under your banner") and its href takes the reader to
+           the actor's Keep, which is the member whose banner they raised. ref
+           is null because the referral case reads the actor, not the subject.
+           Through createNotification so the member's own toggle governs it and
+           the realtime nudge fires. */
+        await createNotification(db, {
           profile_id: ref.referrer_id,
-          kind: "banner_raised",
+          kind: "referral",
           actor_id: profile.id,
+          ref: null,
           body: "A banner you raised now flies in the realm. The reward is yours.",
         });
       }

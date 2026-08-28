@@ -102,8 +102,19 @@ export async function GET(req: Request) {
       continue;
     }
     /* Only ship an order that is actually paid. A refunded or cancelled order
-       with a lingering pending fulfillment is not shipped. */
-    if (order.status !== "paid" && order.status !== "fulfilled") {
+       with a lingering pending fulfillment is not shipped.
+
+       C11: 'fulfilled' used to be admitted here too, and that is the one
+       status that must not be. An order reaches 'fulfilled' because it has
+       already shipped, so a pending fulfillment row still sitting against it
+       is either a duplicate or a leftover, and sweeping it sends the vendor a
+       second order for goods the member already has. The vendor call uses the
+       platform order id as its external reference, which dedupes a retry of
+       the SAME fulfillment row, not a second row against the same order. Paid
+       is the only status from which shipping is the right next act. A pending
+       row on a fulfilled order is a data problem for an operator, and it stays
+       visible as pending rather than being quietly shipped. */
+    if (order.status !== "paid") {
       skipped++;
       continue;
     }

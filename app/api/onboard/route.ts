@@ -49,10 +49,16 @@ export async function POST(req: Request) {
   if (!house || !HOUSES.has(house))
     return json({ error: "Choose a House of the realm" }, 400);
 
+  /* C4, the same bug /api/profile carried: .eq, not .ilike. In PostgREST an
+     ilike is a LIKE pattern, so _ is a single-character wildcard and
+     "dark_lord" collided with darkxlord, dark0lord and every other handle of
+     that shape. A member choosing a name that merely resembled a taken one was
+     told it was already claimed. Case folding was never needed: handle is
+     lowercased above before it is compared or written. */
   const { data: taken } = await db
     .from("profiles")
     .select("id")
-    .ilike("handle", handle)
+    .eq("handle", handle)
     .neq("id", profile.id)
     .maybeSingle();
   if (taken) return json({ error: "That handle is already claimed" }, 409);
@@ -101,10 +107,14 @@ export async function POST(req: Request) {
         .maybeSingle();
       if (code) referrerId = code.owner_id as string;
       if (!referrerId) {
+        /* C4 again, and this one credited rather than refused: an ilike on a
+           ?ref of "dark_lord" matched darkxlord too, so a banner could be
+           credited to a member who never raised it, or match two members and
+           credit neither. ref is lowercased above; an exact match is the test. */
         const { data: byHandle } = await db
           .from("profiles")
           .select("id")
-          .ilike("handle", ref)
+          .eq("handle", ref)
           .maybeSingle();
         if (byHandle) referrerId = byHandle.id as string;
       }

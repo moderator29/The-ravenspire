@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { grantCrest } from "@/lib/points";
 import { emit } from "@/lib/realm/events";
+import { createNotification } from "@/lib/notifications";
 import { VIGIL_CREST_DAYS, VIGIL_CREST_SLUG } from "@/lib/realm/appointments";
 
 /* Crests earned automatically from renown, streak and vigil milestones. Each
@@ -93,10 +94,14 @@ export async function checkAndGrantCrests(
   for (const crest of due) {
     if (owned.has(crest.slug)) continue;
     await grantCrest(db, profileId, crest.slug);
-    await db.from("notifications").insert({
+    /* B3: through createNotification, so the realtime nudge fires. The slug
+       in ref is why the notifications.subject_id column had to become text
+       (20260828093353): as a uuid column it rejected every crest slug with
+       22P02 and this notice was never written at all. */
+    await createNotification(db, {
       profile_id: profileId,
       kind: "crest",
-      subject_id: crest.slug,
+      ref: crest.slug,
       body: `You earned the ${crest.title} crest.`,
     });
     /* Earning a crest is one of the few genuinely rare things that happens in

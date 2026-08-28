@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
-import { json } from "@/lib/auth/server";
-import { ipKey, rateLimit } from "@/lib/rate-limit";
+import { getProfile, json } from "@/lib/auth/server";
+import { callerKey, rateLimit } from "@/lib/rate-limit";
 import { normalizeCall, type CallCategory, type CallData } from "@/lib/calls/types";
 import {
   RANKED_MINIMUM,
@@ -42,8 +42,16 @@ interface CallRow {
 export async function GET(req: NextRequest) {
   /* Public, and each call reads a member's entire settled history (up to two
      thousand rows) to recompute the record. Generous per address; a scraper
-     walking every profile is the only caller this refuses. */
-  const rl = await rateLimit(ipKey("caller", req), 120, 3600);
+     walking every profile is the only caller this refuses.
+
+     B6: callerKey rather than ipKey, the same key the rest of the
+     member-and-visitor family uses. On ipKey a whole office, campus or mobile
+     carrier NAT shares one allowance, so a member reading caller profiles
+     could be refused because of strangers; on callerKey a signed-in member is
+     metered on their own account and only genuine visitors fall back to the
+     address. */
+  const viewer = await getProfile(req);
+  const rl = await rateLimit(callerKey("caller", req, viewer?.id), 120, 3600);
   if (!rl.ok)
     return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
 

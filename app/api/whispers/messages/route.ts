@@ -2,6 +2,8 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
+import { isRealmMediaUrl } from "@/lib/social/media-url";
+import { uuid } from "@/lib/validate";
 
 type Db = NonNullable<ReturnType<typeof adminClient>>;
 
@@ -27,24 +29,50 @@ async function assertMember(
   return Boolean(data);
 }
 
+/* True when this send must be refused because one of the two members has
+   blocked the other. Answers false for anything that is not a pair, and false
+   when the lookup itself fails: a blocks table that cannot be read must not
+   silence a conversation, and the door is still closed at creation time. Both
+   ids are proven uuids before they reach the .or() filter, where , ( ) and .
+   are grammar a crafted value could otherwise rewrite (lib/validate.ts). */
+async function blockedBetween(
+  db: Db,
+  conversationId: string,
+  profileId: string
+): Promise<boolean> {
+  const { data: members } = await db
+    .from("conversation_members")
+    .select("profile_id")
+    .eq("conversation_id", conversationId)
+    .limit(3);
+  const ids = (members ?? []).map((m) => m.profile_id as string);
+  if (ids.length !== 2) return false;
+  const other = ids.find((id) => id !== profileId);
+  if (!other || !uuid(other) || !uuid(profileId)) return false;
+  const { data: blocked } = await db
+    .from("blocks")
+    .select("blocker_id")
+    .or(
+      `and(blocker_id.eq.${profileId},blocked_id.eq.${other}),and(blocker_id.eq.${other},blocked_id.eq.${profileId})`
+    )
+    .limit(1);
+  return Boolean(blocked?.length);
+}
+
 /* Only images uploaded to our own public media shelf may travel in a whisper.
    Anything else (external URLs, other buckets) is rejected so a message can
-   never be used to smuggle a foreign link dressed as an image.
+   never be used to smuggle a foreign link dressed as an image. The predicate
+   itself is lib/social/media-url.ts, shared with the posts and profile routes
+   so the four places that accept an image URL cannot drift apart again; the
+   path-segment matching it does is the version this file already used.
 
-   We match on the storage path segment rather than the full origin so a
-   trailing slash, a custom storage domain, or any drift between the upload
-   host and NEXT_PUBLIC_SUPABASE_URL cannot silently reject every image (the
-   same bug that once left every post with media = []). The url must still be
-   an absolute https URL that resolves to /storage/v1/object/public/media/. */
-const MEDIA_PATH = "/storage/v1/object/public/media/";
-function isOwnMediaUrl(url: string): boolean {
-  try {
-    const u = new URL(url);
-    return u.protocol === "https:" && u.pathname.startsWith(MEDIA_PATH);
-  } catch {
-    return false;
-  }
-}
+   BLOCKS ARE RE-CHECKED ON EVERY SEND, not only when the conversation was
+   opened. /api/whispers refuses to create a dm across a block in either
+   direction, and that used to be the whole of it: a thread opened before
+   either member blocked the other stayed open forever, so the block that a
+   member expected to close a door left it exactly as wide as it was. Only
+   two-member threads are judged, because a block between two people in a room
+   of six is not a reason to silence one of them for everybody. */
 
 /* Fire a realtime broadcast through Supabase's HTTP endpoint using the service
    role. Topics are keyed on the secret conversation id (a v4 UUID only the two
@@ -136,10 +164,14 @@ export async function POST(req: Request) {
   if (!body?.conversation) return json({ error: "bad request" }, 400);
   if (!text && !imageUrl) return json({ error: "bad request" }, 400);
   if (text.length > 1000) return json({ error: "Too long for one breath" }, 400);
-  if (imageUrl && !isOwnMediaUrl(imageUrl))
+  if (imageUrl && !isRealmMediaUrl(imageUrl))
     return json({ error: "That image is not from the realm" }, 400);
   if (!(await assertMember(db, body.conversation, profile.id)))
     return json({ error: "Not your whisper" }, 403);
+  /* C10: the same refusal, in the same words, that /api/whispers gives when a
+     blocked pair try to open a thread. */
+  if (await blockedBetween(db, body.conversation, profile.id))
+    return json({ error: "That door is closed." }, 403);
 
   const { data: created, error } = await db
     .from("messages")

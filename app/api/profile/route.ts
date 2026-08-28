@@ -1,5 +1,6 @@
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { isRealmMediaUrl } from "@/lib/social/media-url";
 
 /* Edit the caller's own profile: name, bio, links, portraits. */
 export async function POST(req: Request) {
@@ -31,10 +32,18 @@ export async function POST(req: Request) {
     if (handle === "raven")
       return json({ error: "That name belongs to the Herald." }, 400);
     if (handle !== profile.handle) {
+      /* C4: .eq, not .ilike. In PostgREST an ilike is a LIKE pattern, so _ is
+         a single-character wildcard: "dark_lord" matched darkxlord, dark0lord
+         and every other handle of that shape, and a member whose chosen name
+         merely resembled a taken one was told it was already claimed. Case
+         folding was never needed here anyway, because handles are lowercased
+         above (and in /api/onboard) before they are ever written, so the
+         column holds nothing but lowercase and an exact match is the whole
+         test. */
       const { data: taken } = await db
         .from("profiles")
         .select("id")
-        .ilike("handle", handle)
+        .eq("handle", handle)
         .neq("id", profile.id)
         .maybeSingle();
       if (taken) return json({ error: "That handle is already claimed" }, 409);
@@ -80,8 +89,11 @@ export async function POST(req: Request) {
     update.links = links;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const mediaPrefix = `${supabaseUrl ?? ""}/storage/v1/object/public/media/`;
+  /* B2: the shared allowlist, matched on the storage path segment rather than
+     on a prefix built from NEXT_PUBLIC_SUPABASE_URL. The prefix version this
+     replaces refused every portrait the moment the upload host and that env
+     var disagreed by so much as a trailing slash, which is the same failure
+     that once emptied posts.media. See lib/social/media-url.ts. */
   for (const key of ["avatar_url", "banner_url"] as const) {
     const val = body[key];
     if (val === undefined) continue;
@@ -91,7 +103,7 @@ export async function POST(req: Request) {
       update[key] = null;
       continue;
     }
-    if (!supabaseUrl || !val.startsWith(mediaPrefix))
+    if (!isRealmMediaUrl(val))
       return json({ error: "Images must come from the realm's media shelf" }, 400);
     update[key] = val;
   }

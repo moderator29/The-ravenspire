@@ -6,6 +6,7 @@ import {
   RESERVATION_TTL_SECONDS,
   priceInTokenUnits,
 } from "@/lib/commerce/market";
+import { uuid } from "@/lib/validate";
 
 /* POST /api/market/[id]/reserve: take a listing off the board for one buyer.
  *
@@ -38,7 +39,6 @@ import {
 export const dynamic = "force-dynamic";
 
 const UNDEFINED_TABLE = "42P01";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /* A reservation takes a card off the board for half an hour, so a loop that
    could take one out on every listing is a loop that could empty the market.
@@ -103,7 +103,7 @@ export async function POST(
   }
 
   const { id } = await ctx.params;
-  if (!UUID.test(id)) return json({ error: "No such listing" }, 404);
+  if (!uuid(id)) return json({ error: "No such listing" }, 404);
 
   const { data, error } = await db.rpc("market_reserve", {
     p_listing_id: id,

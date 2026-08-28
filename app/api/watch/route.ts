@@ -17,11 +17,18 @@ export async function GET(req: Request) {
     profile ? 120 : 60,
     3600
   );
+  /* B7: { error: "rate_limited", retryAfter } is the machine shape every
+     limiter in the realm answers with, and the realm's own words ride in
+     `message` beside it rather than in `error`. This route used to put the
+     prose in `error` and the machine token in `status`, which is the same two
+     facts with the fields swapped, so a client that reads `error` to decide
+     what happened saw a sentence here and a token everywhere else. */
   if (!rl.ok)
     return json(
       {
-        error: "The Watch has scanned enough for you this hour. Return shortly.",
-        status: "rate_limited",
+        error: "rate_limited",
+        message:
+          "The Watch has scanned enough for you this hour. Return shortly.",
         retryAfter: rl.retryAfter,
       },
       429

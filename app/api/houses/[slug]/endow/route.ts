@@ -11,6 +11,7 @@ import {
   splitEndowment,
 } from "@/lib/houses/endowment";
 import { endowHouseTreasury, endowedToday } from "@/lib/houses/treasury";
+import { uuid } from "@/lib/validate";
 
 /* GET  /api/houses/[slug]/endow   the terms, and what this member could give
  * POST /api/houses/[slug]/endow   commit POINTS from your balance to the House
@@ -36,8 +37,6 @@ import { endowHouseTreasury, endowedToday } from "@/lib/houses/treasury";
  */
 
 export const dynamic = "force-dynamic";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /* The terms, as any surface reads them. The floor, the ceiling and the share
    that survives, so the dialog can print exactly what reaches the banner and
@@ -121,7 +120,7 @@ export async function POST(
   } | null;
 
   const requestId = typeof body?.request_id === "string" ? body.request_id : "";
-  if (!UUID.test(requestId)) {
+  if (!uuid(requestId)) {
     return json({ error: "An endowment needs a request id." }, 400);
   }
 

@@ -35,6 +35,21 @@ export const KIND_TO_PREF: Record<string, NotifPrefKey> = {
   duel_answered: "duels",
   duel_won: "duels",
   call_verdict: "calls",
+  /* B4: the two follow alerts had no entry, so a member who turned everything
+     off in the panel still got a raven every time someone they follow sealed a
+     Call or made a trade, and those are the two loudest kinds in the realm
+     because they fan out to every follower at once.
+
+     There is no "follow alerts" toggle to map them to and inventing one here
+     would ship a key the settings UI does not render, which is a toggle that
+     exists only in the database. So each maps to the toggle a member would
+     look for: follow_call to "calls", which is already the Call channel and is
+     what somebody who does not want Call ravens would reach for; follow_trade
+     to "tips", which is the money channel and the only existing toggle that
+     covers a member's market activity. If the panel ever grows a toggle of
+     their own, these two entries are the whole of what has to move. */
+  follow_call: "calls",
+  follow_trade: "tips",
   house: "house",
   announcement: "announcements",
 };

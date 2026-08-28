@@ -140,7 +140,12 @@ export async function GET(req: Request) {
       typeof newMembersRes.count === "number" ? newMembersRes.count : null,
   });
 
-  const realmCap = await rateLimit("raven-chronicle:realm", REALM_DAILY, 86400);
+  /* B5: fails closed. The Chronicle is a paid Anthropic call on a schedule,
+     so a limiter outage that waves it through spends without a ceiling and
+     with nobody watching. A day with no Chronicle is a smaller loss. */
+  const realmCap = await rateLimit("raven-chronicle:realm", REALM_DAILY, 86400, {
+    failClosed: true,
+  });
   if (!realmCap.ok) {
     return json(
       { error: "The Herald has spent the realm's voice for today." },
@@ -191,7 +196,10 @@ export async function GET(req: Request) {
       .maybeSingle();
     if (already) continue;
 
-    const cap = await rateLimit("raven-chronicle:houses", HOUSE_DAILY, 86400);
+    /* Fails closed for the same reason as the realm cap above. */
+    const cap = await rateLimit("raven-chronicle:houses", HOUSE_DAILY, 86400, {
+      failClosed: true,
+    });
     if (!cap.ok) break;
 
     const standing = standings.findIndex((s) => s.slug === house.slug);

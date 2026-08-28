@@ -15,6 +15,12 @@ import { profileKey, rateLimit } from "@/lib/rate-limit";
 const COMMENT_SELECT =
   "id, post_id, parent_id, body, like_count, created_at, author_id, author:profiles!comments_author_id_fkey (handle, display_name, avatar_url, house_slug, tier, is_agent)";
 
+/* A reply that summons the Herald. Matched here as well as in lib/ai/mention.ts
+   for the same reason /api/posts matches it: this route has to know, before it
+   writes anything, whether the reply it is about to accept will spend Anthropic
+   budget. */
+const TAGS_RAVEN = /@raven\b/i;
+
 /* GET /api/comments?post_id=... -> the full thread for a raven, enriched with
    author ids (needed to tip a commenter and to link their profile) and, when a
    member is signed in, which comments they have liked and bookmarked so the
@@ -141,6 +147,35 @@ export async function POST(req: Request) {
       | undefined;
     const a = Array.isArray(author) ? author[0] : author;
     parentAuthorIsRaven = Boolean(a?.is_agent && a?.handle === "raven");
+  }
+
+  /* A2: the Herald's own ceiling, and it is the SAME allowance /api/posts
+     spends. A comment wakes exactly the paid Anthropic call a post does, on
+     exactly the two conditions maybeRavenReplyToComment acts on (the reply
+     tags @raven, or it answers one of the Herald's own comments), and until
+     now the only thing above it was the sixty-replies-an-hour limiter that
+     also governs free replies. So a member refused at ten summons under
+     /api/posts simply moved to the reply box and kept spending. One key,
+     "posts:raven", so the two routes share one hourly allowance rather than
+     handing a member ten of each. Checked before anything is written, so a
+     member who has spent the hour can still reply: they simply cannot summon
+     the Herald with it. */
+  const summonsRaven = TAGS_RAVEN.test(text) || parentAuthorIsRaven;
+  if (summonsRaven) {
+    const heraldRl = await rateLimit(
+      profileKey("posts:raven", profile.id),
+      10,
+      3600
+    );
+    if (!heraldRl.ok)
+      return json(
+        {
+          error:
+            "The Herald has answered you enough this hour. Reply without the summons, or return later.",
+          retryAfter: heraldRl.retryAfter,
+        },
+        429
+      );
   }
 
   const { data: comment, error } = await db

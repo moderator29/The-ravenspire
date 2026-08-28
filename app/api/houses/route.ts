@@ -1,7 +1,7 @@
-import { json } from "@/lib/auth/server";
+import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { houseLevel } from "@/lib/data/houses";
-import { ipKey, rateLimit } from "@/lib/rate-limit";
+import { callerKey, rateLimit } from "@/lib/rate-limit";
 import { loadSeasonWindow } from "@/lib/houses/oath";
 import {
   buildStandings,
@@ -31,9 +31,17 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   /* Public and computed live from the ledger on every call, which is exactly
      the shape worth metering: the standings query fans out across the whole
-     contribution table. Generous per address; a member refreshing the board
-     never meets it. */
-  const rl = await rateLimit(ipKey("houses", req), 120, 3600);
+     contribution table. Generous, and a member refreshing the board never
+     meets it.
+
+     B6: callerKey rather than ipKey, the same key the rest of the
+     member-and-visitor family uses. On ipKey a whole office, campus or mobile
+     carrier NAT shares one allowance, so the standings could go dark for a
+     member because of strangers behind the same address; on callerKey a
+     signed-in member is metered on their own account and only genuine
+     visitors fall back to the address. */
+  const viewer = await getProfile(req);
+  const rl = await rateLimit(callerKey("houses", req, viewer?.id), 120, 3600);
   if (!rl.ok)
     return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
 

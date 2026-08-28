@@ -88,25 +88,40 @@ export async function rateLimit(
   });
 
   /* The store could not answer. Fail open by default, closed on request; a
-     closed failure suggests a short retry rather than the full window. */
-  const unavailable = (): RateLimitResult =>
-    opts.failClosed
+     closed failure suggests a short retry rather than the full window.
+
+     D3: AND IT SAYS SO IN THE LOG. A fail-open limiter that goes quiet is
+     indistinguishable from a limiter that is working: every request is
+     allowed, nothing is refused, and a rate_limit_hit RPC that was never
+     migrated or has stopped answering looks exactly like a realm nobody is
+     abusing. One line per failed call, with the reason and the key, so the
+     outage is visible in logs instead of being inferred from a bill. */
+  const unavailable = (why: string, err?: unknown): RateLimitResult => {
+    console.error("rate-limit: store unavailable", {
+      why,
+      key,
+      failClosed: opts.failClosed === true,
+      ...(err === undefined ? {} : { err }),
+    });
+    return opts.failClosed
       ? { ok: false, count: limit, limit, remaining: 0, retryAfter: 60 }
       : allow(0);
+  };
 
   const db = adminClient();
-  if (!db) return unavailable(); // unconfigured
+  if (!db) return unavailable("supabase not configured");
 
   try {
     const { data, error } = await db.rpc("rate_limit_hit", {
       p_key: key,
       p_window_seconds: windowSeconds,
     });
-    if (error) return unavailable(); // store error
+    if (error) return unavailable("rate_limit_hit rpc error", error);
     const count = typeof data === "number" ? data : Number(data);
-    if (!Number.isFinite(count)) return unavailable();
+    if (!Number.isFinite(count))
+      return unavailable("rate_limit_hit returned a non-number", data);
     return allow(count);
-  } catch {
-    return unavailable(); // unreachable
+  } catch (err) {
+    return unavailable("rate_limit_hit unreachable", err);
   }
 }

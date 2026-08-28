@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { award } from "@/lib/points";
+import { createNotification } from "@/lib/notifications";
 import { emit } from "@/lib/realm/events";
 import { getFlag } from "@/lib/flags";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
@@ -122,11 +123,13 @@ export async function POST(req: Request) {
     if (!entered || entered.length === 0)
       return json({ error: "That duel has already been answered" }, 409);
 
-    await db.from("notifications").insert({
+    /* B3: through createNotification, so the challenger's "duels" toggle
+       governs it and the realtime nudge fires. */
+    await createNotification(db, {
       profile_id: duel.challenger_id,
       kind: "duel_answered",
       actor_id: profile.id,
-      subject_id: duel.id,
+      ref: duel.id,
       body: "Your duel has been answered. The realm votes.",
     });
     return json({ ok: true });
@@ -192,10 +195,11 @@ export async function POST(req: Request) {
           ref: duel.id,
           category: "social",
         });
-        await db.from("notifications").insert({
+        /* B3: as above. No actor: the realm settled this, not a member. */
+        await createNotification(db, {
           profile_id: winner,
           kind: "duel_won",
-          subject_id: duel.id,
+          ref: duel.id,
           body: "The realm has spoken. The duel is yours.",
         });
       }
