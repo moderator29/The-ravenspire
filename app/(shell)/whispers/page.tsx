@@ -13,6 +13,7 @@ import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
 import { Modal } from "@/components/ui/modal";
 import { AdaptiveDialog, useIsMobile } from "@/components/ui/sheet";
+import { Takeover } from "@/components/ui/takeover";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import {
   StreamColumn,
@@ -751,12 +752,25 @@ export default function WhispersPage() {
         </div>
       ) : threadOpen ? (
         isMobile ? (
-          /* A phone gives the conversation the whole screen. */
-          <div className="fixed inset-0 z-modal flex flex-col overflow-hidden bg-obsidian">
+          /* A phone gives the conversation the whole screen. The Takeover is
+             what makes that claim true rather than merely painted: it portals
+             to document.body so no transformed ancestor can clip the thread,
+             traps focus inside it, restores focus to the corridor row on
+             close, and answers Escape with the same "back to whispers" the
+             header arrow offers. The hand rolled `fixed inset-0` div it
+             replaces did none of those while covering the whole page. */
+          <Takeover
+            open
+            onOpenChange={(next) => {
+              if (!next) closeThread();
+            }}
+            label={active ? `Whisper with ${convoName(active)}` : "Whisper"}
+            className="bg-obsidian"
+          >
             {threadHeader}
             {threadBody}
             {threadFooter}
-          </div>
+          </Takeover>
         ) : (
           <Card
             pad="none"

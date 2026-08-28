@@ -14,40 +14,26 @@ import { WatchBadge } from "@/components/tools/watch-badge";
    platform by members, newest first. Reads the members-only feed route; never
    seeded or invented. Honest empty state when the realm has not traded yet. */
 
+/* No amounts and no dollar figure, by the feed route's own decision. The
+   verifier proves the transaction happened; the sizes and the USD value were
+   client-supplied claims riding under that verified badge, so GET
+   /api/trade/record now returns them as null and this card never drew a slot
+   for them. What remains is exactly what is proven: who, which symbols, which
+   kind, on which chain, with the hash one tap away. */
 interface RealmTrade {
   id: string;
   kind: "buy" | "sell" | "swap";
   chainId: number;
   txHash: string;
   sellSymbol: string | null;
-  sellAmount: string | null;
   buySymbol: string | null;
-  buyAmount: string | null;
   buyContract: string | null;
-  usdValue: number | null;
   createdAt: string;
   trader: {
     handle: string | null;
     displayName: string | null;
     avatarUrl: string | null;
   };
-}
-
-function fmtAmount(raw: string | null): string {
-  if (!raw) return "";
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return "";
-  if (n >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 3 });
-  if (n >= 0.0001) return n.toFixed(4);
-  return n.toPrecision(2);
-}
-
-function fmtUsd(n: number): string {
-  if (n >= 1_000_000)
-    return `$${(n / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 2 })}M`;
-  if (n >= 1_000)
-    return `$${(n / 1_000).toLocaleString("en-US", { maximumFractionDigits: 1 })}K`;
-  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
 function timeAgo(iso: string, now: number): string {
@@ -62,12 +48,14 @@ function timeAgo(iso: string, now: number): string {
   return `${Math.floor(h / 24)}d`;
 }
 
+/* Symbols and kind only, and never a blank: a missing symbol reads as
+   "a token" rather than as a hole in the sentence. */
 function tradeLine(t: RealmTrade): string {
-  const sell = `${fmtAmount(t.sellAmount)} ${t.sellSymbol ?? ""}`.trim();
-  const buy = `${fmtAmount(t.buyAmount)} ${t.buySymbol ?? ""}`.trim();
+  const sell = t.sellSymbol ?? "a token";
+  const buy = t.buySymbol ?? "a token";
   if (t.kind === "buy") return `bought ${buy}`;
   if (t.kind === "sell") return `sold ${sell}`;
-  return `swapped ${sell || t.sellSymbol} for ${buy || t.buySymbol}`;
+  return `swapped ${sell} for ${buy}`;
 }
 
 export function RealmTrades() {
@@ -162,7 +150,6 @@ export function RealmTrades() {
                   </p>
                   <div className="mt-0.5 flex items-center gap-2">
                     <p className="truncate text-[11px] text-bone-faint">
-                      {t.usdValue ? `${fmtUsd(t.usdValue)} · ` : ""}
                       {timeAgo(t.createdAt, now)} ago
                     </p>
                     {t.buyContract && (

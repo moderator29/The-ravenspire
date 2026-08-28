@@ -98,7 +98,9 @@ function Analyzer() {
 
   return (
     <ConsolePage width="data">
-      <ConsoleHeader title="DNA Analyzer" kicker="Intel engine" />
+      {/* Cold entry falls back to the Crossroads: the Bloodline reads any
+          wallet or member, which is discovery work. */}
+      <ConsoleHeader title="DNA Analyzer" kicker="Intel engine" backHref="/explore" />
 
       <p className="mt-3 text-sm text-bone-mut md:mt-2 md:text-[13px]">
         Drop an EVM wallet address or a member&apos;s @handle. The engine reads

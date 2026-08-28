@@ -35,9 +35,12 @@ const sigilByHouseName = new Map(
  * rule 21), so the frame carries corner brackets and the tile lifts on hover,
  * ornament earned by the showcase.
  *
- * The roster is revealed, the mint is sealed. Showing the champion art is
- * marketing, not a sale: no owners, prices, supplies or sale counts appear,
- * because none exist yet, and the page says the mint is sealed until launch.
+ * The roster is revealed; the mint is sealed until the reliquary_live flag
+ * says otherwise. The flag is read server side in page.tsx at request time
+ * and arrives here as `live`: while false the page is the sealed preview with
+ * interest capture, and flipping it swaps the copy and retires the NotifyMe
+ * without a deploy. Showing the champion art is marketing, not a sale: no
+ * owners, prices, supplies or sale counts appear, because none exist yet.
  * Every name, title, House and rarity is the real record from
  * lib/game/champions.ts; most cards carry finished art, the few whose
  * portraits have not landed show the House sigil and say "Portrait incoming".
@@ -198,7 +201,7 @@ function HouseBlock({
   );
 }
 
-export default function ReliquaryPage() {
+export function ReliquaryView({ live }: { live: boolean }) {
   const { counts } = SET_ONE;
   const [house, setHouse] = useState<HouseFilter>("all");
   const [rarity, setRarity] = useState<RarityFilter>("all");
@@ -245,13 +248,19 @@ export default function ReliquaryPage() {
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-bone-mut">
             The legion of the Six Houses, drawn from the War&rsquo;s own roster.
             Every name, title and rarity is the real record: the same champions
-            you can already muster on the field. The roster is revealed; the mint
-            stays sealed until launch. Owning the card is owning the champion.
+            you can already muster on the field.{" "}
+            {live
+              ? "The Reliquary is unsealed: the genesis drop is open, and every locked card names the drop it waits for."
+              : "The roster is revealed; the mint stays sealed until launch."}{" "}
+            Owning the card is owning the champion.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <NotifyMe feature="reliquary" size="md" />
+          {/* Interest capture belongs to the sealed chapter. Once the flag is
+              live the promise has been kept, and a "tell me when it opens"
+              button on an open door is a control that lies. */}
+          {!live && <NotifyMe feature="reliquary" size="md" />}
           <Link
             href="/war/champions"
             className="inline-flex min-h-9 touch:min-h-11 items-center gap-1.5 rounded-md px-2 text-[13px] font-semibold text-bone-mut transition-colors duration-fast hover:text-bone"
@@ -319,9 +328,9 @@ export default function ReliquaryPage() {
       )}
 
       <p className="max-w-2xl text-xs leading-relaxed text-bone-faint">
-        Planned supplies are announced before anything mints, and nothing mints
-        until the set is final. No prices, no owners, no sale counts appear here
-        because none exist yet. Open any champion to read its kit in the War.
+        {live
+          ? "Supplies are announced before anything mints. What you own is minted to your own wallet and never held for you. Open any champion to read its kit in the War."
+          : "Planned supplies are announced before anything mints, and nothing mints until the set is final. No prices, no owners, no sale counts appear here because none exist yet. Open any champion to read its kit in the War."}
       </p>
     </div>
   );

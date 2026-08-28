@@ -45,7 +45,10 @@ export function TopBar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-steel-line/70 bg-obsidian/92 px-3 backdrop-blur-xl lg:hidden">
+      {/* z-sticky, off the raw number it carried. The bar is page chrome that
+          content scrolls under, which is exactly what the sticky rung is for;
+          at a raw 40 it also sat above rungs it has no business beating. */}
+      <header className="sticky top-0 z-sticky flex h-14 items-center justify-between border-b border-steel-line/70 bg-obsidian/92 px-3 backdrop-blur-xl lg:hidden">
         <div className="flex items-center gap-1">
           <IconButton
             icon="user"

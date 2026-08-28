@@ -257,6 +257,9 @@ export default function ScryingPage() {
       <ConsoleHeader
         title="The Scrying Glass"
         kicker="Live altcoin discovery"
+        /* Cold entry falls back to the Crossroads: the glass is a discovery
+           surface, and discovery is what the Crossroads is for. */
+        backHref="/explore"
         badge={<Badge variant="beta">Beta</Badge>}
         actions={
           <Button

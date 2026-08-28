@@ -177,6 +177,61 @@ describe("rule 9, capsules", () => {
   });
 });
 
+describe("rule 10, floating chrome names a z rung", () => {
+  it("catches a bare z number on a fixed element", () => {
+    /* The defect this rule was written after: an aria-modal tour at z-50
+       painted under the dock at z-nav (200), fully covered and fully
+       claiming nothing else was reachable. `z-50` is not arbitrary syntax,
+       so the off-scale-token rule walked straight past it. */
+    const found = check(
+      "floating-chrome-names-a-z-rung",
+      "a.tsx",
+      '<div className="fixed inset-0 z-50 flex" />'
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/z-base through z-tooltip/);
+  });
+
+  it("catches a bare z number on a sticky element", () => {
+    const found = check(
+      "floating-chrome-names-a-z-rung",
+      "a.tsx",
+      '<header className="sticky top-0 z-40" />'
+    );
+    expect(found).toHaveLength(1);
+  });
+
+  it("says nothing about a fixed element on a named rung", () => {
+    expect(
+      check(
+        "floating-chrome-names-a-z-rung",
+        "a.tsx",
+        '<div className="fixed inset-0 z-modal" />'
+      )
+    ).toEqual([]);
+  });
+
+  it("says nothing about a local z order inside normal flow", () => {
+    /* `relative z-10` is a sibling ordering inside a card, is everywhere,
+       and is not in the page-wide contest the scale referees. Flagging it
+       would fire on dozens of innocent lines and get the rule disabled. */
+    expect(
+      check(
+        "floating-chrome-names-a-z-rung",
+        "a.tsx",
+        '<span className="relative z-10 flex" />'
+      )
+    ).toEqual([]);
+  });
+
+  it("does not read prose about fixed overlays as a violation", () => {
+    const src =
+      "/* The old overlay was a fixed inset-0 z-50 div with no trap. */\n" +
+      '<div className="fixed inset-0 z-modal" />';
+    expect(check("floating-chrome-names-a-z-rung", "a.tsx", src)).toEqual([]);
+  });
+});
+
 describe("rule 10, the token scales", () => {
   it("catches an arbitrary z index", () => {
     const found = check("off-scale-token", "a.tsx", '<div className="z-[93]" />');

@@ -91,6 +91,9 @@ export default function LedgerPage() {
       <ConsoleHeader
         title="The Ledger"
         kicker="The Ravenspire portfolio / $RSP and beyond"
+        /* Cold entry falls back to the Vault: the Ledger reads the wallet the
+           Vault holds, and its own action row already points there. */
+        backHref="/vault"
         actions={
           <>
             {authenticated && address && (

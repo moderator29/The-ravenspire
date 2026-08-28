@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Champion } from "@/lib/game/champions";
 import { champions } from "@/lib/game/champions";
 import {
@@ -101,11 +102,19 @@ export function BattleEngine({
   champion,
   mastery,
   field,
+  onStart,
   onEnd,
 }: {
   champion: Champion;
   mastery: number;
   field: string;
+  /* Fired the moment the member leaves the how-to screen and the fight truly
+     begins. The battle page uses it to open the server-side battle session
+     (POST action "start"), because the settle route refuses a finish that
+     was never started, and the page cannot see the engine's internal phase
+     any other way. Mounting is not starting: a member can read the rules and
+     walk away, and no session should exist for a fight that never began. */
+  onStart?: () => void;
   onEnd: (o: BattleOutcome) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -143,6 +152,13 @@ export function BattleEngine({
   });
   const imgs = useRef<Record<string, HTMLImageElement>>({});
   const ended = useRef(false);
+
+  /* The overlay portals to document.body, which does not exist during server
+     rendering, so the first client frame renders nothing and the portal
+     mounts on the second. One frame of black before a battle is invisible;
+     a hydration mismatch is not. */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   /* Orientation: a landscape phone (or any wide screen) fights best, but a
      portrait phone can still play, so we never hard block, only nudge. */
@@ -476,13 +492,27 @@ export function BattleEngine({
 
   const progress = 1 - hud.remaining / totalFoes;
 
-  return (
+  if (!mounted) return null;
+
+  /* Portalled to document.body rather than migrated onto Modal or Takeover,
+     and the difference is deliberate. Those primitives answer Escape by
+     closing, which on this surface would retreat from a live fight the member
+     is one keypress from winning; here the only ways out are the Retreat
+     control and the end of the battle, both explicit. The portal is what an
+     inline `fixed inset-0` was missing: no ancestor transform can clip or
+     drag the field, and it stacks against real overlays from the body like
+     everything else on the z scale. z-overlay is the right rung, under
+     z-modal, so a genuine dialog opened over the battle still wins. */
+  return createPortal(
     <div className="z-overlay fixed inset-0 flex flex-col overflow-hidden bg-obsidian">
       {phase === "howto" ? (
         <HowToPlay
           champion={champion}
           totalFoes={totalFoes}
-          onBegin={() => setPhase("playing")}
+          onBegin={() => {
+            onStart?.();
+            setPhase("playing");
+          }}
           onExit={() => history.back()}
         />
       ) : (
@@ -605,7 +635,8 @@ export function BattleEngine({
           </div>
         </>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 

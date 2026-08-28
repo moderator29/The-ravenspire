@@ -50,6 +50,8 @@ export type {
   SheetSide,
 } from "@/components/ui/sheet";
 
+export { Takeover } from "@/components/ui/takeover";
+
 export {
   Field,
   FieldParts,
