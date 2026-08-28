@@ -27,7 +27,20 @@ equality), B7 (notifyFollowers loop), B9 remainder (two orphan files), 39.6
 
 ## NOW (currently being built)
 
-Nothing. The sprint's work packages are complete and pushed.
+- Re-audit fix wave on merged main. Backend agent: war settle fail-open on
+  the unapplied RPC, the comments-side Herald spend hole, the
+  notifications.subject_id uuid mismatch that silently kills follow_trade
+  and crest notifications (migration), notification writes unified through
+  createNotification, profile sync avatar allowlist bypass, handle ilike
+  wildcard collision, cron duel award outside the social cap, fail-closed on
+  the remaining paid ceilings, checkout idempotent-reuse cart mismatch, and
+  the rest of the re-audit's B/C/D findings. Frontend agent: back controls
+  standardized to the one BackButton flow (Keep and safety pages gain one,
+  raw history.back() in the battle engine replaced, composer close
+  retraces, contextual parents instead of /home).
+- Done ahead of the wave: BackButton now retraces only when the step behind
+  is inside the realm (Navigation API, per-tab depth fallback), tracker
+  mounted in the root layout.
 
 ## DONE (verified complete)
 
