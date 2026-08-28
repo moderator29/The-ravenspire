@@ -27,23 +27,34 @@ equality), B7 (notifyFollowers loop), B9 remainder (two orphan files), 39.6
 
 ## NOW (currently being built)
 
-- Re-audit fix wave on merged main. Backend agent: war settle fail-open on
-  the unapplied RPC, the comments-side Herald spend hole, the
-  notifications.subject_id uuid mismatch that silently kills follow_trade
-  and crest notifications (migration), notification writes unified through
-  createNotification, profile sync avatar allowlist bypass, handle ilike
-  wildcard collision, cron duel award outside the social cap, fail-closed on
-  the remaining paid ceilings, checkout idempotent-reuse cart mismatch, and
-  the rest of the re-audit's B/C/D findings. Frontend agent: back controls
-  standardized to the one BackButton flow (Keep and safety pages gain one,
-  raw history.back() in the battle engine replaced, composer close
-  retraces, contextual parents instead of /home).
-- Done ahead of the wave: BackButton now retraces only when the step behind
-  is inside the realm (Navigation API, per-tab depth fallback), tracker
-  mounted in the root layout.
+Nothing. The re-audit fix wave is complete and pushed to main.
 
 ## DONE (verified complete)
 
+- Both sessions merged to main: 17 conflicts resolved keeping the union of
+  protections and the stricter of any two limits; the /reliquary route the
+  other branch lost was restored; all gates green on the merge.
+- Re-audit fix wave (all P0 to P3 findings): the war settle no longer
+  fabricates success when the capped RPC is unapplied (fallback settle, or
+  release the claim and refuse); comments share the posts route's 10/hr
+  Herald allowance; a migration relaxes notifications.subject_id to text so
+  follow_trade and crest ravens stop failing silently, and all eleven raw
+  notification inserts now go through createNotification so per-type
+  preferences and the live badge govern every kind; referral ravens render;
+  handle checks stop treating underscores as wildcards (profile and twice in
+  onboarding, where a referral could credit the wrong member); the cron duel
+  award joins the daily social cap; war rewards distinguish a missing RPC
+  from an honest no; paid ceilings and the redemption guess budget fail
+  closed; profile sync derives avatar and wallet from the verified Privy
+  token; checkout refuses an idempotent reuse whose cart changed; whisper
+  sends re-check blocks; the fulfillment sweep cannot re-ship; media-origin,
+  id-shape and filter-escape checks each live in one shared place.
+- Back navigation is one standard flow realm-wide: BackButton retraces only
+  when the step behind is inside the realm (Navigation API, per-tab depth
+  fallback, decided at press time) and otherwise goes to the surface's real
+  parent. The Keep, public profiles and the safety report gained missing
+  controls; raw history.back() in the battle engine is guarded; the
+  composer's Close retraces; detail pages fall back to their own parents.
 - Backend hardening (Agent 3, all items landed): per-profile rate limits on
   posts (with a tighter @raven allowance), scanner, whispers, rooms and the
   four trade routes; callerKey metering on the public coin, token and watch
@@ -85,6 +96,13 @@ equality), B7 (notifyFollowers loop), B9 remainder (two orphan files), 39.6
 
 ## NEXT (ready to build, prioritized)
 
+- FOUNDER: apply the two pending migrations to the production database
+  (20260827090000 ballot privacy and war gold cap, 20260828093353
+  notifications subject_id to text). The Supabase account connected to this
+  workspace does not include the production project, so no session here can
+  apply them. Until then the code degrades honestly, but crest and
+  follow_trade ravens stay undelivered and war gold is capped only by the
+  legacy settle.
 - Wire the war client to call the battle start action, then require
   battle_id server-side so a settle can no longer be entirely
   client-asserted (house rule 8; the route's session path is ready).
