@@ -29,6 +29,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: number;
   }[] = [
     { path: "/", changeFrequency: "weekly", priority: 1 },
+    /* Season Zero. It qualifies under the rule above rather than around it:
+       the founding round was added to PUBLIC_PATTERNS in lib/share/links.ts,
+       so a signed-out visitor genuinely reads it instead of meeting the gate.
+       Daily while the window is open, because the raise moves, and it stays
+       listed afterwards as the round's own record. */
+    { path: "/season-zero", changeFrequency: "daily", priority: 0.9 },
     /* The chest verifier: genuinely useful to somebody who does not have an
        account and does not want one, which is exactly who a fairness proof is
        written for. */

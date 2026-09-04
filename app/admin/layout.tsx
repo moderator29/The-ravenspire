@@ -14,6 +14,7 @@ import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 
 const navItems = [
   { href: "/admin", label: "Overview", icon: "home" },
+  { href: "/admin/season-zero", label: "Season Zero", icon: "wallet" },
   { href: "/admin/retention", label: "Retention", icon: "signal" },
   { href: "/admin/users", label: "Users", icon: "user" },
   { href: "/admin/moderation", label: "Moderation", icon: "shield" },

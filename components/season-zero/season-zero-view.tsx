@@ -30,6 +30,9 @@ import { SeasonZeroRegisterTx } from "@/components/season-zero/register-tx";
 
 const TERMS_KEY = "rvn_sz_terms_v1";
 
+/* The chain the Vault signs on. Base, matching components/season-zero/vault-send.tsx. */
+const VAULT_CHAIN_ID = 8453;
+
 export function SeasonZeroView() {
   const { state, loading, error, refresh } = useSeasonZero();
   const showSkeleton = useDelayedLoading(loading);
@@ -71,6 +74,7 @@ export function SeasonZeroView() {
       <ContributeCard
         phase={phase}
         hardcapReached={raisedWei >= parseEther(String(state.hardcapEth))}
+        chains={state.chains}
         onRecorded={refresh}
       />
       <YourPosition state={state} />
@@ -399,6 +403,7 @@ function Calculator() {
 function ContributeCard({
   phase,
   hardcapReached,
+  chains,
   onRecorded,
 }: {
   phase: SeasonZeroPhase;
@@ -408,6 +413,10 @@ function ContributeCard({
      purpose: a transfer already sent is a fact on chain, and refusing to
      register it would orphan real money rather than refuse it. */
   hardcapReached: boolean;
+  /* The chains the server says it can verify right now. Only these are
+     offered, and when the list is empty the round says so plainly instead of
+     showing an address it could not honor. */
+  chains: SeasonZeroState["chains"];
   onRecorded: () => void;
 }) {
   const [accepted, setAccepted] = useState(false);
@@ -416,6 +425,12 @@ function ContributeCard({
      contribute route needs a signed-in member; both are read here so the card
      can say so instead of failing. */
   const { enabled, authenticated, signInX, signInEmail } = useRealmAuth();
+
+  const verifiable = chains.filter((c) => c.verifiable);
+  /* The Vault flow signs on Base, so it needs Base specifically, not merely
+     some verifiable chain. */
+  const vaultOffered =
+    enabled && verifiable.some((c) => c.id === VAULT_CHAIN_ID);
 
   useEffect(() => {
     try {
@@ -483,6 +498,21 @@ function ContributeCard({
             opens.
           </p>
         </div>
+      ) : verifiable.length === 0 ? (
+        /* No chain can be read, so no address is shown. The realm does not ask
+           for money it could not confirm arrived. */
+        <div className="mt-3 rounded-md border border-ember/40 bg-panel/50 px-3 py-4 text-center">
+          <p className="text-sm font-medium text-ember">
+            Contributions are paused
+          </p>
+          <p className="mx-auto mt-1 max-w-[52ch] text-xs leading-relaxed text-bone-faint">
+            The realm cannot read the chain right now, so it will not ask you
+            to send anything it could not confirm. The round reopens the moment
+            verification is restored. If you have already sent a transfer it is
+            safe: register its hash here once this notice clears, and it will
+            be recorded in full.
+          </p>
+        </div>
       ) : hardcapReached ? (
         <div className="mt-3 flex flex-col gap-3">
           <div className="rounded-md border border-gold/30 bg-panel-warm/40 px-3 py-4 text-center">
@@ -496,7 +526,11 @@ function ContributeCard({
             </p>
           </div>
           {authenticated ? (
-            <SeasonZeroRegisterTx registerOnly onRecorded={onRecorded} />
+            <SeasonZeroRegisterTx
+              registerOnly
+              chains={verifiable}
+              onRecorded={onRecorded}
+            />
           ) : null}
         </div>
       ) : !accepted ? (
@@ -528,20 +562,24 @@ function ContributeCard({
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-3">
-          <SegmentedControl
-            label="Contribution method"
-            items={[
-              { value: "vault", label: "From your Vault" },
-              { value: "any", label: "From any wallet" },
-            ]}
-            value={method}
-            onValueChange={setMethod}
-            block
-          />
-          {method === "vault" && enabled ? (
+          {/* The Vault sends on Base and nowhere else, so it is offered only
+              while Base itself can be verified. */}
+          {vaultOffered ? (
+            <SegmentedControl
+              label="Contribution method"
+              items={[
+                { value: "vault", label: "From your Vault" },
+                { value: "any", label: "From any wallet" },
+              ]}
+              value={method}
+              onValueChange={setMethod}
+              block
+            />
+          ) : null}
+          {vaultOffered && method === "vault" ? (
             <SeasonZeroVaultSend onRecorded={onRecorded} />
           ) : (
-            <SeasonZeroRegisterTx onRecorded={onRecorded} />
+            <SeasonZeroRegisterTx chains={verifiable} onRecorded={onRecorded} />
           )}
         </div>
       )}
@@ -562,6 +600,12 @@ function TermLine({ children }: { children: React.ReactNode }) {
 
 function YourPosition({ state }: { state: SeasonZeroState }) {
   const yours = state.yours;
+  const { authenticated } = useRealmAuth();
+
+  /* A stranger reading a shared link has no position, and telling them they
+     have no contributions is answering a question they never asked. The
+     section appears once there is an account for it to be about. */
+  if (!authenticated) return null;
 
   return (
     <section aria-label="Your position">

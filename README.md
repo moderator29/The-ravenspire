@@ -14,6 +14,21 @@ Everything below is labelled with what it actually is. See
 
 ### Live
 
+- **Season Zero** (`/season-zero`): the founding round, run inside the
+  platform from September 1 to 20, 2026 (UTC). Softcap 6 ETH, hardcap 15 ETH,
+  7 percent of supply (700,000,000 $RSP) at a fixed 46,666,666 $RSP per ETH,
+  non-custodial and wallet to wallet on Base or Ethereum mainnet. Every
+  contribution is verified on chain before it is recorded, so the raised total
+  is a sum anyone can audit against the treasury address, and a transaction
+  can only ever count once. Below softcap, every contribution is returned to
+  its sending wallet. The round refuses to invite a transfer it cannot verify:
+  with no RPC endpoint configured it withdraws the deposit address rather than
+  accept money it could not confirm arrived, so `ALCHEMY_API_KEY` (or
+  `EVM_RPC_URLS`) is required in the deployment, not optional. The page is
+  readable signed out, because its share card is meant for strangers, while
+  contributing stays behind sign-in. `lib/season-zero.ts` is the single source
+  of truth for the numbers, and `/admin/season-zero` is the founder's view of
+  the round.
 - **The Ravenry** (`/home`): the feed, with a realm strip above it (streak,
   House standing and nearest rival, open Calls, season countdown) and an inline
   composer that expands in place. Five tabs, threaded realtime comments,
@@ -64,17 +79,16 @@ Everything below is labelled with what it actually is. See
   through the feed card registry (`lib/feed/`, `lib/realm/feed-events.ts`).
 - **The Admin panel** (`/admin`): bans and verification, moderation takedowns,
   an audit log, real stats, and Season, House, Crest, War, Clash and Flag
-  management.
+  management. Two chambers exist to be shown as much as used: Season Zero
+  (`/admin/season-zero`), the round backer by backer, and Retention
+  (`/admin/retention`), which measures what returns rather than what exists:
+  weekly and monthly actives off the points ledger, activation as the first
+  sealed Call, Calls per weekly active, habit depth, and weekly signup cohorts
+  at day 1, 7 and 30. A cohort too young for a mark reads "not yet" instead of
+  a zero that would look like failure.
 
 ### In development
 
-- Season Zero, the founding round (`/season-zero`): September 1 to 20, 2026
-  (UTC), run inside the platform. Softcap 6 ETH, hardcap 15 ETH, 7 percent of
-  supply (700,000,000 $RSP) at a fixed rate of 46,666,666 $RSP per ETH,
-  non-custodial and wallet to wallet on Base or Ethereum mainnet, with every
-  contribution verified on chain. Below softcap, every contribution is
-  returned. `lib/season-zero.ts` is the single source of truth for the
-  numbers.
 - Quests and duels. Both run server-side and emit events, but have no surface.
   They are dissolving into the Ravenry and the House halls rather than
   returning as a destination, which is why Claim the Throne is not a nav item.

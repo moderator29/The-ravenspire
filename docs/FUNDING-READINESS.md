@@ -172,8 +172,18 @@ Residuals the sprint surfaced but did not take (now tracked in section 4):
 - Claim the Throne as a destination. The decision is recorded in three places
   in the code; its mechanics dissolved into the Ravenry and the Houses. This
   sprint removes the last stray links to it.
-- An on-platform presale or whitelist flow. The presale runs on an external
-  launchpad. Copy stays "Presale coming soon".
+- SUPERSEDED (September 2026): this entry read "no on-platform presale or
+  whitelist flow, the presale runs on an external launchpad, copy stays
+  Presale coming soon". The founder reversed that decision and Season Zero,
+  the founding round, now runs inside the platform at `/season-zero`
+  (September 1 to 20, 2026; softcap 6 ETH, hardcap 15 ETH, 7 percent of
+  supply at a fixed rate, non-custodial and wallet to wallet, every
+  contribution verified on chain). `lib/season-zero.ts` is the single source
+  of truth for its numbers and AGENTS.md rule 7 states the policy. Do not act
+  on the retired instruction: removing the round would delete a live funding
+  surface. What does still hold is the narrower rule it was protecting, which
+  is that the realm never invents a sale, a date, a price or an address, and
+  never announces one that is not in `lib/season-zero.ts`.
 - A price display for the storefronts while `COMMERCE_PRICES_CONFIRMED` is
   unset. The gate is deliberate; flipping it is a founder decision.
 - The on-chain staking contract in this sprint. The Forge is already the

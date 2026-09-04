@@ -37,15 +37,22 @@ type Verify =
 
 export function SeasonZeroRegisterTx({
   onRecorded,
+  chains,
   registerOnly = false,
 }: {
   onRecorded: () => void;
+  /* The chains the server can verify right now, already filtered by the
+     caller. Never the full declared list: an address offered on a chain whose
+     receipts the realm cannot read is an invitation it cannot honor. */
+  chains: { id: number; name: string; primary: boolean }[];
   /* Hash registration without the deposit invitation. Used once the hardcap
      is reached: a transfer already sent is still attributed by its hash, but
      the page no longer shows an address asking for more. */
   registerOnly?: boolean;
 }) {
-  const [chainId, setChainId] = useState<number>(8453);
+  const [chainId, setChainId] = useState<number>(
+    () => chains.find((c) => c.primary)?.id ?? chains[0]?.id ?? 8453
+  );
   const [hash, setHash] = useState("");
   const [state, setState] = useState<Verify>({ kind: "idle" });
 
@@ -71,8 +78,7 @@ export function SeasonZeroRegisterTx({
     }
   };
 
-  const chainName =
-    SEASON_ZERO.chains.find((c) => c.id === chainId)?.name ?? "Base";
+  const chainName = chains.find((c) => c.id === chainId)?.name ?? "Base";
   const addressExplorer = addressExplorerUrlFor(chainId, SEASON_ZERO.treasury);
 
   if (state.kind === "recorded") {
@@ -137,17 +143,22 @@ export function SeasonZeroRegisterTx({
           : "Send ETH to the treasury from any wallet you control, on the chain you choose below, then paste the transaction hash to register your contribution. Do not send from an exchange: refunds and attribution need a wallet whose keys are yours."}
       </p>
 
-      <SegmentedControl
-        label="Contribution chain"
-        items={SEASON_ZERO.chains.map((c) => ({
-          value: String(c.id),
-          label: c.primary ? `${c.name} (recommended)` : c.name,
-        }))}
-        value={String(chainId)}
-        onValueChange={(v) => setChainId(Number(v))}
-        block
-        size="sm"
-      />
+      {/* A choice needs two options. With one verifiable chain the treasury
+          card below already names it, so a single-item control would be a
+          control that decides nothing. */}
+      {chains.length > 1 ? (
+        <SegmentedControl
+          label="Contribution chain"
+          items={chains.map((c) => ({
+            value: String(c.id),
+            label: c.primary ? `${c.name} (recommended)` : c.name,
+          }))}
+          value={String(chainId)}
+          onValueChange={(v) => setChainId(Number(v))}
+          block
+          size="sm"
+        />
+      ) : null}
 
       {registerOnly ? null : (
       <div className="flex flex-col items-center gap-3 rounded-lg border border-steel-line bg-panel/40 p-4 sm:flex-row sm:items-start">
