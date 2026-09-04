@@ -56,9 +56,11 @@ These bind every file, every commit, every subagent you spawn.
    Never fake, stub, canned, or hardcoded model output.
 6. **Non custodial only.** Every value transfer is signed by the member's own Privy
    embedded wallet. The platform never takes custody and never holds keys.
-7. Ticker `$RSP`, supply 10,000,000,000. Presale is external launchpad only, never
-   on platform. Copy is always "Presale coming soon". Show POINTS for earned
-   balances, never `$RSP` amounts.
+7. Ticker `$RSP`, supply 10,000,000,000. Season Zero, the founding round, runs
+   INSIDE the platform September 1 to 20, 2026 (UTC); `lib/season-zero.ts` is
+   the single source of truth for its numbers. Show POINTS for earned balances,
+   never `$RSP` amounts; a purchased Season Zero allocation is not earned, so
+   its `$RSP` amount is shown.
 8. **Server authoritative rewards.** Points and Glory settle on the server against
    verified events. Never trust the client.
 9. Buttons and controls are clean rounded rectangles. No `rounded-full` on buttons,

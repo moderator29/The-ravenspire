@@ -475,8 +475,16 @@ Ticker `$RSP`, total supply 10,000,000,000. Earned balances are shown as
 member's name, because none has been distributed. Points convert to $RSP at
 TGE.
 
-The presale runs on an **external launchpad** and never on the platform. The
-copy is always "Presale coming soon", never "no presale".
+Season Zero, the founding round, runs **inside the platform** at
+`/season-zero` from September 1 to September 20, 2026 (UTC): softcap 6 ETH,
+hardcap 15 ETH, 7 percent of total supply (700,000,000 $RSP) drawn from within
+the 20 percent Presale allocation, at a fixed rate of 46,666,666 $RSP per
+1 ETH. Contributions are non-custodial and wallet to wallet, ETH on Base
+(primary) or Ethereum mainnet, sent to the realm treasury and verified on
+chain by the server before being recorded. If the softcap is not reached,
+every contribution is returned to its sending wallet. Tokens are delivered at
+TGE. `lib/season-zero.ts` is the single source of truth for the numbers. Any
+later sale phases will be announced before they run.
 
 **Planned**: the claim itself does not exist. There is no claim route, no
 published distribution, and nothing on chain. When it ships it will be
@@ -585,19 +593,22 @@ The full set lives in `AGENTS.md` and is non-negotiable. In brief:
 - Reputation is earned, never bought. No keys, no tickets, no NFTs.
 - Server-authoritative rewards. Points and Glory settle on the server against
   verified events, never trusted from the client.
-- Ticker `$RSP`, supply 10,000,000,000. The presale runs on an external
-  launchpad, never on the platform. Presale coming soon. Earned balances are
-  shown as POINTS.
+- Ticker `$RSP`, supply 10,000,000,000. Season Zero, the founding round, runs
+  inside the platform September 1 to 20, 2026 (UTC), non-custodially and
+  wallet to wallet. Earned balances are shown as POINTS; the Season Zero
+  allocation is purchased, not earned, so its $RSP amount is shown.
 - No em dashes, anywhere, in any file.
 - Ornament is earned, never ambient.
 
 ## Legal and risk disclaimer
 
 Ravenspire is a competitive social realm. $RSP is a utility and social token
-that powers the realm, not an investment. Nothing on the platform is financial
-advice, and no one at Ravenspire will ever tell anyone to buy, sell or hold. The
-presale runs on an external launchpad and never on the platform; presale coming
-soon, and the details will be announced in the open. Crypto carries real risk,
+that powers the realm, intended for use within it. Nothing on the platform is financial
+advice, and no one at Ravenspire will ever tell anyone to buy, sell or hold.
+Season Zero, the founding round, runs inside the platform September 1 to 20,
+2026 (UTC), non-custodially and wallet to wallet, with its terms stated in the
+Terms of Service; participation is only permitted where lawful in the member's
+jurisdiction, and no token value is promised. Crypto carries real risk,
 including the total loss of everything a member puts in, so members should bring
 only what they can afford to lose. The realm is non-custodial by design:
 members hold their own keys, the keys are always exportable, and the platform

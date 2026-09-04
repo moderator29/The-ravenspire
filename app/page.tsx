@@ -23,10 +23,12 @@ import { ComingSoonTeasers } from "@/components/landing/coming-soon-teasers";
 import { Tokenomics } from "@/components/landing/tokenomics";
 import { Roadmap } from "@/components/landing/roadmap";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { SeasonZero } from "@/components/landing/season-zero";
 import { StatsStrip } from "@/components/landing/stats-strip";
 import { LiveRealmStats } from "@/components/landing/live-realm-stats";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { RefCapture } from "@/components/referral/ref-capture";
+import { SEASON_ZERO } from "@/lib/season-zero";
 
 /* Every chip is a live destination in lib/nav.ts. Claim the Throne held a slot
    here while being a coming soon page, and Calls, the flagship, held none. */
@@ -81,6 +83,10 @@ const faqs = [
   {
     q: "Does being wrong cost me?",
     a: "Yes, but not from the same pot. Renown is permanent and never falls, so a bad month cannot erase a good year. Season Rating takes the loss and resets when the season does. Nothing you have earned can be taken from you, and a Call still means something.",
+  },
+  {
+    q: "What is Season Zero?",
+    a: `The founding round, run inside the realm from September 1 to September 20, 2026 (UTC). It offers ${SEASON_ZERO.supplyPct} percent of the total supply, ${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP, at a fixed rate of ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per ETH, with a softcap of ${SEASON_ZERO.softcapEth} ETH and a hardcap of ${SEASON_ZERO.hardcapEth} ETH. You send ETH from your own wallet straight to the realm treasury on Base or Ethereum mainnet, we never take custody, and if the softcap is not reached every contribution is returned to its sending wallet. Tokens are delivered at the token generation event.`,
   },
   {
     q: "Do I need crypto to play?",
@@ -274,6 +280,9 @@ export default function Landing() {
 
           {/* The realm in numbers */}
           <StatsStrip />
+
+          {/* Season Zero: the founding round, high on the page on purpose */}
+          <SeasonZero />
 
           {/* Features: the medieval surfaces, framed as product features */}
           <section id="features" className="scroll-mt-28 space-y-14">
@@ -520,15 +529,17 @@ export default function Landing() {
               A word before you ride
             </div>
             <p className="mt-3 text-[12px] leading-relaxed text-bone-faint">
-              The Ravenspire is a fun-first social platform. $RSP is a utility and
-              social token that powers the realm, not an investment. Nothing here
-              is financial advice, and no one at The Ravenspire will ever tell you to
-              buy, sell, or hold. Presale coming soon, and details will be
-              announced in the open when it is ready.
-              Crypto carries real risk, including the loss of everything you put
-              in, so bring only what you can afford to lose. The realm is
-              non-custodial by design: you hold your own keys, they are always
-              exportable, and we never take custody of your funds. Read the{" "}
+              The Ravenspire is a fun-first social platform, and $RSP is the
+              utility and social token that powers it. Nothing here is financial
+              advice, no token value is promised, and no one at The Ravenspire
+              will ever tell you to buy, sell, or hold. Season Zero, the
+              founding round, runs September 1
+              to 20, 2026 inside the realm, with its terms stated plainly on
+              the round page and in the Terms of Service. Crypto carries real
+              risk, including the loss of everything you put in, so bring only
+              what you can afford to lose. The realm is non-custodial by
+              design: you hold your own keys, they are always exportable, and
+              we never take custody of your funds. Read the{" "}
               <Link href="/legal/terms" className="text-bone-mut underline decoration-gold/40 underline-offset-2 transition hover:text-bone">
                 Terms of Service
               </Link>{" "}

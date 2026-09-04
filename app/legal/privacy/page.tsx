@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     "How The Ravenspire collects, uses, and protects your information across a non-custodial competitive realm. Your keys and funds are always your own.",
 };
 
-const EFFECTIVE_DATE = "July 19, 2026";
+const EFFECTIVE_DATE = "August 28, 2026";
 
 type Section = {
   id: string;
@@ -103,29 +103,38 @@ const sections: Section[] = [
     ],
   },
   {
+    id: "season-zero",
+    heading: "8. Season Zero, the founding round",
+    body: [
+      "When you contribute to Season Zero, the round records your account id, the wallet address the contribution was sent from, the chain it was sent on, and the transaction hash and amount. All of these except your account id are already public on the blockchain you used; the round adds only the association with your account.",
+      "We use this record to verify contributions on chain, to compute your exact $RSP allocation at the round's fixed rate, and to honor the softcap refund policy, returning contributions to their sending wallets if the round does not stand. The platform never holds the contributed funds or your keys at any point; contributions go wallet to wallet, from yours to the realm treasury.",
+      "The record is kept as the round's record, since it is what your allocation, and any refund, is computed from. On-chain data is public and permanent by nature and cannot be deleted from the chain by us or by anyone.",
+    ],
+  },
+  {
     id: "security",
-    heading: "8. Security",
+    heading: "9. Security",
     body: [
       "We take reasonable measures to protect the information under our control. No system is perfectly secure, and you are responsible for safeguarding your own keys, devices, and login credentials. Because The Ravenspire is non-custodial, the security of your funds ultimately rests with you.",
     ],
   },
   {
     id: "eligibility",
-    heading: "9. Children and eligibility",
+    heading: "10. Children and eligibility",
     body: [
       "The Ravenspire is intended for adults. You must be at least 18 years of age, or the age of majority in your jurisdiction, to use the service. We do not knowingly collect information from anyone under this age.",
     ],
   },
   {
     id: "changes",
-    heading: "10. Changes to this policy",
+    heading: "11. Changes to this policy",
     body: [
       "We may update this Privacy Policy from time to time. When we do, we will revise the effective date above and, where appropriate, provide additional notice within the realm. Your continued use of The Ravenspire after changes take effect means you accept the updated policy.",
     ],
   },
   {
     id: "contact",
-    heading: "11. Contact",
+    heading: "12. Contact",
     body: [
       "If you have questions about this Privacy Policy or how your information is handled, reach us at privacy@ravenspire.xyz.",
     ],

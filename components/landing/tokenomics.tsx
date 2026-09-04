@@ -3,6 +3,7 @@
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { LandingIcon } from "@/components/landing/icons";
+import { SEASON_ZERO } from "@/lib/season-zero";
 
 /*
   Tokenomics. The $RSP allocation, rendered as a hand-built donut (inline SVG,
@@ -210,6 +211,30 @@ export function Tokenomics() {
           ))}
         </motion.ul>
       </div>
+
+      {/* Season Zero's place inside the Presale slice, stated plainly. The
+          numbers come from lib/season-zero.ts, so this note and the round
+          itself can never disagree. */}
+      <motion.div
+        variants={rise}
+        className="mt-8 flex items-start gap-3 rounded-lg border border-gold/20 bg-panel px-4 py-3.5"
+      >
+        <span
+          aria-hidden="true"
+          className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
+          style={{
+            backgroundColor:
+              slices.find((s) => s.label === "Presale")?.color,
+          }}
+        />
+        <p className="text-[13px] leading-relaxed text-bone-mut">
+          Season Zero, the founding round, sells {SEASON_ZERO.supplyPct} percent
+          of total supply ({SEASON_ZERO.rspAllocation.toLocaleString("en-US")}{" "}
+          {TICKER}) from within this 20 percent Presale allocation. The
+          remainder of the allocation follows in later phases, announced before
+          they run.
+        </p>
+      </motion.div>
     </Card>
   );
 }
