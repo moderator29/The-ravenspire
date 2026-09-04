@@ -93,19 +93,33 @@ Nothing. The re-audit fix wave is complete and pushed to main.
 - Stray 814KB screenshot removed from the repo root.
 - Profile hit rate reads the full settled-call record from /api/calls/caller
   instead of the fifty-post window (closes B3).
+- Both pending migrations (20260827090000 ballot privacy and war gold cap,
+  20260828093353 notifications subject_id to text) are applied to the live
+  production database (project ravenspire, tqvigouaifbklvajiyoj) and
+  verified column by column: subject_id is text, war_state carries
+  gold_today/gold_day, war_settle_battle_capped exists, the poll_votes and
+  duel_votes ballot policies are sealed, both new indexes exist. A second
+  autonomous session applied the same two migrations independently in the
+  same window; the schema changes were idempotent so no harm was done, but
+  the migration ledger held two duplicate, mismatched-version entries for
+  each. Reconciled to one entry per migration under the real repo version
+  numbers, so supabase_migrations.schema_migrations now agrees exactly with
+  supabase/migrations/. Security and performance advisors both clean (INFO
+  only, all pre-existing deny-by-default RLS by design).
+- Main also carries the Season Zero founding-round work (its own session's
+  landing, merged untouched per founder instruction) and the
+  funding-readiness session's closing commits (gated CTAs resume after
+  signin, the landing repositioned, overlays on the token scale). All gates
+  green on the fully merged tree: typecheck clean, 894 tests, 19 house
+  rules, 0 lint errors, production build passing.
+- The War client now calls the battle start action and the server requires
+  battle_id on settle, so a battle can no longer be entirely client
+  asserted (house rule 8). Landed in the funding-readiness session's
+  closing commits; verified in app/api/war/battle/route.ts on the merged
+  tree.
 
 ## NEXT (ready to build, prioritized)
 
-- FOUNDER: apply the two pending migrations to the production database
-  (20260827090000 ballot privacy and war gold cap, 20260828093353
-  notifications subject_id to text). The Supabase account connected to this
-  workspace does not include the production project, so no session here can
-  apply them. Until then the code degrades honestly, but crest and
-  follow_trade ravens stay undelivered and war gold is capped only by the
-  legacy settle.
-- Wire the war client to call the battle start action, then require
-  battle_id server-side so a settle can no longer be entirely
-  client-asserted (house rule 8; the route's session path is ready).
 - Founder decision then flag flips: chests_live, mercer_live, reliquary_live
   once prices are confirmed and the payment provider account exists (V2
   section 40 founder-only list).
