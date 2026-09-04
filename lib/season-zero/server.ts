@@ -1,7 +1,7 @@
 import "server-only";
 import { createPublicClient, http } from "viem";
 import { adminClient } from "@/lib/supabase/admin";
-import { rpcUrl } from "@/lib/chain/rpc";
+import { canVerifyChain, rpcUrl } from "@/lib/chain/rpc";
 import { SEASON_ZERO, seasonZeroPhase, type SeasonZeroPhase } from "@/lib/season-zero";
 
 /* Season Zero, server side: the on-chain check and the aggregate.
@@ -106,6 +106,37 @@ export async function verifyContribution(
   }
 
   return { ok: true, from: receipt.from, valueWei: tx.value };
+}
+
+/* Which chains the realm can actually check right now.
+ *
+ * WHY THIS IS ON THE PAGE AND NOT ONLY IN A LOG. verifyContribution needs an
+ * RPC endpoint (lib/chain/rpc.ts: the Alchemy key or an EVM_RPC_URLS override,
+ * and deliberately no public fallback). Without one it can only answer
+ * "pending", forever, because it cannot read the receipt. On every other
+ * surface in the realm that degrades honestly and costs nothing. Here it would
+ * cost a member their money: they would send real ETH to the treasury, paste
+ * the hash, and watch a spinner that can never resolve.
+ *
+ * So the round refuses to invite a transfer it cannot verify, the same way
+ * lib/calls/create.ts refuses to seal a Call when it cannot measure the
+ * token's real volatility. An unverifiable chain is not offered, and when no
+ * chain is verifiable the contribution controls are replaced by an honest
+ * notice. Money already sent is never abandoned: registration keeps working
+ * and records the contribution as soon as the realm can read the chain again.
+ */
+export function seasonZeroChains(): {
+  id: number;
+  name: string;
+  primary: boolean;
+  verifiable: boolean;
+}[] {
+  return SEASON_ZERO.chains.map((c) => ({
+    id: c.id,
+    name: c.name,
+    primary: c.primary,
+    verifiable: canVerifyChain(c.id),
+  }));
 }
 
 export type RoundState = {

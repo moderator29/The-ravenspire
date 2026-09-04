@@ -35,7 +35,10 @@ export type SeasonZeroState = {
   supplyPct: number;
   minContributionEth: number;
   treasury: string;
-  chains: { id: number; name: string; primary: boolean }[];
+  /* `verifiable` is whether the server can read a receipt on that chain right
+     now. A chain that answers false is never offered: see the reasoning on
+     seasonZeroChains in lib/season-zero/server.ts. */
+  chains: { id: number; name: string; primary: boolean; verifiable: boolean }[];
   yours?: {
     contributions: SeasonZeroContribution[];
     totalWei: string;

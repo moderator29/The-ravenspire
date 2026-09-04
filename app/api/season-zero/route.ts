@@ -1,6 +1,10 @@
 import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
-import { getRoundState, weiFromNumeric } from "@/lib/season-zero/server";
+import {
+  getRoundState,
+  seasonZeroChains,
+  weiFromNumeric,
+} from "@/lib/season-zero/server";
 import { SEASON_ZERO, rspForWei } from "@/lib/season-zero";
 
 /* GET /api/season-zero: the state of the founding round.
@@ -31,7 +35,10 @@ export async function GET(req: Request) {
     supplyPct: SEASON_ZERO.supplyPct,
     minContributionEth: SEASON_ZERO.minContributionEth,
     treasury: SEASON_ZERO.treasury,
-    chains: SEASON_ZERO.chains,
+    /* Each chain carries whether the realm can verify a transfer on it right
+       now. The page offers only the chains that answer true: a round that
+       cannot check a receipt must not ask anyone to send. */
+    chains: seasonZeroChains(),
   };
 
   /* Read-only auth: a bad or absent token simply means no personal section.
