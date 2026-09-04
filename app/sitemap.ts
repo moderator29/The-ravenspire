@@ -28,6 +28,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }[] = [
     { path: "/", changeFrequency: "weekly", priority: 1 },
     { path: "/home", changeFrequency: "hourly", priority: 0.9 },
+    /* Season Zero, while the window is open. A sitemap is a statement about
+       what matters here, and for these three weeks the founding round is the
+       page the realm most wants a stranger to find. Daily because the raise
+       moves. It is a real page after the round closes too, as its record, so
+       it does not need removing when the window does. */
+    { path: "/season-zero", changeFrequency: "daily", priority: 0.9 },
     /* The flagship. A resolved Call is the only thing the realm makes that a
        stranger can weigh without joining, which makes it the best possible
        entry point and the reason it ranks with the feed. */
