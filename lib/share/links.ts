@@ -135,6 +135,15 @@ const PUBLIC_PATTERNS: RegExp[] = [
      since long before this file existed and that card has been unfurling into
      a sign-in redirect the whole time. */
   /^\/post\/[0-9a-f-]{36}$/,
+  /* Season Zero, for the same reason and with more at stake. The founding
+     round carries its own Open Graph card precisely so the link can be posted
+     in public, and a funding link that answers a stranger with a sign-in wall
+     is a funding link that does not work. Nothing on the page is private: the
+     raise, the caps and the rate are the same numbers for everyone, the API
+     behind it already serves unauthenticated callers, and the contribution
+     controls stay behind sign-in on their own, showing a prompt rather than
+     an address. Reading the round is public; joining it is not. */
+  /^\/season-zero$/,
 ];
 
 /* Whether a signed-out visitor may read this path.

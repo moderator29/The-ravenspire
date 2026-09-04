@@ -600,6 +600,12 @@ function TermLine({ children }: { children: React.ReactNode }) {
 
 function YourPosition({ state }: { state: SeasonZeroState }) {
   const yours = state.yours;
+  const { authenticated } = useRealmAuth();
+
+  /* A stranger reading a shared link has no position, and telling them they
+     have no contributions is answering a question they never asked. The
+     section appears once there is an account for it to be about. */
+  if (!authenticated) return null;
 
   return (
     <section aria-label="Your position">

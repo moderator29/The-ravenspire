@@ -65,6 +65,9 @@ const PUBLIC = new Set([
   "/houses/ravens",
   `/market/${UUID}`,
   `/post/${UUID}`,
+  /* The founding round. Deliberate: its share card is meant for strangers,
+     and the page shows a sign-in prompt where the controls would be. */
+  "/season-zero",
 ]);
 
 describe("the share gate against the real route table", () => {
