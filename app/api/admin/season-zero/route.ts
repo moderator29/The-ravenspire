@@ -1,6 +1,6 @@
 import { json } from "@/lib/auth/server";
 import { requireAdmin, isResponse } from "../_admin";
-import { weiFromNumeric } from "@/lib/season-zero/server";
+import { seasonZeroChains, weiFromNumeric } from "@/lib/season-zero/server";
 import { SEASON_ZERO, rspForWei, seasonZeroPhase } from "@/lib/season-zero";
 
 /* GET /api/admin/season-zero: the founding round, read by the council.
@@ -39,6 +39,11 @@ import { SEASON_ZERO, rspForWei, seasonZeroPhase } from "@/lib/season-zero";
  *
  * Every wei figure crosses the wire as a string. JSON numbers are IEEE doubles
  * and 15 ETH of wei does not fit in one.
+ *
+ * The chain list carries `verifiable`, from seasonZeroChains(). A deployment
+ * with no RPC endpoint cannot read a receipt, so the public page withdraws the
+ * treasury address on that chain and contributions there are paused. The
+ * council learns that from this field rather than from a quiet week.
  */
 
 export const dynamic = "force-dynamic";
@@ -202,7 +207,11 @@ export async function GET(req: Request) {
       rspAllocation: SEASON_ZERO.rspAllocation,
       minContributionEth: SEASON_ZERO.minContributionEth,
       treasury: SEASON_ZERO.treasury,
-      chains: SEASON_ZERO.chains,
+      /* Not the bare constant: each chain carries whether this deployment can
+         actually read it. An unverifiable chain is withdrawn from the public
+         page, so the council has to be able to see that state here rather than
+         infer it from contributions that stop arriving. */
+      chains: seasonZeroChains(),
     },
   });
 }

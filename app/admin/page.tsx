@@ -193,6 +193,12 @@ export default function AdminOverviewPage() {
      sub-console, with a live attention badge where the platform is waiting. */
   const controls = [
     {
+      href: "/admin/season-zero",
+      icon: "wallet",
+      label: "Season Zero",
+      desc: "The founding round, backer by backer",
+    },
+    {
       href: "/admin/retention",
       icon: "signal",
       label: "Retention",
