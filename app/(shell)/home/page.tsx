@@ -14,11 +14,12 @@ import { getFlag } from "@/lib/flags";
  * the V2 problem stated in two numbers: the heart of the realm was the thinnest
  * surface in it.
  *
- * It is now a dashboard that happens to contain a feed. The strip above answers
- * "is something happening, and am I in it" before a member scrolls, and the
- * composer sits in the feed rather than behind a floating button and a
- * navigation. Both are quiet by design: this is the Ledger register, so the
- * ravens stay the loudest thing on the page. */
+ * It is now a dashboard that happens to contain a feed. The strip and the
+ * digest below it now share one gap instead of each carrying its own margin,
+ * so "is something happening" and "what happened while I was gone" read as
+ * one instrument rather than two boxes that happen to sit near each other.
+ * Both stay quiet by design: this is the Ledger register, so the ravens
+ * remain the loudest thing on the page. */
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
@@ -28,7 +29,7 @@ export default async function HomePage() {
 
   return (
     <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
-      <h1 className="mb-3 font-display text-xl font-semibold text-bone">
+      <h1 className="mb-3 font-display text-xl font-semibold tracking-tight text-bone">
         The Ravenry
       </h1>
       <TourMount />
@@ -38,11 +39,15 @@ export default async function HomePage() {
           register, and it removes itself when the round closes or is
           archived. */}
       {seasonZeroLive ? <SeasonZeroBanner /> : null}
-      <RealmStrip />
-      {/* Below the strip and above the feed. The strip answers "is something
-          happening"; the digest answers "what happened while I was gone", and
-          it renders nothing at all when the answer is nothing. */}
-      <HeraldDigest />
+      {/* The dashboard cluster. The strip answers "is something happening";
+          the digest answers "what happened while I was gone", and it renders
+          nothing at all when the answer is nothing. A single shared gap, not
+          each component's own margin, is what makes the two read as one
+          instrument instead of a stack of independently spaced boxes. */}
+      <div className="mb-3 flex flex-col gap-2">
+        <RealmStrip />
+        <HeraldDigest />
+      </div>
       {/* The Feed reads the view out of the query string so the dock's
           contextual strip actually drives it, and useSearchParams() opts a
           component out of static rendering. Without this boundary the whole

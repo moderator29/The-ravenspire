@@ -66,27 +66,28 @@ export function HeraldDigest() {
     void realmFetch("/api/raven/digest", { method: "DELETE" });
   };
 
+  /* No margin of its own: the page's dashboard cluster owns the gap between
+     this and the strip above it, so the two read as one instrument rather
+     than two independently spaced boxes. */
   return (
-    <div className="mb-3">
-      <SystemCard
-        at={digest.at}
-        icon="raven"
-        label="The Herald"
-        rail="steel"
-        action={
-          <Button
-            variant="ghost"
-            size="sm"
-            dense
-            className={CARD_ACTION_CLASS}
-            onClick={dismiss}
-          >
-            Dismiss
-          </Button>
-        }
-      >
-        <p>{digest.text}</p>
-      </SystemCard>
-    </div>
+    <SystemCard
+      at={digest.at}
+      icon="raven"
+      label="The Herald"
+      rail="steel"
+      action={
+        <Button
+          variant="ghost"
+          size="sm"
+          dense
+          className={CARD_ACTION_CLASS}
+          onClick={dismiss}
+        >
+          Dismiss
+        </Button>
+      }
+    >
+      <p>{digest.text}</p>
+    </SystemCard>
   );
 }

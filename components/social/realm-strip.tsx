@@ -171,8 +171,17 @@ export function RealmStrip() {
 
   if (cells.length === 0) return null;
 
+  /* No margin of its own: the page's dashboard cluster owns the gap below
+     this, so the strip and the digest beneath it read as one instrument.
+     A hairline divider between cells, rather than a gap, is what makes a
+     row of facts read as a single dense instrument instead of loose chips:
+     the same distinction section 2 of the design system draws between a
+     Board's rows and a Stream's cards. */
   return (
-    <Card pad="xs" className="scrollbar-none mb-3 flex items-stretch gap-1 overflow-x-auto">
+    <Card
+      pad="xs"
+      className="scrollbar-none flex items-stretch divide-x divide-steel-line overflow-x-auto"
+    >
       {cells}
     </Card>
   );
