@@ -226,6 +226,10 @@ const paths: Record<string, React.ReactNode> = {
     </>
   ),
   spark: <path d="M12 3l2.2 6.1L20 12l-5.8 2.9L12 21l-2.2-6.1L4 12l5.8-2.9L12 3z" />,
+  /* Honest as a drawer trigger, and nothing else: the top bar's menu control
+     used to borrow the `user` glyph, which read as a profile shortcut and
+     opened the side nav instead. */
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
 
   /* The House sigils. Four of the six were missing, which meant House
      Frosthold, Stormcrest, Nightvale and Goldmane rendered as identical blank

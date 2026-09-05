@@ -53,7 +53,7 @@ function Row({
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex items-center gap-2.5 rounded-md py-[7px] pl-3 pr-2 text-[13px] transition-colors duration-150 ${
+      className={`group relative flex items-center gap-2.5 rounded-md py-2 pl-3 pr-2 text-[13px] transition-colors duration-150 ${
         active
           ? "bg-panel text-gold-bright"
           : "text-bone-mut hover:bg-panel/50 hover:text-bone"
@@ -129,12 +129,12 @@ function Section({
   const shown = open || holdsCurrent;
 
   return (
-    <div className="mt-3">
+    <div className="mt-4">
       <button
         type="button"
         onClick={toggle}
         aria-expanded={shown}
-        className="touch:min-h-11 touch:min-w-11 flex w-full items-center gap-1.5 rounded-sm px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+        className="touch:min-h-11 touch:min-w-11 flex w-full items-center gap-1.5 rounded-sm px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-bone-faint transition-colors duration-fast hover:text-bone-mut"
       >
         <span className="flex-1 text-left">{label}</span>
         <Icon
@@ -289,21 +289,29 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </div>
 
-      {/* The identity group sits first among the sections: play the War,
-          collect the champions, own the relics. Sealed entries wear the same
-          Soon badge as the chapters; their routes are live previews. */}
+      {/* Nothing defaults open anymore. Three sections expanding at once,
+          on top of the four always-visible anchors above, was the actual
+          shape of "jammed": a fresh open of the drawer scrolled past a
+          dozen rows before a member saw the bottom of it. `holdsCurrent`
+          inside Section still forces whichever section contains the active
+          page open regardless of this default, so the current page is
+          never hidden, and a returning member's own choice still persists
+          through OPEN_KEY. First open is now three plain group labels and
+          the four anchors: scannable in one glance, exactly the "flat and
+          short" feeling the Pump.fun reference earns by having far fewer
+          routes to begin with. */}
       <Section
         label="The Collection"
         items={collectionNav}
         pathname={pathname}
-        defaultOpen
+        defaultOpen={false}
         storageKey="collection"
       />
       <Section
         label="The Realm"
         items={socialNav}
         pathname={pathname}
-        defaultOpen
+        defaultOpen={false}
         storageKey="realm"
       />
       <Section
@@ -317,7 +325,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         label="Account"
         items={accountNav}
         pathname={pathname}
-        defaultOpen
+        defaultOpen={false}
         storageKey="account"
       />
 

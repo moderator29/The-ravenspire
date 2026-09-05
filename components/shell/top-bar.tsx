@@ -8,26 +8,27 @@ import { RavenMark } from "@/components/brand/raven-mark";
 import { SideNav } from "@/components/shell/side-nav";
 import { NotifDot } from "@/components/notifications/notif-badge";
 import { StreakFlame } from "@/components/shell/streak-flame";
+import { useRealmAuth } from "@/lib/auth/use-realm-auth";
+import { Icon } from "@/components/ui/icon";
 
-/* Mobile only top bar: drawer trigger, centred brand, search, ravens and
+/* Mobile only top bar: drawer trigger, centred brand, profile, ravens and
    whispers. The vault lives in the side nav, so the bar stays clean and the
    mark sits centred.
 
-   SEARCH LIVES HERE NOW. /search was built and reachable from nowhere on a
-   phone: not in the dock, not in this bar, only from a link inside the
-   Crossroads. Global search across members, cashtags and ravens is one of the
-   ten features the founder greenlit, and a feature nobody can reach is a
-   feature nobody has.
+   SEARCH LEFT. Its trigger doubled as the drawer opener's neighbour and the
+   glyph in that seat was `user`, which reads as a profile shortcut and does
+   not open one: it opens the menu. A member looking for their own Keep tapped
+   it expecting a profile and got a drawer instead. The seat now carries the
+   member's own portrait and goes to `/keep` directly, and the drawer trigger
+   carries its own honest glyph, `menu`, three lines, nothing else. Global
+   search still has its place inside the Crossroads; it does not need a
+   permanent seat in the one bar that has to fit a brand mark, a menu and a
+   profile in a phone's width.
 
-   It sits on the LEFT, beside the menu, and that is arithmetic rather than
-   taste. The mark is absolutely centred, so it owns the middle 44px: on a
-   366px screen that is 161 to 205. A fourth control on the right cluster puts
-   four 44px targets plus their gaps at 188px, which with the 12px gutter
-   starts that cluster at 166 and drives it straight through the mark. On the
-   left the two clusters end at 100 and start at 214, and the mark keeps its
-   middle. A search field rather than a button was never on the table for the
-   same reason: there is no room for one that does not push the brand off
-   centre.
+   Left cluster ends at 100, the mark's middle 44px runs 161 to 205 on a
+   366px screen, right cluster starts at 214: unchanged, because the cluster
+   is still two 44px targets plus a 4px gap, only the second glyph and its
+   destination changed.
  *
  * Two things were wrong here and both mattered most on the one device this bar
  * exists for.
@@ -42,6 +43,7 @@ import { StreakFlame } from "@/components/shell/streak-flame";
  * primitive anchored left, which carries all of that. */
 export function TopBar() {
   const [open, setOpen] = useState(false);
+  const { authenticated, avatarUrl } = useRealmAuth();
 
   return (
     <>
@@ -51,18 +53,39 @@ export function TopBar() {
       <header className="sticky top-0 z-sticky flex h-14 items-center justify-between border-b border-steel-line/70 bg-obsidian/92 px-3 backdrop-blur-xl lg:hidden">
         <div className="flex items-center gap-1">
           <IconButton
-            icon="user"
+            icon="menu"
             label="Open menu"
             size="lg"
             aria-expanded={open}
             onClick={() => setOpen(true)}
           />
-          <IconButton
-            icon="search"
-            label="Search the realm"
-            size="lg"
-            render={<Link href="/search" />}
-          />
+          {authenticated ? (
+            <Link
+              href="/keep"
+              aria-label="Your Keep"
+              className="flex h-11 w-11 shrink-0 items-center justify-center"
+            >
+              {avatarUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="h-8 w-8 rounded-full border border-steel-line object-cover"
+                />
+              ) : (
+                <span className="hairline flex h-8 w-8 items-center justify-center rounded-full bg-void text-bone-mut">
+                  <Icon name="user" className="h-4 w-4" />
+                </span>
+              )}
+            </Link>
+          ) : (
+            <IconButton
+              icon="user"
+              label="Sign in"
+              size="lg"
+              render={<Link href="/signin" />}
+            />
+          )}
         </div>
         {/* The mark stays 32px, the target does not.
 
