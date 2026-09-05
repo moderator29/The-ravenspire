@@ -19,6 +19,18 @@ import { WalletSection } from "@/components/wallet/wallet-section";
 import { AccountSecurity } from "@/components/settings/account-security";
 import { Card, Row, Toggle, SectionHeader } from "@/components/settings/ui";
 import { OathSection } from "@/components/settings/oath-section";
+import { SegmentedControl } from "@/components/ui/tabs";
+import {
+  readUIScale,
+  writeUIScale,
+  type UIScale,
+} from "@/lib/ui-scale";
+
+const UI_SCALE_ITEMS: { value: UIScale; label: string }[] = [
+  { value: "compact", label: "Compact" },
+  { value: "default", label: "Default" },
+  { value: "comfortable", label: "Larger" },
+];
 
 interface MeProfile {
   id: string;
@@ -162,6 +174,15 @@ export default function SettingsPage() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "error">(
     "idle"
   );
+  const [uiScale, setUiScale] = useState<UIScale>("default");
+
+  /* Reads the member's saved scale on mount rather than at useState's
+     initializer: readUIScale() touches window.localStorage, which does not
+     exist during server render, and the layout's own no-flash script has
+     already applied it visually by the time this runs. */
+  useEffect(() => {
+    setUiScale(readUIScale());
+  }, []);
 
   useEffect(() => {
     if (!ready || !authenticated) return;
@@ -553,6 +574,22 @@ export default function SettingsPage() {
                   <span className="text-xs uppercase tracking-[0.2em] text-bone-faint">
                     Obsidian
                   </span>
+                </Row>
+                <Row
+                  title="Interface size"
+                  desc="Text and spacing across the whole realm"
+                >
+                  <SegmentedControl
+                    label="Interface size"
+                    items={UI_SCALE_ITEMS}
+                    value={uiScale}
+                    size="sm"
+                    onValueChange={(next) => {
+                      if (next !== "compact" && next !== "default" && next !== "comfortable") return;
+                      setUiScale(next);
+                      writeUIScale(next);
+                    }}
+                  />
                 </Row>
               </Card>
 

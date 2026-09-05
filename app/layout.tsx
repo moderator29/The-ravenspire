@@ -1,9 +1,11 @@
 import { siteUrl } from "@/lib/site";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import Script from "next/script";
 import { Providers } from "@/components/providers";
 import { InertBackground } from "@/components/shell/inert-background";
 import { NavDepthTracker } from "@/components/shell/nav-depth";
+import { uiScaleInitScript } from "@/lib/ui-scale";
 import "./globals.css";
 
 /* Both faces are self hosted rather than pulled through next/font/google.
@@ -105,6 +107,13 @@ export default function RootLayout({
       className={`${cinzel.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Applies a member's saved interface size before hydration, so the
+            page never paints at 100% and then visibly jumps to their chosen
+            scale. Runs before React and before Tailwind's own runtime; see
+            lib/ui-scale.ts for what it shares with the Settings control. */}
+        <Script strategy="beforeInteractive" id="ui-scale-init">
+          {uiScaleInitScript()}
+        </Script>
         {/* Outside Providers on purpose: it watches `document.body` for the
             `aria-hidden` Base UI puts on the background while a dialog is
             open, so it must not be a descendant of anything that gets hidden.
