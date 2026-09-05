@@ -8,10 +8,10 @@ import { BackButton } from "@/components/shell/back-button";
 import { Icon } from "@/components/ui/icon";
 import { Icon3D } from "@/components/ui/icon-3d";
 
-/* Claim the Throne is held back for launch to build anticipation through the
-   presale. This is the sneak peek: what the season game will be, framed as a
-   premium coming soon reveal. The full game lives in git history and returns
-   at the season opening.
+/* Claim the Throne is held back for launch to build anticipation through
+   Season Zero, the founding round. This is the sneak peek: what the season
+   game will be, framed as a premium coming soon reveal. The full game lives
+   in git history and returns at the season opening.
 
    Two registers, and the whole point of this rewrite is that they are now
    visibly separated.
@@ -62,7 +62,15 @@ const PILLARS = [
 ];
 
 const previewCards = [
-  { label: "Season I", value: "The First Throne", sub: "Opens after presale" },
+  /* "After the founding round", not "after presale". The round is Season
+     Zero, it is the platform's own, and it is running now, so a card telling
+     a member the season waits on a presale is describing a plan the realm no
+     longer has. */
+  {
+    label: "Season I",
+    value: "The First Throne",
+    sub: "Opens after the founding round",
+  },
   /* "Starting rank", not "Your rank". This page is a static preview of an
      unopened game, so it knows nothing about the viewer; a card that said
      "Your rank: Smallfolk" was a personal reading nobody had performed, which

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { motion, MotionConfig, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { CrestRoundel, crests } from "@/components/brand/crests";
@@ -28,7 +29,11 @@ import { StatsStrip } from "@/components/landing/stats-strip";
 import { LiveRealmStats } from "@/components/landing/live-realm-stats";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { RefCapture } from "@/components/referral/ref-capture";
-import { SEASON_ZERO } from "@/lib/season-zero";
+import {
+  SEASON_ZERO,
+  seasonZeroPhase,
+  type SeasonZeroPhase,
+} from "@/lib/season-zero";
 
 /* Every chip is a live destination in lib/nav.ts. Claim the Throne held a slot
    here while being a coming soon page, and Calls, the flagship, held none. */
@@ -108,6 +113,24 @@ export default function Landing() {
   const ctaLabel = authenticated ? "Enter the Ravenry" : "Enter the Realm";
   const reduce = useReducedMotion();
 
+  /* The first line anyone reads on the realm, and while the founding round is
+     open it should be the round. It said "Season I" throughout the window,
+     which is the gameplay season and not the thing happening: a visitor who
+     had come to look at Season Zero was told, in the largest badge on the
+     page, about something else. Resolved after mount for the same reason the
+     round's own phase note is: the server render must not disagree with the
+     client's clock. */
+  const [phase, setPhase] = useState<SeasonZeroPhase | null>(null);
+  useEffect(() => {
+    setPhase(seasonZeroPhase());
+  }, []);
+  const heroBadge =
+    phase === "live"
+      ? "Season Zero is live · The founding round"
+      : phase === "upcoming"
+        ? "Season Zero · The founding round opens September 1"
+        : "The realm awakens · Season I";
+
   /* Gentle parallax drift on the ambient crest field as the page scrolls. */
   const { scrollY } = useScroll();
   const fieldY = useTransform(scrollY, [0, 900], [0, reduce ? 0 : -120]);
@@ -185,7 +208,7 @@ export default function Landing() {
             pad="none"
             className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-gold"
           >
-            The realm awakens · Season I
+            {heroBadge}
           </Card>
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
