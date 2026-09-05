@@ -38,6 +38,7 @@ export function PumpFunLaunch() {
     <Card
       render={
         <motion.section
+          id="pump-fun"
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: "-80px" }}
@@ -45,7 +46,7 @@ export function PumpFunLaunch() {
         />
       }
       pad="none"
-      className="relative overflow-hidden p-7 sm:p-9"
+      className="relative scroll-mt-28 overflow-hidden p-7 sm:p-9"
     >
       {/* The one earned glow on this section: a slow gold pulse behind the
           ticker, the same restrained motif the hero mark uses above. Ambient

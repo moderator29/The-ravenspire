@@ -23,9 +23,15 @@ type NavLink = {
   route?: boolean;
 };
 
+/* "Season Zero" pointed here until the section itself was replaced by
+   PumpFunLaunch (components/landing/pump-fun-launch.tsx); jump() below finds
+   nothing for an id that no longer renders and silently does nothing, so the
+   link kept its label and target for a while as a genuinely dead click. It
+   now names and targets the section that actually occupies that scroll
+   position. */
 const links: NavLink[] = [
   { label: "Overview", target: "overview", icon: "overview" },
-  { label: "Season Zero", target: "season-zero", icon: "flame" },
+  { label: "Pump.fun", target: "pump-fun", icon: "coin" },
   { label: "Features", target: "features", icon: "features" },
   { label: "Games", target: "games", icon: "games" },
   { label: "The Realm", target: "realm", icon: "realm" },
