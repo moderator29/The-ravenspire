@@ -148,7 +148,7 @@ export default function AdminReportsPage() {
       {note ? <AdminNote>{note}</AdminNote> : null}
 
       {showSkeleton ? (
-        <BoardSkeleton rows={6} columns={6} />
+        <BoardSkeleton rows={6} columns={7} />
       ) : status === "loading" ? null : status === "error" ? (
         <AdminError
           title="The docket could not be read"

@@ -163,9 +163,8 @@ export default function RetentionPage() {
                 {
                   key: "week",
                   header: "Week of",
-                  cell: (c: Cohort) => (
-                    <span className="font-medium text-bone">{weekLabel(c.weekStart)}</span>
-                  ),
+                  className: "whitespace-nowrap font-semibold text-bone",
+                  cell: (c: Cohort) => weekLabel(c.weekStart),
                 },
                 {
                   key: "size",

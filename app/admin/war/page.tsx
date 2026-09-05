@@ -118,9 +118,7 @@ export default function AdminWarPage() {
 
           <section className="grid grid-cols-1 gap-3 md:gap-2 sm:grid-cols-2">
             <Card pad="sm">
-              <h2 className="font-display text-sm font-semibold text-bone">
-                Outcomes
-              </h2>
+              <SectionHeader title="Outcomes" className="px-0 pt-0" />
               <div className="mt-3 flex flex-col gap-2">
                 {Object.keys(data.resultCounts).length === 0 ? (
                   <EmptyState
@@ -143,9 +141,7 @@ export default function AdminWarPage() {
               </div>
             </Card>
             <Card pad="sm">
-              <h2 className="font-display text-sm font-semibold text-bone">
-                Most-fielded champions
-              </h2>
+              <SectionHeader title="Most-fielded champions" className="px-0 pt-0" />
               <div className="mt-3 flex flex-col gap-2">
                 {data.topChampions.length === 0 ? (
                   <EmptyState
