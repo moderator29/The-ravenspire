@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 type IconProps = {
   name: string;
   className?: string;
@@ -7,6 +9,13 @@ type IconProps = {
      weight for one surface is the wrong fix for that: the same path, drawn
      with a heavier stroke, is what "bolder" means here. */
   strokeWidth?: number;
+  /* Draws the stroke in the house's own forged-gold gradient (the same
+     bright-to-deep recipe as .gold-metal and .gold-text) instead of a flat
+     currentColor. Reserved for a genuinely singular moment, the one active
+     glyph in the bottom dock so far, the same way a crest is one gold shape
+     rather than a whole page of them: this is not a colour swap any icon
+     should reach for, it is the realm's own mark of "this one, right now". */
+  gradient?: boolean;
 };
 
 /*
@@ -302,18 +311,40 @@ const paths: Record<string, React.ReactNode> = {
   ),
 };
 
-export function Icon({ name, className = "h-5 w-5", strokeWidth = 1.5 }: IconProps) {
+export function Icon({
+  name,
+  className = "h-5 w-5",
+  strokeWidth = 1.5,
+  gradient = false,
+}: IconProps) {
+  /* useId(), not a module counter. This exact glyph set is drawn on every
+     dense list in the product, so anything that needs a per-instance id has
+     to survive being mounted dozens of times on one screen and matching
+     between server and client: a mutable counter here is the precise bug
+     CrestRoundel carried (components/brand/crests.tsx), fixed once already
+     this session, not one to reintroduce in the primitive every icon in the
+     realm renders through. */
+  const gradId = useId();
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
+      stroke={gradient ? `url(#${gradId})` : "currentColor"}
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
+      {gradient && (
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--gold-bright)" />
+            <stop offset="46%" stopColor="var(--gold)" />
+            <stop offset="100%" stopColor="var(--gold-deep)" />
+          </linearGradient>
+        </defs>
+      )}
       {paths[name] ?? <circle cx="12" cy="12" r="8" />}
     </svg>
   );

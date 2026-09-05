@@ -31,6 +31,16 @@ import { bottomNav } from "@/lib/nav";
    uses) earn their keep, while everything else about it stays the same
    restrained rounded rectangle the rest of the realm uses.
 
+   THE ONE THING HERE THAT IS NOT A GENERIC BOTTOM BAR. The active glyph draws
+   in the house's own forged-gold gradient (Icon's `gradient` prop, the same
+   bright-to-deep recipe as `.gold-metal` and every crest in the realm)
+   instead of a flat highlight colour. A stacked icon-over-name bottom bar is
+   a shape half the apps in this category use; a gold GRADIENT mark, never a
+   flat fill, is the one rule 13 states as non-negotiable brand identity, so
+   spending it here is what makes this dock read as The Ravenspire's rather
+   than anyone's. Nowhere else does an icon draw this way: it is reserved for
+   the single "you are here" moment, not a colour a caller reaches for.
+
    The contextual sub-strip that used to float above this bar is retired, on
    the founder's direction: every section now carries its own switcher at the
    top of its own column as plain text, so the boxed copy down here was two
@@ -135,12 +145,18 @@ export function BottomNav() {
                   <motion.span
                     layoutId="dock-plate"
                     transition={SPRING}
-                    className="absolute inset-0.5 rounded-lg border border-gold/35 bg-gold/12"
+                    /* A gradient wash rather than a flat tint, the same
+                       bright-fading-down read as .gold-metal: brighter along
+                       the top edge, easing toward the plate's own floor,
+                       which is what keeps a translucent fill from reading as
+                       one flat sticker the way a single opacity value does. */
+                    className="absolute inset-0.5 rounded-lg border border-gold/35 bg-[image:linear-gradient(180deg,rgba(217,176,64,0.18),rgba(217,176,64,0.05))]"
                   />
                 )}
                 <Icon
                   name={item.icon}
                   strokeWidth={active ? 2.1 : 1.75}
+                  gradient={active}
                   className="relative h-[21px] w-[21px] shrink-0"
                 />
                 <span className="relative whitespace-nowrap">
