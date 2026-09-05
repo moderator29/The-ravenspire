@@ -51,8 +51,11 @@ export const primaryNav: NavItem[] = [
    what the realm is: play the War, collect the champions, own the relics.
    The sealed entries carry the same "Soon" badge the chapters wear; the
    routes underneath are real, live previews with working interest capture. */
+/* War and Renown carry Beta, unlike the four unbadged anchors above: they are
+   live and real, not held behind a flag, but the founder is still watching
+   how members actually use them before calling either finished. */
 export const collectionNav: NavItem[] = [
-  { slug: "war", href: "/war", themed: "The War", plain: "Battle for the Realm", icon: "swords", icon3d: "crossed-axes" },
+  { slug: "war", href: "/war", themed: "The War", plain: "Battle for the Realm", icon: "swords", icon3d: "crossed-axes", badge: "Beta" },
   { slug: "reliquary", href: "/reliquary", themed: "The Reliquary", plain: "Cards & relics", icon: "layers", icon3d: "archive", badge: "Soon" },
   /* Crafting sits directly under the Reliquary because it acts on the same
      cards. It carries the same Soon badge as its parent chapter and for the
@@ -68,7 +71,7 @@ export const collectionNav: NavItem[] = [
   { slug: "market", href: "/market", themed: "The Bazaar", plain: "Trade cards", icon: "coin", icon3d: "scales", badge: "Soon" },
   { slug: "warchests", href: "/warchests", themed: "Warchests", plain: "Mystery boxes", icon: "coin", icon3d: "chest", badge: "Soon" },
   { slug: "mercer", href: "/mercer", themed: "The Mercer", plain: "Official merch", icon: "flag", icon3d: "banner", badge: "Soon" },
-  { slug: "renown", href: "/renown", themed: "Crests & Renown", plain: "Reputation", icon: "medal", icon3d: "trophy" },
+  { slug: "renown", href: "/renown", themed: "Crests & Renown", plain: "Reputation", icon: "medal", icon3d: "trophy", badge: "Beta" },
 ];
 
 export const socialNav: NavItem[] = [
@@ -91,6 +94,11 @@ export const toolsNav: NavItem[] = [
   { slug: "forge", href: "/forge", themed: "The Forge", plain: "Staking", icon: "flame", icon3d: "forge", badge: "Beta" },
 ];
 
+/* Chronicle and Settings carry Beta below for the same reason War and Renown
+   do above: real, live, open to members, still being watched and tuned
+   rather than considered finished. Ravens and the Vault stay unbadged, they
+   are core account plumbing (notifications, the wallet itself) rather than a
+   feature still proving itself out. */
 export const accountNav: NavItem[] = [
   { slug: "ravens", href: "/ravens", themed: "Ravens", plain: "Notifications", icon: "bell", icon3d: "notifications" },
   { slug: "vault", href: "/vault", themed: "The Vault", plain: "Wallet", icon: "wallet", icon3d: "vault" },
@@ -99,8 +107,8 @@ export const accountNav: NavItem[] = [
      carries Soon because coffers_live is off: the statement is real and reads
      real rows, and it opens with the chapters that fill it. */
   { slug: "coffers", href: "/coffers", themed: "The Coffers", plain: "Earnings", icon: "ledger", icon3d: "analytics", badge: "Soon" },
-  { slug: "chronicle", href: "/chronicle", themed: "The Chronicle", plain: "Docs", icon: "scroll", icon3d: "chronicle" },
-  { slug: "settings", href: "/settings", themed: "Settings", plain: "Preferences", icon: "sliders", icon3d: "settings" },
+  { slug: "chronicle", href: "/chronicle", themed: "The Chronicle", plain: "Docs", icon: "scroll", icon3d: "chronicle", badge: "Beta" },
+  { slug: "settings", href: "/settings", themed: "Settings", plain: "Preferences", icon: "sliders", icon3d: "settings", badge: "Beta" },
 ];
 
 export const comingSoonNav: NavItem[] = [
