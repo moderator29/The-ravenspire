@@ -1,0 +1,89 @@
+name: Realm clock
+
+# THE CLOCK RUNS HERE, NOT ON VERCEL, AND THIS IS WHY.
+#
+# Vercel Hobby accounts allow each cron entry to fire at most once a day.
+# vercel.json asked for /api/cron/clock hourly and /api/commerce/fulfill four
+# times an hour, so Vercel rejected the whole deployment at validation, before
+# it ever built. It kept serving the last good deployment and said nothing on
+# the site itself, so several sessions' work sat on main, merged and green,
+# without ever reaching production. Everything in vercel.json is now daily and
+# therefore legal on the free plan, and the finer cadence lives here, where
+# scheduled workflows cost nothing.
+#
+# The endpoints were already built for this: every cron route authorises on
+# `Authorization: Bearer $CRON_SECRET` rather than on anything Vercel-specific,
+# and app/api/cron/clock/route.ts carries a POST handler explicitly for
+# schedulers that can only issue POST. Calling them from here is the use they
+# were written for, not a workaround.
+#
+# SETUP, ONCE: add a repository secret named CRON_SECRET whose value is exactly
+# the CRON_SECRET set in the Vercel project's environment variables. Without it
+# these jobs fail loudly rather than silently doing nothing, and the daily
+# Vercel crons still run, so the realm degrades to a daily clock instead of
+# stopping. Optionally set a repository variable SITE_URL to point the calls at
+# a different origin; it defaults to the canonical domain.
+#
+# GitHub schedules can be delayed under load, so treat these as "about hourly"
+# rather than exact. Both endpoints are idempotent, which is what makes a
+# late or repeated call harmless: the periodic event spine keys on the window
+# it is settling, not on the moment it was asked.
+
+on:
+  schedule:
+    # The Muster windows are two hours long, so an hourly tick cannot miss one.
+    - cron: "5 * * * *"
+    # Fulfillment polls an external vendor; four times an hour keeps an order
+    # from sitting a whole hour between states.
+    - cron: "20,35,50 * * * *"
+  # So a steward can run the clock by hand after an outage.
+  workflow_dispatch:
+
+concurrency:
+  group: realm-clock
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: The clock
+        # The hourly tick only. The quarter-hour schedule skips this step.
+        if: github.event.schedule == '5 * * * *' || github.event_name == 'workflow_dispatch'
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://theravenspire.xyz' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not set on this repository, so the clock cannot authorise."
+            echo "Add it under Settings, Secrets and variables, Actions, matching the value in Vercel."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/clock.out -w '%{http_code}' \
+            --max-time 60 --retry 2 --retry-delay 5 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$SITE_URL/api/cron/clock")
+          echo "clock: HTTP $code"
+          cat /tmp/clock.out
+          echo
+          # A non-2xx here means the realm's appointments did not advance, which
+          # is exactly the silence this file exists to end.
+          [ "$code" -ge 200 ] && [ "$code" -lt 300 ]
+
+      - name: Fulfillment
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://theravenspire.xyz' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not set on this repository, so fulfillment cannot authorise."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/fulfill.out -w '%{http_code}' \
+            --max-time 60 --retry 2 --retry-delay 5 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$SITE_URL/api/commerce/fulfill")
+          echo "fulfill: HTTP $code"
+          cat /tmp/fulfill.out
+          echo
+          [ "$code" -ge 200 ] && [ "$code" -lt 300 ]
