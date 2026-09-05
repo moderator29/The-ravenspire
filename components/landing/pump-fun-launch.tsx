@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { LandingIcon } from "@/components/landing/icons";
 
 /*
@@ -85,7 +87,7 @@ export function PumpFunLaunch() {
       >
         {/* The ticker, given its own clean presentation, the strongest card
             of the three. */}
-        <div className="rounded-lg col-span-1 flex flex-col items-center justify-center gap-1 border border-gold/25 bg-panel-warm/60 px-4 py-6 text-center sm:col-span-1">
+        <div className="rounded-lg flex flex-col items-center justify-center gap-1 border border-gold/25 bg-panel-warm/60 px-4 py-6 text-center">
           <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-bone-faint">
             Ticker
           </span>
@@ -119,6 +121,23 @@ export function PumpFunLaunch() {
             </p>
           </div>
         </div>
+      </motion.div>
+
+      {/* The one real path off this section. A card about where to trade
+          $RSP with nothing to click was the actual gap here: everything
+          above was correct and nothing was actionable. Same destination as
+          the dashboard badge (components/dashboard/pump-fun-badge.tsx), a
+          plain link to Pump.fun itself, since there is no coin page to link
+          to before the contract address exists. */}
+      <motion.div variants={rise} className="mt-6">
+        <Button
+          variant="gold"
+          size="lg"
+          render={<Link href="https://pump.fun" target="_blank" rel="noreferrer" />}
+        >
+          Trade on Pump.fun
+          <LandingIcon name="arrowUpRight" className="h-4 w-4" />
+        </Button>
       </motion.div>
     </Card>
   );

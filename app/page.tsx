@@ -539,10 +539,18 @@ export default function Landing() {
               The Ravenspire is a fun-first social platform, and $RSP is the
               utility and social token that powers it. Nothing here is financial
               advice, no token value is promised, and no one at The Ravenspire
-              will ever tell you to buy, sell, or hold. Season Zero, the
-              founding round, runs September 1
-              to 20, 2026 inside the realm, with its terms stated plainly on
-              the round page and in the Terms of Service. Crypto carries real
+              will ever tell you to buy, sell, or hold.{" "}
+              {/* ARCHIVED with season_zero_live (lib/flags.ts). This used to
+                  name live dates for the founding round in present tense
+                  ("runs September 1 to 20, 2026"), which stayed true only for
+                  as long as the round itself did: the round is sealed now and
+                  this sentence did not notice, the same active-misinformation
+                  failure the FAQ entry above was rewritten to avoid. Restore
+                  the dated version only alongside actually reopening the
+                  round. */}
+              Season Zero, the founding round, is currently paused; its terms
+              are stated plainly on the round page and in the Terms of Service.
+              Crypto carries real
               risk, including the loss of everything you put in, so bring only
               what you can afford to lose. The realm is non-custodial by
               design: you hold your own keys, they are always exportable, and

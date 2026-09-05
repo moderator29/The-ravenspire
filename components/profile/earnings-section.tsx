@@ -278,7 +278,7 @@ export function EarningsSection({
         />
 
         {hasPublicBalance && (
-          <div className="mt-3">
+          <div className="mt-2.5">
             <Coffer icon="wallet" label="Wallet balance" live>
               <div className="flex items-baseline gap-1.5">
                 <span className="font-display text-2xl font-bold tnum leading-none text-bone">
@@ -292,19 +292,19 @@ export function EarningsSection({
           </div>
         )}
 
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-steel-line/70 bg-void/40 px-3 py-2.5 text-bone-mut">
+        <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-steel-line/70 bg-void/40 px-3 py-2.5 text-bone-mut">
           <Icon name="lock" className="h-4 w-4 shrink-0 text-gold" />
           <span className="text-sm">
             This Keep seals its coffers. Earnings are kept private.
           </span>
         </div>
-        <div className="tnum mt-3 grid grid-cols-3 gap-2.5">
+        <div className="tnum mt-2.5 grid grid-cols-3 gap-2">
           <Stat label="Renown" value={fmt.format(pub.renown)} icon="medal" />
           <Stat label="Calls won" value={fmt.format(pub.callsWon)} icon="target" />
           <Stat label="Crests" value={fmt.format(pub.crestCount)} icon="crown" />
         </div>
         {pub.thesis && (
-          <p className="mt-3 flex items-center gap-2 border-t border-steel-line pt-3 text-sm italic text-bone-mut">
+          <p className="mt-2.5 flex items-center gap-2 border-t border-steel-line pt-2.5 text-sm italic text-bone-mut">
             <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
             &ldquo;{pub.thesis}&rdquo;
           </p>
@@ -350,7 +350,6 @@ export function EarningsSection({
 
   const changePct = win?.changePct ?? 0;
   const windowDelta = win?.delta ?? 0;
-  const up = windowDelta >= 0;
 
   const PREVIEW = 4;
 
@@ -363,105 +362,65 @@ export function EarningsSection({
         copied={copied}
       />
 
-      {/* Twin coffers: platform earnings beside the wallet balance (owner) or
-          public standing (other members). */}
-      <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        <Coffer accent icon="coin" label="Points earned">
-          <div className="flex items-baseline gap-1.5">
-            <span className="gold-text font-display text-2xl font-bold tnum leading-none">
-              {fmt.format(earn?.grandTotal ?? 0)}
-            </span>
-            <span className="text-xs font-semibold text-gold">points</span>
-          </div>
-          {hasEarnings ? (
-            <div className="mt-2 flex items-center gap-2">
-              <span
-                className={`tnum inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-semibold ${
-                  windowDelta === 0
-                    ? "border-steel-line/70 text-bone-faint"
-                    : up
-                      ? "border-gold/30 bg-gold/5 text-gold"
-                      : "border-ember/30 bg-ember/5 text-ember"
-                }`}
-              >
-                {windowDelta !== 0 && (
-                  <Icon
-                    name="arrow"
-                    className={`h-3 w-3 ${up ? "-rotate-90" : "rotate-90"}`}
-                  />
-                )}
-                {changePct === 0
-                  ? "flat"
-                  : `${up ? "+" : ""}${changePct.toFixed(changePct <= -10 || changePct >= 10 ? 0 : 1)}%`}
-              </span>
-              <span className="tnum text-xs text-bone-faint">
-                {signed(windowDelta)} in {TF_SINCE[tf]}
-              </span>
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-bone-faint">
-              No points earned yet. Send ravens, seal calls, win glory.
-            </p>
-          )}
-          {/* The conversion is committed and is said plainly. The rate is not,
-              and is not implied: rule 7 shows POINTS for an earned balance and
-              never an amount of $RSP, which stays true whether or not a
-              conversion exists. See components/economy/coffers-console.tsx for
-              the longer form of the same sentence. */}
-          <p className="mt-1 text-[11px] text-bone-faint">
-            POINTS convert to $RSP at TGE. No rate is set yet
-          </p>
-        </Coffer>
-
-        {owner ? (
-          <Coffer icon="wallet" label="Wallet balance" live>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-display text-2xl font-bold tnum leading-none text-bone">
-                {!address
+      {/* The headline coffer: earned points read as the one clear figure on
+          this panel, with the wallet balance (or public standing) folded in
+          beneath as a compact companion line rather than a second,
+          equal-weight box competing for the same glance. */}
+      <EarningsHeadline
+        total={earn?.grandTotal ?? 0}
+        hasEarnings={hasEarnings}
+        windowDelta={windowDelta}
+        changePct={changePct}
+        since={TF_SINCE[tf]}
+        companion={
+          owner ? (
+            <CofferCompanion
+              icon="wallet"
+              label="Wallet balance"
+              live={balanceLive}
+              value={
+                !address
                   ? "Resting"
                   : balanceLoading
                     ? "..."
-                    : fmtUsd(ownerBalanceUsd)}
-              </span>
-            </div>
-            <p className="mt-1.5 text-xs text-bone-faint">
-              {!address
-                ? "Your embedded Vault wakes with the Gatehouse."
-                : balanceLoading
-                  ? "Reading your Vault..."
-                  : balanceLive
-                    ? `${tokens.length} ${tokens.length === 1 ? "asset" : "assets"} across chains, live`
-                    : "Live balances are resting in this realm."}
-            </p>
-          </Coffer>
-        ) : hasPublicBalance ? (
-          <Coffer icon="wallet" label="Wallet balance" live>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-display text-2xl font-bold tnum leading-none text-bone">
-                {fmtUsd(publicBalanceUsd)}
-              </span>
-            </div>
-            <p className="tnum mt-1.5 text-xs text-bone-faint">
-              {fmt.format(pub.renown)} Renown &middot; {fmt.format(pub.callsWon)} calls won
-            </p>
-          </Coffer>
-        ) : (
-          <Coffer icon="medal" label="Standing">
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-display text-3xl font-bold tnum leading-none text-bone">
-                {fmt.format(pub.renown)}
-              </span>
-              <span className="text-xs font-semibold text-gold">Renown</span>
-            </div>
-            <p className="tnum mt-2 text-xs text-bone-faint">
-              {fmt.format(pub.glory)} Glory &middot; {fmt.format(pub.callsWon)} calls won
-            </p>
-          </Coffer>
-        )}
-      </div>
+                    : fmtUsd(ownerBalanceUsd)
+              }
+              meta={
+                !address
+                  ? "Your embedded Vault wakes with the Gatehouse."
+                  : balanceLoading
+                    ? "Reading your Vault..."
+                    : balanceLive
+                      ? `${tokens.length} ${tokens.length === 1 ? "asset" : "assets"} across chains, live`
+                      : "Live balances are resting in this realm."
+              }
+            />
+          ) : hasPublicBalance ? (
+            <CofferCompanion
+              icon="wallet"
+              label="Wallet balance"
+              live
+              value={fmtUsd(publicBalanceUsd)}
+              meta={`${fmt.format(pub.renown)} Renown · ${fmt.format(pub.callsWon)} calls won`}
+            />
+          ) : (
+            <CofferCompanion
+              icon="medal"
+              label="Standing"
+              value={
+                <>
+                  {fmt.format(pub.renown)}{" "}
+                  <span className="text-xs font-normal text-gold">Renown</span>
+                </>
+              }
+              meta={`${fmt.format(pub.glory)} Glory · ${fmt.format(pub.callsWon)} calls won`}
+            />
+          )
+        }
+      />
 
       {/* Timeframe toggle + windowed climb */}
-      <div className="mt-3 flex items-center justify-between gap-3">
+      <div className="mt-2.5 flex items-center justify-between gap-3">
         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
           The climb
         </span>
@@ -492,7 +451,7 @@ export function EarningsSection({
 
       {/* Holdings roll */}
       {(hasTokens || (owner && positions !== null)) && (
-        <div className="mt-3">
+        <div className="mt-2.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
               Holdings
@@ -523,7 +482,7 @@ export function EarningsSection({
       {/* Shareable thesis */}
       {owner ? (
         thesisEditing ? (
-          <div className="mt-3 border-t border-steel-line pt-3">
+          <div className="mt-2.5 border-t border-steel-line pt-2.5">
             <label className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
               Your thesis
             </label>
@@ -576,7 +535,7 @@ export function EarningsSection({
                rolled button: the default is `submit`, and this one sits
                inside a card that will eventually hold a form. */
             onClick={() => setThesisEditing(true)}
-            className="mt-3 flex w-full touch:min-h-11 items-center gap-2 border-t border-steel-line pt-3 text-left text-sm text-bone-mut transition hover:text-bone"
+            className="mt-2.5 flex w-full touch:min-h-11 items-center gap-2 border-t border-steel-line pt-3 text-left text-sm text-bone-mut transition hover:text-bone"
           >
             <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
             {pub.thesis ? (
@@ -587,7 +546,7 @@ export function EarningsSection({
           </button>
         )
       ) : pub.thesis ? (
-        <p className="mt-3 flex items-center gap-2 border-t border-steel-line pt-3 text-sm italic text-bone-mut">
+        <p className="mt-2.5 flex items-center gap-2 border-t border-steel-line pt-2.5 text-sm italic text-bone-mut">
           <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
           &ldquo;{pub.thesis}&rdquo;
         </p>
@@ -599,7 +558,7 @@ export function EarningsSection({
         size="sm"
         block
         aria-expanded={expanded}
-        className="mt-3 text-bone-mut"
+        className="mt-2.5 text-bone-mut"
         onClick={() => setExpanded((v) => !v)}
       >
         {expanded ? "Hide breakdown" : "View more"}
@@ -610,7 +569,7 @@ export function EarningsSection({
       </Button>
 
       {expanded && (
-        <div className="mt-3 flex flex-col gap-4 border-t border-steel-line pt-4">
+        <div className="mt-2.5 flex flex-col gap-3 border-t border-steel-line pt-3">
           {/* Remaining holdings beyond the preview */}
           {tokens.length > PREVIEW && (
             <div>
@@ -776,11 +735,11 @@ function Coffer({
     /* `--radius-lg` is the inner card rung and this is an inner card. It was
        drawn at `--radius-xl`, the signature card rung, so a coffer inside The
        Coffers had the same corner as the panel holding it and the nesting read
-       as one soft blob rather than a box inside a box. 12px of padding, down
-       from 16: a coffer holds a number and a line of meta, and the outer Card
+       as one soft blob rather than a box inside a box. 10px of padding, down
+       from 12: a coffer holds a number and a line of meta, and the outer Card
        already carries the panel's own gutter. */
     <div
-      className={`rounded-lg border p-3 ${
+      className={`rounded-lg border p-2.5 ${
         accent
           ? "border-gold/25 bg-gradient-to-b from-gold/[0.06] to-transparent"
           : "border-steel-line/70 bg-void/40"
@@ -798,7 +757,127 @@ function Coffer({
           </span>
         )}
       </div>
-      <div className="mt-2">{children}</div>
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
+/* The headline coffer: earned points as the one clear figure on the panel.
+   `companion` tucks the wallet balance (owner), public balance, or standing
+   in beneath as a single subordinate line, never a second equal-weight box:
+   the "twin coffers" grid this replaces put a member's own POINTS beside a
+   dollar figure at the same size and weight, so the eye had nowhere to land
+   first. A member reads this treasury; they do not compare two of them. */
+function EarningsHeadline({
+  total,
+  hasEarnings,
+  windowDelta,
+  changePct,
+  since,
+  companion,
+}: {
+  total: number;
+  hasEarnings: boolean;
+  windowDelta: number;
+  changePct: number;
+  since: string;
+  companion: React.ReactNode;
+}) {
+  const up = windowDelta >= 0;
+  return (
+    <div className="mt-2.5 rounded-lg border border-gold/25 bg-gradient-to-b from-gold/[0.06] to-transparent p-3">
+      <div className="flex items-center gap-1.5 text-bone-faint">
+        <Icon name="coin" className="h-3.5 w-3.5 text-gold" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">
+          Points earned
+        </span>
+      </div>
+      <div className="mt-1.5 flex items-baseline gap-1.5">
+        <span className="gold-text font-display text-3xl font-bold tnum leading-none">
+          {fmt.format(total)}
+        </span>
+        <span className="text-xs font-semibold text-gold">points</span>
+      </div>
+      {hasEarnings ? (
+        <div className="mt-2 flex items-center gap-2">
+          <span
+            className={`tnum inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-semibold ${
+              windowDelta === 0
+                ? "border-steel-line/70 text-bone-faint"
+                : up
+                  ? "border-gold/30 bg-gold/5 text-gold"
+                  : "border-ember/30 bg-ember/5 text-ember"
+            }`}
+          >
+            {windowDelta !== 0 && (
+              <Icon
+                name="arrow"
+                className={`h-3 w-3 ${up ? "-rotate-90" : "rotate-90"}`}
+              />
+            )}
+            {changePct === 0
+              ? "flat"
+              : `${up ? "+" : ""}${changePct.toFixed(changePct <= -10 || changePct >= 10 ? 0 : 1)}%`}
+          </span>
+          <span className="tnum text-xs text-bone-faint">
+            {signed(windowDelta)} in {since}
+          </span>
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-bone-faint">
+          No points earned yet. Send ravens, seal calls, win glory.
+        </p>
+      )}
+      {/* The conversion is committed and is said plainly. The rate is not,
+          and is not implied: rule 7 shows POINTS for an earned balance and
+          never an amount of $RSP, which stays true whether or not a
+          conversion exists. See components/economy/coffers-console.tsx for
+          the longer form of the same sentence. */}
+      <p className="mt-1 text-[11px] text-bone-faint">
+        POINTS convert to $RSP at TGE. No rate is set yet
+      </p>
+
+      {companion}
+    </div>
+  );
+}
+
+/* The compact companion: a wallet balance or public standing tucked beneath
+   the headline points figure as one subordinate line, `label`, a live dot,
+   and a right aligned value, with an optional caption underneath. This is
+   the "compact companion" the twin coffers grid lacked: same information,
+   a third the footprint, and no competition with the headline above it. */
+function CofferCompanion({
+  icon,
+  label,
+  value,
+  meta,
+  live,
+}: {
+  icon: string;
+  label: string;
+  value: React.ReactNode;
+  meta?: React.ReactNode;
+  live?: boolean;
+}) {
+  return (
+    <div className="mt-2.5 border-t border-gold/15 pt-2.5">
+      <div className="flex items-center gap-1.5">
+        <Icon name={icon} className="h-3.5 w-3.5 shrink-0 text-bone-faint" />
+        <span className="text-xs text-bone-mut">{label}</span>
+        {live && (
+          <span className="relative flex h-1.5 w-1.5" aria-hidden>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold/60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-gold-bright" />
+          </span>
+        )}
+        <span className="tnum ml-auto text-sm font-semibold text-bone">
+          {value}
+        </span>
+      </div>
+      {meta && (
+        <p className="tnum mt-1 pl-5 text-[11px] text-bone-faint">{meta}</p>
+      )}
     </div>
   );
 }

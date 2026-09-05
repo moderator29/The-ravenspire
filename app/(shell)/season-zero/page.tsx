@@ -31,11 +31,15 @@ export default function SeasonZeroPage() {
           <h1 className="gold-text mt-1 font-display text-3xl font-semibold sm:text-4xl">
             Season Zero
           </h1>
+          {/* Neutral, tense-agnostic copy: SeasonZeroView below reads
+              season_zero_live and shows the honest sealed state whenever the
+              round is paused, and this header must never contradict it by
+              inviting a contribution the view itself is refusing. */}
           <p className="mt-2 max-w-[46ch] text-sm leading-relaxed text-bone-mut">
-            Backing the realm before the gates open wide.
+            The founding round: back the realm, wallet to wallet.
           </p>
           <p className="mt-1 text-xs text-bone-faint">
-            September 1 to September 20, 2026, UTC.
+            September 1 to September 20, 2026, UTC, while open.
           </p>
         </div>
         <Icon3D

@@ -7,6 +7,7 @@ import {
 } from "@/lib/share/og";
 import { getRoundState } from "@/lib/season-zero/server";
 import { SEASON_ZERO, formatEth } from "@/lib/season-zero";
+import { getFlag } from "@/lib/flags";
 
 /* Season Zero, as a share card.
  *
@@ -25,7 +26,10 @@ export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
 export default async function Image() {
-  const state = await getRoundState();
+  const [state, live] = await Promise.all([
+    getRoundState(),
+    getFlag("season_zero_live"),
+  ]);
 
   const stats: OgStat[] = [];
   if (state.phase !== "upcoming") {
@@ -41,8 +45,16 @@ export default async function Image() {
     { label: "OF SUPPLY", value: `${SEASON_ZERO.supplyPct}%`, tone: "gold" }
   );
 
-  const verdict =
-    state.phase === "live"
+  /* `live` gates the verdict before `phase` ever gets a say. `phase` is pure
+     date arithmetic (lib/season-zero.ts) and knows nothing about the founder's
+     own realm_flags switch, so a share card rendered while the round is
+     sealed but sitting inside its calendar window would otherwise say LIVE
+     and invite a contribution the round is actively refusing, the exact
+     failure the FAQ entry and the disclaimer band elsewhere on the site were
+     rewritten to stop making. */
+  const verdict = !live
+    ? { label: "PAUSED", tone: "steel" as const }
+    : state.phase === "live"
       ? { label: "LIVE", tone: "gold" as const }
       : state.phase === "ended"
         ? { label: "CLOSED", tone: "steel" as const }
