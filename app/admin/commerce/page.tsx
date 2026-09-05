@@ -371,12 +371,7 @@ export default function AdminCommercePage() {
           </Field>
         </div>
 
-        <div className="mt-3 flex items-start gap-3">
-          <Toggle
-            checked={moveMoney}
-            onCheckedChange={setMoveMoney}
-            label="Move the money at the provider"
-          />
+        <div className="mt-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm text-bone">Move the money at the provider</p>
             <p className="mt-0.5 text-xs text-bone-faint">
@@ -385,6 +380,11 @@ export default function AdminCommercePage() {
                 : "Off: the money was already refunded by hand, and this only records the reversal and withdraws the entitlements."}
             </p>
           </div>
+          <Toggle
+            checked={moveMoney}
+            onCheckedChange={setMoveMoney}
+            label="Move the money at the provider"
+          />
         </div>
 
         <div className="mt-3">
