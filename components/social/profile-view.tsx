@@ -700,13 +700,13 @@ export function ProfileView({
             <>
               <Link
                 href="/renown"
-                className="inline-flex shrink-0 items-center whitespace-nowrap rounded-t-md px-3 py-2.5 text-sm font-semibold text-bone-faint transition-colors duration-fast ease-out-quint hover:text-bone-mut touch:min-h-11"
+                className="inline-flex shrink-0 items-center whitespace-nowrap rounded-t-md px-3 py-2.5 text-sm font-semibold text-bone-faint transition-colors duration-fast ease-out-quint hover:text-bone-mut touch:min-h-11 touch:min-w-11"
               >
                 Renown
               </Link>
               <Link
                 href="/bookmarks"
-                className="inline-flex shrink-0 items-center whitespace-nowrap rounded-t-md px-3 py-2.5 text-sm font-semibold text-bone-faint transition-colors duration-fast ease-out-quint hover:text-bone-mut touch:min-h-11"
+                className="inline-flex shrink-0 items-center whitespace-nowrap rounded-t-md px-3 py-2.5 text-sm font-semibold text-bone-faint transition-colors duration-fast ease-out-quint hover:text-bone-mut touch:min-h-11 touch:min-w-11"
               >
                 Saved
               </Link>
