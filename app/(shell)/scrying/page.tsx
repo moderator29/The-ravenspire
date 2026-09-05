@@ -453,9 +453,11 @@ function CoinRowSkeleton() {
   return (
     <div className="flex flex-col gap-2 md:gap-1">
       {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div
+        <Card
           key={i}
-          className="flex min-h-11 items-center gap-2.5 rounded-lg border border-gold/16 bg-void/60 px-3 py-2.5 md:min-h-9 md:py-1.5"
+          radius="lg"
+          pad="none"
+          className="flex min-h-11 items-center gap-2.5 px-3 py-2.5 md:min-h-9 md:py-1.5"
         >
           <Skeleton radius="sm" className="h-2 w-3 shrink-0" />
           <Skeleton radius="full" className="h-8 w-8 shrink-0" />
@@ -467,7 +469,7 @@ function CoinRowSkeleton() {
             <Skeleton radius="sm" className="h-2.5 w-14" />
             <Skeleton radius="sm" className="h-2 w-10" />
           </div>
-        </div>
+        </Card>
       ))}
     </div>
   );

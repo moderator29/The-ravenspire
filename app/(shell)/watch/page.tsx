@@ -512,7 +512,7 @@ export default function WatchPage() {
         </div>
       )}
 
-      <section className="mt-6 md:mt-4">
+      <section className="mt-4 md:mt-3">
         <SectionHeader title="Your open approvals" hint="Spenders you granted" />
 
         {authenticated && address && (
