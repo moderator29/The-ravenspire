@@ -18,6 +18,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The deck generator is a standalone CommonJS Node script run by hand, not
+    // application code: it never enters the bundle and cannot use the app's
+    // module system, so linting it as app code only ever reports that it is
+    // what it is. Its own dependencies are installed inside this folder and
+    // are not repo dependencies.
+    "docs/deck/**",
   ]),
 ]);
 
