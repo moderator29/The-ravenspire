@@ -86,7 +86,7 @@ const sections: Section[] = [
     id: "season-zero",
     heading: "6. Season Zero, the founding round",
     body: [
-      "Season Zero is the founding round of the realm. It runs inside the platform, on the realm's own Season Zero page, from September 1 to September 20, 2026 (UTC). It offers 700,000,000 $RSP, 7 percent of the total supply of 10,000,000,000, at a fixed rate of 46,666,666 $RSP per 1 ETH, with a softcap of 6 ETH and a hardcap of 15 ETH. Reaching the hardcap closes the round early.",
+      "Season Zero is the founding round of the realm, built to run inside the platform on the realm's own Season Zero page. It is currently archived and not accepting contributions. When live, it offers 70,000,000 $RSP, 7 percent of the total supply of 1,000,000,000, at a fixed rate of 4,666,666 $RSP per 1 ETH, with a softcap of 6 ETH and a hardcap of 15 ETH; reaching the hardcap closes the round early.",
       "To participate:",
     ],
     list: [

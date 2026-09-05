@@ -13,8 +13,8 @@ import { SEASON_ZERO } from "@/lib/season-zero";
 */
 
 const TICKER = "$RSP";
-const SUPPLY_LABEL = "10,000,000,000";
-const SUPPLY_SHORT = "10B";
+const SUPPLY_LABEL = "1,000,000,000";
+const SUPPLY_SHORT = "1B";
 
 type Slice = {
   label: string;

@@ -60,7 +60,7 @@ const phases: Phase[] = [
     title: "Smart contracts & audit",
     body: "The $RSP contract is authored and independently sealed.",
     points: [
-      "$RSP token authored on Ethereum (10B supply)",
+      "$RSP token authored on Ethereum (1B supply)",
       "Independent audit before anything ships",
       "Points-to-$RSP conversion design finalized",
     ],
@@ -110,8 +110,8 @@ const phases: Phase[] = [
   },
   {
     tag: "Phase VI",
-    title: "Season Zero, the founding round (September 2026)",
-    body: "The founding round runs inside the realm itself, September 1 to 20, 2026.",
+    title: "Season Zero, the founding round",
+    body: "Built to run inside the realm itself. Currently archived, not accepting contributions.",
     points: [
       `${SEASON_ZERO.supplyPct} percent of supply (${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP) at a fixed rate of ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per ETH`,
       `Softcap ${SEASON_ZERO.softcapEth} ETH, hardcap ${SEASON_ZERO.hardcapEth} ETH; below softcap, every contribution is returned to its sending wallet`,

@@ -14,21 +14,6 @@ Everything below is labelled with what it actually is. See
 
 ### Live
 
-- **Season Zero** (`/season-zero`): the founding round, run inside the
-  platform from September 1 to 20, 2026 (UTC). Softcap 6 ETH, hardcap 15 ETH,
-  7 percent of supply (700,000,000 $RSP) at a fixed 46,666,666 $RSP per ETH,
-  non-custodial and wallet to wallet on Base or Ethereum mainnet. Every
-  contribution is verified on chain before it is recorded, so the raised total
-  is a sum anyone can audit against the treasury address, and a transaction
-  can only ever count once. Below softcap, every contribution is returned to
-  its sending wallet. The round refuses to invite a transfer it cannot verify:
-  with no RPC endpoint configured it withdraws the deposit address rather than
-  accept money it could not confirm arrived, so `ALCHEMY_API_KEY` (or
-  `EVM_RPC_URLS`) is required in the deployment, not optional. The page is
-  readable signed out, because its share card is meant for strangers, while
-  contributing stays behind sign-in. `lib/season-zero.ts` is the single source
-  of truth for the numbers, and `/admin/season-zero` is the founder's view of
-  the round.
 - **The Ravenry** (`/home`): the feed, with a realm strip above it (streak,
   House standing and nearest rival, open Calls, season countdown) and an inline
   composer that expands in place. Five tabs, threaded realtime comments,
@@ -114,6 +99,21 @@ a human confirms it.
   ETH or USDC on Base, priced server-side with the money never rendered until
   confirmed. Physical goods ship through a print-on-demand vendor.
 
+### Season Zero (built, currently archived)
+
+- **Season Zero** (`/season-zero`): the founding round, built to run inside
+  the platform itself from September 1 to 20, 2026 (UTC): softcap 6 ETH,
+  hardcap 15 ETH, 7 percent of supply (70,000,000 $RSP) at a fixed
+  4,666,666 $RSP per ETH, non-custodial and wallet to wallet on Base or
+  Ethereum mainnet, every contribution verified on chain. Currently gated off
+  behind the `season_zero_live` realm flag (fails closed, same mechanism as
+  the Collection above): the page shows an honest sealed notice, the nav
+  entry, landing section and dashboard banner do not render, and the Herald
+  and the Chronicle describe it as paused rather than open. Nothing is
+  deleted; reopening it is one flag flip. `lib/season-zero.ts` is the single
+  source of truth for the numbers, and `/admin/season-zero` is the founder's
+  view of the round's history regardless of the flag.
+
 ### Planned
 
 - Renown tiers that unlock capabilities. Today a tier is a title.
@@ -129,9 +129,10 @@ a human confirms it.
 
 `app/page.tsx` is the public gate. It opens on the hero and the "Enter the
 Realm" call to action, then reveals motion-led sections: the realm intro, the
-stats strip, the Season Zero founding-round section (dates, caps, rate and
-steps, drawn from `lib/season-zero.ts`), the Tools rail, Meet @raven, the
-non-custodial promise, the Games and the Champions gallery drawn from real
+stats strip (the Season Zero founding-round section sits here when the round
+is unarchived; see `components/landing/season-zero.tsx`), the Tools rail,
+Meet @raven, the non-custodial promise, the Games and the Champions gallery
+drawn from real
 roster data, a platform preview, coming-soon teasers, $RSP tokenomics, the
 roadmap, how the realm works, the chapters ahead, the crests, an FAQ, and the
 risk band. Section components live
@@ -168,12 +169,12 @@ Policy at `/legal/privacy` and the Terms of Service at `/legal/terms`.
 - Reputation is earned, never bought. No keys, no tickets, no NFTs.
 - Server-authoritative rewards. Points and Glory settle on the server against
   verified events, never on the word of a client.
-- Ticker is `$RSP`, total supply 10,000,000,000. Season Zero, the founding
-  round, runs inside the platform September 1 to 20, 2026 (UTC), non-custodial
-  and wallet to wallet; any later sale phases will be announced before they
-  run. Earned balances are shown as POINTS, never as a $RSP amount. The
-  Season Zero allocation is purchased, not earned, so its $RSP amount is
-  shown.
+- Ticker is `$RSP`, total supply 1,000,000,000, matching the standard
+  Pump.fun launch model. Season Zero, the founding round, is currently
+  archived behind the `season_zero_live` realm flag; its mechanics are
+  intact and non-custodial (wallet to wallet), only paused. Earned balances
+  are shown as POINTS, never as a $RSP amount. The Season Zero allocation is
+  purchased, not earned, so its $RSP amount is shown when the round is live.
 - No em dashes, anywhere. See `AGENTS.md`.
 
 ## Getting started
@@ -207,9 +208,10 @@ live in `app/globals.css`.
 
 Ravenspire is a competitive social realm. $RSP is a utility and social token,
 nothing on the platform is financial advice, and no token value is promised.
-Season Zero, the founding round, runs inside the platform September 1 to 20,
-2026 (UTC), non-custodially and wallet to wallet, with its terms stated in the
-Terms of Service; participation is only permitted where lawful in your
+Season Zero, the founding round, is built to run inside the platform
+non-custodially and wallet to wallet, with its terms stated in the Terms of
+Service; it is currently archived and not accepting contributions.
+Participation, when the round is live, is only permitted where lawful in your
 jurisdiction. Crypto carries real risk; bring only what you can afford to
 lose. See the Privacy Policy at `/legal/privacy` and the Terms of Service at
 `/legal/terms`.

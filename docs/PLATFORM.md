@@ -470,16 +470,17 @@ Social awards draw from a 200-per-day allowance through the
 
 ### $RSP, Live copy, planned distribution
 
-Ticker `$RSP`, total supply 10,000,000,000. Earned balances are shown as
-**POINTS** everywhere in the product; no $RSP figure is displayed against a
-member's name, because none has been distributed. Points convert to $RSP at
-TGE.
+Ticker `$RSP`, total supply 1,000,000,000, matching the standard Pump.fun
+launch model. Earned balances are shown as **POINTS** everywhere in the
+product; no $RSP figure is displayed against a member's name, because none
+has been distributed. Points convert to $RSP at TGE.
 
-Season Zero, the founding round, runs **inside the platform** at
-`/season-zero` from September 1 to September 20, 2026 (UTC): softcap 6 ETH,
-hardcap 15 ETH, 7 percent of total supply (700,000,000 $RSP) drawn from within
-the 20 percent Presale allocation, at a fixed rate of 46,666,666 $RSP per
-1 ETH. Contributions are non-custodial and wallet to wallet, ETH on Base
+Season Zero, the founding round, is built to run **inside the platform** at
+`/season-zero`, currently **archived** behind the `season_zero_live` realm
+flag (fails closed, see `lib/flags.ts`): softcap 6 ETH, hardcap 15 ETH,
+7 percent of total supply (70,000,000 $RSP) drawn from within the 20 percent
+Presale allocation, at a fixed rate of 4,666,666 $RSP per 1 ETH.
+Contributions, when live, are non-custodial and wallet to wallet, ETH on Base
 (primary) or Ethereum mainnet, sent to the realm treasury and verified on
 chain by the server before being recorded. If the softcap is not reached,
 every contribution is returned to its sending wallet. Tokens are delivered at
@@ -593,10 +594,11 @@ The full set lives in `AGENTS.md` and is non-negotiable. In brief:
 - Reputation is earned, never bought. No keys, no tickets, no NFTs.
 - Server-authoritative rewards. Points and Glory settle on the server against
   verified events, never trusted from the client.
-- Ticker `$RSP`, supply 10,000,000,000. Season Zero, the founding round, runs
-  inside the platform September 1 to 20, 2026 (UTC), non-custodially and
-  wallet to wallet. Earned balances are shown as POINTS; the Season Zero
-  allocation is purchased, not earned, so its $RSP amount is shown.
+- Ticker `$RSP`, supply 1,000,000,000 (the standard Pump.fun launch model).
+  Season Zero, the founding round, is built to run inside the platform,
+  non-custodially and wallet to wallet, currently archived behind
+  `season_zero_live`. Earned balances are shown as POINTS; the Season Zero
+  allocation is purchased, not earned, so its $RSP amount is shown when live.
 - No em dashes, anywhere, in any file.
 - Ornament is earned, never ambient.
 

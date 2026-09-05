@@ -24,15 +24,22 @@ export const SEASON_ZERO = {
   hardcapEth: 15,
 
   /* The allocation. Seven percent of total supply, drawn from within the
-     twenty percent Presale allocation in the published tokenomics. */
+     twenty percent Presale allocation in the published tokenomics.
+     Total supply is 1,000,000,000, matching the standard Pump.fun launch
+     model: this is the current, real figure, not the round's own archived
+     history. It replaced 10,000,000,000 when the token moved to a Pump.fun
+     launch; rspAllocation and rspPerEth are rescaled from it so this object
+     stays internally consistent (7% of supply, the same floor invariant
+     lib/season-zero.test.ts checks) rather than left contradicting a supply
+     figure that changed out from under it. */
   supplyPct: 7,
-  totalSupply: 10_000_000_000,
-  rspAllocation: 700_000_000,
+  totalSupply: 1_000_000_000,
+  rspAllocation: 70_000_000,
 
-  /* Fixed rate, derived from the hardcap: 700,000,000 / 15. A backer knows
+  /* Fixed rate, derived from the hardcap: 70,000,000 / 15. A backer knows
      their exact allocation the moment they contribute, whatever the round
      finally raises. */
-  rspPerEth: 46_666_666,
+  rspPerEth: 4_666_666,
 
   /* The realm treasury. Funds go wallet to wallet, never through us. */
   treasury: "0x7AA5055346b4C9dbcf1728BceA7Dc5B01ed5918d" as const,
