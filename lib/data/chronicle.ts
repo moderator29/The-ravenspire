@@ -238,17 +238,24 @@ export const chronicle: ChronicleSection[] = [
     ],
   },
 
+  /* ARCHIVED with season_zero_live (lib/flags.ts): this entry described a
+     live, in-progress round in present tense. Status moved to "planned" and
+     the body rewritten to say plainly that the round is paused, since
+     "in-development" and the original present-tense body both read as an
+     active invitation. The full mechanics and figures are kept, since they
+     are still true of the round whenever it reopens; only the tense and
+     status changed. Restore the original body from git history if reviving. */
   {
     slug: "season-zero",
     icon3d: "brazier",
     title: "Season Zero",
-    plain: "The founding round, run inside the realm, September 1 to 20, 2026.",
-    status: "in-development",
+    plain: "The founding round. Currently paused by the founder.",
+    status: "planned",
     body: [
-      `Season Zero is the founding round of the realm, and it runs inside the realm itself, at its own page, from September 1 to September 20, 2026 (UTC). It sells ${SEASON_ZERO.supplyPct} percent of the total supply, ${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP of the ${SEASON_ZERO.totalSupply.toLocaleString("en-US")}, drawn from within the twenty percent Presale allocation shown in the tokenomics, at a fixed rate of ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per 1 ETH. The softcap is ${SEASON_ZERO.softcapEth} ETH and the hardcap is ${SEASON_ZERO.hardcapEth} ETH.`,
-      "Contributing is non-custodial in the same sense as everything else here. You send ETH from your own wallet straight to the realm treasury, on Base or on Ethereum mainnet, and the platform is never in the path of the funds. The server verifies each transaction on chain before recording it, so the raised total is always a real, verified number and your exact allocation is fixed the moment you contribute.",
-      "The rate is fixed, so a backer knows their allocation at the moment they contribute, whatever the round finally raises. Tokens are delivered at the token generation event, not before. If the softcap is not reached, the round does not stand and every contribution is returned to its sending wallet.",
-      "One honest note, stated plainly: this is a crypto contribution and it carries real risk, including the total loss of what you put in. No token value is promised, nothing here is financial advice, and participation is only permitted where lawful in your jurisdiction. Bring only what you can afford to lose.",
+      `Season Zero is the founding round of the realm, meant to run inside the realm itself, at its own page. It is currently PAUSED and is not accepting contributions. When open, it sells ${SEASON_ZERO.supplyPct} percent of the total supply, ${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP of the ${SEASON_ZERO.totalSupply.toLocaleString("en-US")}, drawn from within the twenty percent Presale allocation shown in the tokenomics, at a fixed rate of ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per 1 ETH. The softcap is ${SEASON_ZERO.softcapEth} ETH and the hardcap is ${SEASON_ZERO.hardcapEth} ETH.`,
+      "Contributing, when the round is open, is non-custodial in the same sense as everything else here. A backer sends ETH from their own wallet straight to the realm treasury, on Base or on Ethereum mainnet, and the platform is never in the path of the funds. The server verifies each transaction on chain before recording it, so the raised total is always a real, verified number and the allocation is fixed the moment a contribution lands.",
+      "The rate is fixed, so a backer would know their allocation at the moment they contribute, whatever the round finally raises. Tokens are delivered at the token generation event, not before. If the softcap is not reached once a round runs, it does not stand and every contribution is returned to its sending wallet.",
+      "One honest note, stated plainly: this would be a crypto contribution and it would carry real risk, including the total loss of what is put in. No token value is promised, nothing here is financial advice, and participation would only be permitted where lawful in a member's jurisdiction.",
     ],
   },
 

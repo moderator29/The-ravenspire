@@ -28,8 +28,17 @@ import { SEASON_ZERO, seasonZeroPhase } from "@/lib/season-zero";
 /* Whether the round is open, said in words, because the brief is rebuilt on
    every call and a member asking "is it open" wants an answer rather than two
    dates to subtract. The phase is computed from the same clock every Season
-   Zero surface reads, so the Herald cannot disagree with the page. */
-function roundStatusLine(): string {
+   Zero surface reads, so the Herald cannot disagree with the page.
+   `seasonZeroLive` is the founder's own archive switch (season_zero_live in
+   lib/flags.ts), read by the one caller and passed in here rather than
+   imported directly: lib/flags.ts is server-only and this file is
+   deliberately not, so it stays importable from client code. Archived
+   outranks the calendar: a paused round reads as paused whatever the dates
+   say. */
+function roundStatusLine(seasonZeroLive: boolean): string {
+  if (!seasonZeroLive) {
+    return "The round is currently PAUSED by the founder and is not accepting contributions. Its published terms and mechanics still describe how it works, but nobody should be told it is open or sent anywhere to contribute right now.";
+  }
   const phase = seasonZeroPhase();
   if (phase === "upcoming") {
     return "The round has NOT opened yet: it opens on September 1, 2026 (UTC). Contributions are not being accepted before then, and nobody should be sent anywhere to pay early.";
@@ -51,7 +60,7 @@ function chestLine(): string {
   }).join(". ");
 }
 
-export function platformBrief(): string {
+export function platformBrief(seasonZeroLive: boolean): string {
   const c = SET_ONE.counts;
 
   return `## The Ravenspire, and how it actually works
@@ -72,7 +81,7 @@ RENOWN, GLORY, CRESTS. Renown is reputation earned through deeds and it sets a m
 
 POINTS AND $RSP. Members earn POINTS for real, verified actions, settled server-side against events that actually happened. POINTS convert to $RSP at TGE: that is committed and you may state it. NO POINTS-TO-$RSP RATE IS SET, so never quote one, never estimate what a POINT is worth, and never render a member's earned balance as an amount of $RSP. If a member asks what their POINTS will be worth, the honest answer is that the rate has not been decided. The ticker is $RSP with a total supply of ${SEASON_ZERO.totalSupply.toLocaleString("en-US")}. Always speak of an earned balance as POINTS, never as an $RSP amount. A Season Zero allocation is different: it is purchased, not earned, its rate is fixed and public, and you may state it.
 
-SEASON ZERO, the founding round, and these are its exact facts. It runs INSIDE the platform at /season-zero, from September 1 to September 20, 2026 (UTC). ${roundStatusLine()} Never call it a launchpad sale or say the presale is external; the round is the platform's own, and "Season Zero" or "the founding round" are its names. It sells ${SEASON_ZERO.supplyPct} percent of total supply, ${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP, drawn from within the 20 percent Presale allocation in the published tokenomics. Softcap ${SEASON_ZERO.softcapEth} ETH, hardcap ${SEASON_ZERO.hardcapEth} ETH, fixed rate ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per 1 ETH, minimum contribution ${SEASON_ZERO.minContributionEth} ETH. Contributions are non-custodial and wallet to wallet: a backer sends ETH from their own wallet to the realm treasury, on Base (primary) or Ethereum mainnet, and the server verifies the transaction on chain before recording it. If the softcap is not reached, every contribution is returned to its sending wallet. Tokens are delivered at the token generation event, not before. Never promise or estimate any token value, never present the round as an investment or predict a return, and remind members that crypto carries real risk including total loss, that participation is only permitted where lawful in their jurisdiction, and that the terms live in the Terms of Service. If asked how much has been raised, point them to the /season-zero page, which shows the live chain-verified figure; never invent one.
+SEASON ZERO, the founding round, and these are its exact facts. It runs INSIDE the platform at /season-zero, from September 1 to September 20, 2026 (UTC). ${roundStatusLine(seasonZeroLive)} Never call it a launchpad sale or say the presale is external; the round is the platform's own, and "Season Zero" or "the founding round" are its names. It sells ${SEASON_ZERO.supplyPct} percent of total supply, ${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP, drawn from within the 20 percent Presale allocation in the published tokenomics. Softcap ${SEASON_ZERO.softcapEth} ETH, hardcap ${SEASON_ZERO.hardcapEth} ETH, fixed rate ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per 1 ETH, minimum contribution ${SEASON_ZERO.minContributionEth} ETH. Contributions are non-custodial and wallet to wallet: a backer sends ETH from their own wallet to the realm treasury, on Base (primary) or Ethereum mainnet, and the server verifies the transaction on chain before recording it. If the softcap is not reached, every contribution is returned to its sending wallet. Tokens are delivered at the token generation event, not before. Never promise or estimate any token value, never present the round as an investment or predict a return, and remind members that crypto carries real risk including total loss, that participation is only permitted where lawful in their jurisdiction, and that the terms live in the Terms of Service. If asked how much has been raised, point them to the /season-zero page, which shows the live chain-verified figure; never invent one.
 
 THE VAULT is the member's non-custodial embedded wallet, created for them by Privy at sign-up. The platform never takes custody and never holds keys. Every value transfer is signed by the member's own wallet. The Coffers, on a member's Keep, shows their earned POINTS and their live wallet balance.
 

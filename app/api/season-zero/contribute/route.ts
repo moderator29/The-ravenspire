@@ -7,6 +7,7 @@ import {
   weiFromNumeric,
 } from "@/lib/season-zero/server";
 import { SEASON_ZERO, seasonZeroPhase, rspForWei } from "@/lib/season-zero";
+import { getFlag } from "@/lib/flags";
 
 /* POST /api/season-zero/contribute: register a Season Zero contribution.
  * Body: { txHash, chainId }.
@@ -78,6 +79,18 @@ export async function POST(req: Request) {
     .maybeSingle();
   if (existing.data) {
     return alreadyRecorded(existing.data, profile.id);
+  }
+
+  /* The founder's own switch, checked after idempotency for the same reason
+     the phase gate below is: a contribution already recorded stays readable
+     as its own row whatever the round's current state, since that write
+     already happened and is a fact. This is the archive lever. It fails
+     closed like every flag in lib/flags.ts, so an unset key or an unreadable
+     table means the round refuses new contributions, and reopening it later
+     is one row in realm_flags, not a deploy. */
+  const seasonZeroLive = await getFlag("season_zero_live");
+  if (!seasonZeroLive) {
+    return json({ error: "Season Zero is not currently open" }, 403);
   }
 
   /* The window, enforced where it cannot be bypassed. The page also gates its

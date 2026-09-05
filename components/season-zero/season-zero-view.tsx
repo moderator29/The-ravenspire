@@ -63,6 +63,23 @@ export function SeasonZeroView() {
     );
   }
 
+  /* Archived, the same posture as the Reliquary and the Warchests: one honest
+     sealed surface rather than each piece of the live round individually
+     gated. A countdown or a deposit address on a round the founder has
+     paused is not a rendering detail, it is a wrong page. Reopening this is
+     one row in realm_flags; nothing here needs to change to revive it. */
+  if (!state.live) {
+    return (
+      <Card>
+        <EmptyState
+          icon="lock"
+          title="Season Zero is not currently open"
+          body="The founding round is paused. Its terms and mechanics remain published; nothing here invites a contribution while it is sealed."
+        />
+      </Card>
+    );
+  }
+
   const phase = seasonZeroPhase(new Date(now));
   const raisedWei = safeBigInt(state.raisedWei);
 

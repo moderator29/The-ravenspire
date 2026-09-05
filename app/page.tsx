@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { motion, MotionConfig, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { CrestRoundel, crests } from "@/components/brand/crests";
@@ -24,16 +23,10 @@ import { ComingSoonTeasers } from "@/components/landing/coming-soon-teasers";
 import { Tokenomics } from "@/components/landing/tokenomics";
 import { Roadmap } from "@/components/landing/roadmap";
 import { HowItWorks } from "@/components/landing/how-it-works";
-import { SeasonZero } from "@/components/landing/season-zero";
 import { StatsStrip } from "@/components/landing/stats-strip";
 import { LiveRealmStats } from "@/components/landing/live-realm-stats";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { RefCapture } from "@/components/referral/ref-capture";
-import {
-  SEASON_ZERO,
-  seasonZeroPhase,
-  type SeasonZeroPhase,
-} from "@/lib/season-zero";
 
 /* Every chip is a live destination in lib/nav.ts. Claim the Throne held a slot
    here while being a coming soon page, and Calls, the flagship, held none. */
@@ -89,10 +82,11 @@ const faqs = [
     q: "Does being wrong cost me?",
     a: "Yes, but not from the same pot. Renown is permanent and never falls, so a bad month cannot erase a good year. Season Rating takes the loss and resets when the season does. Nothing you have earned can be taken from you, and a Call still means something.",
   },
-  {
-    q: "What is Season Zero?",
-    a: `The founding round, run inside the realm from September 1 to September 20, 2026 (UTC). It offers ${SEASON_ZERO.supplyPct} percent of the total supply, ${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP, at a fixed rate of ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per ETH, with a softcap of ${SEASON_ZERO.softcapEth} ETH and a hardcap of ${SEASON_ZERO.hardcapEth} ETH. You send ETH from your own wallet straight to the realm treasury on Base or Ethereum mainnet, we never take custody, and if the softcap is not reached every contribution is returned to its sending wallet. Tokens are delivered at the token generation event.`,
-  },
+  /* ARCHIVED with season_zero_live (lib/flags.ts): this FAQ entry described a
+     round that is currently sealed, in present tense and with live dates, so
+     it stayed as active misinformation rather than history. The full answer
+     is preserved in git history on this line; restore it if the round
+     reopens. */
   {
     q: "Do I need crypto to play?",
     a: "No. You can sign in, post, join a House, make Calls and play The War without ever touching a token. The wallet waits quietly until you choose to use it.",
@@ -113,23 +107,11 @@ export default function Landing() {
   const ctaLabel = authenticated ? "Enter the Ravenry" : "Enter the Realm";
   const reduce = useReducedMotion();
 
-  /* The first line anyone reads on the realm, and while the founding round is
-     open it should be the round. It said "Season I" throughout the window,
-     which is the gameplay season and not the thing happening: a visitor who
-     had come to look at Season Zero was told, in the largest badge on the
-     page, about something else. Resolved after mount for the same reason the
-     round's own phase note is: the server render must not disagree with the
-     client's clock. */
-  const [phase, setPhase] = useState<SeasonZeroPhase | null>(null);
-  useEffect(() => {
-    setPhase(seasonZeroPhase());
-  }, []);
-  const heroBadge =
-    phase === "live"
-      ? "Season Zero is live · The founding round"
-      : phase === "upcoming"
-        ? "Season Zero · The founding round opens September 1"
-        : "The realm awakens · Season I";
+  /* ARCHIVED with the round itself (season_zero_live in lib/flags.ts). This
+     badge briefly tracked the round's live phase; while the round is sealed
+     it reverts to the plain Season I line rather than advertise a round that
+     is not accepting anyone. */
+  const heroBadge = "The realm awakens · Season I";
 
   /* Gentle parallax drift on the ambient crest field as the page scrolls. */
   const { scrollY } = useScroll();
@@ -304,8 +286,10 @@ export default function Landing() {
           {/* The realm in numbers */}
           <StatsStrip />
 
-          {/* Season Zero: the founding round, high on the page on purpose */}
-          <SeasonZero />
+          {/* ARCHIVED with season_zero_live (lib/flags.ts). The section
+              component and its landing copy are untouched at
+              components/landing/season-zero.tsx; restore this render to
+              revive it. */}
 
           {/* Features: the medieval surfaces, framed as product features */}
           <section id="features" className="scroll-mt-28 space-y-14">

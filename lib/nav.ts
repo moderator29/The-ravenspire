@@ -29,10 +29,11 @@ export type NavItem = {
    stated flagship, which is why they were invisible to members. */
 export const primaryNav: NavItem[] = [
   { slug: "home", href: "/home", themed: "The Ravenry", plain: "Feed", icon: "home", icon3d: "raven" },
-  /* The founding round. A time-boxed anchor rather than a permanent one: it
-     sits here while the round is the realm's headline event, and it leaves
-     this list when the round closes. */
-  { slug: "season-zero", href: "/season-zero", themed: "Season Zero", plain: "The founding round", icon: "spark", icon3d: "dragon-egg" },
+  /* ARCHIVED, not deleted, per the founder's own realm_flags switch
+     (season_zero_live, see lib/flags.ts). The round leaves this list while it
+     is sealed; the page itself already shows an honest sealed state, so a
+     stale bookmark or a shared link never dead-ends. To bring the entry back:
+     { slug: "season-zero", href: "/season-zero", themed: "Season Zero", plain: "The founding round", icon: "spark", icon3d: "dragon-egg" }, */
   { slug: "calls", href: "/calls", themed: "Calls", plain: "Predictions", icon: "orb", icon3d: "call-orb" },
   { slug: "explore", href: "/explore", themed: "The Crossroads", plain: "Explore", icon: "compass", icon3d: "compass" },
   { slug: "houses", href: "/houses", themed: "Houses", plain: "Your banner", icon: "banner", icon3d: "banner" },

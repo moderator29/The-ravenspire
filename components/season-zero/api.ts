@@ -23,6 +23,10 @@ export type SeasonZeroContribution = {
 };
 
 export type SeasonZeroState = {
+  /* The founder's archive switch. False means the round is not currently
+     invited: the page shows its record honestly rather than the live
+     contribution flow, regardless of what the calendar dates say. */
+  live: boolean;
   phase: SeasonZeroPhase;
   raisedWei: string;
   backerCount: number;

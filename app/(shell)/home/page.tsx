@@ -5,6 +5,7 @@ import { HeraldDigest } from "@/components/raven/digest-card";
 import { RealmStrip } from "@/components/social/realm-strip";
 import { StreamColumn } from "@/components/stream/stream-shell";
 import { SeasonZeroBanner } from "@/components/season-zero/banner";
+import { getFlag } from "@/lib/flags";
 
 /* The Ravenry.
  *
@@ -17,7 +18,13 @@ import { SeasonZeroBanner } from "@/components/season-zero/banner";
  * composer sits in the feed rather than behind a floating button and a
  * navigation. Both are quiet by design: this is the Ledger register, so the
  * ravens stay the loudest thing on the page. */
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  /* The archive switch. Fails closed (lib/flags.ts), so an unset key hides
+     the banner, matching the round's own sealed state on its page. */
+  const seasonZeroLive = await getFlag("season_zero_live");
+
   return (
     <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       <h1 className="mb-3 font-display text-xl font-semibold text-bone">
@@ -25,8 +32,9 @@ export default function HomePage() {
       </h1>
       <TourMount />
       {/* The founding round's one line above the feed. Phase aware, Ledger
-          register, and it removes itself when the round closes. */}
-      <SeasonZeroBanner />
+          register, and it removes itself when the round closes or is
+          archived. */}
+      {seasonZeroLive ? <SeasonZeroBanner /> : null}
       <RealmStrip />
       {/* Below the strip and above the feed. The strip answers "is something
           happening"; the digest answers "what happened while I was gone", and

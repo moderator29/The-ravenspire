@@ -10,6 +10,7 @@ import { loadMemberContext, describeMemberForRaven } from "@/lib/ai/member-conte
 import { platformBrief } from "@/lib/ai/platform-knowledge";
 import type { RealmPulse } from "@/components/raven/cards";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
+import { getFlag } from "@/lib/flags";
 
 /* The Raven's mind costs real coin, so it is metered per account per hour.
    This used to be a module-level Map, which is per-lambda, wiped on every cold
@@ -223,8 +224,14 @@ export async function POST(req: Request) {
    * The platform brief goes first: it is the stable ground everything else is
    * read against, and it is identical for every member, which keeps it in the
    * prompt cache rather than being rebuilt per request. */
-  const memberContext = await loadMemberContext(profile);
-  const grounding = [platformBrief(), describeMemberForRaven(memberContext)];
+  const [memberContext, seasonZeroLive] = await Promise.all([
+    loadMemberContext(profile),
+    getFlag("season_zero_live"),
+  ]);
+  const grounding = [
+    platformBrief(seasonZeroLive),
+    describeMemberForRaven(memberContext),
+  ];
 
   const result = await askRaven(
     messages,

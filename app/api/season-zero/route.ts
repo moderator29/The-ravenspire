@@ -6,6 +6,7 @@ import {
   weiFromNumeric,
 } from "@/lib/season-zero/server";
 import { SEASON_ZERO, rspForWei } from "@/lib/season-zero";
+import { getFlag } from "@/lib/flags";
 
 /* GET /api/season-zero: the state of the founding round.
  *
@@ -21,8 +22,14 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const state = await getRoundState();
+  /* The archive lever. Fails closed like every flag in lib/flags.ts, so an
+     unset key means the round reads as not open, and reopening it later is
+     one row in realm_flags. The historical figures below stay real and
+     visible either way; only the invitation to contribute is withdrawn. */
+  const live = await getFlag("season_zero_live");
 
   const base = {
+    live,
     phase: state.phase,
     raisedWei: state.raisedWei.toString(),
     backerCount: state.backerCount,
