@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { createClient } from "@/lib/supabase/client";
+import { BackButton } from "@/components/shell/back-button";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cx } from "@/components/ui/cx";
@@ -715,28 +716,37 @@ export default function WhispersPage() {
   return (
     <StreamColumn className="px-3 py-4 sm:px-4 sm:py-6">
       {!threadOpen && (
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="font-display text-xl font-semibold text-bone">
-              Whispers
-            </h1>
-            <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
-              Messages
-            </p>
+        <>
+          {/* The corridor is reached by navigating into it, the mobile top
+              bar's own icon and a Keep's message action both land here
+              directly, so rule 16 applies same as it does to the Vault,
+              Banners and the Roll of Honour. The open thread carries its own
+              way back (the reversed arrow in threadHeader), so this sits only
+              above the corridor. */}
+          <BackButton />
+          <div className="mt-3 flex items-start justify-between gap-3">
+            <div>
+              <h1 className="font-display text-xl font-semibold text-bone">
+                Whispers
+              </h1>
+              <p className="mt-1 text-xs uppercase tracking-[0.26em] text-bone-faint">
+                Messages
+              </p>
+            </div>
+            {ready && authenticated && (
+              <Button
+                className="min-h-11 md:min-h-9"
+                onClick={() => {
+                  setComposeOpen(true);
+                  setComposeErr(null);
+                }}
+              >
+                <Icon name="plus" className="h-4 w-4" />
+                New whisper
+              </Button>
+            )}
           </div>
-          {ready && authenticated && (
-            <Button
-              className="min-h-11 md:min-h-9"
-              onClick={() => {
-                setComposeOpen(true);
-                setComposeErr(null);
-              }}
-            >
-              <Icon name="plus" className="h-4 w-4" />
-              New whisper
-            </Button>
-          )}
-        </div>
+        </>
       )}
 
       {!ready ? (

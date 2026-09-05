@@ -16,6 +16,13 @@ import type { FeedEvent } from "@/lib/feed/types";
 
 /* The weekly standings, as a moment rather than a table.
  *
+ * NOT CURRENTLY WIRED IN. Removed from components/stream/cards/registry.tsx
+ * on the founder's direction: the card competed with the timeline on a
+ * surface meant to stay quiet, and /houses is already the real destination
+ * for standings, reachable from its own side nav anchor. This component, its
+ * producer and the House recompute behind it are untouched; re-adding the
+ * one registry line is all reviving it in the feed would take.
+ *
  * Section 8 asks for a leaderboard in the Ravenry and then says exactly what it
  * must not be: "a periodic standings snapshot card, not a live table in the
  * feed". The distinction is the whole design. A live table in a stream is a

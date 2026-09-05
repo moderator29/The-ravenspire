@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 export type CrestStatus = "live" | "locked";
 export type CrestRarity = "rare" | "epic" | "legendary" | "mythic";
@@ -79,9 +79,20 @@ const crestIcons: Record<string, ReactNode> = {
   ),
 };
 
-let seq = 0;
+/* A forged-gold heraldic roundel. dim=true renders the locked look.
 
-/* A forged-gold heraldic roundel. dim=true renders the locked look. */
+   The gradient id used to come from a module level `let seq = 0`, incremented
+   on every render. That counter lives for the life of the server process, not
+   one request, so on Node (not the edge runtime) two members loading a page
+   with crests on it at the same moment shared one counter and could render
+   with interleaved ids. Worse, server and client render passes read the
+   counter at different points (React's dev double-render moved it twice as
+   fast on the client), so the id React put in the SSR HTML and the id the
+   client expected during hydration disagreed on nearly every crest on a page
+   dense with them, which is exactly the mismatch React's hydration warning
+   describes. useId() is what this was always reaching for: stable across a
+   single render tree, guaranteed to agree between server and client, and
+   never shared across requests. */
 export function CrestRoundel({
   icon,
   className = "h-20 w-20",
@@ -91,7 +102,8 @@ export function CrestRoundel({
   className?: string;
   dim?: boolean;
 }) {
-  const id = `crest-gold-${seq++}`;
+  const reactId = useId();
+  const id = `crest-gold-${reactId}`;
   const stroke = dim ? "rgba(217, 176, 64,0.45)" : `url(#${id})`;
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">

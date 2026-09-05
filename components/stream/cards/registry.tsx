@@ -13,7 +13,6 @@ import { HouseOvertakeCard } from "@/components/stream/cards/house-overtake";
 import { OathSwornCard } from "@/components/stream/cards/oath-sworn";
 import { QuestCompletedCard } from "@/components/stream/cards/quest-completed";
 import { SeasonMilestoneCard } from "@/components/stream/cards/season-milestone";
-import { StandingsSnapshotCard } from "@/components/stream/cards/standings-snapshot";
 import type { FeedEvent, FeedItem } from "@/lib/feed/types";
 
 /* The card registry (V2 section 6.2).
@@ -36,13 +35,18 @@ import type { FeedEvent, FeedItem } from "@/lib/feed/types";
  *                 carrying the same ember rail and a chart, so a card here
  *                 would double every Call in the timeline.
  *
- * Four of the directive's seven queued cards arrived together, each with a
+ * standings.snapshot is no longer mapped here, on the founder's direction: the
+ * weekly card competed with the timeline for attention on a surface meant to
+ * stay quiet, and the standings already have a real destination, the Houses
+ * nav anchor, which opens on exactly this view by default. The producer, the
+ * card component and the underlying House recompute are untouched, only the
+ * one line wiring the kind into this feed is gone, so reviving it in the
+ * stream later is a one line change, not a rebuild.
+ *
+ * Three of the directive's seven queued cards arrived together, each with a
  * producer over data the product already stores rather than a new source
  * invented to fill a card:
  *
- *   standings.snapshot    the weekly standings, written by the House recompute
- *                         that already computes them. A snapshot, never a live
- *                         table, which section 8 is explicit about.
  *   clash.opened          the realm's community event. A Clash was already
  *                         scheduled, bounded, realm wide and admin authored;
  *                         it only lacked anyone being told.
@@ -83,7 +87,6 @@ export const CARD_REGISTRY: Record<
   "quest.completed": QuestCompletedCard,
   "oath.sworn": OathSwornCard,
   "raven.chronicle": ChronicleCard,
-  "standings.snapshot": StandingsSnapshotCard,
   "clash.opened": ClashOpenedCard,
   "clash.settled": ClashSettledCard,
   "season.milestone": SeasonMilestoneCard,

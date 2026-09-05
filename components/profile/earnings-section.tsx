@@ -4,42 +4,40 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SegmentedControl } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 import { shareOrCopy } from "@/lib/share";
 import { sharePath } from "@/lib/share/links";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
-import { EarningsChart, type EarningsPoint } from "@/components/profile/earnings-chart";
-import { PositionsList } from "@/components/profile/positions-list";
 import type { PositionToken } from "@/app/api/profile/earnings/types";
 
 /* THE COFFERS
-   The public panel: a member's earned POINTS and their wallet holdings, kept
-   in one obsidian-and-gold surface. POINTS are standing in the realm and are
+   The public panel: a member's earned POINTS and their wallet balance, kept in
+   one obsidian-and-gold surface. POINTS are standing in the realm and are
    never $RSP, never an amount of money, and never described as convertible
    into either. The full statement, reconciled against the balance and carrying
-   the on chain receipts, is the Console at /coffers. Everything is real,
-   drawn through /api/profile/earnings (points_ledger) and
-   /api/profile/earnings/positions (live on-chain balances), both privacy-gated
-   server-side. Timeframes (24h / 7d / 30d) window the same real event stream;
-   sparse accounts get honest empty states, never invented numbers.
+   the on chain receipts and every holding, is the Console at /coffers. This
+   panel is deliberately narrower than that: two real numbers, nothing else,
+   on the founder's direction that this surface answer "how am I doing" in one
+   glance rather than compete with the Console it links to. Both figures are
+   real, drawn through /api/profile/earnings (points_ledger) and
+   /api/profile/earnings/positions (live on-chain balances), both
+   privacy-gated server-side.
 
    Naming sits with the realm's lexicon (The Ledger, The Vault, Renown, Glory,
-   Whispers). The layout is our own: a treasury banner, twin earnings/balance
-   coffers, a windowed climb, and a holdings roll. Not a generic earnings clone. */
+   Whispers). The layout is our own: a treasury banner, then the headline
+   points figure with the wallet balance (or public standing) tucked beneath
+   it as a compact companion. Not a generic earnings clone. */
 
+/* The windows the server still computes (points_ledger is windowed 24h/7d/30d
+   regardless of what this panel shows), kept only so the type matches the API
+   response shape. The panel itself no longer offers a timeframe switch: the
+   headline's change badge is fixed to the 7 day window, the one that read
+   best at a glance without a control to pick it. */
 type Timeframe = "24h" | "7d" | "30d";
-const TIMEFRAMES: Timeframe[] = ["24h", "7d", "30d"];
-const TF_SINCE: Record<Timeframe, string> = {
-  "24h": "24h",
-  "7d": "7d",
-  "30d": "30d",
-};
 
 interface WindowBlock {
-  series: EarningsPoint[];
   delta: number;
   changePct: number;
   events: number;
@@ -71,7 +69,6 @@ interface EarningsBlock {
   staked: number;
   stakeNet: number;
   givenToHouse: number;
-  series: EarningsPoint[];
   windows: Record<Timeframe, WindowBlock>;
   breakdown: { label: string; value: number }[];
   firstEarnedAt: string | null;
@@ -138,7 +135,7 @@ export function EarningsSection({
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [tf, setTf] = useState<Timeframe>("7d");
+  const tf: Timeframe = "7d";
 
   const [positions, setPositions] = useState<PositionsResponse | null>(null);
 
@@ -335,23 +332,15 @@ export function EarningsSection({
       }))
     : (positions?.tokens ?? []);
   const tokens = walletTokens;
-  const hasTokens = tokens.length > 0;
 
   /* Owner: real total from the live wallet. The number is honest even at zero
      (an empty wallet reads $0.00), so there is no fabricated reserve. */
   const balanceLoading = owner && wallet.loading && wallet.tokens.length === 0;
   const ownerBalanceUsd = wallet.totalUsd;
   const balanceLive = owner && !!address && wallet.configured;
-  /* Holdings total: the owner's live wallet total, or a public member's shared
-     positions total. Null when there is nothing real to show. */
-  const holdingsTotalUsd: number | null = owner
-    ? ownerBalanceUsd
-    : publicBalanceUsd;
 
   const changePct = win?.changePct ?? 0;
   const windowDelta = win?.delta ?? 0;
-
-  const PREVIEW = 4;
 
   return (
     <Card variant="warm" pad="sm" render={<section />} className="mt-3 overflow-hidden">
@@ -371,7 +360,7 @@ export function EarningsSection({
         hasEarnings={hasEarnings}
         windowDelta={windowDelta}
         changePct={changePct}
-        since={TF_SINCE[tf]}
+        since={tf}
         companion={
           owner ? (
             <CofferCompanion
@@ -418,66 +407,6 @@ export function EarningsSection({
           )
         }
       />
-
-      {/* Timeframe toggle + windowed climb */}
-      <div className="mt-2.5 flex items-center justify-between gap-3">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
-          The climb
-        </span>
-        {/* A capsule rail of rectangular tabs, which is the exact shape the
-            realm does not use. SegmentedControl is the right primitive here
-            anyway: the timeframes are few and mutually exclusive, and the
-            hand rolled version had no arrow key handling and no roving
-            tabindex despite carrying tablist and tab roles. */}
-        <SegmentedControl
-          label="Earnings timeframe"
-          size="sm"
-          value={tf}
-          onValueChange={(next) => setTf(next as (typeof TIMEFRAMES)[number])}
-          items={TIMEFRAMES.map((f) => ({ value: f, label: f }))}
-        />
-      </div>
-
-      <div className="mt-2">
-        <EarningsChart
-          series={win?.series ?? []}
-          emptyLabel={
-            hasEarnings
-              ? `No points moved in the last ${TF_SINCE[tf]}. Try a wider window.`
-              : "Not enough history yet to chart. Earn on to watch it climb."
-          }
-        />
-      </div>
-
-      {/* Holdings roll */}
-      {(hasTokens || (owner && positions !== null)) && (
-        <div className="mt-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
-              Holdings
-            </span>
-            {holdingsTotalUsd !== null && (
-              <span className="tnum text-xs text-bone-mut">
-                {fmtUsd(holdingsTotalUsd)}
-              </span>
-            )}
-          </div>
-          {hasTokens ? (
-            <div className="mt-1">
-              <PositionsList tokens={tokens} max={PREVIEW} />
-              {tokens.length > PREVIEW && !expanded && (
-                <p className="mt-2 text-center text-[11px] text-bone-faint">
-                  +{tokens.length - PREVIEW} more in the full breakdown
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-bone-faint">
-              No tokens held yet. Fund your wallet to fill the coffers.
-            </p>
-          )}
-        </div>
-      )}
 
       {/* Shareable thesis */}
       {owner ? (
@@ -570,18 +499,6 @@ export function EarningsSection({
 
       {expanded && (
         <div className="mt-2.5 flex flex-col gap-3 border-t border-steel-line pt-3">
-          {/* Remaining holdings beyond the preview */}
-          {tokens.length > PREVIEW && (
-            <div>
-              <h4 className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-                All holdings
-              </h4>
-              <div className="mt-1">
-                <PositionsList tokens={tokens} max={12} />
-              </div>
-            </div>
-          )}
-
           {/* Allocation of earnings by source */}
           {data.showPositions && earn && earn.breakdown.length > 0 ? (
             <div>
