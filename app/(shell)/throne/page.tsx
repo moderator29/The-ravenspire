@@ -8,7 +8,20 @@ import { BackButton } from "@/components/shell/back-button";
 import { Icon } from "@/components/ui/icon";
 import { Icon3D } from "@/components/ui/icon-3d";
 
-/* Claim the Throne is held back for launch to build anticipation through
+/* KEPT, NOT LINKED, per the founder's own direction: this route builds and
+   renders fine but carries no link from any real navigation (confirmed by
+   grepping the whole app/components/lib tree for "/throne"), which is the
+   same posture Season Zero takes while its own flag is off, not a sign of
+   abandoned code. The paragraph below is the page's own history, written
+   when the plan was to return this game at the founding round's opening;
+   lib/nav.ts's later note calls that off, dissolving these mechanics
+   (quests, duels, streaks, House Glory) into the Ravenry and House halls
+   instead. Neither retelling is corrected here because the founder has
+   since said only "keep it, we will come back to building it later,"
+   without picking between the two, so this file states the fact (kept,
+   unlinked, revisit later) rather than guess which past plan still holds.
+
+   Claim the Throne is held back for launch to build anticipation through
    Season Zero, the founding round. This is the sneak peek: what the season
    game will be, framed as a premium coming soon reveal. The full game lives
    in git history and returns at the season opening.
