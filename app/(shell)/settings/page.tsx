@@ -26,9 +26,13 @@ import {
   type UIScale,
 } from "@/lib/ui-scale";
 
+/* "default" is still the type's own middle rung (lib/ui-scale.ts, unchanged
+   at 100%), but it is no longer what ships: Compact is. Labeled "Standard"
+   here so a member reading three options does not find "Default" sitting
+   unselected on a fresh account and wonder why. */
 const UI_SCALE_ITEMS: { value: UIScale; label: string }[] = [
   { value: "compact", label: "Compact" },
-  { value: "default", label: "Default" },
+  { value: "default", label: "Standard" },
   { value: "comfortable", label: "Larger" },
 ];
 
