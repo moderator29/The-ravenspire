@@ -101,7 +101,7 @@ function SubjectPreview({ r }: { r: ReportRow }) {
    the note field and the three verdict controls. */
 function DocketSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       {[0, 1, 2].map((i) => (
         <Card key={i} pad="sm">
           <div className="flex gap-2">
@@ -207,7 +207,7 @@ export default function AdminModerationPage() {
           />
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {reports.map((r) => {
             const link = subjectLink(r);
             return (
