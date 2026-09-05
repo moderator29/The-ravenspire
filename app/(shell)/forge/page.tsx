@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Field, Input } from "@/components/ui/field";
 import { AdaptiveDialog } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedControl } from "@/components/ui/tabs";
@@ -131,20 +132,20 @@ export default function ForgePage() {
             </span>
           </div>
 
-          <label className="mt-3 block md:mt-2">
-            <span className="text-xs uppercase tracking-[0.2em] text-bone-faint">
-              Amount ($RSP)
-            </span>
-            <input
-              type="text"
+          <Field
+            label="Amount ($RSP)"
+            disabled={stoking}
+            className="mt-3 md:mt-2"
+          >
+            <Input
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.0"
               disabled={stoking}
-              className="tnum mt-1.5 h-11 w-full rounded-md border border-steel-line bg-panel/70 px-3 font-mono text-base text-bone transition-colors duration-fast placeholder:text-bone-faint focus:border-gold disabled:opacity-60 md:h-9 md:text-sm"
+              className="tnum h-11 font-mono text-base md:h-9 md:text-sm"
             />
-          </label>
+          </Field>
 
           <div className="mt-3 md:mt-2">
             <span className="text-xs uppercase tracking-[0.2em] text-bone-faint">

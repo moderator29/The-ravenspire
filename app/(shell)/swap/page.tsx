@@ -8,6 +8,7 @@ import { cx } from "@/components/ui/cx";
 import { Badge } from "@/components/ui/badge";
 import { Button, IconButton, INLINE_TOUCH_TARGET } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/field";
 import { AdaptiveDialog } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
@@ -891,16 +892,16 @@ function TokenPicker({
         <Icon
           name="search"
           aria-hidden
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-faint"
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-faint"
         />
-        <input
+        <Input
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Ticker, name or contract address"
           aria-label="Search coins"
           spellCheck={false}
-          className="h-11 w-full rounded-md border border-steel-line bg-obsidian/60 pl-9 pr-3 text-sm text-bone placeholder:text-bone-faint transition-colors duration-fast focus:border-gold/60 md:h-9"
+          className="h-11 pl-10 md:h-9"
         />
       </div>
 

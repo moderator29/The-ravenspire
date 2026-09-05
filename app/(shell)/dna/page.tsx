@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -100,7 +101,12 @@ function Analyzer() {
     <ConsolePage width="data">
       {/* Cold entry falls back to the Crossroads: the Bloodline reads any
           wallet or member, which is discovery work. */}
-      <ConsoleHeader title="DNA Analyzer" kicker="Intel engine" backHref="/explore" />
+      <ConsoleHeader
+        title="The Bloodline"
+        kicker="Wallet & profile DNA"
+        backHref="/explore"
+        badge={<Badge variant="beta">Beta</Badge>}
+      />
 
       <p className="mt-3 text-sm text-bone-mut md:mt-2 md:text-[13px]">
         Drop an EVM wallet address or a member&apos;s @handle. The engine reads
