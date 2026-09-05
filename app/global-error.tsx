@@ -67,8 +67,15 @@ export default function GlobalError({
           <button
             type="button"
             onClick={() => unstable_retry()}
+            /* Both, deliberately. This file replaces the root layout, so the
+               stylesheet the root layout imports may never reach it and the
+               inline sizes are what actually hold the 44px floor here. The
+               classes carry the same floor for the case where the sheet does
+               load, and they are what the house rule checker reads. */
+            className="touch:min-h-11 touch:min-w-11"
             style={{
               minHeight: "44px",
+              minWidth: "44px",
               padding: "0 20px",
               borderRadius: "10px",
               border: "1px solid rgba(217, 176, 64, 0.45)",

@@ -9,14 +9,34 @@ import { ShellMain, ShellChrome } from "@/components/shell/shell-main";
 import { NotificationsProvider } from "@/components/notifications/notifications-provider";
 import { DossierProvider } from "@/components/social/user-dossier";
 import { VisitorRibbon } from "@/components/share/visitor-ribbon";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default function ShellLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ShellGate>
-      <NotificationsProvider>
-        <DossierProvider>
+      {/* The realm's toast host, and it had been missing since the Muster
+          shipped.
+       *
+       * `useToast` is not a soft dependency: it resolves Base UI's toast store
+       * out of context and THROWS when no provider is above it. The only
+       * ToastProvider in the product was the one inside the kitchen sink, so
+       * every surface that raised a toast was a surface that took its own
+       * segment down instead. The Muster made that fatal on the most visited
+       * screen in the realm: the Ravenry's strip renders MusterCell as soon as
+       * /api/realm/strip answers, and musterState never returns null, so the
+       * Ravenry rendered correctly, waited for one fetch, and then handed the
+       * shell error boundary a thrown render for every signed-in member.
+       *
+       * It sits here rather than in components/providers.tsx because a layout
+       * wraps its own error.js, so the host survives the boundary it would
+       * otherwise be replaced by, and toasts are a shell affordance: the
+       * landing gate raises none. Above NotificationsProvider so a raven toast
+       * and a realm toast are never fighting over mount order. */}
+      <ToastProvider>
+        <NotificationsProvider>
+          <DossierProvider>
         <div className="realm-bg mx-auto flex min-h-screen w-full max-w-[1600px] flex-col lg:flex-row">
           <div className="sticky top-0 hidden h-screen w-[272px] shrink-0 border-r border-steel-line/70 lg:block">
             <SideNav />
@@ -49,8 +69,9 @@ export default function ShellLayout({
 
           <FloatingCompose />
         </div>
-        </DossierProvider>
-      </NotificationsProvider>
+          </DossierProvider>
+        </NotificationsProvider>
+      </ToastProvider>
     </ShellGate>
   );
 }
