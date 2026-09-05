@@ -88,7 +88,12 @@ export default function ChampionsPage() {
   return (
     <BoardPage width="wide">
       <BoardStack>
-        <BoardHeader title="Champions" kicker={sworn} backHref="/war" />
+        <BoardHeader
+          title="Champions"
+          kicker={sworn}
+          backHref="/war"
+          backLabel="The War"
+        />
 
         <ChipRail label="Rarity filter">
           {filters.map((f) => (
