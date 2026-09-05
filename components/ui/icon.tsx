@@ -1,6 +1,12 @@
 type IconProps = {
   name: string;
   className?: string;
+  /* Every call site draws at 1.5 unless it asks for otherwise. A handful of
+     surfaces (the bottom dock, so far) want a bolder, more confident mark at
+     the same 24px grid, and duplicating the whole glyph set at a heavier
+     weight for one surface is the wrong fix for that: the same path, drawn
+     with a heavier stroke, is what "bolder" means here. */
+  strokeWidth?: number;
 };
 
 /*
@@ -296,13 +302,13 @@ const paths: Record<string, React.ReactNode> = {
   ),
 };
 
-export function Icon({ name, className = "h-5 w-5" }: IconProps) {
+export function Icon({ name, className = "h-5 w-5", strokeWidth = 1.5 }: IconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}

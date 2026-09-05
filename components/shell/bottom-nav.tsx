@@ -13,10 +13,23 @@ import { bottomNav } from "@/lib/nav";
    as an application rather than a website. Everything here is a clean rounded
    rectangle: no pills, no capsules, no half circles at the ends.
 
-   The active destination expands to carry its label while the rest stay as
-   icons, which keeps the bar compact while still naming where you are. The gold
-   plate behind the active item is a single shared layout element, so it slides
-   between destinations instead of cross fading.
+   Every destination carries its name now, stacked under its glyph rather than
+   beside it. The earlier version only labelled the active item, expanding it
+   sideways to make room, and that math was fragile by construction: five
+   equal columns at 390px leaves about 72px each, tight enough that "The
+   Ravenry" once rendered as "Ra...". Stacking the label under the icon spends
+   height instead of width for it, which this bar has to spare and a phone's
+   screen does not, so all five can be named at once without any column
+   fighting its neighbours for room. The gold plate behind the active column
+   is a single shared layout element, so it slides between destinations
+   instead of cross fading.
+
+   The glass reads a shade richer than the rest of the product's chrome on
+   purpose: the dock floats over live content rather than sitting in the flow
+   of a page, so it is the one place a slightly stronger blur and a warm inner
+   sheen (the same soft gold-into-void gradient the `glass` Button variant
+   uses) earn their keep, while everything else about it stays the same
+   restrained rounded rectangle the rest of the realm uses.
 
    The contextual sub-strip that used to float above this bar is retired, on
    the founder's direction: every section now carries its own switcher at the
@@ -28,14 +41,16 @@ import { bottomNav } from "@/lib/nav";
 
 const SPRING = { type: "spring" as const, visualDuration: 0.22, bounce: 0.14 };
 
-/* The row is sized by `min-h-11` rather than by vertical padding.
+/* The column is sized by `min-h-11` rather than by vertical padding.
  *
  * Padding sized it before and it came out short: about 39px from 10px of
  * padding either side of a 19px icon. This product holds itself to 44px on
  * touch, and this is the most tapped control in the whole realm. A minimum
  * height states the target directly instead of leaving it as the arithmetic
  * of a font size and a padding rung that anybody could later adjust without
- * realising what they were changing. */
+ * realising what they were changing. Stacking a label under the icon grows
+ * a column past 44px anyway; the floor is stated so nothing below it ever
+ * regresses under a future edit. */
 
 function isActive(pathname: string, href: string) {
   const base = href.split("?")[0];
@@ -87,9 +102,18 @@ export function BottomNav() {
       >
         <nav
           aria-label="Primary"
-          className="pointer-events-auto flex items-stretch gap-1 rounded-2xl border border-steel-line/70 bg-obsidian/90 p-1.5 backdrop-blur-2xl"
+          className="pointer-events-auto relative flex items-stretch gap-1 overflow-hidden rounded-2xl border border-gold/20 bg-obsidian/85 p-1.5 backdrop-blur-2xl"
           style={{ boxShadow: "var(--shadow-overlay)" }}
         >
+          {/* The one sheen: a soft warm gradient laid over the glass, the same
+              recipe the `glass` Button variant uses, so the dock reads as the
+              same material as the rest of the product's glass surfaces rather
+              than a one-off. Absolutely positioned and non-interactive, under
+              every column's own content and its active plate. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[image:linear-gradient(180deg,rgba(255,233,163,0.05),transparent_60%)]"
+          />
           {bottomNav.map((item) => {
             const active = isActive(pathname, item.href);
             return (
@@ -97,51 +121,31 @@ export function BottomNav() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                /* The active destination takes the room, the rest keep the
-                   floor and no more.
-
-                   Five equal columns at 390px is about 72px each, and the
-                   active one has to fit a 19px icon, a gap and its label
-                   inside that, so "The Ravenry" rendered as "Ra...". A dock
-                   whose one labelled item is the item whose label is cut is
-                   worse than a dock with no labels at all.
-
-                   `flex-1` on the active item and a fixed 44px on the others
-                   spends the width where the words are. Four inactive squares
-                   and the gaps leave about 160px, and the longest label in the
-                   set needs about 120. */
-                className={`relative flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-md text-[12px] font-semibold transition-colors duration-150 ${
+                /* Equal columns, always. Every destination stacks its icon
+                   over its name now, so there is no active item to spend
+                   extra width on and no inactive one to shrink to a bare
+                   square: all five are the same shape, one flex-1 apart. */
+                className={`relative flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-semibold tracking-wide transition-colors duration-150 ${
                   active
-                    ? "flex-1 px-3 text-gold-bright"
-                    : "w-11 shrink-0 text-bone-faint active:text-bone-mut"
+                    ? "text-gold-bright"
+                    : "text-bone-faint active:text-bone-mut"
                 }`}
               >
                 {active && (
                   <motion.span
                     layoutId="dock-plate"
                     transition={SPRING}
-                    className="absolute inset-0 rounded-md border border-gold/35 bg-gold/12"
+                    className="absolute inset-0.5 rounded-lg border border-gold/35 bg-gold/12"
                   />
                 )}
                 <Icon
                   name={item.icon}
-                  className="relative h-[19px] w-[19px] shrink-0"
+                  strokeWidth={active ? 2.1 : 1.75}
+                  className="relative h-[21px] w-[21px] shrink-0"
                 />
-                {active && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-                    /* No `truncate` any more. It was the thing hiding the
-                       defect: a label that does not fit should make the layout
-                       wrong in a way somebody notices, not quietly become an
-                       ellipsis. `whitespace-nowrap` keeps it on one line, and
-                       the width above is what makes it fit. */
-                    className="relative whitespace-nowrap"
-                  >
-                    {item.label}
-                  </motion.span>
-                )}
+                <span className="relative whitespace-nowrap">
+                  {item.label}
+                </span>
               </Link>
             );
           })}
