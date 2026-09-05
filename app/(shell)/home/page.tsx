@@ -5,6 +5,7 @@ import { HeraldDigest } from "@/components/raven/digest-card";
 import { RealmStrip } from "@/components/social/realm-strip";
 import { StreamColumn } from "@/components/stream/stream-shell";
 import { SeasonZeroBanner } from "@/components/season-zero/banner";
+import { PumpFunBadge } from "@/components/dashboard/pump-fun-badge";
 import { getFlag } from "@/lib/flags";
 
 /* The Ravenry.
@@ -31,6 +32,8 @@ export default async function HomePage() {
         The Ravenry
       </h1>
       <TourMount />
+      {/* The Pump.fun status, one quiet line above the feed. */}
+      <PumpFunBadge />
       {/* The founding round's one line above the feed. Phase aware, Ledger
           register, and it removes itself when the round closes or is
           archived. */}

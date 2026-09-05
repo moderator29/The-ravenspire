@@ -20,7 +20,7 @@ import { TheGames } from "@/components/landing/the-games";
 import { MeetRaven } from "@/components/landing/meet-raven";
 import { TheTools } from "@/components/landing/the-tools";
 import { ComingSoonTeasers } from "@/components/landing/coming-soon-teasers";
-import { Tokenomics } from "@/components/landing/tokenomics";
+import { PumpFunLaunch } from "@/components/landing/pump-fun-launch";
 import { Roadmap } from "@/components/landing/roadmap";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { StatsStrip } from "@/components/landing/stats-strip";
@@ -335,8 +335,8 @@ export default function Landing() {
           {/* Two forward-looking Coming soon teasers */}
           <ComingSoonTeasers />
 
-          {/* $RSP tokenomics: allocation donut + legend */}
-          <Tokenomics />
+          {/* $RSP on Pump.fun: ticker, supply, the contract address slot */}
+          <PumpFunLaunch />
 
           {/* The phased roadmap on Ethereum */}
           <Roadmap />
