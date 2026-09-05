@@ -105,6 +105,14 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${cinzel.variable} ${inter.variable} h-full antialiased`}
+      /* The no-flash script below sets this element's own style.fontSize
+         before hydration, on purpose, so the server's HTML (which has no
+         way to know a saved preference) will never match what the client
+         paints. That is not a bug to reconcile, it is the entire point of
+         running before React does, and the standard escape hatch for it:
+         suppressHydrationWarning tells React to trust the DOM here rather
+         than flag or "fix" an attribute that is correct on both sides. */
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
         {/* Applies a member's saved interface size before hydration, so the
