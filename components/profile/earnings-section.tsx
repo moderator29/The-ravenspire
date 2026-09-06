@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,8 +61,10 @@ interface PublicBlock {
 interface EarningsBlock {
   grandTotal: number;
   ledgerPoints: number;
-  /* Proven tributes, counted. Never a POINTS figure: see the Fact that renders
-     it, and the header of app/api/profile/earnings/route.ts. */
+  /* Proven tributes, counted. Never a POINTS figure: see the header of
+     app/api/profile/earnings/route.ts. Not rendered on this panel (the
+     deeper breakdown that used to show it lives at /coffers now), kept
+     here only because the type mirrors the real API response shape. */
   tributeCount: number;
   referralRewards: number;
   totalGlory: number;
@@ -114,13 +117,6 @@ function signed(n: number): string {
   return `${n >= 0 ? "+" : ""}${fmt.format(Math.round(n))}`;
 }
 
-function joinLabel(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
-}
-
 export function EarningsSection({
   profileId,
   handle,
@@ -133,17 +129,10 @@ export function EarningsSection({
 }) {
   const [data, setData] = useState<EarningsResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const tf: Timeframe = "7d";
 
   const [positions, setPositions] = useState<PositionsResponse | null>(null);
-
-  const [thesis, setThesis] = useState("");
-  const [thesisEditing, setThesisEditing] = useState(false);
-  const [thesisSaving, setThesisSaving] = useState(false);
-
-  const firstLoad = useRef(true);
 
   /* The viewer's own embedded Privy wallet, read live through the same balances
      route + hook the Vault and Ledger use. This is the member's REAL platform
@@ -167,25 +156,13 @@ export function EarningsSection({
     const res = await realmFetch<EarningsResponse>(
       `/api/profile/earnings?id=${encodeURIComponent(profileId)}`
     );
-    if (res.ok && res.data) {
-      setData(res.data);
-      /* Only seed the editable thesis from the server on the first fetch, so a
-         background refresh never clobbers what the owner is typing. */
-      /* `res.data.public` is optional-chained rather than assumed. The live
-         route always sends it, so this is hardening rather than a live bug,
-         but a 200 without that block would throw inside an effect and take the
-         whole Keep down with it. A missing thesis is an empty field; it is not
-         a reason for the screen to disappear. */
-      if (firstLoad.current) setThesis(res.data.public?.thesis ?? "");
-    }
-    firstLoad.current = false;
+    if (res.ok && res.data) setData(res.data);
     setLoading(false);
   }, [profileId]);
 
   /* Live earnings: initial load plus a gentle re-fetch so the treasury feels
      current without hammering the API. */
   useEffect(() => {
-    firstLoad.current = true;
     setLoading(true);
     void load();
     const t = setInterval(() => void load(), EARNINGS_POLL_MS);
@@ -229,22 +206,6 @@ export function EarningsSection({
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     });
-  };
-
-  const saveThesis = async () => {
-    setThesisSaving(true);
-    const next = thesis.trim().slice(0, 140);
-    const res = await realmFetch("/api/settings", {
-      method: "POST",
-      json: { profile: { thesis: next } },
-    });
-    setThesisSaving(false);
-    if (res.ok) {
-      setThesisEditing(false);
-      setData((d) =>
-        d ? { ...d, public: { ...d.public, thesis: next || null } } : d
-      );
-    }
   };
 
   if (loading) {
@@ -300,12 +261,6 @@ export function EarningsSection({
           <Stat label="Calls won" value={fmt.format(pub.callsWon)} icon="target" />
           <Stat label="Crests" value={fmt.format(pub.crestCount)} icon="crown" />
         </div>
-        {pub.thesis && (
-          <p className="mt-2.5 flex items-center gap-2 border-t border-steel-line pt-2.5 text-sm italic text-bone-mut">
-            <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
-            &ldquo;{pub.thesis}&rdquo;
-          </p>
-        )}
       </Card>
     );
   }
@@ -408,162 +363,23 @@ export function EarningsSection({
         }
       />
 
-      {/* Shareable thesis */}
-      {owner ? (
-        thesisEditing ? (
-          <div className="mt-2.5 border-t border-steel-line pt-2.5">
-            <label className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-              Your thesis
-            </label>
-            <textarea
-              value={thesis}
-              onChange={(e) => setThesis(e.target.value.slice(0, 140))}
-              rows={2}
-              maxLength={140}
-              placeholder="One line the realm should know you by."
-              className="mt-1.5 w-full resize-none rounded-lg border border-steel-line bg-void px-3 py-2 text-sm text-bone outline-none focus:border-gold/40"
-            />
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-[11px] text-bone-faint">
-                {thesis.length}/140
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="glass"
-                  size="sm"
-                  className="text-bone-mut"
-                  onClick={() => {
-                    setThesis(pub.thesis ?? "");
-                    setThesisEditing(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="gold"
-                  size="sm"
-                  loading={thesisSaving}
-                  onClick={() => void saveThesis()}
-                >
-                  {thesisSaving ? "Saving..." : "Save"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            /* `touch:min-h-11`, because this row is a control and its height
-               was an accident of its padding: `pt-3` over one line of
-               `text-sm` measured 300x33 on a phone, populated and empty
-               alike. Eleven pixels under the floor, produced by nobody
-               choosing a height at all, which is how most of the misses in
-               this product were made.
-
-               `type="button"` for the same reason it belongs on every hand
-               rolled button: the default is `submit`, and this one sits
-               inside a card that will eventually hold a form. */
-            onClick={() => setThesisEditing(true)}
-            className="mt-2.5 flex w-full touch:min-h-11 items-center gap-2 border-t border-steel-line pt-3 text-left text-sm text-bone-mut transition hover:text-bone"
-          >
-            <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
-            {pub.thesis ? (
-              <span className="italic">&ldquo;{pub.thesis}&rdquo;</span>
-            ) : (
-              <span className="text-bone-faint">Set a thesis line</span>
-            )}
-          </button>
-        )
-      ) : pub.thesis ? (
-        <p className="mt-2.5 flex items-center gap-2 border-t border-steel-line pt-2.5 text-sm italic text-bone-mut">
-          <Icon name="scroll" className="h-3.5 w-3.5 shrink-0 text-gold" />
-          &ldquo;{pub.thesis}&rdquo;
-        </p>
-      ) : null}
-
-      {/* View more */}
+      {/* The full statement lives at /coffers: every holding, every receipt,
+          reconciled against the balance. This panel stays to its own brief
+          (rule stated at the top of this file: two real numbers, nothing
+          else), so the deeper breakdown and the shareable thesis that used
+          to live here are gone, replaced by one honest door to the page that
+          actually is that deeper view. A real navigation, not an inline
+          expand: the founder's own direction for this exact panel. */}
       <Button
         variant="glass"
         size="sm"
         block
-        aria-expanded={expanded}
         className="mt-2.5 text-bone-mut"
-        onClick={() => setExpanded((v) => !v)}
+        render={<Link href="/coffers" />}
       >
-        {expanded ? "Hide breakdown" : "View more"}
-        <Icon
-          name="arrow"
-          className={`h-3.5 w-3.5 transition-transform duration-fast ${expanded ? "-rotate-90" : "rotate-90"}`}
-        />
+        View portfolio
+        <Icon name="arrow" className="h-3.5 w-3.5 rotate-45" />
       </Button>
-
-      {expanded && (
-        <div className="mt-2.5 flex flex-col gap-3 border-t border-steel-line pt-3">
-          {/* Allocation of earnings by source */}
-          {data.showPositions && earn && earn.breakdown.length > 0 ? (
-            <div>
-              <h4 className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
-                Where the points came from
-              </h4>
-              <div className="mt-2 flex flex-col gap-2">
-                {earn.breakdown.map((slice) => {
-                  const pct = earn.grandTotal
-                    ? Math.round((slice.value / earn.grandTotal) * 100)
-                    : 0;
-                  return (
-                    <div key={slice.label}>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-bone-mut">{slice.label}</span>
-                        <span className="tnum text-bone">
-                          {fmt.format(slice.value)}{" "}
-                          <span className="text-bone-faint">{pct}%</span>
-                        </span>
-                      </div>
-                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-void">
-                        <div
-                          className="gold-metal h-full rounded-full"
-                          style={{ width: `${Math.max(pct, 2)}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : !data.showPositions ? (
-            <p className="text-xs text-bone-faint">
-              This member keeps their earning sources private.
-            </p>
-          ) : (
-            <p className="text-xs text-bone-faint">
-              No earning sources to break down yet.
-            </p>
-          )}
-
-          {/* Portfolio facts */}
-          <div className="tnum grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
-            <Fact label="Joined" value={joinLabel(pub.joinDate)} />
-            <Fact label="Renown" value={fmt.format(pub.renown)} />
-            <Fact label="Glory" value={fmt.format(pub.glory)} />
-            <Fact label="Calls won" value={fmt.format(pub.callsWon)} />
-            <Fact label="Calls lost" value={fmt.format(pub.callsLost)} />
-            <Fact label="Calls open" value={fmt.format(pub.callsOpen)} />
-            <Fact label="Crests" value={fmt.format(pub.crestCount)} />
-            <Fact label="Referrals" value={fmt.format(pub.referralCount)} />
-            {/* A COUNT, NOT A POINTS FIGURE. This read `tipsTotal` in POINTS,
-                summed from `tips.points`, a column that has been null on every
-                row since tributes became on chain transfers: it was a
-                structural zero on every profile in the realm. A tribute arrives
-                in a token, not in POINTS, so the honest thing a profile panel
-                can say is how many have been proven. The amounts, in their own
-                units, are on The Coffers. */}
-            <Fact
-              label="Tributes received"
-              value={fmt.format(earn?.tributeCount ?? 0)}
-            />
-          </div>
-        </div>
-      )}
     </Card>
   );
 }
@@ -815,17 +631,6 @@ function Stat({
         <span className="text-[10px] uppercase tracking-[0.16em]">{label}</span>
       </div>
       <p className="tnum mt-1 text-base font-semibold text-bone">{value}</p>
-    </div>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col">
-      <span className="text-[10px] uppercase tracking-[0.16em] text-bone-faint">
-        {label}
-      </span>
-      <span className="mt-0.5 text-bone">{value}</span>
     </div>
   );
 }
