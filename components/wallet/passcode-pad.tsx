@@ -72,7 +72,7 @@ export function PasscodePad({
       <button
         type="button"
         onClick={() => setReveal((r) => !r)}
-        className="text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+        className="touch:min-h-11 touch:min-w-11 text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
       >
         {reveal ? "Hide passcode" : "Show passcode"}
       </button>

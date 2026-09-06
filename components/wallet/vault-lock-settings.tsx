@@ -94,7 +94,7 @@ export function VaultLockSettings({ address }: { address?: string }) {
           <button
             type="button"
             onClick={() => setStage("idle")}
-            className="text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+            className="touch:min-h-11 touch:min-w-11 text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
           >
             Cancel
           </button>
@@ -121,7 +121,7 @@ export function VaultLockSettings({ address }: { address?: string }) {
               setNote(null);
               setStage("create");
             }}
-            className="text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+            className="touch:min-h-11 touch:min-w-11 text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
           >
             Start over
           </button>

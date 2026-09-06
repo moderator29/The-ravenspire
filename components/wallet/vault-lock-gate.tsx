@@ -86,7 +86,7 @@ export function VaultLockGate({
           <button
             type="button"
             onClick={() => setStage("intro")}
-            className="text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+            className="touch:min-h-11 touch:min-w-11 text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
           >
             Cancel
           </button>
@@ -116,7 +116,7 @@ export function VaultLockGate({
             setError(null);
             setStage("create");
           }}
-          className="text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+          className="touch:min-h-11 touch:min-w-11 text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
         >
           Start over
         </button>
@@ -141,7 +141,7 @@ export function VaultLockGate({
         <button
           type="button"
           onClick={() => lock.reset()}
-          className="text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
+          className="touch:min-h-11 touch:min-w-11 text-xs font-semibold text-bone-faint transition-colors duration-fast hover:text-bone-mut"
         >
           Forgot your passcode?
         </button>
