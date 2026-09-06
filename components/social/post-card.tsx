@@ -76,7 +76,7 @@ function PollBlock({ post }: { post: Post }) {
 
   if (!options.length) return null;
   return (
-    <div className="mt-2 flex flex-col gap-1.5">
+    <div className="mt-1.5 flex flex-col gap-1.5">
       {options.map((o, i) => {
         const pct = total > 0 ? Math.round((o.votes / total) * 100) : 0;
         return (
@@ -385,6 +385,14 @@ export function PostCard({ post }: { post: Post }) {
     <StreamCard
       rail={rail}
       interactive
+      /* One rung tighter than the Stream default, `sm` rather than `md`. This
+         card carries the founder's density pass for the Ravenry specifically:
+         "comfortable everywhere" is still the right call for a Stream that
+         reads once, but the timeline reads dozens of times a session now that
+         the product feels mature, and 14px/16px of air on every one of them
+         was the loose feeling the founder named. The 44px controls inside are
+         untouched; only the plate around them tightened. */
+      pad="sm"
       render={<article ref={cardRef} />}
     >
       {heartBurst && (
@@ -399,7 +407,7 @@ export function PostCard({ post }: { post: Post }) {
         </span>
       )}
       {post.repostedBy && (
-        <div className="mb-2 flex items-center gap-1.5 pl-1 text-xs text-bone-faint">
+        <div className="mb-1.5 flex items-center gap-1.5 pl-1 text-xs text-bone-faint">
           <Icon name="repost" className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">
             Re-ravened by{" "}
@@ -410,7 +418,7 @@ export function PostCard({ post }: { post: Post }) {
         </div>
       )}
       {post.quote && (
-        <p className="mb-2 border-l-2 border-gold/30 pl-2 text-sm text-bone-mut">
+        <p className="mb-1.5 border-l-2 border-gold/30 pl-2 text-sm text-bone-mut">
           {post.quote}
         </p>
       )}
@@ -425,11 +433,14 @@ export function PostCard({ post }: { post: Post }) {
             dossier.open(post.author_id, a.handle);
           }}
           aria-label={`Open ${a.handle ? `@${a.handle}` : "member"} dossier`}
-          /* A 40px avatar with 2px of bleed on every side is a 44px target,
-             without the circle itself growing into the name row beside it. */
-          className="touch:min-h-11 touch:min-w-11 -m-0.5 shrink-0 self-start rounded-[var(--radius-full)] p-0.5 transition-opacity duration-fast ease-out-quint hover:opacity-90"
+          /* A 36px avatar with 4px of bleed on every side is a 44px target,
+             without the circle itself growing into the name row beside it.
+             Down from 40px as part of the same density pass as the card's
+             own padding; the bleed grew from 2px to 4px so the touch floor
+             still lands exactly on 44 rather than drifting under it. */
+          className="touch:min-h-11 touch:min-w-11 -m-1 shrink-0 self-start rounded-[var(--radius-full)] p-1 transition-opacity duration-fast ease-out-quint hover:opacity-90"
         >
-          <Avatar author={a} size={40} />
+          <Avatar author={a} size={36} />
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
@@ -505,12 +516,14 @@ export function PostCard({ post }: { post: Post }) {
             </div>
           </div>
 
-          {/* 14px with a tighter leading, down from 15px at `leading-relaxed`.
-              A raven is short by design, and at 15/1.625 a three line post
-              spent 73px of vertical space on two line gaps. The founder read
-              the timeline as loose on a real phone; this is where most of that
-              looseness was, because it multiplies by every post on screen. */}
-          <Link href={`/post/${post.id}`} className="mt-1 block text-sm leading-[1.5] text-bone">
+          {/* 13px at 1.4 line height, down another step from the 14px at
+              `leading-[1.5]` (21px lines) this already tightened once from
+              15px at `leading-relaxed`. 13/1.4 is an 18px line, so a three
+              line raven gives back about 9px more, and it is the second half
+              of the same phone-read pass as the card's own padding and the
+              avatar: a raven is short by design, so the saving is small on
+              any one post and real across the forty that fit a screen. */}
+          <Link href={`/post/${post.id}`} className="mt-1 block text-[13px] leading-[1.4] text-bone">
             <RichBody text={post.body} />
           </Link>
 
@@ -518,7 +531,7 @@ export function PostCard({ post }: { post: Post }) {
             <Card
               variant="inset"
               pad="none"
-              className={`mt-2 flex items-center gap-3 px-3 py-2 ${
+              className={`mt-1.5 flex items-center gap-3 px-3 py-2 ${
                 post.call.stance === "up"
                   ? "border-chart-up/40"
                   : "border-chart-down/40"
@@ -563,7 +576,7 @@ export function PostCard({ post }: { post: Post }) {
 
           {post.media.length > 0 && (
             <div
-              className={`mt-2 grid gap-1.5 overflow-hidden rounded-2xl ${
+              className={`mt-1.5 grid gap-1.5 overflow-hidden rounded-2xl ${
                 post.media.length === 1 ? "grid-cols-1" : "grid-cols-2"
               }`}
             >
@@ -603,27 +616,30 @@ export function PostCard({ post }: { post: Post }) {
 
              The arithmetic of this row is why it reaches back into the avatar
              gutter below `sm`. Five controls each hold a 44px width floor, so
-             they cannot go below 220 together, and the views readout is 74.
-             That is 294 in a 280px content column, so fourteen pixels sat
-             outside the box with nothing to scroll them, on every raven in the
-             product. The card itself is 332 wide and the gutter under the
-             avatar is empty, so the bar takes the width that is already there
-             rather than a control giving up its floor. The 52px is the gutter
-             exactly, the avatar's 40px margin box plus the 12px gap, so the
-             bar's leading edge lands on the card's own content edge rather
-             than a few pixels adrift of it.
+             they cannot go below 220 together, and the views readout is 74:
+             294 needed against a content column that has less than that on
+             the narrowest phones this product supports, so the row reclaims
+             the gutter under the avatar rather than a control giving up its
+             floor. That gutter is 48px exactly, the avatar's 36px margin box
+             plus the 12px gap, so the bar's leading edge still lands on the
+             card's own content edge rather than a few pixels adrift of it.
+             The avatar dropped from 40 to 36 in this same density pass, which
+             shrank the gutter by 4px too, so `-ml-13` became `-ml-12`.
 
              `shrink-0` on the glyphs is the other half, and it was the worse
              half: at 390 the flex squeeze had shrunk every count-bearing icon
              to exactly 0px. Reply, re-raven and like rendered as bare numbers
-             with no icon at all, while the class list said 18px. */}
-          <div className="mt-2 flex items-center justify-between max-sm:-ml-13">
+             with no icon at all, while the class list said 18px. The glyphs
+             are 16px now, one step down the same scale as everything else in
+             this pass, and `shrink-0` still guards them from repeating that
+             failure. */}
+          <div className="mt-1.5 flex items-center justify-between max-sm:-ml-12">
             <span
               className="flex shrink-0 items-center gap-1.5 px-1 py-1 text-xs text-bone-faint"
               aria-label={`${views} views`}
               title={`${views.toLocaleString()} views`}
             >
-              <Icon name="eye" className="h-[18px] w-[18px] shrink-0" />
+              <Icon name="eye" className="h-4 w-4 shrink-0" />
               <span className="tnum">{views.toLocaleString()}</span>
             </span>
             <StreamAction

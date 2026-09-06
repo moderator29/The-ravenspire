@@ -26,11 +26,32 @@ const BACKDROP =
   "transition-opacity duration-base ease-out-quint data-swiping:duration-0 " +
   "data-starting-style:opacity-0 data-ending-style:opacity-0";
 
-const SURFACE =
-  "border-gold/20 bg-panel/95 text-bone shadow-overlay backdrop-blur-[18px] " +
+const SURFACE_BASE =
   "overflow-y-auto overscroll-contain touch-auto outline-none " +
   "transition-transform duration-base ease-out-quint data-swiping:select-none " +
   "data-ending-style:duration-fast";
+
+/* The tint, split out from the shape and motion classes above so a caller can
+   choose it without touching anything else.
+
+   `panel` is every sheet in the product but one: a shade above the page
+   itself, which is what reads as a genuine floating surface stacked on top of
+   the content behind it. `obsidian` exists for exactly the one exception, the
+   mobile nav drawer, which the founder wants to read as the realm's own
+   navigation rather than a panel dropped onto the page: the same border, blur
+   and shadow, with the page's own near-black instead of a lighter tint under
+   it. Scoped to a prop rather than changed as the default, because every
+   other Sheet and AdaptiveDialog call site (the feed filters, tip, wallet,
+   edit profile, a dozen more) is a genuinely floating surface and must keep
+   reading as one; a plain className override from the drawer's call site
+   could not do this reliably either, since `bg-obsidian` and `bg-panel` are
+   both background-colour utilities `cx` cannot arbitrate between, see
+   components/ui/merge.ts. */
+export type SheetSurface = "panel" | "obsidian";
+const SURFACE_TONE: Record<SheetSurface, string> = {
+  panel: "border-gold/20 bg-panel/95 text-bone shadow-overlay backdrop-blur-[18px]",
+  obsidian: "border-gold/20 bg-obsidian/95 text-bone shadow-overlay backdrop-blur-[18px]",
+};
 
 /* The bleed is the extra slab of surface hidden past the screen edge, so an
    overscrolling drag never tears a gap between the sheet and the edge. */
@@ -80,6 +101,9 @@ export interface SheetProps {
   description?: ReactNode;
   side?: SheetSide;
   footer?: ReactNode;
+  /* Defaults to `panel`. See `SURFACE_TONE` above for why this is a prop
+     rather than the primitive's own default changing. */
+  surface?: SheetSurface;
   className?: string;
   children?: ReactNode;
 }
@@ -93,6 +117,7 @@ export function Sheet({
   description,
   side = "bottom",
   footer,
+  surface = "panel",
   className,
   children,
 }: SheetProps) {
@@ -107,7 +132,7 @@ export function Sheet({
       <Drawer.Portal>
         <Drawer.Backdrop className={BACKDROP} />
         <Drawer.Viewport className={VIEWPORT[side]}>
-          <Drawer.Popup className={cx(SURFACE, POPUP[side], className)}>
+          <Drawer.Popup className={cx(SURFACE_BASE, SURFACE_TONE[surface], POPUP[side], className)}>
             {side === "bottom" ? (
               /* The grab handle. Rounded fully on purpose: it is a drag
                  affordance, not a control, and the pill shape is the

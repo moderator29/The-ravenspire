@@ -260,7 +260,24 @@ export function StreamChip({
 
    Built on Button so it inherits the single focus ring, the rounded rectangle
    and the motion scale, and sized to 44px so the bar is thumb reachable on a
-   phone without the actions crowding each other. */
+   phone without the actions crowding each other.
+
+   The glyph sits in its own small glass chip now rather than bare against the
+   card. `ACTION_GLASS` is the same restrained recipe as the `glass` Button
+   variant and the dock's own sheen (`bg-void/60`, a 10px blur, the soft warm
+   gradient wash), sized a few pixels larger than the 16px icon on every side
+   rather than the whole 44px button, so the chip reads as a small container
+   for the glyph and never as a big padded button of its own. The Button
+   itself is untouched underneath: still `h-11`, still the real 44px target a
+   thumb has to land inside, exactly like `INLINE_TOUCH_TARGET` keeps a
+   control's hit area larger than what it draws. The chip is purely visual and
+   `aria-hidden`, so the accessible name still comes from the Button's own
+   `aria-label`. */
+const ACTION_GLASS =
+  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gold/15 " +
+  "bg-void/60 backdrop-blur-[10px] " +
+  "bg-[image:linear-gradient(180deg,rgba(255,233,163,0.06),rgba(12,12,17,0.4))]";
+
 export function StreamAction({
   icon,
   label,
@@ -310,7 +327,9 @@ export function StreamAction({
         className
       )}
     >
-      <Icon name={icon} className={cx("h-[18px] w-[18px]", iconClassName)} />
+      <span aria-hidden className={ACTION_GLASS}>
+        <Icon name={icon} className={cx("h-4 w-4", iconClassName)} />
+      </span>
       {count !== undefined && count > 0 ? (
         <span className="tnum text-xs">{count}</span>
       ) : null}

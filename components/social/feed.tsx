@@ -22,7 +22,6 @@ import {
   StreamSkeleton,
 } from "@/components/stream/stream-shell";
 import { fetchTrendingCashtags, type Cashtag } from "@/lib/social/explore-queries";
-import { InlineComposer } from "@/components/social/inline-composer";
 import {
   fetchFeedPage,
   subscribeToFeed,
@@ -31,7 +30,6 @@ import {
 import {
   feedItemActorId,
   feedItemKey,
-  postItem,
   type FeedItem,
 } from "@/lib/feed/types";
 import { realmFetch } from "@/lib/auth/api";
@@ -223,14 +221,15 @@ export function Feed() {
 
   return (
     <StreamColumn className="flex flex-col gap-3">
-      {/* Posting used to cost a floating button plus a navigation to /compose.
-          A new raven is prepended straight onto the current page rather than
-          triggering a refetch, so the member keeps their place in the feed. */}
-      <InlineComposer
-        onPosted={(post) => {
-          if (post) setItems((prev) => [postItem(post), ...prev]);
-        }}
-      />
+      {/* The inline composer used to open here, prepending a new raven onto
+          the page rather than triggering a refetch. The floating "+" already
+          opens both "Send a raven" and "Ask @raven" from anywhere in the
+          shell, so this row was a second, redundant way to start the same
+          thing sitting permanently at the top of the one screen a member
+          reads most. Removed on the founder's direction rather than left
+          disabled: this component is only ever mounted on the Ravenry, and
+          nothing else reads the composer's `onPosted` callback, so there is
+          no seam left dangling. */}
 
       {/* One control at every width, and it lives with the column it filters.
           The dock used to carry these five on a phone while this rail was
