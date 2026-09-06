@@ -20,7 +20,6 @@ import { TheGames } from "@/components/landing/the-games";
 import { MeetRaven } from "@/components/landing/meet-raven";
 import { TheTools } from "@/components/landing/the-tools";
 import { ComingSoonTeasers } from "@/components/landing/coming-soon-teasers";
-import { PumpFunLaunch } from "@/components/landing/pump-fun-launch";
 import { Roadmap } from "@/components/landing/roadmap";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { StatsStrip } from "@/components/landing/stats-strip";
@@ -194,20 +193,6 @@ export default function Landing() {
             >
               {heroBadge}
             </Card>
-            {/* $RSP already carries this exact claim further down the page
-               (PumpFunLaunch's own eyebrow); surfacing it here too makes it
-               visible before a visitor scrolls, not a new claim invented for
-               the hero. Native anchor, not the nav's smooth-scroll jump():
-               one badge does not need its own copy of that logic, and
-               PumpFunLaunch's section already carries `scroll-mt-28` for the
-               sticky bar. */}
-            <a
-              href="#pump-fun"
-              className="inline-flex items-center gap-1.5 rounded-sm border border-gold/25 bg-panel-warm/40 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold transition hover:border-gold/45"
-            >
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
-              Live on Pump.fun
-            </a>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
@@ -351,9 +336,6 @@ export default function Landing() {
 
           {/* Two forward-looking Coming soon teasers */}
           <ComingSoonTeasers />
-
-          {/* $RSP on Pump.fun: ticker, supply, the contract address slot */}
-          <PumpFunLaunch />
 
           {/* The phased roadmap on Ethereum */}
           <Roadmap />

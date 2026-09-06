@@ -297,9 +297,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
           page open regardless of this default, so the current page is
           never hidden, and a returning member's own choice still persists
           through OPEN_KEY. First open is now three plain group labels and
-          the four anchors: scannable in one glance, exactly the "flat and
-          short" feeling the Pump.fun reference earns by having far fewer
-          routes to begin with. */}
+          the four anchors: scannable in one glance rather than a scroll. */}
       <Section
         label="The Collection"
         items={collectionNav}
