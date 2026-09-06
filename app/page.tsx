@@ -13,10 +13,17 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { RealmIntro } from "@/components/landing/realm-intro";
 import { NonCustodial } from "@/components/landing/non-custodial";
+import { PlatformPreview } from "@/components/landing/platform-preview";
+import { TheChampions } from "@/components/landing/the-champions";
+import { TheCollection } from "@/components/landing/the-collection";
+import { TheGames } from "@/components/landing/the-games";
 import { MeetRaven } from "@/components/landing/meet-raven";
 import { TheTools } from "@/components/landing/the-tools";
+import { ComingSoonTeasers } from "@/components/landing/coming-soon-teasers";
 import { PumpFunLaunch } from "@/components/landing/pump-fun-launch";
 import { Roadmap } from "@/components/landing/roadmap";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { StatsStrip } from "@/components/landing/stats-strip";
 import { LiveRealmStats } from "@/components/landing/live-realm-stats";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { RefCapture } from "@/components/referral/ref-capture";
@@ -71,6 +78,10 @@ const faqs = [
     q: "What is a Call?",
     a: "A public, timestamped claim you put your name to. The realm measures how hard it is from the token's own volatility and freezes that difficulty when you seal, so an easy Call and a hard one cannot score the same. Settlement is against the exact contract you Called, never a ticker anyone can copy.",
   },
+  {
+    q: "Does being wrong cost me?",
+    a: "Yes, but not from the same pot. Renown is permanent and never falls, so a bad month cannot erase a good year. Season Rating takes the loss and resets when the season does. Nothing you have earned can be taken from you, and a Call still means something.",
+  },
   /* ARCHIVED with season_zero_live (lib/flags.ts): this FAQ entry described a
      round that is currently sealed, in present tense and with live dates, so
      it stayed as active misinformation rather than history. The full answer
@@ -79,6 +90,14 @@ const faqs = [
   {
     q: "Do I need crypto to play?",
     a: "No. You can sign in, post, join a House, make Calls and play The War without ever touching a token. The wallet waits quietly until you choose to use it.",
+  },
+  {
+    q: "What are Houses?",
+    a: "The teams of the realm. Six banners, and a House scores the sum of its top twenty contributors only, so it is a contest of skill rather than headcount. Leadership is computed from what people actually did each season, across six titles, and House Clashes run as forty eight hour windows where only Calls made inside them count.",
+  },
+  {
+    q: "Can I switch House?",
+    a: "Only between seasons, and your whole oath history stays public on your Keep. Contribution you have already made stays with the House that earned it, forever. That is what makes backing an underdog early mean something.",
   },
 ];
 
@@ -176,12 +195,12 @@ export default function Landing() {
               {heroBadge}
             </Card>
             {/* $RSP already carries this exact claim further down the page
-               (PumpFunLaunch's own eyebrow); surfacing it here too is the
-               founder's own direction to make it visible before a visitor
-               scrolls, not a new claim invented for the hero. Native anchor,
-               not the nav's smooth-scroll jump(): one badge does not need its
-               own copy of that logic, and PumpFunLaunch's section already
-               carries `scroll-mt-28` for the sticky bar. */}
+               (PumpFunLaunch's own eyebrow); surfacing it here too makes it
+               visible before a visitor scrolls, not a new claim invented for
+               the hero. Native anchor, not the nav's smooth-scroll jump():
+               one badge does not need its own copy of that logic, and
+               PumpFunLaunch's section already carries `scroll-mt-28` for the
+               sticky bar. */}
             <a
               href="#pump-fun"
               className="inline-flex items-center gap-1.5 rounded-sm border border-gold/25 bg-panel-warm/40 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold transition hover:border-gold/45"
@@ -278,8 +297,11 @@ export default function Landing() {
 
         {/* Narrative + features */}
         <div className="relative mx-auto max-w-5xl space-y-16 px-4 pb-16 sm:space-y-20 sm:px-6">
-          {/* Introduction */}
+          {/* Introduction + Mission / Vision / History */}
           <RealmIntro />
+
+          {/* The realm in numbers */}
+          <StatsStrip />
 
           {/* ARCHIVED with season_zero_live (lib/flags.ts). The section
               component and its landing copy are untouched at
@@ -313,17 +335,33 @@ export default function Landing() {
             <NonCustodial />
           </section>
 
+          {/* The Games: Claim the Throne + The War, then the champion rail */}
+          <div className="space-y-16">
+            <TheGames />
+            <TheChampions />
+          </div>
+
+          {/* The Collection: the sealed Set One fan and the three pillars.
+              Directly after the champions on purpose: the rail introduces the
+              heroes, this section says you will own them. */}
+          <TheCollection />
+
+          {/* See the realm: premium platform showcase */}
+          <PlatformPreview />
+
+          {/* Two forward-looking Coming soon teasers */}
+          <ComingSoonTeasers />
+
           {/* $RSP on Pump.fun: ticker, supply, the contract address slot */}
           <PumpFunLaunch />
 
           {/* The phased roadmap on Ethereum */}
           <Roadmap />
 
-          {/* The Chapters ahead. Doubled as ComingSoonTeasers plus this card
-              once: two sections both saying "not built yet" about the same
-              chapters, one spotlighting two of them, the other listing all
-              of them. This is the one that keeps every chapter honestly
-              labelled Soon; the spotlight version is cut, not both kept. */}
+          {/* How the realm works: four plain steps */}
+          <HowItWorks />
+
+          {/* The Chapters ahead */}
           <Card
             render={
               <motion.section
@@ -370,6 +408,44 @@ export default function Landing() {
                 </div>
               ))}
             </div>
+          </Card>
+
+          {/* The crests you can earn */}
+          <Card
+            render={
+              <motion.section
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6 }}
+              />
+            }
+            radius="xl"
+            pad="none"
+            className="p-7 text-center sm:p-9"
+          >
+            <div className="flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
+              <LandingIcon name="badge" className="h-4 w-4" />
+              Earned, never bought
+            </div>
+            <h2 className="mt-3 font-display text-2xl font-semibold text-bone sm:text-3xl">
+              Ten crests to prove your standing
+            </h2>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
+              {crests.map((c) => (
+                <span key={c.slug} title={`${c.name}: ${c.plain}`}>
+                  <CrestRoundel
+                    icon={c.icon}
+                    dim={c.status === "locked"}
+                    className="h-12 w-12"
+                  />
+                </span>
+              ))}
+            </div>
+            <p className="mx-auto mt-5 max-w-md text-sm text-bone-mut">
+              Three live at launch, seven on the roadmap. No collectibles, no
+              purchase, no shortcut. You earn them by showing up and being good.
+            </p>
           </Card>
 
           {/* The realm answers - FAQ */}
