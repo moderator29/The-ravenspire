@@ -7,32 +7,33 @@ import { Sheet } from "@/components/ui/sheet";
 import { SideNav } from "@/components/shell/side-nav";
 import { NotifDot } from "@/components/notifications/notif-badge";
 import { StreakFlame } from "@/components/shell/streak-flame";
-import { useRealmAuth } from "@/lib/auth/use-realm-auth";
-import { Icon } from "@/components/ui/icon";
 
-/* Mobile only top bar: drawer trigger, profile, ravens and whispers. The
-   vault lives in the side nav, so the bar stays clean without a brand mark
-   spending a cluster of its own on a destination two other controls already
-   reach.
+/* Mobile only top bar: drawer trigger, ravens and whispers. The vault lives
+   in the side nav, so the bar stays clean without a brand mark spending a
+   cluster of its own on a destination two other controls already reach.
+
+   THE PROFILE PORTRAIT IS GONE FROM THIS BAR. It briefly sat beside the
+   drawer trigger as a direct shortcut to `/keep`, on the reasoning that a
+   member looking for their own Keep should not have to open a menu first.
+   The founder's own read on a real device was that a circular avatar next to
+   the hamburger read as clutter, not a shortcut, so it is removed rather than
+   restyled: the drawer's SideNav already opens on the member's own "Your
+   Keep" card as its first row (components/shell/side-nav.tsx), one tap behind
+   the same menu trigger, so nothing here becomes unreachable. Left cluster is
+   the menu trigger alone now.
 
    SEARCH LEFT. Its trigger doubled as the drawer opener's neighbour and the
    glyph in that seat was `user`, which reads as a profile shortcut and does
-   not open one: it opens the menu. A member looking for their own Keep tapped
-   it expecting a profile and got a drawer instead. The seat now carries the
-   member's own portrait and goes to `/keep` directly, and the drawer trigger
-   carries its own honest glyph, `menu`, three lines, nothing else. Global
-   search still has its place inside the Crossroads; it does not need a
-   permanent seat in the one bar that has to fit a menu and a profile in a
-   phone's width.
+   not open one: it opens the menu. The drawer trigger carries its own honest
+   glyph, `menu`, three lines, nothing else. Global search still has its
+   place inside the Crossroads; it does not need a permanent seat in the one
+   bar that has to fit a menu in a phone's width.
 
    THE CENTRED MARK IS GONE. It used to sit as its own 44px target between the
    two clusters, but the dock already carries The Ravenry as its first
    destination and the drawer opens onto the same nav, so the mark was a third
    way to reach a page two other controls already reach, on the one bar in the
-   product with the least room to spend on it. Left cluster ends at 100 and
-   right cluster starts at 214 on a 366px screen: unchanged, because removing
-   the middle element moves neither end, it only leaves the space between
-   them open rather than spent on a logo.
+   product with the least room to spend on it.
 
    THE MENU TRIGGER SITS IN A SMALL GLASS FRAME NOW, the same restrained
    recipe the `glass` Button variant and the dock use: `bg-void/60`, a 10px
@@ -61,7 +62,6 @@ import { Icon } from "@/components/ui/icon";
  * primitive anchored left, which carries all of that. */
 export function TopBar() {
   const [open, setOpen] = useState(false);
-  const { authenticated, avatarUrl } = useRealmAuth();
 
   return (
     <>
@@ -85,33 +85,6 @@ export function TopBar() {
               onClick={() => setOpen(true)}
             />
           </span>
-          {authenticated ? (
-            <Link
-              href="/keep"
-              aria-label="Your Keep"
-              className="flex h-11 w-11 shrink-0 items-center justify-center"
-            >
-              {avatarUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="h-8 w-8 rounded-full border border-steel-line object-cover"
-                />
-              ) : (
-                <span className="hairline flex h-8 w-8 items-center justify-center rounded-full bg-void text-bone-mut">
-                  <Icon name="user" className="h-4 w-4" />
-                </span>
-              )}
-            </Link>
-          ) : (
-            <IconButton
-              icon="user"
-              label="Sign in"
-              size="lg"
-              render={<Link href="/signin" />}
-            />
-          )}
         </div>
         <div className="flex items-center gap-1">
           <StreakFlame />

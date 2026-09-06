@@ -23,18 +23,18 @@ type NavLink = {
   route?: boolean;
 };
 
-/* "Season Zero" pointed here until the section itself was replaced by
-   PumpFunLaunch (components/landing/pump-fun-launch.tsx); jump() below finds
-   nothing for an id that no longer renders and silently does nothing, so the
-   link kept its label and target for a while as a genuinely dead click. It
-   now names and targets the section that actually occupies that scroll
-   position. */
+/* "Games" and "The Realm" pointed at TheGames and PlatformPreview, both cut
+   in the landing page's own length pass (half the sections, per the
+   founder's direction): id="games" and id="realm" no longer render anywhere,
+   so both entries would have gone dead the same way the old "Season Zero"
+   link once did, per the comment this one replaces. "Roadmap" takes one of
+   the freed seats, since the section already exists and had no way in from
+   this bar. */
 const links: NavLink[] = [
   { label: "Overview", target: "overview", icon: "overview" },
-  { label: "Pump.fun", target: "pump-fun", icon: "coin" },
   { label: "Features", target: "features", icon: "features" },
-  { label: "Games", target: "games", icon: "games" },
-  { label: "The Realm", target: "realm", icon: "realm" },
+  { label: "Pump.fun", target: "pump-fun", icon: "coin" },
+  { label: "Roadmap", target: "roadmap", icon: "compass" },
   { label: "Docs", target: "/chronicle", icon: "docs", route: true },
 ];
 

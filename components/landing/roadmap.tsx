@@ -1,22 +1,19 @@
 "use client";
 
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { motion, type Variants } from "framer-motion";
 import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
-import { SET_ONE } from "@/lib/collectibles/set-one";
-import { MERCER_SKUS } from "@/lib/collectibles/mercer";
 import { SEASON_ZERO } from "@/lib/season-zero";
 
 /*
-  The Roadmap. A phased march along the Ethereum chain, drawn as a vertical
-  timeline with a gold spine and a node per phase. Each phase carries a short
-  body and a few concrete deliverables. The first phases show by default; the
-  full long-term march (community, campaigns, listings, partnerships, the grand
-  House contest and marketing) unfolds behind a "view the full march" button so
-  the section previews cleanly and expands for those who want the whole story.
-  Hype in tone, professional in claim: statuses are intentions, not oaths.
+  The Roadmap. Six consolidated phases, not the ten-phase march with a preview
+  and a "view the full march" toggle this used to be. That version put three
+  bullet points under every one of ten phases, hidden six of them behind a
+  button, and still described the same chapters this page names elsewhere
+  (Set One, the Mercer, Season Zero). Short means short: one line each here,
+  the founder's own direction, and no fold to expand because there is nothing
+  left to hide behind one. Hype in tone, professional in claim: statuses are
+  intentions, not oaths.
 */
 
 type Status = "live" | "building" | "planned";
@@ -25,7 +22,6 @@ type Phase = {
   tag: string;
   title: string;
   body: string;
-  points: string[];
   icon: LandingIconName;
   status: Status;
 };
@@ -33,144 +29,47 @@ type Phase = {
 const phases: Phase[] = [
   {
     tag: "Phase I",
-    title: "Foundation & build",
-    body: "The realm's core, forged and standing.",
-    points: [
-      "Identity and non-custodial embedded wallets",
-      "The Ravenry feed, profiles and Houses",
-      "Points engine for real, earned actions",
-    ],
+    title: "Foundation & social launch",
+    body: "Non-custodial wallets, the Ravenry feed, Houses, Calls and The War, all live.",
     icon: "layers",
     status: "live",
   },
   {
     tag: "Phase II",
-    title: "Social layer launch",
-    body: "The social realm opens its gates to all who ride.",
-    points: [
-      "Whispers, the Rookery and the Roll of Honour",
-      "The Herald @raven with real-data reads",
-      "Calls scored on difficulty, Houses and The War playable",
-    ],
-    icon: "users",
-    status: "live",
-  },
-  {
-    tag: "Phase III",
-    title: "Smart contracts & audit",
-    body: "The $RSP contract is authored and independently sealed.",
-    points: [
-      "$RSP token authored on Ethereum (1B supply)",
-      "Independent audit before anything ships",
-      "Points-to-$RSP conversion design finalized",
-    ],
+    title: "Contracts, audit & testnet",
+    body: "$RSP authored on Ethereum, independently audited, hardened on a public testnet.",
     icon: "shieldKey",
     status: "building",
   },
   {
-    tag: "Phase IV",
-    title: "Testnet & security",
-    body: "The realm hardens in the open.",
-    points: [
-      "Public testnet for claims, staking and rewards",
-      "Bug bounties and community stress tests",
-      "Wallet export and key-safety drills",
-    ],
-    icon: "lock",
-    status: "building",
-  },
-  {
-    tag: "Phase V",
-    title: "Community onboarding & campaigns",
-    body: "The gates widen and the ranks swell.",
-    points: [
-      "Referral quests and welcome campaigns",
-      "House recruitment drives and creator invites",
-      "Seasonal quests that reward showing up",
-    ],
-    icon: "users",
-    status: "planned",
-  },
-  {
-    tag: "New chapter",
-    title: "The Collection: cards, chests and merch",
-    body: "The trading card game steps out of the War and into your hands.",
-    /* Counted from the catalogs, not typed. "Forty champions" was written
-       while the set was still being drawn up, and "five pieces" was written
-       when the Mercer held five: the second was already wrong by a factor of
-       nearly three when this was fixed, on the most public page in the
-       product. A number nobody types is a number that cannot drift. */
-    points: [
-      `Set One preview live: ${SET_ONE.counts.total} champions, sealed, real roster data`,
-      "Warchests with exact odds printed on every box",
-      `The Mercer: ${MERCER_SKUS.length} pieces of official merch, and a physical box that mints digital twins to your own wallet`,
-    ],
+    tag: "Phase III",
+    title: "The Collection: cards, chests & merch",
+    body: "The trading card game steps out of the War: Set One, Warchests, and the Mercer's real merchandise.",
     icon: "layers",
     status: "building",
   },
   {
-    tag: "Phase VI",
+    tag: "Phase IV",
     title: "Season Zero, the founding round",
-    body: "Built to run inside the realm itself. Currently archived, not accepting contributions.",
-    points: [
-      `${SEASON_ZERO.supplyPct} percent of supply (${SEASON_ZERO.rspAllocation.toLocaleString("en-US")} $RSP) at a fixed rate of ${SEASON_ZERO.rspPerEth.toLocaleString("en-US")} $RSP per ETH`,
-      `Softcap ${SEASON_ZERO.softcapEth} ETH, hardcap ${SEASON_ZERO.hardcapEth} ETH; below softcap, every contribution is returned to its sending wallet`,
-      "Non-custodial, wallet to wallet on Base or Ethereum mainnet; tokens delivered at TGE",
-    ],
+    body: `${SEASON_ZERO.supplyPct}% of supply, non-custodial and wallet to wallet. Currently archived, not accepting contributions.`,
     icon: "coin",
     status: "building",
   },
   {
-    tag: "Phase VII",
+    tag: "Phase V",
     title: "TGE & liquidity",
-    body: "Token generation, then deep, locked liquidity.",
-    points: [
-      "$RSP generation event on Ethereum",
-      "Deep liquidity locked at launch",
-      "First points-to-$RSP season claim",
-    ],
+    body: "$RSP generation event, deep liquidity locked at launch, first points-to-$RSP season claim.",
     icon: "spark",
     status: "planned",
   },
   {
-    tag: "Phase VIII",
-    title: "Marketing & partnerships",
-    body: "The realm's name carried far beyond its walls.",
-    points: [
-      "Coordinated marketing pushes and creator deals",
-      "Protocol and ecosystem partnerships",
-      "Cross-community collaborations and events",
-    ],
-    icon: "signal",
-    status: "planned",
-  },
-  {
-    tag: "Phase IX",
-    title: "Play-to-earn & staking",
-    body: "Real deeds convert to $RSP; holders put tokens to work.",
-    points: [
-      "Play-to-earn seasons across the games",
-      "Staking vaults for $RSP holders",
-      "The grand House contest for the Throne",
-    ],
+    tag: "Phase VI",
+    title: "Growth: play-to-earn, staking & listings",
+    body: "Play-to-earn seasons, staking vaults, the grand House contest, and exchange listings.",
     icon: "crown",
     status: "planned",
   },
-  {
-    tag: "Phase X",
-    title: "CEX listings & ecosystem growth",
-    body: "The realm marches far beyond its first walls.",
-    points: [
-      "Centralized exchange listings",
-      "Treasury-backed ecosystem growth",
-      "New surfaces, tools and long-night chapters",
-    ],
-    icon: "spark",
-    status: "planned",
-  },
 ];
-
-const PREVIEW = 4;
 
 const statusStyle: Record<Status, { label: string; className: string }> = {
   live: { label: "Live", className: "border-gold/40 text-gold" },
@@ -180,23 +79,19 @@ const statusStyle: Record<Status, { label: string; className: string }> = {
 
 const container: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.1 } },
+  show: { transition: { staggerChildren: 0.08 } },
 };
 const rise: Variants = {
-  hidden: { opacity: 0, y: 26 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" } },
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
 function PhaseNode({ p }: { p: Phase }) {
   const st = statusStyle[p.status];
   return (
-    <li className="relative flex items-start gap-4">
-      {/* No halo inside the node. Ten glowing discs down one timeline is
-          ambient ornament (rule 21); the gold ring and glyph against the void
-          carry the node, and the gradient spine already gives the column its
-          light. */}
-      <span className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-void">
-        <LandingIcon name={p.icon} className="h-5 w-5 text-gold" />
+    <motion.li variants={rise} className="relative flex items-start gap-3">
+      <span className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-void">
+        <LandingIcon name={p.icon} className="h-4 w-4 text-gold" />
       </span>
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex flex-wrap items-center gap-2">
@@ -209,41 +104,32 @@ function PhaseNode({ p }: { p: Phase }) {
             {st.label}
           </span>
         </div>
-        <p className="mt-1 font-display text-base font-semibold text-bone">
+        <p className="mt-1 font-display text-sm font-semibold text-bone">
           {p.title}
         </p>
         <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-bone-mut">
           {p.body}
         </p>
-        <ul className="mt-2 flex flex-col gap-1">
-          {p.points.map((pt) => (
-            <li
-              key={pt}
-              className="flex items-start gap-2 text-[12px] leading-relaxed text-bone-faint"
-            >
-              <LandingIcon
-                name="check"
-                className="mt-0.5 h-3 w-3 shrink-0 text-gold/70"
-              />
-              {pt}
-            </li>
-          ))}
-        </ul>
       </div>
-    </li>
+    </motion.li>
   );
 }
 
 export function Roadmap() {
-  const [expanded, setExpanded] = useState(false);
-  const preview = phases.slice(0, PREVIEW);
-  const rest = phases.slice(PREVIEW);
-
   return (
-    <Card render={<motion.section initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={container} />} pad="none" className="relative overflow-hidden p-7 sm:p-9">
-      {/* No corner orb. The landing's glow budget is spent on the hero, the
-          mark and the two game cards; the roadmap's ornament is its gold
-          spine, which is doing actual work. */}
+    <Card
+      render={
+        <motion.section
+          id="roadmap"
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={container}
+        />
+      }
+      pad="none"
+      className="relative scroll-mt-28 overflow-hidden p-7 sm:p-9"
+    >
       <motion.div
         variants={rise}
         className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold"
@@ -258,10 +144,6 @@ export function Roadmap() {
         <h2 className="font-display text-2xl font-semibold text-bone sm:text-3xl">
           The march ahead
         </h2>
-        {/* `sm`, not `lg`. This chip is 27px tall, so a 16px radius reached
-            half its height and rounded the ends completely. Picking a rung off
-            the scale is not enough on its own: a rung at or above half the box
-            height is a capsule whatever it is called. */}
         <span className="inline-flex items-center gap-1.5 rounded-sm border border-gold/25 bg-panel px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-gold">
           <LandingIcon name="layers" className="h-3.5 w-3.5" />
           Built on Ethereum
@@ -271,68 +153,20 @@ export function Roadmap() {
         variants={rise}
         className="mt-3 max-w-prose text-[15px] leading-relaxed text-bone-mut"
       >
-        Ten phases from foundation to a full ecosystem: build, social launch,
-        contracts and audit, community campaigns, Season Zero the founding
-        round, TGE, marketing and partnerships, play-to-earn and the grand
-        House contest, and exchange listings. These are intentions, not oaths,
-        and we will say so plainly when they shift.
+        Six phases from foundation to a full ecosystem. These are intentions,
+        not oaths, and we will say so plainly when they shift.
       </motion.p>
 
-      <motion.ol variants={rise} className="relative mt-8 flex flex-col gap-5">
+      <motion.ol variants={rise} className="relative mt-7 flex flex-col gap-5">
         {/* Gold spine down the timeline */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-[21px] top-4 bottom-4 w-px bg-gradient-to-b from-gold/60 via-gold/25 to-transparent"
+          className="pointer-events-none absolute left-[17px] top-4 bottom-4 w-px bg-gradient-to-b from-gold/60 via-gold/25 to-transparent"
         />
-        {preview.map((p) => (
+        {phases.map((p) => (
           <PhaseNode key={p.tag} p={p} />
         ))}
-
-        <AnimatePresence initial={false}>
-          {expanded && (
-            /* Opacity and a transform, never height. A height animation is
-               the one thing the motion law names outright, and it earns the
-               ban here: this block holds six phase nodes with a spine behind
-               them, so every frame of an auto height tween relaid out the
-               whole timeline. The reveal reads the same and costs the
-               compositor nothing. */
-            <motion.div
-              key="rest"
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{
-                duration: 0.22,
-                ease: [0.23, 1, 0.32, 1],
-              }}
-              className="flex flex-col gap-5"
-            >
-              {rest.map((p) => (
-                <PhaseNode key={p.tag} p={p} />
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.ol>
-
-      {rest.length > 0 && (
-        <Button
-          variant="glass"
-          size="lg"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((v) => !v)}
-          render={<motion.button variants={rise} type="button" />}
-          className="mt-6 text-gold"
-        >
-          {expanded ? "Show less" : `View the full march (${rest.length} more)`}
-          <LandingIcon
-            name="chevronDown"
-            className={`h-4 w-4 transition-transform duration-300 ${
-              expanded ? "rotate-180" : ""
-            }`}
-          />
-        </Button>
-      )}
     </Card>
   );
 }
