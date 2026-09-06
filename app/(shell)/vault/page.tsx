@@ -12,19 +12,18 @@ import {
   ConsolePage,
 } from "@/components/console/console-shell";
 import { WalletSection } from "@/components/wallet/wallet-section";
+import { VaultLockGate } from "@/components/wallet/vault-lock-gate";
 import { HoardPanel } from "@/components/collectibles/hoard-panel";
 import { OrdersPanel } from "@/components/commerce/orders-panel";
 import { SpendLimitsPanel } from "@/components/commerce/spend-limits-panel";
-import { RedeemCode } from "@/components/collectibles/redeem-code";
 import { GasPanel } from "@/components/wallet/gas-panel";
-import { RecoveryPanel } from "@/components/wallet/recovery-panel";
 import { SigningLimitPanel } from "@/components/wallet/signing-limit-panel";
 
 /* The Vault: a Console. Compact above md, zero ornament, and every panel
    inside it on the shared Card chassis. */
 
 export default function VaultPage() {
-  const { ready, enabled, authenticated, signInX, signInEmail } =
+  const { ready, enabled, authenticated, address, signInX, signInEmail } =
     useRealmAuth();
 
   const showSkeleton = useDelayedLoading(!ready, 300);
@@ -80,7 +79,12 @@ export default function VaultPage() {
             />
           </Card>
         ) : (
-          <>
+          /* The passcode lock, when a member has set one, gates everything
+             below: balances, sends, the Hoard, all of it. Redeeming a printed
+             code and recovery moved into the Vault's own Settings sheet (the
+             gear on the balance card), so what used to sit here is now one
+             tap away rather than a permanent fixture on the scroll. */
+          <VaultLockGate address={address}>
             <WalletSection />
 
             {/* The collectibles half of the Vault. A wallet holds coin and it
@@ -104,11 +108,8 @@ export default function VaultPage() {
               </div>
               <HoardPanel handle={null} own />
 
-              {/* What the realm owes, and the bridge from a printed box. Both
-                  belong beside the Hoard because both end in it. Orders are
-                  absent for a member who has never bought anything; the code
-                  entry stays, because a member can be handed a box by somebody
-                  else without ever having ordered one. */}
+              {/* What the realm owes. Orders are absent for a member who has
+                  never bought anything. */}
               <OrdersPanel />
               {/* What has been charged, against the limits that will actually
                   stop it, and the control for holding yourself to less. Absent
@@ -116,22 +117,18 @@ export default function VaultPage() {
                   because telling somebody who has bought nothing how much
                   headroom they have is an invitation dressed as information. */}
               <SpendLimitsPanel />
-              <RedeemCode />
 
-              {/* The cost of being non-custodial, and the two things that make
-                  it survivable. Gas first, because it is the one a member meets
-                  on their very first act. Recovery second, because it is the
-                  one they only think about once, ideally before they need it.
-                  The signing ceiling last, because it is the advanced one and
-                  it sits deliberately far from the spending limit above: the
-                  two are different features and putting them side by side would
-                  invite exactly the confusion both of them warn about. Each
-                  panel renders nothing at all when it has nothing true to say. */}
+              {/* The cost of being non-custodial, ahead of the settings that
+                  answer for it. Gas is the one a member meets on their very
+                  first act; the signing ceiling is the advanced one, kept
+                  deliberately far from the spending limit above so the two
+                  different features never invite the confusion both of them
+                  warn about. Each panel renders nothing at all when it has
+                  nothing true to say. */}
               <GasPanel />
-              <RecoveryPanel />
               <SigningLimitPanel />
             </section>
-          </>
+          </VaultLockGate>
         )}
       </div>
     </ConsolePage>

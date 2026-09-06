@@ -710,10 +710,35 @@ body {
   animation: stream-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* A wrong Vault passcode: a short horizontal shake on the dot row alone,
+   never the whole screen. Transform only, well under the 300ms ceiling. */
+@keyframes vault-pin-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+.vault-pin-shake {
+  animation: vault-pin-shake 0.28s ease-in-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .action-pop,
   .heart-burst,
-  .stream-enter {
+  .stream-enter,
+  .vault-pin-shake {
     animation: none;
   }
 }

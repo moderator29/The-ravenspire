@@ -3,6 +3,7 @@
 import { Icon } from "@/components/ui/icon";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cx } from "@/components/ui/cx";
 import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { TxRecord } from "@/components/wallet/wallet-prefs";
@@ -23,11 +24,15 @@ export function WalletHistory({
   address,
   defaultChainId,
   compact = false,
+  hideHeading = false,
 }: {
   txs: TxRecord[];
   address: string | undefined;
   defaultChainId: number;
   compact?: boolean;
+  /* Drops the icon and "Transaction history" title. See CoinList's own
+     `hideHeading`. */
+  hideHeading?: boolean;
 }) {
   const rows = compact ? txs.slice(0, 4) : txs;
   const addrExplorer = address
@@ -36,18 +41,20 @@ export function WalletHistory({
 
   return (
     <Card pad="none" render={<section />} className={CONSOLE_PAD}>
-      <div className="flex items-center gap-2">
-        <Icon name="scroll" aria-hidden className="h-4 w-4 text-gold" />
-        <h2 className="font-display text-sm font-semibold text-bone">
-          Transaction history
-        </h2>
-      </div>
+      {hideHeading ? null : (
+        <div className="flex items-center gap-2">
+          <Icon name="scroll" aria-hidden className="h-4 w-4 text-gold" />
+          <h2 className="font-display text-sm font-semibold text-bone">
+            Transaction history
+          </h2>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <EmptyState
           size="sm"
           bordered
-          className="mt-3 md:mt-2"
+          className={hideHeading ? "" : "mt-3 md:mt-2"}
           icon="scroll"
           title="No transfers yet"
           body="Transfers you send from the Vault appear here with their hash. Full on-chain history lives on the explorer."
@@ -67,7 +74,12 @@ export function WalletHistory({
         />
       ) : (
         <>
-          <div className="mt-3 flex flex-col gap-2 md:mt-2 md:gap-1">
+          <div
+            className={cx(
+              "flex flex-col gap-2 md:gap-1",
+              hideHeading ? "mt-0" : "mt-3 md:mt-2"
+            )}
+          >
             {rows.map((tx) => {
               const chain = evmChainById(tx.chainId);
               const explorer = txExplorerUrlFor(tx.chainId, tx.hash);

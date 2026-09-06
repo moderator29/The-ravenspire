@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cx } from "@/components/ui/cx";
 import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
@@ -26,6 +27,7 @@ export function CoinList({
   loading,
   configured,
   error,
+  hideHeading = false,
 }: {
   tokens: WalletToken[];
   filters: TokenFilters;
@@ -35,6 +37,11 @@ export function CoinList({
   loading: boolean;
   configured: boolean;
   error: string | null;
+  /* Drops the icon and "Tokens" title, keeping the filter and Manage
+     controls. For the Vault's Tokens tab, where the tab label itself already
+     names the panel and a second "Tokens" heading directly under it would be
+     the same word twice in one glance. */
+  hideHeading?: boolean;
 }) {
   const showSkeleton = useDelayedLoading(loading && tokens.length === 0, 300);
 
@@ -53,13 +60,20 @@ export function CoinList({
   return (
     <Card pad="none" render={<section />} className={CONSOLE_PAD}>
       {/* The list's controls sit on one rail, never scattered into the rows. */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Icon name="coin" aria-hidden className="h-4 w-4 text-gold" />
-          <h2 className="font-display text-sm font-semibold text-bone">
-            Tokens
-          </h2>
-        </div>
+      <div
+        className={cx(
+          "flex items-center gap-3",
+          hideHeading ? "justify-end" : "justify-between"
+        )}
+      >
+        {hideHeading ? null : (
+          <div className="flex items-center gap-2">
+            <Icon name="coin" aria-hidden className="h-4 w-4 text-gold" />
+            <h2 className="font-display text-sm font-semibold text-bone">
+              Tokens
+            </h2>
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <TokenFilter value={filters} onChange={onFilters} />
           <Button size="sm" onClick={onManage}>
@@ -69,7 +83,12 @@ export function CoinList({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2 md:mt-2 md:gap-1">
+      <div
+        className={cx(
+          "flex flex-col gap-2 md:gap-1",
+          hideHeading ? "mt-0" : "mt-3 md:mt-2"
+        )}
+      >
         {loading && tokens.length === 0 ? (
           showSkeleton ? (
             <CoinRowSkeleton />

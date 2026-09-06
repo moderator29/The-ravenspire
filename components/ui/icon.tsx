@@ -309,6 +309,16 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M10 9h6M10 13h6" />
     </>
   ),
+
+  /* The Vault passcode pad's delete key. Referenced by name for the first
+     time there; no existing glyph meant "erase the last digit" without
+     borrowing one that already means something else. */
+  backspace: (
+    <>
+      <path d="M9 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6-7 6-7z" />
+      <path d="M13 10l4 4m0-4l-4 4" />
+    </>
+  ),
 };
 
 export function Icon({

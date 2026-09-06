@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useWallets } from "@privy-io/react-auth";
 import { Icon } from "@/components/ui/icon";
-import { Button, IconButton } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cx } from "@/components/ui/cx";
 import { CONSOLE_PAD } from "@/components/console/console-shell";
@@ -20,6 +20,7 @@ import { CoinDetail } from "@/components/wallet/coin-detail";
 import { ManageTokens } from "@/components/wallet/manage-tokens";
 import { WalletHistory } from "@/components/wallet/wallet-history";
 import { WalletWatchlist } from "@/components/wallet/wallet-watchlist";
+import { Tabs, TabsList, Tab, TabsPanel } from "@/components/ui/tabs";
 import type { SendCapableWallet } from "@/components/wallet/wallet-send-flow";
 import type { TokenFilters } from "@/components/wallet/token-filter";
 import type { WalletToken } from "@/components/wallet/wallet-token-types";
@@ -33,7 +34,6 @@ type Panel =
   | "receive"
   | "earn"
   | "manage"
-  | "history"
   | "settings"
   | null;
 
@@ -251,33 +251,47 @@ export function WalletLive({ address }: { address?: string }) {
         </div>
       </Card>
 
-      {/* Multi-chain coin list */}
-      <CoinList
-        tokens={visibleTokens}
-        filters={effectiveFilters}
-        onFilters={onFilters}
-        onSelect={(t) => openCoin(t, "overview")}
-        onManage={() => setPanel("manage")}
-        loading={loading}
-        configured={configured}
-        error={error}
-      />
-
-      {/* Watchlist */}
-      <WalletWatchlist watch={prefs.watch} onToggleWatch={prefs.toggleWatch} />
-
-      {/* Transaction history */}
-      <WalletHistory
-        txs={prefs.txs}
-        address={walletAddress}
-        defaultChainId={prefs.settings.defaultChainId}
-        compact
-      />
-      {prefs.txs.length > 4 ? (
-        <Button block size="sm" className="-mt-2" onClick={() => setPanel("history")}>
-          View all {prefs.txs.length} transactions
-        </Button>
-      ) : null}
+      {/* Tokens, Watchlist and History side by side, defaulting to Tokens: the
+          coin list is what a member opens the Vault to check, so it owns the
+          first tab rather than being the first of three stacked sections a
+          thumb has to scroll past the other two to reach. Each panel keeps
+          its own Card chassis; only the icon-plus-title row is dropped, since
+          the tab strip above it already names the panel. */}
+      <Tabs defaultValue="tokens">
+        <TabsList className="px-1">
+          <Tab value="tokens">Tokens</Tab>
+          <Tab value="watchlist">Watchlist</Tab>
+          <Tab value="history">History</Tab>
+        </TabsList>
+        <TabsPanel value="tokens" className="pt-3 md:pt-2.5">
+          <CoinList
+            tokens={visibleTokens}
+            filters={effectiveFilters}
+            onFilters={onFilters}
+            onSelect={(t) => openCoin(t, "overview")}
+            onManage={() => setPanel("manage")}
+            loading={loading}
+            configured={configured}
+            error={error}
+            hideHeading
+          />
+        </TabsPanel>
+        <TabsPanel value="watchlist" className="pt-3 md:pt-2.5">
+          <WalletWatchlist
+            watch={prefs.watch}
+            onToggleWatch={prefs.toggleWatch}
+            hideHeading
+          />
+        </TabsPanel>
+        <TabsPanel value="history" className="pt-3 md:pt-2.5">
+          <WalletHistory
+            txs={prefs.txs}
+            address={walletAddress}
+            defaultChainId={prefs.settings.defaultChainId}
+            hideHeading
+          />
+        </TabsPanel>
+      </Tabs>
 
       {/* Coin detail */}
       <WalletModal
@@ -346,21 +360,6 @@ export function WalletLive({ address }: { address?: string }) {
           onToggleHidden={prefs.toggleHidden}
           onAddCustom={prefs.addCustom}
           onRemoveCustom={prefs.removeCustom}
-        />
-      </WalletModal>
-
-      {/* Full history */}
-      <WalletModal
-        open={panel === "history"}
-        onClose={() => setPanel(null)}
-        title="Transaction history"
-        caption="Your transfers"
-        icon="scroll"
-      >
-        <WalletHistory
-          txs={prefs.txs}
-          address={walletAddress}
-          defaultChainId={prefs.settings.defaultChainId}
         />
       </WalletModal>
 

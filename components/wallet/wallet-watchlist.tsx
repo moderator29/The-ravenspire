@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Card as CardShell } from "@/components/ui/card";
+import { cx } from "@/components/ui/cx";
 import { CONSOLE_PAD } from "@/components/console/console-shell";
 import { IconButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -24,9 +25,12 @@ interface Card {
 export function WalletWatchlist({
   watch,
   onToggleWatch,
+  hideHeading = false,
 }: {
   watch: WatchItem[];
   onToggleWatch: (item: WatchItem) => void;
+  /* Drops the icon and "Watchlist" title. See CoinList's own `hideHeading`. */
+  hideHeading?: boolean;
 }) {
   const [cards, setCards] = useState<Record<string, Card | null>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
@@ -75,14 +79,16 @@ export function WalletWatchlist({
 
   return (
     <CardShell pad="none" render={<section />} className={CONSOLE_PAD}>
-      <div className="flex items-center gap-2">
-        <Icon name="eye" aria-hidden className="h-4 w-4 text-gold" />
-        <h2 className="font-display text-sm font-semibold text-bone">
-          Watchlist
-        </h2>
-      </div>
+      {hideHeading ? null : (
+        <div className="flex items-center gap-2">
+          <Icon name="eye" aria-hidden className="h-4 w-4 text-gold" />
+          <h2 className="font-display text-sm font-semibold text-bone">
+            Watchlist
+          </h2>
+        </div>
+      )}
 
-      <div className="mt-3 flex gap-2 md:mt-2">
+      <div className={cx("flex gap-2", hideHeading ? "mt-0" : "mt-3 md:mt-2")}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
