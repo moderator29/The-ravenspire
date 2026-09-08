@@ -178,6 +178,27 @@ export function MessageList({
                   </div>
                 )}
 
+                {/* What this reply actually had in front of it, named
+                    plainly rather than left as an unverifiable claim. Ledger
+                    register: small text, a hairline border, no glow. */}
+                {m.grounded && m.grounded.length > 0 && (
+                  <div className="mt-2 flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-[0.16em] text-bone-faint">
+                      Grounded in
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {m.grounded.map((g, j) => (
+                        <span
+                          key={`${g}-${j}`}
+                          className="rounded-sm border border-steel-line/70 bg-panel px-2 py-0.5 text-[10px] text-bone-mut"
+                        >
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {(m.cards || m.walletCard || m.pulse) && (
                   <div className="mt-2.5 flex flex-wrap gap-2">
                     {m.cards?.map((c, j) => (

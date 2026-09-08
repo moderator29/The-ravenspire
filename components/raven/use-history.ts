@@ -58,6 +58,7 @@ function toMeta(m: Msg): Record<string, unknown> {
   if (m.browsed !== undefined) meta.browsed = m.browsed;
   if (m.browseRequested !== undefined) meta.browseRequested = m.browseRequested;
   if (m.browseAvailable !== undefined) meta.browseAvailable = m.browseAvailable;
+  if (m.grounded) meta.grounded = m.grounded;
   return meta;
 }
 
@@ -74,6 +75,7 @@ function fromServer(row: ServerMessage): Msg {
     browsed: meta.browsed,
     browseRequested: meta.browseRequested,
     browseAvailable: meta.browseAvailable,
+    grounded: meta.grounded,
   };
 }
 

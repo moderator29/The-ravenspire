@@ -161,6 +161,7 @@ export default function RavenPage() {
         browsed?: boolean;
         browseRequested?: boolean;
         browseAvailable?: boolean;
+        grounded?: string[];
       };
 
       let liveText = "";
@@ -198,6 +199,10 @@ export default function RavenPage() {
           browsed: f.browsed,
           browseRequested: f.browseRequested,
           browseAvailable: f.browseAvailable,
+          grounded:
+            Array.isArray(f.grounded) && f.grounded.length
+              ? f.grounded
+              : undefined,
         });
       } else if (liveText) {
         /* The connection dropped before `done` arrived, but real words were

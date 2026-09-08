@@ -233,6 +233,22 @@ export async function POST(req: Request) {
     describeMemberForRaven(memberContext),
   ];
 
+  /* What this specific reply actually had in front of it, named plainly
+     rather than left as an unlabelled wall of context the member has no way
+     to check. Built from exactly the same variables the prompt itself was
+     built from above, so this can never claim a source the model was not
+     actually handed. Order follows how a member would want to verify it:
+     the platform and their own record first (always present), then whatever
+     was fetched fresh for this specific question. */
+  const grounded: string[] = [
+    "The realm's own platform knowledge",
+    "Your own dossier",
+  ];
+  for (const card of cards) grounded.push(`$${card.symbol.toUpperCase()} live price`);
+  if (walletCard) grounded.push(`Wallet ${walletCard.address.slice(0, 6)}…${walletCard.address.slice(-4)}`);
+  for (const house of matchedHouses) grounded.push(house.name);
+  if (pulse) grounded.push("A derived Realm Pulse");
+
   /* Spoken token by token from here on, over Server-Sent Events. Everything
      above (the rate limit, the auth check, every live lookup) runs exactly
      as it did before this route streamed: a member either gets a real
@@ -290,6 +306,7 @@ export async function POST(req: Request) {
             browseRequested: chunk.result.browseRequested,
             browseAvailable: chunk.result.browseAvailable,
             sources: chunk.result.sources,
+            grounded,
           });
         }
       } catch {

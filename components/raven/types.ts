@@ -34,6 +34,12 @@ export type Msg = {
   browsed?: boolean;
   browseRequested?: boolean;
   browseAvailable?: boolean;
+  /* What this specific reply actually had in front of it: the platform brief,
+     the member's own dossier, and whatever real, per-turn data (a token's
+     live price, a wallet read, a House, a derived Realm Pulse) the server
+     fed the model this turn, named plainly rather than left as an
+     unlabelled wall of context nobody can check. */
+  grounded?: string[];
 };
 
 /* ---- AI settings sent to /api/raven ---- */
