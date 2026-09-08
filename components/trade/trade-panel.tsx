@@ -34,7 +34,25 @@ import {
 const NATIVE_DECIMALS = 18;
 const USD_PRESETS = [10, 25, 50, 100];
 const SELL_PCTS = [25, 50, 100];
-const SLIPPAGE_BPS = 100; // 1%
+
+/* Slippage tolerance, in basis points, the same shape Uniswap, 1inch and
+   Jupiter all converged on: a few presets plus a custom figure, persisted per
+   member rather than hardcoded. The Scrying Glass surfaces thin, sub-$100M
+   altcoins on purpose, and a flat 1% that suits a blue chip pair routinely
+   reverts a real swap on one of these, so the member has to be able to widen
+   it. Bounds match the server's own clamp in /api/trade/quote. */
+const SLIPPAGE_PRESETS_BPS = [50, 100, 300]; // 0.5%, 1%, 3%
+const SLIPPAGE_MIN_BPS = 1; // 0.01%
+const SLIPPAGE_MAX_BPS = 5000; // 50%
+const SLIPPAGE_WARN_BPS = 500; // 5%, past which we warn rather than block
+
+function bpsToPctText(bps: number): string {
+  return (bps / 100).toFixed(2).replace(/\.?0+$/, "");
+}
+
+function fmtPct(bps: number): string {
+  return `${bpsToPctText(bps)}%`;
+}
 
 export interface TradeCoin {
   address: string;
@@ -138,7 +156,8 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
   }, [wallets]);
   const walletAddress = sender?.address;
 
-  const { custom, recordTx } = useVaultPrefs(walletAddress);
+  const { custom, recordTx, settings, setSettings } = useVaultPrefs(walletAddress);
+  const slippageBps = settings.slippageBps;
   const { tokens, refresh } = useWalletTokens(walletAddress, custom);
 
   const chain = tradeChainById(coin.evmChainId);
@@ -162,6 +181,22 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
   const [usdChoice, setUsdChoice] = useState<number | null>(25);
   const [customUsd, setCustomUsd] = useState("");
   const [sellPct, setSellPct] = useState<number>(50);
+
+  // Slippage: a preset segment, or "custom" with its own text field so a
+  // partial figure like "2." does not get reformatted out from under the
+  // member mid-keystroke. The custom field is seeded once from whatever is
+  // already persisted (a returning member's own choice, or the preset being
+  // left behind) and never overwritten again by this effect.
+  const slippageMode = SLIPPAGE_PRESETS_BPS.includes(slippageBps)
+    ? String(slippageBps)
+    : "custom";
+  const [customSlippage, setCustomSlippage] = useState("");
+  const customSlippageSeeded = useRef(false);
+  useEffect(() => {
+    if (customSlippageSeeded.current || slippageMode !== "custom") return;
+    setCustomSlippage(bpsToPctText(slippageBps));
+    customSlippageSeeded.current = true;
+  }, [slippageMode, slippageBps]);
 
   const [quote, setQuote] = useState<NormalizedQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -220,7 +255,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             buyToken: coin.address,
             buyAmount: buyRaw.toString(),
             feeToken: coin.address,
-            slippageBps: SLIPPAGE_BPS,
+            slippageBps,
           }
         : {
             mode: "price",
@@ -229,7 +264,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             buyToken: NATIVE_TOKEN_SENTINEL,
             sellAmount: sellRaw.toString(),
             feeToken: coin.address,
-            slippageBps: SLIPPAGE_BPS,
+            slippageBps,
           };
     const res = await realmFetch<{ quote?: NormalizedQuote; error?: string }>(
       "/api/trade/quote",
@@ -251,6 +286,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
     coin.evmChainId,
     coin.address,
     coin.decimals,
+    slippageBps,
   ]);
 
   useEffect(() => {
@@ -296,7 +332,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             buyAmount: buyRaw.toString(),
             taker: walletAddress,
             feeToken: coin.address,
-            slippageBps: SLIPPAGE_BPS,
+            slippageBps,
           }
         : {
             mode: "quote",
@@ -306,7 +342,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
             sellAmount: sellRaw.toString(),
             taker: walletAddress,
             feeToken: coin.address,
-            slippageBps: SLIPPAGE_BPS,
+            slippageBps,
           };
 
     setPhase("swapping");
@@ -563,6 +599,69 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
           </p>
         </>
       )}
+
+      {/* Slippage tolerance. A member's own choice, persisted per wallet the
+          same way every other Vault preference is, and threaded straight into
+          the quote request below: SegmentedControl models the presets and the
+          custom figure is its own field so partial input never gets
+          reformatted out from under a typing member. */}
+      <div className="mt-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-bone-mut">
+            Slippage tolerance
+          </span>
+          <span className="tnum text-xs text-bone-faint">{fmtPct(slippageBps)}</span>
+        </div>
+        <SegmentedControl
+          label="Slippage tolerance"
+          size="sm"
+          block
+          className="mt-1.5"
+          value={slippageMode}
+          onValueChange={(next) => {
+            if (next !== "custom") setSettings({ slippageBps: Number(next) });
+          }}
+          items={[
+            ...SLIPPAGE_PRESETS_BPS.map((p) => ({
+              value: String(p),
+              label: fmtPct(p),
+            })),
+            { value: "custom", label: "Custom" },
+          ]}
+        />
+        {slippageMode === "custom" && (
+          <div className="mt-2 flex items-center gap-2">
+            <Input
+              inputMode="decimal"
+              value={customSlippage}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                  setCustomSlippage(v);
+                  const n = Number(v);
+                  if (Number.isFinite(n) && n > 0) {
+                    const bps = Math.min(
+                      Math.max(Math.round(n * 100), SLIPPAGE_MIN_BPS),
+                      SLIPPAGE_MAX_BPS
+                    );
+                    setSettings({ slippageBps: bps });
+                  }
+                }
+              }}
+              placeholder="0.5"
+              className="tnum flex-1 text-right"
+            />
+            <span className="text-xs font-semibold text-bone-mut">%</span>
+          </div>
+        )}
+        {slippageBps > SLIPPAGE_WARN_BPS && (
+          <p className="mt-2 flex items-start gap-1.5 text-xs text-state-warning">
+            <Icon name="alert" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            High slippage tolerance. Your trade may fill far below the quoted
+            price, and a thin pool like this one is easier to front run.
+          </p>
+        )}
+      </div>
 
       {/* Quote readout */}
       <Card variant="inset" pad="md" className="mt-3">

@@ -36,12 +36,17 @@ export interface VaultSettings {
   defaultChainId: number;
   hideSmall: boolean;
   currency: "USD" | "EUR" | "GBP";
+  /* Slippage tolerance for in-app trades, in basis points (100 = 1%). Set on
+     the trade panel; read there and on the Swap page so both quote the trade
+     the member actually chose rather than a hardcoded default. */
+  slippageBps: number;
 }
 
 export const DEFAULT_SETTINGS: VaultSettings = {
   defaultChainId: 1,
   hideSmall: false,
   currency: "USD",
+  slippageBps: 100,
 };
 
 type Store = {
