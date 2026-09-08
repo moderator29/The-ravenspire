@@ -25,6 +25,7 @@ import { RealmTrades } from "@/components/trade/realm-trades";
 import { TRADE_CHAINS } from "@/lib/trade/config";
 import { realmFetch } from "@/lib/auth/api";
 import { withDeadline } from "@/lib/deadline";
+import type { TokenCard } from "@/lib/data/tokens";
 
 /* The Scrying Glass: a Console. The lens switcher and the chain filter sit on
    one toolbar rail that collapses into a Sheet below md, and the coin roll is
@@ -192,6 +193,12 @@ export default function ScryingPage() {
   const [shown, setShown] = useState(PAGE);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  const [query, setQuery] = useState("");
+  const [remote, setRemote] = useState<{
+    status: "idle" | "loading" | "found" | "empty";
+    card: TokenCard | null;
+  }>({ status: "idle", card: null });
+
   const load = useCallback(async () => {
     setError(false);
     try {
@@ -229,15 +236,68 @@ export default function ScryingPage() {
 
   useEffect(() => {
     setShown(PAGE);
-  }, [tab, chainFilter]);
+  }, [tab, chainFilter, query]);
 
   const coins = useMemo(() => {
     if (!data) return null;
     const list = data[tab] ?? [];
-    return chainFilter === null
-      ? list
-      : list.filter((c) => c.chainId === chainFilter);
-  }, [data, tab, chainFilter]);
+    const byChain =
+      chainFilter === null ? list : list.filter((c) => c.chainId === chainFilter);
+    const q = query.trim().toLowerCase();
+    if (!q) return byChain;
+    return byChain.filter(
+      (c) =>
+        c.symbol.toLowerCase().includes(q) ||
+        c.name.toLowerCase().includes(q) ||
+        c.address.toLowerCase() === q
+    );
+  }, [data, tab, chainFilter, query]);
+
+  /* A ticker or address a member is looking for is not always inside
+     whatever lens and chain happen to be loaded, whatever the board's own
+     depth: this is the whole market, not one board's slice of it. When the
+     local filter above comes up empty for a real query, fall back to the
+     same keyless, trust-checked lookup the Herald and the wallet's own
+     watchlist search already use (`/api/token`, DexScreener + CoinGecko),
+     so "search" means the market, not "search the 200 rows already on
+     screen." Debounced, and only fires once local search has already come
+     up empty, so the common case (the coin is right there) never costs a
+     network round trip. */
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2 || coins === null || coins.length > 0) {
+      setRemote({ status: "idle", card: null });
+      return;
+    }
+    let cancelled = false;
+    setRemote({ status: "loading", card: null });
+    const t = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/token?q=${encodeURIComponent(q)}`, {
+            cache: "no-store",
+          });
+          if (cancelled) return;
+          if (!res.ok) {
+            setRemote({ status: "empty", card: null });
+            return;
+          }
+          const body = (await res.json()) as { card: TokenCard | null };
+          setRemote(
+            body.card
+              ? { status: "found", card: body.card }
+              : { status: "empty", card: null }
+          );
+        } catch {
+          if (!cancelled) setRemote({ status: "empty", card: null });
+        }
+      })();
+    }, 400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [query, coins]);
 
   /* Only offer chain chips for chains that actually have coins in this tab. */
   const availableChains = useMemo(() => {
@@ -303,6 +363,36 @@ export default function ScryingPage() {
         non-custodially.
       </p>
 
+      {/* Ticker, name or address. Filters whatever is already loaded first
+          (instant, no request), and only reaches for the wider market lookup
+          once that comes up empty for a real query. */}
+      <div className="relative mt-3 md:mt-2">
+        <Icon
+          name="search"
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-faint"
+        />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          spellCheck={false}
+          autoComplete="off"
+          aria-label="Search coins by ticker, name or address"
+          placeholder="Search ticker, name or address"
+          className="h-11 w-full rounded-md border border-steel-line bg-panel/60 pl-9 pr-9 text-sm text-bone transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px]"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            aria-label="Clear search"
+            className="touch:min-h-11 touch:min-w-11 absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-sm text-bone-faint transition-colors duration-fast hover:text-bone"
+          >
+            <Icon name="close" className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       {/* The lens switcher and the chain filter, on one rail. Three exclusive
           views of the same data is a Segmented control; a growing set of chain
           filters is a chip rail. */}
@@ -363,6 +453,45 @@ export default function ScryingPage() {
               }
             />
           </Card>
+        ) : coins.length === 0 && query.trim() ? (
+          remote.status === "loading" ? (
+            <CoinRowSkeleton rows={1} />
+          ) : remote.status === "found" && remote.card?.address ? (
+            <Card pad="none">
+              <Link
+                href={`/coin/${encodeURIComponent(remote.card.address)}${
+                  remote.card.symbol
+                    ? `?sym=${encodeURIComponent(remote.card.symbol)}`
+                    : ""
+                }`}
+                className="flex min-h-11 items-center gap-2.5 px-3 py-2.5 md:min-h-9 md:py-1.5"
+              >
+                <TokenLogo src={null} symbol={remote.card.symbol} size={32} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-bone md:text-[13px]">
+                    {remote.card.symbol}
+                  </p>
+                  <p className="truncate text-[11px] text-bone-faint">
+                    {remote.card.name} · found in the wider market, outside
+                    this lens
+                  </p>
+                </div>
+                <Icon
+                  name="arrow"
+                  className="h-4 w-4 shrink-0 text-bone-faint"
+                />
+              </Link>
+            </Card>
+          ) : (
+            <Card pad="none">
+              <EmptyState
+                icon="search"
+                size="sm"
+                title="No coin found"
+                body={`Nothing matches "${query.trim()}" in this lens or the wider market.`}
+              />
+            </Card>
+          )
         ) : coins.length === 0 ? (
           <Card pad="none">
             <EmptyState
@@ -475,10 +604,10 @@ export default function ScryingPage() {
 }
 
 /* Shaped like the coin rows it stands in for. */
-function CoinRowSkeleton() {
+function CoinRowSkeleton({ rows = 6 }: { rows?: number }) {
   return (
     <div className="flex flex-col gap-2 md:gap-1">
-      {[0, 1, 2, 3, 4, 5].map((i) => (
+      {Array.from({ length: rows }, (_, i) => i).map((i) => (
         <Card
           key={i}
           radius="lg"

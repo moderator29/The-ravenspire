@@ -178,6 +178,129 @@ function pickPair(
   return sorted[0] ?? null;
 }
 
+interface GeckoPoolAttrs {
+  address?: string;
+  base_token_price_usd?: string | null;
+  reserve_in_usd?: string | null;
+  market_cap_usd?: string | null;
+  fdv_usd?: string | null;
+  volume_usd?: { h24?: string | null };
+  price_change_percentage?: {
+    m5?: string | null;
+    h1?: string | null;
+    h6?: string | null;
+    h24?: string | null;
+  };
+  transactions?: { h24?: { buys?: number; sells?: number } };
+  pool_created_at?: string | null;
+}
+
+interface GeckoTokenPool {
+  id?: string;
+  attributes?: GeckoPoolAttrs;
+  relationships?: {
+    base_token?: { data?: { id?: string } };
+    dex?: { data?: { id?: string } };
+  };
+}
+
+interface GeckoIncludedToken {
+  id?: string;
+  type?: string;
+  attributes?: {
+    symbol?: string;
+    name?: string;
+    address?: string;
+    image_url?: string | null;
+  };
+}
+
+/* A fallback identity + market read straight from GeckoTerminal, keyed by
+   network and address, used only when DexScreener has no pair for a token
+   the Scrying Glass itself already proved real. The board's own list is
+   sourced from GeckoTerminal (app/api/scrying/route.ts), and the two
+   providers do not index the same pools: a pool real and liquid enough to
+   sit on the board with a real market cap could still be one DexScreener's
+   own search has not picked up yet, and a coin a member can see and tap on
+   the board must never dead-end on its own detail page for a reason that has
+   nothing to do with whether it is real. Same honesty rule as the primary
+   path: a coin GeckoTerminal also cannot find still answers "not found"
+   rather than inventing one, and the liquidity floor below is checked
+   identically either way. */
+async function fetchFromGecko(
+  network: string,
+  address: string
+): Promise<DexPair | null> {
+  try {
+    const res = await fetch(
+      `https://api.geckoterminal.com/api/v2/networks/${network}/tokens/${address}/pools?page=1`,
+      { headers: { accept: "application/json" }, next: { revalidate: 30 } }
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      data?: GeckoTokenPool[];
+      included?: GeckoIncludedToken[];
+    };
+    const pools = body.data ?? [];
+    if (pools.length === 0) return null;
+
+    const tokens = new Map<string, GeckoIncludedToken["attributes"]>();
+    for (const inc of body.included ?? []) {
+      if (inc.type === "token" && inc.id) tokens.set(inc.id, inc.attributes);
+    }
+
+    // The deepest pool by real liquidity, the same rule the rest of this
+    // route uses to pick among several pairs for one token.
+    const best = [...pools].sort(
+      (a, b) =>
+        Number(b.attributes?.reserve_in_usd ?? 0) -
+        Number(a.attributes?.reserve_in_usd ?? 0)
+    )[0];
+    const a = best?.attributes;
+    if (!a?.address) return null;
+
+    const baseId = best?.relationships?.base_token?.data?.id ?? "";
+    const base = tokens.get(baseId);
+    const dexChain = DEX_CHAIN_FROM_GECKO[network] ?? null;
+    const toNum = (v: string | null | undefined): number | undefined =>
+      v != null && v !== "" ? Number(v) : undefined;
+
+    return {
+      chainId: dexChain ?? undefined,
+      dexId: best?.relationships?.dex?.data?.id,
+      url: best?.id
+        ? `https://www.geckoterminal.com/${network}/pools/${
+            best.id.split("_").slice(1).join("_")
+          }`
+        : undefined,
+      pairAddress: a.address,
+      pairCreatedAt: a.pool_created_at
+        ? Date.parse(a.pool_created_at)
+        : undefined,
+      baseToken: {
+        symbol: base?.symbol,
+        name: base?.name,
+        address: base?.address ?? address,
+      },
+      priceUsd: a.base_token_price_usd ?? undefined,
+      priceChange: {
+        m5: toNum(a.price_change_percentage?.m5),
+        h1: toNum(a.price_change_percentage?.h1),
+        h6: toNum(a.price_change_percentage?.h6),
+        h24: toNum(a.price_change_percentage?.h24),
+      },
+      volume: { h24: toNum(a.volume_usd?.h24) },
+      txns: a.transactions?.h24 ? { h24: a.transactions.h24 } : undefined,
+      liquidity: { usd: toNum(a.reserve_in_usd) },
+      marketCap: toNum(a.market_cap_usd),
+      fdv: toNum(a.fdv_usd),
+      info: base?.image_url ? { imageUrl: base.image_url } : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchChart(
   chainId: string | null,
   pairAddress: string | null
@@ -278,7 +401,23 @@ export async function GET(req: Request) {
   if (!address) return json({ error: "not found" }, 404);
 
   const pairs = await fetchPairs(address);
-  const pair = pickPair(pairs, address, preferChain);
+  let pair = pickPair(pairs, address, preferChain);
+  const dexScreenerHasIt =
+    pair && pair.baseToken?.symbol && (pair.liquidity?.usd ?? 0) >= MIN_LIQUIDITY_USD;
+
+  // DexScreener came up empty or too thin; try the same token straight
+  // through GeckoTerminal before giving up. Needs a network id: the one the
+  // Scrying Glass passed, or the one implied by a chain a symbol lookup
+  // already resolved.
+  if (!dexScreenerHasIt) {
+    const geckoNetwork = net ?? (preferChain ? GECKO_NETWORK[preferChain] : null);
+    if (geckoNetwork) {
+      const fallback = await fetchFromGecko(geckoNetwork, address);
+      if (fallback && (fallback.liquidity?.usd ?? 0) >= MIN_LIQUIDITY_USD) {
+        pair = fallback;
+      }
+    }
+  }
 
   if (
     !pair ||

@@ -32,21 +32,38 @@ import { chainLogo } from "@/lib/trade/token-list";
    Each chain now earns its own top slice of up to PER_CHAIN_CAP coins by the
    lens's own metric, and the chains are combined after, so a chain filter
    shows what that chain actually has rather than what survived a
-   cross-chain popularity contest it was never entered into. */
+   cross-chain popularity contest it was never entered into.
+
+   THREE DISTINCT ENDPOINTS, NOT ONE PAGED DEEP. A first pass at this widened
+   the top-pools fetch from two pages a chain to five, on the assumption that
+   GeckoTerminal's free `pools` listing pages arbitrarily deep. Verified
+   against the live site, it does not move the count much past what two pages
+   already gave: the free endpoint's own effective depth (or its rate limit
+   under a burst of requests) caps out well short of five pages of real new
+   data. `new_pools` is a second, genuinely different, equally real
+   GeckoTerminal endpoint (recently created pools, not "more of the same
+   ranking"), so it is fetched alongside `pools` rather than gambled on as a
+   deeper page of it: two distinct real sources beat one source paged
+   further than it actually goes. */
 
 export const dynamic = "force-dynamic";
 
 const MAX_MARKET_CAP_USD = 100_000_000; // under $100M only, active altcoins
 const MIN_LIQUIDITY_USD = 15_000;
 const MIN_VOLUME_USD = 15_000;
-/* Pages of GeckoTerminal's top-pools and trending-pools endpoints fetched per
-   chain, 20 pools a page. Five top-pool pages is up to 100 raw candidates a
-   chain before any filter runs; real chains with real liquidity comfortably
-   clear a hundred qualifying coins from that, thinner chains honestly return
-   fewer, because there simply are not two hundred liquid non-major altcoins
-   on every chain at every moment and padding that count would mean showing
+/* Pages fetched per chain, per endpoint, 20 pools a page. Kept moderate on
+   each of the three endpoints (top pools, new pools, trending pools) rather
+   than pushed deep on one, both because a single free-tier endpoint has not
+   shown real depth much past its first couple of pages in practice, and
+   because a smaller, three-way-diversified burst per chain is kinder to a
+   keyless rate limit than one endpoint paged aggressively. Real chains with
+   real liquidity still comfortably clear a hundred-plus qualifying coins
+   from the combined candidate pool; thinner chains honestly return fewer,
+   because there simply are not two hundred liquid non-major altcoins on
+   every chain at every moment, and padding that count would mean showing
    junk pools to hit a number. */
-const TOP_PAGES = 5;
+const TOP_PAGES = 3;
+const NEW_PAGES = 2;
 const TRENDING_PAGES = 2;
 const PER_CHAIN_CAP = 200;
 /* How many addresses get the DexScreener enrichment pass (socials + logo
@@ -319,14 +336,20 @@ async function scry() {
   const jobs: Promise<ScryCoin[]>[] = [];
   const trendingJobs: Promise<ScryCoin[]>[] = [];
   for (const net of nets) {
-    // Top pools feed "top" and "heating"; trending pools feed "trending".
-    // TOP_PAGES/TRENDING_PAGES pages a chain, 20 pools a page, so each chain
-    // gets its own real shot at PER_CHAIN_CAP qualifying coins rather than
-    // the two-page, forty-total-across-every-chain ceiling this used to run
-    // under.
+    // Top pools and new pools both feed "top" and "heating" (two distinct
+    // real sources, not one paged deeper than it actually goes, see the
+    // header comment); trending pools feed "trending".
     for (let page = 1; page <= TOP_PAGES; page++) {
       jobs.push(
         fetchGecko(`networks/${net}/pools?include=base_token&page=${page}`, net)
+      );
+    }
+    for (let page = 1; page <= NEW_PAGES; page++) {
+      jobs.push(
+        fetchGecko(
+          `networks/${net}/new_pools?include=base_token&page=${page}`,
+          net
+        )
       );
     }
     for (let page = 1; page <= TRENDING_PAGES; page++) {
