@@ -18,6 +18,7 @@ import { BackButton } from "@/components/shell/back-button";
 import { WatchBadge } from "@/components/tools/watch-badge";
 import { TokenLogo } from "@/components/coin/token-logo";
 import { WatchStar } from "@/components/coin/watch-star";
+import { AlertControl } from "@/components/watchlist/alert-control";
 import { type ChartPoint } from "@/components/coin/price-chart";
 import { InteractiveChart } from "@/components/coin/interactive-chart";
 import { TradePanel } from "@/components/trade/trade-panel";
@@ -381,6 +382,18 @@ export default function CoinPage({
               />
             )}
           </Card>
+
+          {/* Percent-move alert on this coin. Renders nothing until the coin
+              is starred above, since arming an alert only makes sense once
+              it is on the watchlist. */}
+          {coin.evmChainId !== null && (
+            <AlertControl
+              chainId={coin.evmChainId}
+              address={coin.address}
+              symbol={coin.symbol}
+              className="mt-3 md:mt-2"
+            />
+          )}
 
           {/* Price + chart */}
           <Card pad="none" className={cx("mt-3 md:mt-2", CONSOLE_PAD)}>

@@ -30,6 +30,7 @@ export const NOTIF_KIND_ICON: Record<string, string> = {
   call_verdict: "target",
   follow_trade: "coin",
   follow_call: "target",
+  watch_alert: "signal",
   house: "banner",
   announcement: "bell",
 };
@@ -50,6 +51,11 @@ export const NOTIF_KIND_TEXT: Record<string, string> = {
   call_verdict: "your Call has been judged",
   follow_trade: "made a move in the markets",
   follow_call: "sealed a new Call",
+  /* No actor: this fires from the member's own armed alert, not from another
+     member's action, so notifActorName falls back to "The realm" and this
+     phrase is written to still read cleanly after it. The real coin and
+     percent move live in the body text, shown as a second line. */
+  watch_alert: "flagged a move on a coin you're watching",
   house: "word from your banner",
   announcement: "a proclamation for the realm",
 };
@@ -73,6 +79,10 @@ export function notifHref(n: NotifLike): string {
         : n.actor?.handle
           ? `/u/${n.actor.handle}`
           : "/home";
+    case "watch_alert":
+      // subject_id carries the alerted coin's contract address, same shape
+      // as follow_trade above, so a tap lands straight on its coin page.
+      return n.subject_id ? `/coin/${n.subject_id}` : "/home";
     case "tip":
       return n.subject_id
         ? `/post/${n.subject_id}`

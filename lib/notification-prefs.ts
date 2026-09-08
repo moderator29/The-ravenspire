@@ -50,6 +50,14 @@ export const KIND_TO_PREF: Record<string, NotifPrefKey> = {
      their own, these two entries are the whole of what has to move. */
   follow_call: "calls",
   follow_trade: "tips",
+  /* watch_alert: a member's own armed percent-move alert on a coin they
+     starred, firing when the real price moves. Same reasoning as
+     follow_trade just above, not a market event about someone else's
+     activity but still market activity, and "tips" is still the only toggle
+     that reads as the money channel. No dedicated "price alerts" toggle
+     exists in the settings panel; if one is added later this is the one
+     entry that moves. */
+  watch_alert: "tips",
   house: "house",
   announcement: "announcements",
 };

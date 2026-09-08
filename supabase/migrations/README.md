@@ -143,6 +143,26 @@ thing that broke five times.
 No column, function or constraint carries the word, so nothing in the schema
 needs renaming. Only the prose in those two files, and it stays.
 
+## Nothing is pending
+
+Every migration in this directory has been applied and carries the version
+production recorded. `watchlist_alerts` was the last outstanding one: applied
+as `20260908122154`, advisor clean, and renamed to match.
+
+It altered one existing object, `public.watchlist_items`, created earlier in
+the same session as `20260908120440_create_watchlist_items_table.sql`. Per the
+rule at the top of this file, its live definition was read out of the project
+immediately before writing the migration, not assumed from memory of having
+just created it: `profile_id uuid`, `chain_id integer`, `address text`,
+`created_at timestamptz default now()`, primary key on the first three, one
+`SELECT ... USING (false)` policy and no others. That matched this directory
+exactly, so the migration only adds three new nullable columns
+(`alert_pct`, `alert_baseline_price`, `alert_fired_at`) plus two check
+constraints and a partial index; nothing existing was changed. The security
+advisor was run before and after: 34 INFO `rls_enabled_no_policy` findings
+both times, none of them `watchlist_items` (it has a policy, just a deny-all
+one), and no new finding of any kind.
+
 ## The rest of the posture
 
 Every table is RLS deny-by-default with ownership enforced in the route under

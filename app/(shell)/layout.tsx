@@ -10,6 +10,7 @@ import { NotificationsProvider } from "@/components/notifications/notifications-
 import { DossierProvider } from "@/components/social/user-dossier";
 import { VisitorRibbon } from "@/components/share/visitor-ribbon";
 import { ToastProvider } from "@/components/ui/toast";
+import { AlertsPoller } from "@/components/watchlist/alerts-poller";
 
 export default function ShellLayout({
   children,
@@ -36,6 +37,13 @@ export default function ShellLayout({
        * and a realm toast are never fighting over mount order. */}
       <ToastProvider>
         <NotificationsProvider>
+          {/* Renders nothing. Evaluates the member's armed watchlist price
+              alerts on an interval while any shell page is mounted; see its
+              own header comment for why this is a poller rather than a
+              cron. Sits beside NotificationsProvider, not inside it, since
+              the alert it produces is just another raven flowing through
+              the same center and toast this provider already renders. */}
+          <AlertsPoller />
           <DossierProvider>
         <div className="realm-bg mx-auto flex min-h-screen w-full max-w-[1600px] flex-col lg:flex-row">
           <div className="sticky top-0 hidden h-screen w-[272px] shrink-0 border-r border-steel-line/70 lg:block">
