@@ -8,10 +8,23 @@ import { VIGIL_CREST_DAYS, VIGIL_CREST_SLUG } from "@/lib/realm/appointments";
 /* Crests earned automatically from renown, streak and vigil milestones. Each
    entry is checked against the caller's current standing; grants are
    idempotent. */
+/* Raised banners: real, activated referrals, the same figure the wallet's
+   own Earn card and the referral panel already show as "Raised". Five is a
+   genuine bar for an early-stage realm: not the first recruit anyone might
+   bring by accident, but a member who has actually gone out and brought
+   people in more than once, matching the epic rarity the catalogue already
+   gives this crest. */
+const BANNERLORD_REFERRALS = 5;
+
 const AUTO_CRESTS: {
   slug: string;
   title: string;
-  earned: (p: { renown: number; streak: number; vigil: number }) => boolean;
+  earned: (p: {
+    renown: number;
+    streak: number;
+    vigil: number;
+    activatedReferrals: number;
+  }) => boolean;
 }[] = [
   {
     slug: "knight-of-the-realm",
@@ -41,6 +54,16 @@ const AUTO_CRESTS: {
     slug: VIGIL_CREST_SLUG,
     title: "Lord of Light",
     earned: (p) => p.vigil >= VIGIL_CREST_DAYS,
+  },
+  {
+    /* "For those who raise the most banners and bring the realm to life,"
+       the catalogue's own words for this crest since launch, with nothing
+       able to grant it. Activated is the same real fact the referral panel
+       and the wallet's Earn card already show as "Raised": a recruit who
+       actually did something, not merely clicked a link. */
+    slug: "bannerlord",
+    title: "Bannerlord",
+    earned: (p) => p.activatedReferrals >= BANNERLORD_REFERRALS,
   },
 ];
 
@@ -76,10 +99,23 @@ export async function checkAndGrantCrests(
     vigil = ((vigilRow as { muster_streak?: number | null }).muster_streak) ?? 0;
   }
 
+  /* The same real count the referral panel and the wallet's Earn card
+     already show as "Raised": activated referrals only, never a raw invite
+     count, so a recruit who never actually did anything on the realm cannot
+     buy this crest for the referrer. A head count, not a row fetch: this
+     runs on every award, and the only thing bannerlord's check needs is the
+     number. */
+  const { count: activatedReferrals } = await db
+    .from("referrals")
+    .select("profile_id", { count: "exact", head: true })
+    .eq("referrer_id", profileId)
+    .eq("activated", true);
+
   const standing = {
     renown: prof.renown ?? 0,
     streak: prof.streak ?? 0,
     vigil,
+    activatedReferrals: activatedReferrals ?? 0,
   };
 
   const due = AUTO_CRESTS.filter((c) => c.earned(standing));

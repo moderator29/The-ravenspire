@@ -25,7 +25,7 @@ export const crests: CrestDef[] = [
      grant it; the Muster is its producer, and the rule below is the real one
      checked in lib/crests.ts. */
   { slug: "lord-of-light", name: "Lord of Light", plain: "Devotion streak", rarity: "rare", status: "live", earn: "Answer the Muster thirty days running. The realm musters twice a day for two hours, and only a claim inside a window counts.", icon: "flame-drop" },
-  { slug: "bannerlord", name: "Bannerlord", plain: "Top referrers", rarity: "epic", status: "locked", earn: "For those who raise the most banners and bring the realm to life.", icon: "banner-crest" },
+  { slug: "bannerlord", name: "Bannerlord", plain: "Top referrers", rarity: "epic", status: "live", earn: "Raise 5 banners: bring 5 members into the realm who go on to do something real here.", icon: "banner-crest" },
   { slug: "keeper-of-the-vault", name: "Keeper of the Vault", plain: "Long-term staker", rarity: "legendary", status: "locked", earn: "For oaths sworn long in The Forge.", icon: "key" },
   /* Also live as of the clock. Same story: described from launch, granted by
      nothing, because a season had no close. The season finale is its
