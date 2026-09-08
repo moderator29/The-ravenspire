@@ -186,6 +186,20 @@ export const chronicle: ChronicleSection[] = [
   },
 
   {
+    slug: "the-scrying-glass",
+    icon3d: "scrying",
+    title: "The Scrying Glass",
+    plain: "Live coin discovery across seven chains, and a real swap underneath it.",
+    status: "live",
+    body: [
+      "The Scrying Glass pulls real trending, top and new pools across seven EVM chains at once (Ethereum, Base, Arbitrum, Optimism, BNB Chain, Polygon and Avalanche) from GeckoTerminal and DexScreener, up to two hundred coins deep per chain, and only surfaces coins that clear a real liquidity floor: reputation over noise. Every coin carries its real logo, socials and chain mark, the board refreshes on a minute, scrolling is genuinely infinite, and the chain filter narrows to that chain's own real depth rather than slicing one small combined list. Search finds a coin already on the board instantly, or reaches into the wider market when it is not there yet.",
+      "Open a coin and its own page has a real price chart, zoomable across 1H, 4H, 1D and 1W windows, each a genuine request for that window rather than one fixed range redrawn smaller. A real GoPlus scan reads the contract for honeypots, blacklists and buy or sell tax before you trade it, and a real read of which Houses have members trading this coin right now sits alongside it. Star a coin and it follows you to a second device or a cleared browser; arm a percent-move alert on a coin you have starred and the realm ravens you when it moves.",
+      "The Swap trades any supported EVM coin for any other from the same page, routed through 0x and signed by your own embedded wallet, never by us. Slippage is yours to set, and price impact and any real contract tax the coin carries are shown before you confirm, never after. The platform takes a transparent 0.5% fee and nothing else. “The realm is trading” is a real, live tape of verified on-chain trades other members just made in platform, not a marketing number, and a trade you just closed can become a Call in one tap, pre-filled with the coin and a stance read from what you did.",
+      "A price alert is checked from inside the app on a short interval while you have it open anywhere in the realm, not delivered as a push notification while you are away: the realm runs no paid always-on infrastructure for this, and an honest few-minutes-behind alert beats a promise of instant delivery the platform has not built.",
+    ],
+  },
+
+  {
     slug: "the-war",
     icon3d: "crossed-axes",
     title: "The War",
