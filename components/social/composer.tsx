@@ -9,15 +9,6 @@ import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icon";
 import { Menu, MenuItem } from "@/components/ui/menu";
-import {
-  CallForm,
-  EMPTY_CALL_DRAFT,
-  callDraftReady,
-  callPayload,
-  draftSentence,
-  type CallDraft,
-} from "@/components/calls/call-form";
-import type { CallDirection } from "@/lib/calls/types";
 import { canRetrace } from "@/components/shell/nav-depth";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -45,7 +36,6 @@ export function Composer({
   onPosted,
   page = false,
   onDone,
-  initialCall,
 }: {
   onPosted?: (post?: Post) => void;
   /* When true, the composer renders as a focused full compose screen (its own
@@ -54,28 +44,12 @@ export function Composer({
   /* Called after a successful post in page mode instead of the default
      navigation to /home, so a caller can steer where the member lands. */
   onDone?: () => void;
-  /* Opens straight into the Call composer with these fields pre-filled, for a
-     caller (a just-completed trade, say) that already knows the coin and a
-     direction. Still only a starting point: the member sees the same
-     difficulty preview and confidence slider as sealing one from scratch, and
-     can change or clear anything before it is sent. */
-  initialCall?: { token?: string; stance?: CallDirection };
 }) {
   const router = useRouter();
   const { authenticated, displayName } = useRealmAuth();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [callOpen, setCallOpen] = useState(() => Boolean(initialCall?.token));
-  const [callDraft, setCallDraft] = useState<CallDraft>(() =>
-    initialCall?.token
-      ? {
-          ...EMPTY_CALL_DRAFT,
-          token: initialCall.token.slice(0, 12).toUpperCase(),
-          stance: initialCall.stance ?? EMPTY_CALL_DRAFT.stance,
-        }
-      : EMPTY_CALL_DRAFT
-  );
   /* Each attachment carries a local blob `preview` for instant, reliable
      on-screen display and the persisted public `url` used when the raven is
      sent. Previewing the blob (not the fresh remote URL) means the thumbnail
@@ -161,20 +135,10 @@ export function Composer({
   }
 
   const send = async () => {
-    if (busy || (!body.trim() && !callOpen && images.length === 0)) return;
+    if (busy || (!body.trim() && images.length === 0)) return;
     setBusy(true);
     setError(null);
     const payload: Record<string, unknown> = { body };
-    if (callOpen) {
-      const call = callPayload(callDraft);
-      if (call) {
-        payload.call = call;
-        /* A raven needs words and a Call is a claim, so a Call sealed without
-           any is sent as the claim itself rather than being refused by the
-           server for being empty. */
-        if (!body.trim()) payload.body = draftSentence(callDraft);
-      }
-    }
     if (images.length)
       payload.media = images.map((img) => ({ url: img.url, type: "image" }));
     const validPoll = pollOptions.map((o) => o.trim()).filter(Boolean);
@@ -193,8 +157,6 @@ export function Composer({
       return;
     }
     setBody("");
-    setCallOpen(false);
-    setCallDraft(EMPTY_CALL_DRAFT);
     for (const img of images) {
       previewUrls.current.delete(img.preview);
       URL.revokeObjectURL(img.preview);
@@ -211,15 +173,7 @@ export function Composer({
     onPosted?.(res.data?.post);
   };
 
-  /* A Call being drafted but not yet complete is the one case where an
-     otherwise sendable raven has to wait: sealing it half stated would post a
-     raven and silently drop the Call. */
-  const callIncomplete = callOpen && !callDraftReady(callDraft);
-  const sendDisabled =
-    busy ||
-    uploading ||
-    callIncomplete ||
-    (!body.trim() && !callOpen && images.length === 0);
+  const sendDisabled = busy || uploading || (!body.trim() && images.length === 0);
 
   const audience = AUDIENCES.find((a) => a.value === visibility);
 
@@ -283,10 +237,6 @@ export function Composer({
                 : "w-full resize-none bg-transparent text-[15px] text-bone placeholder-bone-faint"
             }
           />
-
-          {callOpen && (
-            <CallForm draft={callDraft} onChange={setCallDraft} />
-          )}
 
           {images.length > 0 && (
             <div className="mt-2 flex gap-2 overflow-x-auto">
@@ -396,18 +346,6 @@ export function Composer({
             >
               <Icon name="raven" className="h-5 w-5" />
               {suggesting && <span className="text-xs">Drafting</span>}
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="lg"
-              aria-pressed={callOpen}
-              onClick={() => setCallOpen((v) => !v)}
-              pad="sm"
-              className={`text-xs ${callOpen ? "bg-gold/15 text-gold" : "text-bone-faint"}`}
-            >
-              <Icon name="target" className="h-5 w-5" />
-              Make a Call
             </Button>
 
             <Menu

@@ -53,7 +53,7 @@ export function resolverLine(call: CallData): string {
 }
 
 export const CATEGORY_LABEL: Record<string, string> = {
-  markets: "Markets",
+  markets: "Crypto",
   esports: "Esports",
   gaming: "Gaming",
   culture: "Culture",

@@ -56,7 +56,7 @@ const DIRECTIONS = [
 ];
 
 const CATEGORY_LABEL: Record<CallCategory, string> = {
-  markets: "Markets",
+  markets: "Crypto",
   esports: "Esports",
   gaming: "Gaming",
   culture: "Culture",

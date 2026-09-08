@@ -124,6 +124,23 @@ export function FloatingCompose() {
               tone="gold"
               opaque
               className="shadow-xl"
+              render={<Link href="/calls/new" />}
+              onClick={() => setOpen(false)}
+            >
+              Make a Call
+              <span
+                aria-hidden
+                className="flex h-7 w-7 items-center justify-center rounded-sm border border-gold/40 bg-panel text-gold"
+              >
+                <Icon name="target" className="h-4 w-4" />
+              </span>
+            </Button>
+            <Button
+              variant="glass"
+              size="lg"
+              tone="gold"
+              opaque
+              className="shadow-xl"
               render={<Link href="/compose" />}
               onClick={() => setOpen(false)}
             >

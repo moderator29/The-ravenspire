@@ -351,7 +351,7 @@ export function CallDetailView({ id }: { id: string }) {
       {/* Hero band. */}
       <Card pad="md" variant="warm">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{CATEGORY_LABEL[data.category ?? "markets"] ?? "Markets"}</Badge>
+          <Badge>{CATEGORY_LABEL[data.category ?? "markets"] ?? "Crypto"}</Badge>
           <VerdictBadge verdict={data.verdict} />
           <span className="ml-auto text-xs text-bone-faint">
             {open ? (

@@ -1115,16 +1115,16 @@ function TradeSuccess({
           too, right here, is the one moment that read is fresh: the member
           already bought or sold, the stance falls straight out of which one
           (buy reads as an "up" claim, sell as "down"), and it is only ever a
-          pre-filled starting point, never sealed from here. The composer's
-          own difficulty preview and confidence slider still stand between
-          this tap and an actual Call. */}
+          pre-filled starting point, never sealed from here. The dedicated
+          Call page's own difficulty preview and confidence slider still
+          stand between this tap and an actual Call. */}
       <Button
         variant="glass"
         size="lg"
         block
         render={
           <Link
-            href={`/compose?call=1&token=${encodeURIComponent(symbol)}&stance=${side === "buy" ? "up" : "down"}`}
+            href={`/calls/new?token=${encodeURIComponent(symbol)}&stance=${side === "buy" ? "up" : "down"}`}
           />
         }
       >

@@ -155,7 +155,7 @@ function CallCard({ item }: { item: CallItem }) {
       className="block"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Badge>{CATEGORY_LABEL[c?.category ?? "markets"] ?? "Markets"}</Badge>
+        <Badge>{CATEGORY_LABEL[c?.category ?? "markets"] ?? "Crypto"}</Badge>
         {band && <Badge variant="gold">{band.label}</Badge>}
         <div className="ml-auto">
           <VerdictChip verdict={c?.verdict} />
@@ -412,13 +412,24 @@ function CallsBody() {
     <>
       <BackButton />
 
-      <header className="mt-4">
-        <h1 className="gold-text font-display text-2xl font-semibold tracking-wide">
-          Calls
-        </h1>
-        <p className="mt-1 text-sm text-bone-mut">
-          Public reads, sealed against a live price and settled by the realm.
-        </p>
+      <header className="mt-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="gold-text font-display text-2xl font-semibold tracking-wide">
+            Calls
+          </h1>
+          <p className="mt-1 text-sm text-bone-mut">
+            Public reads, sealed against a live price and settled by the realm.
+          </p>
+        </div>
+        <Button
+          variant="gold"
+          size="md"
+          render={<Link href="/calls/new" />}
+          className="shrink-0"
+        >
+          <Icon name="target" className="h-4 w-4" />
+          New Call
+        </Button>
       </header>
 
       {/* Desktop view switcher. On mobile the dock carries this as its sub
