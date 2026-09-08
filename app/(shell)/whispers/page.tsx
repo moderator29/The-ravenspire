@@ -124,6 +124,14 @@ export default function WhispersPage() {
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState<string | null>(null);
+  /* The other participant's last_read_at, real and server sourced: it seeds
+     from the GET response when the thread opens and advances only from a
+     genuine "read" broadcast, never a guess. */
+  const [otherReadAt, setOtherReadAt] = useState<string | null>(null);
+  /* Ephemeral, never persisted: whether the other participant is typing right
+     now, as far as this tab has heard. Cleared by its own timeout, not only
+     by an explicit "stopped" signal that a closed tab would never send. */
+  const [otherTyping, setOtherTyping] = useState(false);
 
   /* Image staged in the composer, uploaded and ready to send. */
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -141,6 +149,12 @@ export default function WhispersPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLInputElement | null>(null);
   const activeIdRef = useRef<string | null>(null);
+  /* The open thread's own realtime channel, reached from the composer's
+     onChange so a typing broadcast can ride the same channel the messages
+     and read receipts already use, rather than opening a second one. */
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingSentRef = useRef(0);
   /* Mirrors the open thread for the realtime handler, which must be able to
      drop a payload that lands after the member has moved on. Written in an
      effect rather than during render: a ref touched in the render body is a
@@ -180,11 +194,14 @@ export default function WhispersPage() {
   }, []);
 
   const loadMessages = useCallback(async (conversation: string) => {
-    const res = await realmFetch<{ me: string; messages: Message[] }>(
-      `/api/whispers/messages?conversation=${encodeURIComponent(conversation)}`
-    );
+    const res = await realmFetch<{
+      me: string;
+      messages: Message[];
+      otherReadAt: string | null;
+    }>(`/api/whispers/messages?conversation=${encodeURIComponent(conversation)}`);
     if (res.ok && res.data) {
       setMeId(res.data.me);
+      setOtherReadAt(res.data.otherReadAt ?? null);
       setMsgs((prev) => {
         /* Preserve any still-unconfirmed optimistic messages on refresh. */
         const pending = (prev ?? []).filter((m) => m.pending);
@@ -216,8 +233,10 @@ export default function WhispersPage() {
     };
   }, [supabase, meId, loadConvos]);
 
-  /* Thread realtime channel: append incoming whispers live. Keyed on the
-     secret conversation id, so only the two participants ever hold the topic. */
+  /* Thread realtime channel: append incoming whispers live, and ride the same
+     topic for typing and read state rather than opening a second channel per
+     conversation for each. Keyed on the secret conversation id, so only the
+     two participants ever hold the topic. */
   useEffect(() => {
     if (!activeId) return;
     const channel = supabase
@@ -227,9 +246,38 @@ export default function WhispersPage() {
           ?.message;
         if (!m || activeIdRef.current !== activeId) return;
         mergeMessage(m, m.sender_id === meId);
+        /* A message arriving from the other participant means, whatever they
+           were doing a moment ago, they are done typing it. */
+        if (m.sender_id !== meId) {
+          setOtherTyping(false);
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        }
+      })
+      .on("broadcast", { event: "typing" }, (payload) => {
+        const data = payload.payload as { typist?: string } | undefined;
+        if (!data?.typist || data.typist === meId) return;
+        setOtherTyping(true);
+        /* The timeout, not an explicit "stopped typing" event, is the real
+           source of truth for when this clears: a closed tab or a lost
+           connection would never send that event, and the indicator would
+           stick forever without it. */
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setOtherTyping(false), 4000);
+      })
+      .on("broadcast", { event: "read" }, (payload) => {
+        const data = payload.payload as
+          | { reader?: string; at?: string }
+          | undefined;
+        if (!data?.reader || data.reader === meId || !data.at) return;
+        const at = data.at;
+        setOtherReadAt((prev) => (prev && prev > at ? prev : at));
       })
       .subscribe();
+    channelRef.current = channel;
     return () => {
+      channelRef.current = null;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      setOtherTyping(false);
       void supabase.removeChannel(channel);
     };
   }, [supabase, activeId, meId, mergeMessage]);
@@ -292,6 +340,8 @@ export default function WhispersPage() {
     setBody("");
     setPendingImage(null);
     setSendErr(null);
+    setOtherReadAt(null);
+    setOtherTyping(false);
     setConvos((prev) =>
       prev ? prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)) : prev
     );
@@ -304,6 +354,26 @@ export default function WhispersPage() {
     setBody("");
     setPendingImage(null);
     setSendErr(null);
+    setOtherReadAt(null);
+    setOtherTyping(false);
+  }
+
+  /* Broadcasts a typing signal on the open thread's own channel, throttled so
+     the composer never fires on every keystroke: at most once every 2.5s
+     while the member keeps typing. Ephemeral and best effort, degrading to
+     silence rather than a fake or stale signal when the channel is not ready. */
+  function handleBodyChange(value: string) {
+    setBody(value);
+    const channel = channelRef.current;
+    if (!channel || !meId) return;
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < 2500) return;
+    lastTypingSentRef.current = now;
+    void channel.send({
+      type: "broadcast",
+      event: "typing",
+      payload: { typist: meId },
+    });
   }
 
   async function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
@@ -392,6 +462,20 @@ export default function WhispersPage() {
   const active = convos?.find((c) => c.id === activeId) ?? null;
   const canSend =
     (body.trim().length > 0 || Boolean(pendingImage)) && !uploading;
+
+  /* The id of my own last confirmed message, but only when the other
+     participant's real last_read_at proves they have actually seen it. A
+     receipt is never shown on more than one message: it marks how far the
+     other side has read, not each message individually. */
+  const myLastReadId = useMemo(() => {
+    if (!msgs || !meId || !otherReadAt) return null;
+    let lastMine: Message | null = null;
+    for (const m of msgs) {
+      if (m.sender_id === meId && !m.pending) lastMine = m;
+    }
+    if (!lastMine) return null;
+    return lastMine.created_at <= otherReadAt ? lastMine.id : null;
+  }, [msgs, meId, otherReadAt]);
 
   /* ── The open thread ──────────────────────────────────────────────────── */
 
@@ -532,8 +616,15 @@ export default function WhispersPage() {
                       </p>
                     )}
                   </Card>
-                  <span className="tnum mt-0.5 px-1 text-[10px] text-bone-faint">
+                  <span className="tnum mt-0.5 flex items-center gap-1 px-1 text-[10px] text-bone-faint">
                     {m.pending ? "Sending" : timeAgo(m.created_at)}
+                    {mine && myLastReadId === m.id && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <Icon name="check" className="h-3 w-3 text-gold" />
+                        <span className="text-gold">Read</span>
+                      </>
+                    )}
                   </span>
                 </div>
               </div>
@@ -546,6 +637,13 @@ export default function WhispersPage() {
 
   const threadFooter = (
     <>
+      {otherTyping && (
+        <p className="flex items-center gap-2 border-t border-steel-line px-3 pt-2 text-xs text-bone-faint transition-opacity duration-fast ease-out-quint">
+          <Icon name="dots" className="h-3.5 w-3.5 shrink-0" />
+          {active ? convoName(active) : "They"} are typing
+        </p>
+      )}
+
       {sendErr && (
         <p
           role="alert"
@@ -607,7 +705,7 @@ export default function WhispersPage() {
           <Input
             ref={composerRef}
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={(e) => handleBodyChange(e.target.value)}
             aria-label="Whisper"
             placeholder="Speak softly"
             className="min-h-11"

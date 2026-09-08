@@ -123,13 +123,39 @@ export async function GET(req: Request) {
     .order("created_at", { ascending: true })
     .limit(200);
 
+  /* The other participant's own last_read_at, read before this member's write
+     below overwrites the row that matters, so a thread opened after the other
+     side already read it shows the receipt immediately rather than waiting on
+     a broadcast that already happened while nobody was listening. */
+  const { data: otherMember } = await db
+    .from("conversation_members")
+    .select("last_read_at")
+    .eq("conversation_id", conversation)
+    .neq("profile_id", profile.id)
+    .maybeSingle();
+
+  const now = new Date().toISOString();
   await db
     .from("conversation_members")
-    .update({ last_read_at: new Date().toISOString() })
+    .update({ last_read_at: now })
     .eq("conversation_id", conversation)
     .eq("profile_id", profile.id);
 
-  return json({ me: profile.id, messages: (messages ?? []) as WhisperMessage[] });
+  /* A real read, not a guess: this member has genuinely just loaded the
+     thread. The other participant, if present in the same conversation
+     channel right now, sees the receipt land on their own last message
+     without needing to reload. Best effort, same as every other broadcast in
+     this file: the read is already persisted above either way. */
+  await broadcast(`whispers:conv:${conversation}`, "read", {
+    reader: profile.id,
+    at: now,
+  });
+
+  return json({
+    me: profile.id,
+    messages: (messages ?? []) as WhisperMessage[],
+    otherReadAt: (otherMember?.last_read_at as string | null) ?? null,
+  });
 }
 
 export async function POST(req: Request) {
