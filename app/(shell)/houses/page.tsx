@@ -151,9 +151,9 @@ function Standings() {
           {data?.offSeason ? <Badge variant="gold">Off-season</Badge> : null}
         </div>
         <p className="mt-2 text-xs leading-relaxed text-bone-mut">
-          A House scores the sum of its top {HOUSE_TOP_N} contributors only, so
-          a large House cannot outrank a sharp one on headcount. Ties break on
-          those members&apos; mean.
+          A House scores the sum of its top {HOUSE_TOP_N}{" "}
+          contributors only, so a large House cannot outrank a sharp one on
+          headcount. Ties break on those members&apos; mean.
         </p>
       </Card>
 
@@ -404,8 +404,8 @@ function Cadence({ cadence }: { cadence: ClashCadence }) {
       <p className="mt-2 text-xs leading-relaxed text-bone-mut">
         A Clash opens on Friday at 18:00 UTC and runs for {cadence.hours} hours.
         Every Call sealed inside the window counts toward its House, scored on
-        the same top {HOUSE_TOP_N} rule as the season, and the result is frozen
-        when it closes.
+        the same top {HOUSE_TOP_N}{" "}
+        rule as the season, and the result is frozen when it closes.
       </p>
     </Card>
   );
