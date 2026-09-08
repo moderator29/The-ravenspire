@@ -117,7 +117,11 @@ export function ConsoleHeader({
         {...(backHref ? { href: backHref } : {})}
         {...(backLabel ? { label: backLabel } : {})}
       />
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {/* Column below sm: an action beside the title steals the width the
+          title needs to read in full at 375-390px, truncating even a short
+          name like "The Scrying Glass" down to "The Scrying Gla...". Row
+          again from sm, where there is room for both on one line. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-x-3 sm:gap-y-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h1 className="truncate font-display text-xl font-semibold text-bone md:text-lg">

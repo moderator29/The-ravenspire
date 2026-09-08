@@ -130,7 +130,7 @@ function Socials({ t }: { t: ScryCoin }) {
   if (t.telegram) links.push({ href: t.telegram, icon: "send", label: "Telegram" });
   if (links.length === 0) return null;
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="hidden items-center gap-0.5 sm:flex">
       {links.map((l) => (
         <a
           key={l.icon}
