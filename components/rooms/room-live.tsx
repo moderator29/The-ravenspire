@@ -77,7 +77,12 @@ interface ChatMessage {
   pending?: boolean;
 }
 
-interface FloatingReaction {
+/* Exported so RoomAudio can render the same floats without duplicating the
+   broadcast-receiving logic: a reaction is emitted by someone reacting to the
+   court broadly, not to the chronicle view specifically, so the audio stage
+   gets the same "someone reacted" moment off the one channel this component
+   already owns. */
+export interface FloatingReaction {
   id: string;
   reaction: string;
   handle: string | null;
@@ -959,7 +964,7 @@ export function RoomLive({ roomId }: { roomId: string }) {
           court has no stage to enter. */}
       {!ended && (
         <div className="mt-3">
-          <RoomAudio roomId={detail.id} roster={detail.roster} />
+          <RoomAudio roomId={detail.id} roster={detail.roster} floats={floats} />
         </div>
       )}
 

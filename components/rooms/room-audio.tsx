@@ -17,6 +17,7 @@ import { Icon } from "@/components/ui/icon";
 import { cx } from "@/components/ui/cx";
 import { realmFetch } from "@/lib/auth/api";
 import { createClient } from "@/lib/supabase/client";
+import type { FloatingReaction } from "@/components/rooms/room-live";
 
 /* The court's real audio stage (Twitter Spaces style), powered by LiveKit. The
    host and promoted speakers publish their voice; everyone else listens live.
@@ -80,6 +81,27 @@ const SPEAK_PULSE_KEYFRAMES = `
   }
 }`;
 
+/* The exact same rise used by the chronicle's own floating reactions (see
+   room-live.tsx): the two views share one channel and one reaction, so they
+   share the one motion too rather than growing a second reaction system.
+   Redeclaring the same keyframes name here is harmless: both style tags are
+   mounted together and agree byte for byte. */
+const RISE_KEYFRAMES = `
+@keyframes rvsp-rise{
+  0%{opacity:0;transform:translateY(6px) scale(.7)}
+  12%{opacity:1}
+  70%{opacity:1}
+  100%{opacity:0;transform:translateY(-120px) scale(1.15)}
+}
+@media (prefers-reduced-motion: reduce){
+  @keyframes rvsp-rise{
+    0%{opacity:0}
+    12%{opacity:1}
+    70%{opacity:1}
+    100%{opacity:0}
+  }
+}`;
+
 /* getUserMedia failures are the one error class a member can actually fix, so
    each one gets the sentence that fixes it. */
 function micMessage(err: unknown): string {
@@ -99,12 +121,19 @@ function micMessage(err: unknown): string {
 export function RoomAudio({
   roomId,
   roster,
+  floats,
 }: {
   roomId: string;
   /* The room's roster, already fetched by the caller: real faces for the
      avatar tiles below, never invented ones. Optional so the stage still
      renders (with plain initials) before the first roster load resolves. */
   roster?: StageFace[];
+  /* The court's floating reactions, lifted from RoomLive which already owns
+     the rooms:court:{roomId} channel: a member reacted to the room broadly,
+     not to the chronicle specifically, so the audio stage shows the same
+     moment rather than nothing at all. Optional so the stage still renders
+     for a caller that has not wired this up. */
+  floats?: FloatingReaction[];
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -369,7 +398,27 @@ export function RoomAudio({
   return (
     <>
       <style>{SPEAK_PULSE_KEYFRAMES}</style>
-      <Card variant="warm" className="flex flex-col gap-3">
+      <style>{RISE_KEYFRAMES}</style>
+      <Card variant="warm" className="flex flex-col gap-3 overflow-hidden">
+      {/* The same floating-reaction moment the chronicle shows, over the
+          stage's own card rather than the chronicle's absolute-positioned
+          layer, which is sized to that other container. */}
+      {floats && floats.length > 0 && (
+        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+          {floats.map((f) => (
+            <span
+              key={f.id}
+              className="absolute bottom-4"
+              style={{
+                left: `${f.left}%`,
+                animation: "rvsp-rise 2.6s ease-out forwards",
+              }}
+            >
+              <Icon name={f.reaction} className="h-6 w-6 text-gold" />
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <Icon name="signal" className="h-4 w-4 shrink-0 text-gold" />
         <p className="text-sm font-semibold text-bone">Audio stage</p>
