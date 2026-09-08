@@ -125,10 +125,14 @@ export async function fetchUserCrests(profileId: string): Promise<string[]> {
   return (data ?? []).map((r) => r.crest_slug as string);
 }
 
-/* Realtime nudge only: a "new ravens have arrived" ping, never content. Under
-   the tightened RLS the anon channel sees public inserts, which is all this
-   needs to know. */
-export function subscribeToFeed(onInsert: () => void) {
+/* Realtime nudge only: a "N new ravens" count, never content. Under the
+   tightened RLS the anon channel sees public, non-deleted inserts, which is
+   all this needs to know: every payload received is already a real new
+   raven, so the caller can count events as they arrive rather than merely
+   flip a flag. The payload shape is the Supabase JS client's own
+   RealtimePostgresInsertPayload; passed through loosely typed since the
+   caller only ever cares that a row arrived. */
+export function subscribeToFeed(onInsert: (payload: { new: Record<string, unknown> }) => void) {
   const db = createClient();
   const channel = db
     .channel("ravenry")
