@@ -98,6 +98,13 @@ export default function RenownPage() {
   const { ready, authenticated } = useRealmAuth();
   const [me, setMe] = useState<MeProfile | null>(null);
   const [earned, setEarned] = useState<Set<string> | null>(null);
+  /* How many members hold each crest, realm-wide. "One of nine" is a fact a
+     member can weigh; the rarity chip is a label the realm chose for itself.
+     Read once on load rather than kept live: a count that is a request stale
+     costs nothing on a catalogue page nobody watches for a live number. */
+  const [holderCounts, setHolderCounts] = useState<Map<string, number> | null>(
+    null
+  );
   const [filter, setFilter] = useState<Filter>("all");
   const [mint, setMint] = useState<MintState | null>(null);
   const [claims, setClaims] = useState<Map<string, ClaimState>>(new Map());
@@ -140,6 +147,24 @@ export default function RenownPage() {
     if (!ready || !authenticated) return;
     void loadClaims();
   }, [ready, authenticated, loadClaims]);
+
+  /* The real holder count, for every visitor whether signed in or not: the
+     same public read the individual crest page already relies on
+     (user_crests carries a public read policy, see lib/share/subjects.ts's
+     readCrestSubject). Not gated behind auth, since a locked crest's rarity
+     is exactly as real and exactly as public a fact as an earned one's. */
+  useEffect(() => {
+    void (async () => {
+      const db = createClient();
+      const { data } = await db.from("user_crests").select("crest_slug");
+      const counts = new Map<string, number>();
+      for (const row of data ?? []) {
+        const slug = (row as { crest_slug: string }).crest_slug;
+        counts.set(slug, (counts.get(slug) ?? 0) + 1);
+      }
+      setHolderCounts(counts);
+    })();
+  }, []);
 
   useEffect(() => {
     if (!ready || !authenticated) return;
@@ -388,6 +413,22 @@ export default function RenownPage() {
                   <p className="mt-2 text-xs leading-relaxed text-bone-mut">
                     {c.earn}
                   </p>
+                  {/* The real count behind the rarity label. "One of nine" is
+                      a fact a member can weigh; "legendary" is a name the
+                      realm chose for itself. Read once above, not per card,
+                      so nothing here is invented while the read is still in
+                      flight: a card with no answer yet says nothing rather
+                      than a wrong number. */}
+                  {holderCounts ? (
+                    <p className="mt-1.5 text-[11px] text-bone-faint">
+                      {(() => {
+                        const n = holderCounts.get(c.slug) ?? 0;
+                        if (n === 0) return "Nobody has earned this yet";
+                        if (n === 1) return "The only one in the realm";
+                        return `${n.toLocaleString("en-US")} in the realm hold it`;
+                      })()}
+                    </p>
+                  ) : null}
                   {/* The ownership loop, on the only collectible in the realm
                       anybody holds today. It appears for a crest you have
                       earned, and only once the realm can actually mint: while

@@ -6,6 +6,7 @@ import { RealmStrip } from "@/components/social/realm-strip";
 import { StreamColumn } from "@/components/stream/stream-shell";
 import { SeasonZeroBanner } from "@/components/season-zero/banner";
 import { PumpfunLiveBanner } from "@/components/pumpfun/live-banner";
+import { FirstCrestCeremony } from "@/components/crests/first-ceremony";
 import { getFlag } from "@/lib/flags";
 
 /* The Ravenry.
@@ -33,6 +34,7 @@ export default async function HomePage() {
         The Ravenry
       </h1>
       <TourMount />
+      <FirstCrestCeremony />
       {/* The founding round's one line above the feed. Phase aware, Ledger
           register, and it removes itself when the round closes or is
           archived. */}

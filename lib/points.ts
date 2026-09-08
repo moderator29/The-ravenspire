@@ -150,4 +150,19 @@ export async function grantCrest(
       { profile_id: profileId, crest_slug: crestSlug },
       { onConflict: "profile_id,crest_slug", ignoreDuplicates: true }
     );
+  /* The one crest that gets a real Ceremony: whichever is the first this
+     profile ever holds. `first_crest_slug` is set here, once, centrally,
+     because a crest can be granted from several call sites (the milestone
+     checks in lib/crests.ts, an admin grant, a claim mint), and the fact
+     this records is about the member's history, not about any one of those
+     paths. Guarded by `is null` rather than a separate "have they ever had
+     one" read: a member's second, third and every later crest all call this
+     same function, and the guard alone is what keeps their first one from
+     ever being overwritten, with no race between two crests granted at once
+     (only the one whose UPDATE actually matches a null row wins). */
+  await db
+    .from("profiles")
+    .update({ first_crest_slug: crestSlug })
+    .eq("id", profileId)
+    .is("first_crest_slug", null);
 }
