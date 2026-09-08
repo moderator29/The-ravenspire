@@ -57,6 +57,12 @@ const SLIPPAGE_WARN_BPS = 500; // 5%, past which we warn rather than block
 const PRICE_IMPACT_REFERENCE_USD = 5;
 const PRICE_IMPACT_WARN_PCT = 3; // matches common DEX convention (Uniswap warns around 3 to 5%)
 
+/* Buy/sell tax: some ERC-20 contracts skim a real transfer tax on every trade,
+   on top of the platform fee and separate from price impact. lib/trade/goplus
+   already classifies 10%+ as its own "High buy/sell tax" flag, so the confirm
+   row reuses that same figure rather than inventing a second threshold. */
+const TOKEN_TAX_WARN_PCT = 10;
+
 function bpsToPctText(bps: number): string {
   return (bps / 100).toFixed(2).replace(/\.?0+$/, "");
 }
@@ -68,6 +74,11 @@ function fmtPct(bps: number): string {
 function fmtPriceImpact(pct: number): string {
   if (pct < 0.01) return "<0.01%";
   return `${pct.toFixed(2)}%`;
+}
+
+function fmtTaxPct(pct: number): string {
+  if (pct < 0.1) return "<0.1%";
+  return `${pct.toFixed(1)}%`;
 }
 
 export interface TradeCoin {
@@ -356,6 +367,38 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
     };
   }, [tradable, side, coin.evmChainId, coin.address, referenceRaw]);
 
+  // Buy/sell tax: the same real GoPlus read components/trade/token-safety.tsx
+  // already renders elsewhere on the coin page, fetched here too so the
+  // confirm screen itself can show the number right where a member is about
+  // to act on it. A contract's tax does not depend on trade side or amount,
+  // so this fires once per coin (chainId + address only) and never refires on
+  // a keystroke or a side toggle, matching the reference-quote effect above.
+  // GET, members-only, 120/hour with no per-amount cost, so one fetch per
+  // coin view does not meaningfully touch that ceiling.
+  const [tokenTax, setTokenTax] = useState<{
+    buyTax: number | null;
+    sellTax: number | null;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setTokenTax(null);
+    void (async () => {
+      const res = await realmFetch<{
+        safety?: { buyTax: number | null; sellTax: number | null } | null;
+      }>(`/api/trade/safety?chainId=${coin.evmChainId}&address=${coin.address}`);
+      if (cancelled) return;
+      if (res.ok && res.data?.safety) {
+        setTokenTax({
+          buyTax: res.data.safety.buyTax,
+          sellTax: res.data.safety.sellTax,
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [coin.evmChainId, coin.address]);
+
   // Price impact: how much worse the member's own execution rate is than the
   // reference rate above, as a percentage. Null (shown as nothing) whenever
   // either leg is missing real amounts, matching AGENTS.md's honest-empty-
@@ -568,6 +611,12 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
   }
 
   const decimals = coin.decimals ?? 18;
+  // The tax that applies to the side the member is actually on right now.
+  // Null (rendered as nothing) whenever GoPlus could not read it, per the
+  // real-data / honest-empty-state rule rather than showing a 0% that was
+  // never actually verified.
+  const relevantTaxPct =
+    side === "buy" ? (tokenTax?.buyTax ?? null) : (tokenTax?.sellTax ?? null);
   const receiveText =
     side === "buy"
       ? `${fmtToken(quote?.buyAmount ?? null, decimals)} ${coin.symbol}`
@@ -879,6 +928,13 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                         warn={priceImpactPct >= PRICE_IMPACT_WARN_PCT}
                       />
                     )}
+                    {relevantTaxPct !== null && (
+                      <Row
+                        label={side === "buy" ? "Buy tax" : "Sell tax"}
+                        value={fmtTaxPct(relevantTaxPct)}
+                        warn={relevantTaxPct >= TOKEN_TAX_WARN_PCT}
+                      />
+                    )}
                     <Row
                       label={`Platform fee (${(PLATFORM_FEE_BPS / 100).toFixed(1)}%)`}
                       value={
@@ -904,6 +960,15 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                       High price impact. This trade moves the price against
                       you by {fmtPriceImpact(priceImpactPct)} at this size,
                       and a thin pool like this one moves easily.
+                    </p>
+                  )}
+
+                  {relevantTaxPct !== null && relevantTaxPct >= TOKEN_TAX_WARN_PCT && (
+                    <p className="mt-2 flex items-start gap-1.5 text-xs text-state-warning">
+                      <Icon name="alert" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      High {side} tax. This token&apos;s own contract keeps{" "}
+                      {fmtTaxPct(relevantTaxPct)} of every {side}, separate
+                      from the platform fee and from price impact above.
                     </p>
                   )}
 
