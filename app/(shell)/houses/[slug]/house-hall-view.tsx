@@ -27,6 +27,7 @@ import {
 import { Avatar } from "@/components/social/avatar";
 import { ShareButton } from "@/components/share/share-button";
 import { PostCard } from "@/components/social/post-card";
+import { Clashes } from "@/components/houses/clashes";
 import { realmFetch } from "@/lib/auth/api";
 import { fetchFeed } from "@/lib/social/queries";
 import type { Post } from "@/lib/social/types";
@@ -53,7 +54,7 @@ import { EndowPanel, TreasuryPowers } from "@/components/houses/endow-panel";
  * named, churning, public list, and it is the single strongest signal that a
  * House is a place rather than a label on a profile. */
 
-type Tab = "board" | "roster" | "treasury" | "hall";
+type Tab = "board" | "roster" | "treasury" | "hall" | "clashes";
 
 export function HouseHallView({ slug }: { slug: string }) {
   const meta = houseBySlug(slug);
@@ -148,6 +149,7 @@ export function HouseHallView({ slug }: { slug: string }) {
             count: hall?.treasury.active.length ?? 0,
           },
           { value: "hall", label: "The hall", count: posts?.length ?? 0 },
+          { value: "clashes", label: "Clashes" },
         ]}
       >
         <DossierTabPanel value="board">
@@ -166,6 +168,9 @@ export function HouseHallView({ slug }: { slug: string }) {
         </DossierTabPanel>
         <DossierTabPanel value="hall">
           <HallFeed posts={posts} />
+        </DossierTabPanel>
+        <DossierTabPanel value="clashes">
+          <Clashes highlightSlug={slug} />
         </DossierTabPanel>
       </DossierTabs>
     </DossierPage>
