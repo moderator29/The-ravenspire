@@ -37,32 +37,43 @@ import { chainLogo } from "@/lib/trade/token-list";
    THREE DISTINCT ENDPOINTS, NOT ONE PAGED DEEP. A first pass at this widened
    the top-pools fetch from two pages a chain to five, on the assumption that
    GeckoTerminal's free `pools` listing pages arbitrarily deep. Verified
-   against the live site, it does not move the count much past what two pages
-   already gave: the free endpoint's own effective depth (or its rate limit
-   under a burst of requests) caps out well short of five pages of real new
-   data. `new_pools` is a second, genuinely different, equally real
-   GeckoTerminal endpoint (recently created pools, not "more of the same
-   ranking"), so it is fetched alongside `pools` rather than gambled on as a
-   deeper page of it: two distinct real sources beat one source paged
-   further than it actually goes. */
+   against the live site, it did not move the count much past what two pages
+   already gave, and reducing it back to three barely moved it either. That
+   was diagnosed as GeckoTerminal's own depth limit; it was not. The real
+   cause: every page of every endpoint of every chain was requested through
+   one `Promise.all`, which fires all of them in the same instant. Seven
+   chains times three endpoints times two or three pages each is on the
+   order of fifty simultaneous requests to a free, keyless, per-IP-rate-limited
+   API, and `fetchGecko` swallows a failed request as "no coins from this
+   page" rather than surfacing it, so most of that burst coming back empty
+   looked identical to "GeckoTerminal does not have that much data." It was
+   never the depth. `runThrottled` below runs the same total request set in
+   small staggered waves instead of one burst, and `buildJobs` orders those
+   waves breadth-first (every chain's first page of every endpoint before
+   any chain's second page), so a wave lost to a rate limit still costs the
+   deepest, least valuable pages first rather than starving a chain of
+   coverage entirely. This is also why the route now declares
+   maxDuration: waves paced to be kind to an upstream free tier take longer
+   in wall-clock time than one burst did, in exchange for the burst actually
+   working. The route's own 90s fetch cache (below) means this cost is paid
+   at most once every 90 seconds platform-wide, not once per visitor. */
 
 export const dynamic = "force-dynamic";
+/* Staggered waves (see above) take longer than one burst; comfortably inside
+   Vercel's allowed ceiling even on the free tier, and this is a config
+   value, not a paid feature. */
+export const maxDuration = 60;
 
 const MAX_MARKET_CAP_USD = 100_000_000; // under $100M only, active altcoins
 const MIN_LIQUIDITY_USD = 15_000;
 const MIN_VOLUME_USD = 15_000;
-/* Pages fetched per chain, per endpoint, 20 pools a page. Kept moderate on
-   each of the three endpoints (top pools, new pools, trending pools) rather
-   than pushed deep on one, both because a single free-tier endpoint has not
-   shown real depth much past its first couple of pages in practice, and
-   because a smaller, three-way-diversified burst per chain is kinder to a
-   keyless rate limit than one endpoint paged aggressively. Real chains with
-   real liquidity still comfortably clear a hundred-plus qualifying coins
-   from the combined candidate pool; thinner chains honestly return fewer,
-   because there simply are not two hundred liquid non-major altcoins on
-   every chain at every moment, and padding that count would mean showing
-   junk pools to hit a number. */
-const TOP_PAGES = 3;
+/* Pages fetched per chain, per endpoint, 20 pools a page. Real depth now that
+   the requests are throttled (see the header comment) rather than fired as
+   one burst: thinner chains still honestly return fewer coins, because there
+   simply are not two hundred liquid non-major altcoins on every chain at
+   every moment, and padding that count would mean showing junk pools to hit
+   a number. */
+const TOP_PAGES = 5;
 const NEW_PAGES = 2;
 const TRENDING_PAGES = 2;
 const PER_CHAIN_CAP = 200;
@@ -71,6 +82,40 @@ const PER_CHAIN_CAP = 200;
    now that a chain-capped board can genuinely return several hundred coins;
    still bounded so one refresh cannot balloon into an unbounded fan-out. */
 const ENRICH_BUDGET = 900;
+
+/* Run `jobs` (lazy thunks, not already-started promises) in small waves of
+   at most `concurrency` at a time, pausing `waveDelayMs` between waves. A
+   promise passed to Promise.all has already fired its request the moment it
+   was created; the whole point here is that nothing fires until its wave's
+   turn, which a pre-started promise cannot do. Order matters: jobs earlier
+   in the array run in earlier waves, so callers wanting graceful degradation
+   under a rate limit should put their most valuable requests first. */
+async function runThrottled<T>(
+  jobs: (() => Promise<T>)[],
+  concurrency: number,
+  waveDelayMs: number
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < jobs.length; i += concurrency) {
+    const wave = jobs.slice(i, i + concurrency);
+    out.push(...(await Promise.all(wave.map((job) => job()))));
+    if (i + concurrency < jobs.length) {
+      await new Promise((resolve) => setTimeout(resolve, waveDelayMs));
+    }
+  }
+  return out;
+}
+
+/* Gentle enough for a free, keyless, per-IP-limited API; see the header
+   comment for why this replaced one 49-to-84-wide Promise.all burst. */
+const GECKO_CONCURRENCY = 6;
+const GECKO_WAVE_DELAY_MS = 700;
+/* DexScreener's batched token endpoint is comfortably more generous, and a
+   miss here only costs a logo, socials or a spark line, never a coin
+   disappearing from the count, so this stays lighter-touch than the
+   GeckoTerminal throttle above. */
+const ENRICH_CONCURRENCY = 10;
+const ENRICH_WAVE_DELAY_MS = 400;
 
 /* Never surfaced: stablecoins, wrapped natives, and the majors themselves.
    These are not the discovery target and only crowd out real altcoins. */
@@ -262,8 +307,8 @@ async function enrichFor(addresses: string[]): Promise<Map<string, Enrichment>> 
   const chunks: string[][] = [];
   for (let i = 0; i < addresses.length; i += 30) chunks.push(addresses.slice(i, i + 30));
 
-  await Promise.all(
-    chunks.map(async (chunk) => {
+  await runThrottled(
+    chunks.map((chunk) => async () => {
       try {
         const res = await fetch(
           `https://api.dexscreener.com/latest/dex/tokens/${chunk.join(",")}`,
@@ -291,7 +336,9 @@ async function enrichFor(addresses: string[]): Promise<Map<string, Enrichment>> 
       } catch {
         /* enrichment is best-effort; a miss leaves links + spark empty */
       }
-    })
+    }),
+    ENRICH_CONCURRENCY,
+    ENRICH_WAVE_DELAY_MS
   );
   return map;
 }
@@ -331,44 +378,68 @@ function perChainTop(
   return out;
 }
 
-async function scry() {
-  const nets = TRADE_CHAINS.map((c) => c.gecko);
-  const jobs: Promise<ScryCoin[]>[] = [];
-  const trendingJobs: Promise<ScryCoin[]>[] = [];
-  for (const net of nets) {
-    // Top pools and new pools both feed "top" and "heating" (two distinct
-    // real sources, not one paged deeper than it actually goes, see the
-    // header comment); trending pools feed "trending".
-    for (let page = 1; page <= TOP_PAGES; page++) {
-      jobs.push(
-        fetchGecko(`networks/${net}/pools?include=base_token&page=${page}`, net)
-      );
-    }
-    for (let page = 1; page <= NEW_PAGES; page++) {
-      jobs.push(
-        fetchGecko(
-          `networks/${net}/new_pools?include=base_token&page=${page}`,
-          net
-        )
-      );
-    }
-    for (let page = 1; page <= TRENDING_PAGES; page++) {
-      trendingJobs.push(
-        fetchGecko(
-          `networks/${net}/trending_pools?include=base_token&page=${page}`,
-          net
-        )
-      );
+interface GeckoJob {
+  target: "top" | "trending";
+  run: () => Promise<ScryCoin[]>;
+}
+
+/* Breadth-first, not chain-by-chain: every chain's page 1 of every endpoint
+   comes before any chain's page 2, so a wave lost further down the run (a
+   rate limit, a slow upstream) costs the deepest, least valuable pages
+   first rather than starving one chain of coverage while another gets its
+   full depth. See the header comment for why this replaced one flat burst. */
+function buildJobs(nets: string[]): GeckoJob[] {
+  const maxPages = Math.max(TOP_PAGES, NEW_PAGES, TRENDING_PAGES);
+  const jobs: GeckoJob[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    for (const net of nets) {
+      if (page <= TOP_PAGES) {
+        jobs.push({
+          target: "top",
+          run: () =>
+            fetchGecko(`networks/${net}/pools?include=base_token&page=${page}`, net),
+        });
+      }
+      if (page <= NEW_PAGES) {
+        jobs.push({
+          target: "top",
+          run: () =>
+            fetchGecko(
+              `networks/${net}/new_pools?include=base_token&page=${page}`,
+              net
+            ),
+        });
+      }
+      if (page <= TRENDING_PAGES) {
+        jobs.push({
+          target: "trending",
+          run: () =>
+            fetchGecko(
+              `networks/${net}/trending_pools?include=base_token&page=${page}`,
+              net
+            ),
+        });
+      }
     }
   }
+  return jobs;
+}
 
-  const [topBatches, trendBatches] = await Promise.all([
-    Promise.all(jobs),
-    Promise.all(trendingJobs),
-  ]);
+async function scry() {
+  const nets = TRADE_CHAINS.map((c) => c.gecko);
+  const jobs = buildJobs(nets);
+  const results = await runThrottled(
+    jobs.map((j) => async () => ({ target: j.target, coins: await j.run() })),
+    GECKO_CONCURRENCY,
+    GECKO_WAVE_DELAY_MS
+  );
 
-  const topAll = dedupeBest(topBatches.flat());
-  const trendAll = dedupeBest(trendBatches.flat());
+  const topAll = dedupeBest(
+    results.filter((r) => r.target === "top").flatMap((r) => r.coins)
+  );
+  const trendAll = dedupeBest(
+    results.filter((r) => r.target === "trending").flatMap((r) => r.coins)
+  );
 
   if (topAll.size === 0 && trendAll.size === 0)
     return { heating: [], trending: [], top: [], error: "unreachable" as const };
