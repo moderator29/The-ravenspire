@@ -29,7 +29,13 @@ export async function POST(req: Request) {
      a member is typing an amount, so a ceiling set at "one quote per trade"
      would break the surface rather than protect the 0x quota. Five a minute
      sustained for an hour is well past an honest session and still a hard stop
-     on a script pointed at a paid upstream. */
+     on a script pointed at a paid upstream.
+
+     The price-impact readout adds a second caller (a reference-size price
+     probe), but it is fetched only when the trade side or the token pair
+     changes, never on every keystroke, so it adds at most a couple of calls
+     per coin view rather than doubling the per-keystroke volume this ceiling
+     was sized for. 300/hour still holds. */
   const rl = await rateLimit(profileKey("trade:quote", profile.id), 300, 3600);
   /* B7: the shared envelope. The machine token in `error`, the realm's words
      in `message`, matching /api/watch and every limiter that already answered

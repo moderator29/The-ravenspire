@@ -46,12 +46,28 @@ const SLIPPAGE_MIN_BPS = 1; // 0.01%
 const SLIPPAGE_MAX_BPS = 5000; // 50%
 const SLIPPAGE_WARN_BPS = 500; // 5%, past which we warn rather than block
 
+/* Price impact. 0x's v2 quote and price responses carry no price-impact field
+   of their own, so it is derived from two real quotes rather than guessed: the
+   member's own trade, and a small reference trade at a fixed, deliberately
+   tiny notional (below every USD preset) whose execution price approximates
+   the spot price. The reference is refetched only when the side or the token
+   pair changes, never on every keystroke, so it does not meaningfully add to
+   the 300/hour quote ceiling in /api/trade/quote (see the comment there). If
+   either quote is missing, nothing is shown, per the real-data rule. */
+const PRICE_IMPACT_REFERENCE_USD = 5;
+const PRICE_IMPACT_WARN_PCT = 3; // matches common DEX convention (Uniswap warns around 3 to 5%)
+
 function bpsToPctText(bps: number): string {
   return (bps / 100).toFixed(2).replace(/\.?0+$/, "");
 }
 
 function fmtPct(bps: number): string {
   return `${bpsToPctText(bps)}%`;
+}
+
+function fmtPriceImpact(pct: number): string {
+  if (pct < 0.01) return "<0.01%";
+  return `${pct.toFixed(2)}%`;
 }
 
 export interface TradeCoin {
@@ -293,6 +309,82 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
     const t = setTimeout(() => void fetchQuote(), 350);
     return () => clearTimeout(t);
   }, [amountKey, fetchQuote]);
+
+  // Reference quote for the price-impact readout: a fixed small notional of
+  // coin.address, in either direction, so its execution price stands in for
+  // the spot price. Independent of the member's chosen amount on purpose, so
+  // this effect fires only when the side or the token pair changes rather
+  // than on every keystroke.
+  const referenceRaw = useMemo(
+    () => usdToBuyRaw(PRICE_IMPACT_REFERENCE_USD, coin.priceUsd, coin.decimals),
+    [coin.priceUsd, coin.decimals]
+  );
+  const [refQuote, setRefQuote] = useState<NormalizedQuote | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!tradable || referenceRaw <= 0n) {
+      setRefQuote(null);
+      return;
+    }
+    const payload =
+      side === "buy"
+        ? {
+            mode: "price",
+            chainId: coin.evmChainId,
+            sellToken: NATIVE_TOKEN_SENTINEL,
+            buyToken: coin.address,
+            buyAmount: referenceRaw.toString(),
+            feeToken: coin.address,
+          }
+        : {
+            mode: "price",
+            chainId: coin.evmChainId,
+            sellToken: coin.address,
+            buyToken: NATIVE_TOKEN_SENTINEL,
+            sellAmount: referenceRaw.toString(),
+            feeToken: coin.address,
+          };
+    void (async () => {
+      const res = await realmFetch<{ quote?: NormalizedQuote }>(
+        "/api/trade/quote",
+        { method: "POST", json: payload }
+      );
+      if (!cancelled) setRefQuote(res.ok ? (res.data?.quote ?? null) : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tradable, side, coin.evmChainId, coin.address, referenceRaw]);
+
+  // Price impact: how much worse the member's own execution rate is than the
+  // reference rate above, as a percentage. Null (shown as nothing) whenever
+  // either leg is missing real amounts, matching AGENTS.md's honest-empty-
+  // state rule rather than fabricating a figure.
+  const priceImpactPct = useMemo(() => {
+    if (!quote?.buyAmount || !quote?.sellAmount) return null;
+    if (!refQuote?.buyAmount || !refQuote?.sellAmount) return null;
+    const targetDecimals = coin.decimals ?? 18;
+    const buyDecimals = side === "buy" ? targetDecimals : NATIVE_DECIMALS;
+    const sellDecimals = side === "buy" ? NATIVE_DECIMALS : targetDecimals;
+    try {
+      const execBuy = Number(formatUnits(BigInt(quote.buyAmount), buyDecimals));
+      const execSell = Number(formatUnits(BigInt(quote.sellAmount), sellDecimals));
+      const refBuy = Number(formatUnits(BigInt(refQuote.buyAmount), buyDecimals));
+      const refSell = Number(formatUnits(BigInt(refQuote.sellAmount), sellDecimals));
+      if (!(execSell > 0) || !(refSell > 0)) return null;
+      const execRate = execBuy / execSell;
+      const refRate = refBuy / refSell;
+      if (!Number.isFinite(execRate) || !Number.isFinite(refRate) || refRate <= 0)
+        return null;
+      // A trade at or below the reference notional can come back a hair
+      // better than the reference quote itself, which is noise between two
+      // independent quotes rather than a real negative impact, so the floor
+      // is 0.
+      return Math.max(0, ((refRate - execRate) / refRate) * 100);
+    } catch {
+      return null;
+    }
+  }, [quote, refQuote, side, coin.decimals]);
 
   // Does the member hold enough native to cover a buy's cost?
   const nativeBalanceRaw = useMemo(
@@ -780,6 +872,13 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                         value={`${fmtToken(quote.minBuyAmount, side === "buy" ? decimals : NATIVE_DECIMALS)} ${side === "buy" ? coin.symbol : chain.native}`}
                       />
                     )}
+                    {priceImpactPct !== null && (
+                      <Row
+                        label="Price impact"
+                        value={fmtPriceImpact(priceImpactPct)}
+                        warn={priceImpactPct >= PRICE_IMPACT_WARN_PCT}
+                      />
+                    )}
                     <Row
                       label={`Platform fee (${(PLATFORM_FEE_BPS / 100).toFixed(1)}%)`}
                       value={
@@ -798,6 +897,15 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                     )}
                     <Row label="Network" value={chain.name} />
                   </div>
+
+                  {priceImpactPct !== null && priceImpactPct >= PRICE_IMPACT_WARN_PCT && (
+                    <p className="mt-2 flex items-start gap-1.5 text-xs text-state-warning">
+                      <Icon name="alert" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      High price impact. This trade moves the price against
+                      you by {fmtPriceImpact(priceImpactPct)} at this size,
+                      and a thin pool like this one moves easily.
+                    </p>
+                  )}
 
                   {approvalHash && (
                     <div className="mt-3 rounded-lg border border-gold/25 bg-panel-warm/50 p-3 text-xs text-bone-mut">
@@ -857,16 +965,18 @@ function Row({
   label,
   value,
   strong,
+  warn,
 }: {
   label: string;
   value: string;
   strong?: boolean;
+  warn?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       <span className="text-bone-faint">{label}</span>
       <span
-        className={`tnum text-right ${strong ? "font-semibold text-bone" : "text-bone-mut"}`}
+        className={`tnum text-right ${warn ? "font-semibold text-state-warning" : strong ? "font-semibold text-bone" : "text-bone-mut"}`}
       >
         {value}
       </span>
