@@ -122,7 +122,7 @@ export function Feed() {
   );
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasNew, setHasNew] = useState(false);
+  const [newCount, setNewCount] = useState(0);
   const [done, setDone] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FeedFilters>({
@@ -180,7 +180,7 @@ export function Feed() {
         return [...prev, ...page.items.filter((i) => !seen.has(feedItemKey(i)))];
       });
       setLoading(false);
-      setHasNew(false);
+      setNewCount(0);
     },
     [tab]
   );
@@ -192,7 +192,7 @@ export function Feed() {
   }, [load, authenticated]);
 
   useEffect(() => {
-    return subscribeToFeed(() => setHasNew(true));
+    return subscribeToFeed(() => setNewCount((n) => n + 1));
   }, []);
 
   /* A skeleton that flashes for 200ms reads as the layout breaking, not as
@@ -299,7 +299,7 @@ export function Feed() {
         </StreamChipRail>
       )}
 
-      {hasNew && (
+      {newCount > 0 && (
         <div className="sticky top-2 z-sticky flex justify-center">
           <Button
             variant="gold"
@@ -313,7 +313,7 @@ export function Feed() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-obsidian/50" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-obsidian" />
             </span>
-            New ravens have arrived
+            {newCount === 1 ? "1 new raven" : `${newCount} new ravens`}
           </Button>
         </div>
       )}
