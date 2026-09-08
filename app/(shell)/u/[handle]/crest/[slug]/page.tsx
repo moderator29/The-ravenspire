@@ -8,6 +8,7 @@ import { CrestRoundel, findCrest } from "@/components/brand/crests";
 import { BackButton } from "@/components/shell/back-button";
 import { ShareButton } from "@/components/share/share-button";
 import { readCrestSubject } from "@/lib/share/subjects";
+import { ordinal } from "@/lib/format/ordinal";
 
 /* A CREST SOMEBODY HOLDS.
  *
@@ -115,8 +116,31 @@ export default async function CrestPage({
               ? "The only one in the realm"
               : `${subject.holders.toLocaleString("en-US")} in the realm hold it`}
           </Badge>
+          {/* Rank among every live crest by holder count: rank 1 is the one
+              the fewest members hold. A second, comparative fact rather than
+              a restatement of the count above. */}
+          {subject.rarityRank ? (
+            <Badge>
+              {subject.rarityRank === 1
+                ? "The rarest crest in the realm"
+                : `${ordinal(subject.rarityRank)} rarest of ${subject.rarityTotal} crests`}
+            </Badge>
+          ) : null}
         </div>
       </Card>
+
+      {/* The real stat that crossed the line for THIS member, recorded once
+          at the moment it was granted (lib/crests.ts). Omitted entirely when
+          there is none: a crest earned before this column existed, or one
+          with no single triggering stat, gets no invented one. */}
+      {subject.context ? (
+        <Card pad="lg" className="flex flex-col gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-bone-faint">
+            What earned it
+          </p>
+          <p className="text-sm leading-relaxed text-bone-mut">{subject.context}</p>
+        </Card>
+      ) : null}
 
       <Card pad="lg" className="flex flex-col gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-bone-faint">

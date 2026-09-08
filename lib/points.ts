@@ -142,12 +142,19 @@ export async function award(
 export async function grantCrest(
   db: SupabaseClient,
   profileId: string,
-  crestSlug: string
+  crestSlug: string,
+  /* The real, honest sentence naming whichever stat actually crossed the
+     line: "Renown reached 3,140", "Raised 5 banners", "Finished 2nd on Glory
+     this season". ignoreDuplicates means this is only ever written on the
+     row's first insert, which is correct: the crest's context describes the
+     moment it was earned, and a member's second, third and every later award
+     that would otherwise re-check the same milestone must never rewrite it. */
+  context?: string
 ) {
   await db
     .from("user_crests")
     .upsert(
-      { profile_id: profileId, crest_slug: crestSlug },
+      { profile_id: profileId, crest_slug: crestSlug, context: context ?? null },
       { onConflict: "profile_id,crest_slug", ignoreDuplicates: true }
     );
   /* The one crest that gets a real Ceremony: whichever is the first this

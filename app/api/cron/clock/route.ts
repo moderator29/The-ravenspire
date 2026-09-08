@@ -5,6 +5,7 @@ import { grantCrest } from "@/lib/points";
 import { createNotification } from "@/lib/notifications";
 import { HOUSE_TOP_N, houseBySlug } from "@/lib/data/houses";
 import { loadSeasonWindow } from "@/lib/houses/oath";
+import { ordinal } from "@/lib/format/ordinal";
 import {
   CLASH_HOURS,
   SEASON_CHAMPION_CREST_SLUG,
@@ -388,19 +389,6 @@ async function closeDueSeasons(
  * idempotent by its own unique key, and the champions were read back out of
  * the frozen settlement rows rather than recomputed, so the crest and the
  * record can never name different members. */
-/* Written out rather than suffixed. A naive `${rank}th` renders rank three as
-   "3th", and the podium is exactly the range where that is visible. */
-function ordinal(rank: number): string {
-  if (rank === 1) return "first";
-  if (rank === 2) return "second";
-  if (rank === 3) return "third";
-  const suffix =
-    rank % 100 >= 11 && rank % 100 <= 13
-      ? "th"
-      : { 1: "st", 2: "nd", 3: "rd" }[rank % 10] ?? "th";
-  return `${rank}${suffix}`;
-}
-
 async function crownChampions(
   db: NonNullable<ReturnType<typeof adminClient>>,
   seasonId: number,
@@ -419,7 +407,12 @@ async function crownChampions(
       .eq("crest_slug", SEASON_CHAMPION_CREST_SLUG)
       .maybeSingle();
 
-    await grantCrest(db, champion.profile_id, SEASON_CHAMPION_CREST_SLUG);
+    await grantCrest(
+      db,
+      champion.profile_id,
+      SEASON_CHAMPION_CREST_SLUG,
+      `Finished ${ordinal(champion.rank)} on Glory in ${seasonName}`
+    );
     granted += 1;
 
     /* A member who already held the crest from an earlier season keeps it and

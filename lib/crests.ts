@@ -16,25 +16,35 @@ import { VIGIL_CREST_DAYS, VIGIL_CREST_SLUG } from "@/lib/realm/appointments";
    gives this crest. */
 const BANNERLORD_REFERRALS = 5;
 
+type Standing = {
+  renown: number;
+  streak: number;
+  vigil: number;
+  activatedReferrals: number;
+};
+
 const AUTO_CRESTS: {
   slug: string;
   title: string;
-  earned: (p: {
-    renown: number;
-    streak: number;
-    vigil: number;
-    activatedReferrals: number;
-  }) => boolean;
+  earned: (p: Standing) => boolean;
+  /* The real stat that crossed the line, as a sentence a member can read on
+     the crest's own page: "Renown reached 3,140", not "you qualified". */
+  context: (p: Standing) => string;
 }[] = [
   {
     slug: "knight-of-the-realm",
     title: "Knight of the Realm",
     earned: (p) => p.renown >= 400 || p.streak >= 7,
+    context: (p) =>
+      p.renown >= 400
+        ? `Renown reached ${p.renown.toLocaleString("en-US")}`
+        : `Held a ${p.streak}-day streak`,
   },
   {
     slug: "warden-of-the-realm",
     title: "Warden of the Realm",
     earned: (p) => p.renown >= 3000,
+    context: (p) => `Renown reached ${p.renown.toLocaleString("en-US")}`,
   },
   {
     /* The vigil crest, and the reason the Muster is worth keeping.
@@ -54,6 +64,7 @@ const AUTO_CRESTS: {
     slug: VIGIL_CREST_SLUG,
     title: "Lord of Light",
     earned: (p) => p.vigil >= VIGIL_CREST_DAYS,
+    context: (p) => `Answered the Muster ${p.vigil} days running`,
   },
   {
     /* "For those who raise the most banners and bring the realm to life,"
@@ -64,6 +75,7 @@ const AUTO_CRESTS: {
     slug: "bannerlord",
     title: "Bannerlord",
     earned: (p) => p.activatedReferrals >= BANNERLORD_REFERRALS,
+    context: (p) => `Raised ${p.activatedReferrals} banners`,
   },
 ];
 
@@ -129,7 +141,7 @@ export async function checkAndGrantCrests(
 
   for (const crest of due) {
     if (owned.has(crest.slug)) continue;
-    await grantCrest(db, profileId, crest.slug);
+    await grantCrest(db, profileId, crest.slug, crest.context(standing));
     /* B3: through createNotification, so the realtime nudge fires. The slug
        in ref is why the notifications.subject_id column had to become text
        (20260828093353): as a uuid column it rejected every crest slug with

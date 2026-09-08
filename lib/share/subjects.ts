@@ -14,7 +14,7 @@ import { readListing } from "@/lib/commerce/market-board";
 import { tradeChainById } from "@/lib/trade/config";
 import { readHoard } from "@/lib/collectibles/hoard";
 import { normalizeCall } from "@/lib/calls/types";
-import { findCrest } from "@/components/brand/crests";
+import { crests as crestCatalog, findCrest } from "@/components/brand/crests";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
 import { SET_ONE } from "@/lib/collectibles/set-one";
 
@@ -340,6 +340,19 @@ export type CrestSubject = {
   /* How many members in the whole realm hold it. The reason a crest is worth
      showing anybody: "one of nine" is a fact, "legendary" is a label. */
   holders: number;
+  /* The real stat that crossed the line at the moment this was granted, e.g.
+     "Renown reached 3,140" or "Raised 5 banners" (lib/crests.ts). Null for a
+     crest granted before this column existed, or one with no single triggering
+     stat (took-the-black is a checklist, not a threshold). */
+  context: string | null;
+  /* Where this crest ranks among every LIVE crest in the catalogue, by how
+     many members hold it: rank 1 is the one the fewest members hold. Locked
+     crests are excluded, since nothing has ever been able to earn them and a
+     0-holder rank would just measure which achievements are unfinished. Null
+     only if the crest itself is somehow not live, which cannot happen on a
+     page that already required somebody to hold it. */
+  rarityRank: number | null;
+  rarityTotal: number;
 };
 
 export async function readCrestSubject(
@@ -366,7 +379,7 @@ export async function readCrestSubject(
        which is rule 4 in its most embarrassing form: an invented trophy. */
     const { data: held } = await db
       .from("user_crests")
-      .select("earned_at")
+      .select("earned_at, context")
       .eq("profile_id", profile.id as string)
       .eq("crest_slug", crest.slug)
       .maybeSingle();
@@ -376,6 +389,34 @@ export async function readCrestSubject(
       .from("user_crests")
       .select("crest_slug", { count: "exact", head: true })
       .eq("crest_slug", crest.slug);
+
+    /* The rarity rank: every live crest's holder count, read once and ranked
+       client-side. The same unrestricted, public-RLS read /renown already
+       relies on for its own per-card holder counts, just not filtered to one
+       slug. Locked crests are left out of both the tally and the rank: they
+       have no holders by construction, and counting them would only ever
+       measure which achievements the realm has not shipped yet. */
+    const { data: allHeld } = await db.from("user_crests").select("crest_slug");
+    const liveSlugs = crestCatalog
+      .filter((c) => c.status === "live")
+      .map((c) => c.slug);
+    const counts = new Map<string, number>(liveSlugs.map((s) => [s, 0]));
+    for (const row of (allHeld ?? []) as { crest_slug: string }[]) {
+      if (counts.has(row.crest_slug)) {
+        counts.set(row.crest_slug, (counts.get(row.crest_slug) ?? 0) + 1);
+      }
+    }
+    const ordered = [...counts.entries()].sort((a, b) => a[1] - b[1]);
+    let rank = 0;
+    let prevCount = -1;
+    let rarityRank: number | null = null;
+    for (const [slug, holderCount] of ordered) {
+      if (holderCount !== prevCount) {
+        rank += 1;
+        prevCount = holderCount;
+      }
+      if (slug === crest.slug) rarityRank = rank;
+    }
 
     return {
       crestName: crest.name,
@@ -387,6 +428,9 @@ export async function readCrestSubject(
       holderHandle: profile.handle as string,
       earnedAt: (held.earned_at as string | null) ?? null,
       holders: count ?? 0,
+      context: (held.context as string | null) ?? null,
+      rarityRank,
+      rarityTotal: liveSlugs.length,
     };
   });
 }

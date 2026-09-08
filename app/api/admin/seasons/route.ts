@@ -2,6 +2,7 @@ import { json } from "@/lib/auth/server";
 import { emit } from "@/lib/realm/events";
 import { grantCrest } from "@/lib/points";
 import { createNotification } from "@/lib/notifications";
+import { ordinal } from "@/lib/format/ordinal";
 import {
   SEASON_CHAMPION_CREST_SLUG,
   SEASON_CHAMPION_RANKS,
@@ -231,7 +232,12 @@ export async function POST(req: Request) {
         .eq("profile_id", champion.profile_id)
         .eq("crest_slug", SEASON_CHAMPION_CREST_SLUG)
         .maybeSingle();
-      await grantCrest(db, champion.profile_id, SEASON_CHAMPION_CREST_SLUG);
+      await grantCrest(
+        db,
+        champion.profile_id,
+        SEASON_CHAMPION_CREST_SLUG,
+        `Finished ${ordinal(champion.rank)} on Glory this season`
+      );
       if (held) continue;
       /* B3: through createNotification, so the realtime nudge fires. The crest
          slug in ref is why notifications.subject_id had to become text
