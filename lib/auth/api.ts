@@ -48,3 +48,34 @@ export async function realmFetch<T = unknown>(
   }
   return { ok: res.ok, status: res.status, data };
 }
+
+/* The same authenticated request, for the one shape of call realmFetch
+   cannot serve: a caller that reads the response body itself rather than
+   waiting for it to finish and parsing it as one JSON value, which is the
+   whole point of a streamed reply (Server-Sent Events from /api/raven). No
+   status/data envelope here, because there is no single "the response" to
+   report on until the stream the caller is about to read has ended; null
+   on the same network failure realmFetch turns into `status: 0`. */
+export async function realmFetchStream(
+  path: string,
+  init?: RequestInit & { json?: unknown }
+): Promise<Response | null> {
+  let token: string | null = null;
+  try {
+    token = await getAccessToken();
+  } catch {
+    token = null;
+  }
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("authorization", `Bearer ${token}`);
+  let body = init?.body;
+  if (init?.json !== undefined) {
+    headers.set("content-type", "application/json");
+    body = JSON.stringify(init.json);
+  }
+  try {
+    return await fetch(path, { ...init, headers, body });
+  } catch {
+    return null;
+  }
+}

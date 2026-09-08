@@ -5,7 +5,7 @@ import {
   MODEL_REASONING,
   heraldClient,
 } from "@/lib/ai/herald";
-import { splitFollowUps } from "@/lib/ai/followups";
+import { splitFollowUps, MARKER as FOLLOWUPS_MARKER } from "@/lib/ai/followups";
 import {
   RAVEN_SYSTEM_PROMPT,
   resolveVoicePrompt,
@@ -218,5 +218,116 @@ export async function askRaven(
     }
     void err;
     return null;
+  }
+}
+
+/** One event out of a live Herald reply: a piece of spoken text as it is
+ * written, then a single terminal event carrying everything that can only
+ * be known once the model has finished (the follow-up chips, whether it
+ * browsed, its sources). There is never more than one `done` or `error`,
+ * and nothing arrives after either. */
+export type RavenStreamChunk =
+  | { type: "text"; text: string }
+  | { type: "done"; result: RavenResult }
+  | { type: "error" };
+
+/* How much of `buffer` is safe to speak right now.
+ *
+ * The follow-up block (see the "## Follow-ups" instruction in buildSystem)
+ * always lands at the very end of the model's output, marked by
+ * FOLLOWUPS_MARKER, and it must never reach a member: askRaven's
+ * non-streaming path only ever shows `splitFollowUps(raw).text`, the prose
+ * before that marker. A token stream has no "before": text arrives a few
+ * characters at a time, so the marker itself can straddle two, five, ten
+ * deltas before it is recognisable. This holds back not just a completed
+ * marker but anything that COULD BE the start of one, so a member watching
+ * a live reply never sees so much as a stray "<<<" flash past before the
+ * interface catches up and hides it. */
+function safeFlushLength(buffer: string): number {
+  const full = buffer.search(FOLLOWUPS_MARKER);
+  if (full !== -1) return full;
+  const partial = buffer.lastIndexOf("<<<");
+  return partial === -1 ? buffer.length : partial;
+}
+
+/**
+ * The same Herald reply as `askRaven`, spoken token by token instead of
+ * handed over whole. Same grounding, same voice, same graceful "retry once
+ * without the web tool" degradation; the only difference is that the caller
+ * gets to paint each piece of the answer as it is written rather than
+ * staring at nothing until the whole thing lands.
+ */
+export async function* askRavenStream(
+  messages: { role: "user" | "assistant"; content: string }[],
+  context?: string,
+  opts: AskRavenOptions = {}
+): AsyncGenerator<RavenStreamChunk> {
+  if (!client) {
+    yield { type: "error" };
+    return;
+  }
+
+  const max_tokens = lengthMaxTokens(resolveLength(opts.length));
+  const wantsBrowse = Boolean(opts.browse);
+
+  /* At most two passes: the real attempt, and (only if it failed before a
+     single token was spoken, and only when browsing was on) one retry with
+     the web tool removed. A failure after text has already reached the
+     member can never retry, since a fresh attempt would repeat the reply
+     from its own beginning on top of what is already on screen. */
+  let withTools = wantsBrowse;
+  let spokenAny = false;
+
+  while (true) {
+    const system = buildSystem(context, withTools ? opts : { ...opts, browse: false });
+    let buffer = "";
+    let flushed = 0;
+    try {
+      const stream = client.messages.stream({
+        model: RAVEN_MODEL,
+        max_tokens,
+        system,
+        messages,
+        ...(withTools ? { tools: [WEB_SEARCH_TOOL] } : {}),
+      });
+      for await (const event of stream) {
+        if (event.type !== "content_block_delta" || event.delta.type !== "text_delta")
+          continue;
+        buffer += event.delta.text;
+        const safe = safeFlushLength(buffer);
+        if (safe > flushed) {
+          const piece = buffer.slice(flushed, safe);
+          flushed = safe;
+          spokenAny = true;
+          yield { type: "text", text: piece };
+        }
+      }
+      const final = await stream.finalMessage();
+      const raw = extractText(final.content);
+      const { text, suggestions } = splitFollowUps(raw);
+      if (!text) {
+        yield { type: "error" };
+        return;
+      }
+      yield {
+        type: "done",
+        result: {
+          text,
+          browsed: withTools && didBrowse(final.content),
+          browseRequested: wantsBrowse,
+          browseAvailable: withTools,
+          sources: withTools ? extractSources(final.content) : [],
+          suggestions,
+        },
+      };
+      return;
+    } catch {
+      if (withTools && wantsBrowse && !spokenAny) {
+        withTools = false;
+        continue;
+      }
+      yield { type: "error" };
+      return;
+    }
   }
 }

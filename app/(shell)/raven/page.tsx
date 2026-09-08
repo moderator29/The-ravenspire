@@ -7,7 +7,8 @@ import { ChatInput } from "@/components/raven/chat-input";
 import { MessageList } from "@/components/raven/message-list";
 import { SettingsSheet } from "@/components/raven/settings-sheet";
 import { HistoryPanel } from "@/components/raven/history-panel";
-import { realmFetch } from "@/lib/auth/api";
+import { realmFetchStream } from "@/lib/auth/api";
+import { readRavenStream } from "@/lib/raven/stream";
 import { useRavenHistory } from "@/components/raven/use-history";
 import {
   VOICE_KEY,
@@ -42,6 +43,12 @@ function withWait(message: string, retryAfter?: number): string {
 export default function RavenPage() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  /* The current reply as it is spoken, shown as its own live bubble until the
+     server's `done` event lands and the turn completes for real. Null before
+     the first token arrives (MessageList still shows the plain "thinking"
+     dots for that gap) and reset to null the moment a turn finishes, one way
+     or another. */
+  const [streamingText, setStreamingText] = useState<string | null>(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -92,7 +99,7 @@ export default function RavenPage() {
   useEffect(() => {
     const el = scrollerRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [messages, busy]);
+  }, [messages, busy, streamingText]);
 
   const send = async (text?: string) => {
     const content = (text ?? draft).trim();
@@ -105,12 +112,46 @@ export default function RavenPage() {
     history.beginTurn(question);
     setDraft("");
     setBusy(true);
+    setStreamingText(null);
     try {
       const payload = next
         .filter((m) => m.role === "user" || m.role === "assistant")
         .slice(-12)
         .map((m) => ({ role: m.role, content: m.content }));
-      const { ok: resOk, status, data } = await realmFetch<{
+      const res = await realmFetchStream("/api/raven", {
+        method: "POST",
+        json: { messages: payload, voice, browse, length, language },
+      });
+
+      if (!res) {
+        history.completeTurn({
+          role: "error",
+          content: "The winds swallowed your message. Try again shortly.",
+        });
+        return;
+      }
+
+      if (!res.ok) {
+        /* Refused before a single token was spent: no key configured, not
+           signed in, or the hourly spend cap. The server's own words, never
+           ours over the top of them, same as before this route streamed. */
+        let data: { error?: string; retryAfter?: number } | null = null;
+        try {
+          data = (await res.json()) as { error?: string; retryAfter?: number };
+        } catch {
+          data = null;
+        }
+        history.completeTurn({
+          role: "error",
+          content: withWait(
+            data?.error ?? "The Raven is preoccupied. Try again shortly.",
+            res.status === 429 ? data?.retryAfter : undefined
+          ),
+        });
+        return;
+      }
+
+      type DoneResult = {
         reply?: string;
         cards?: TokenCard[];
         walletCard?: WalletCard | null;
@@ -120,52 +161,57 @@ export default function RavenPage() {
         browsed?: boolean;
         browseRequested?: boolean;
         browseAvailable?: boolean;
-        error?: string;
-        retryAfter?: number;
-      }>("/api/raven", {
-        method: "POST",
-        json: { messages: payload, voice, browse, length, language },
+      };
+
+      let liveText = "";
+      let sawError = false;
+      let final: DoneResult | null = null;
+
+      await readRavenStream(res, (event) => {
+        if (event.type === "text") {
+          liveText += event.text;
+          setStreamingText(liveText);
+        } else if (event.type === "done") {
+          final = event.result as DoneResult;
+        } else if (event.type === "error") {
+          sawError = true;
+        }
       });
-      if (!resOk || !data?.reply) {
-        /* The server's own words, never ours over the top of them. Two cases
-           carry meaning a generic failure message would destroy.
 
-           503 with no key configured means there is no Herald here at all.
-           That must read as an absence, because a member cannot tell a fake
-           Herald from a real one and would trust either.
-
-           429 means a spend cap was reached, and the cap is the honest reason.
-           The wait is appended rather than the request being retried quietly,
-           since a silent retry against a cap is just a slower way to hit it
-           again. */
-        history.completeTurn({
-          role: "error",
-          content: withWait(
-            data?.error ?? "The Raven is preoccupied. Try again shortly.",
-            status === 429 ? data?.retryAfter : undefined
-          ),
-        });
-      } else {
+      if (final) {
+        const f: DoneResult = final;
         history.completeTurn({
           role: "assistant",
-          content: data.reply as string,
+          content: f.reply ?? liveText,
           cards:
-            Array.isArray(data.cards) && data.cards.length
-              ? data.cards
-              : undefined,
-          walletCard: data.walletCard ?? undefined,
-          pulse: data.pulse ?? undefined,
+            Array.isArray(f.cards) && f.cards.length ? f.cards : undefined,
+          walletCard: f.walletCard ?? undefined,
+          pulse: f.pulse ?? undefined,
           suggestions:
-            Array.isArray(data.suggestions) && data.suggestions.length
-              ? data.suggestions
+            Array.isArray(f.suggestions) && f.suggestions.length
+              ? f.suggestions
               : undefined,
           sources:
-            Array.isArray(data.sources) && data.sources.length
-              ? data.sources
+            Array.isArray(f.sources) && f.sources.length
+              ? f.sources
               : undefined,
-          browsed: data.browsed,
-          browseRequested: data.browseRequested,
-          browseAvailable: data.browseAvailable,
+          browsed: f.browsed,
+          browseRequested: f.browseRequested,
+          browseAvailable: f.browseAvailable,
+        });
+      } else if (liveText) {
+        /* The connection dropped before `done` arrived, but real words were
+           already spoken and already on screen. Keeping them as a plain
+           assistant message is the honest choice: replacing what a member
+           just watched appear with an error line would be a worse lie than
+           an answer with no follow-up chips. */
+        history.completeTurn({ role: "assistant", content: liveText });
+      } else {
+        history.completeTurn({
+          role: "error",
+          content: sawError
+            ? "The Raven is preoccupied. Try again shortly."
+            : "The winds swallowed your message. Try again shortly.",
         });
       }
     } catch {
@@ -174,6 +220,7 @@ export default function RavenPage() {
         content: "The winds swallowed your message. Try again shortly.",
       });
     } finally {
+      setStreamingText(null);
       setBusy(false);
     }
   };
@@ -252,7 +299,12 @@ export default function RavenPage() {
         ref={scrollerRef}
         className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4"
       >
-        <MessageList messages={messages} busy={busy} onSend={(t) => void send(t)} />
+        <MessageList
+          messages={messages}
+          busy={busy}
+          streamingText={streamingText}
+          onSend={(t) => void send(t)}
+        />
       </div>
 
       {/* Said out loud, never swallowed. A member who believes their history is

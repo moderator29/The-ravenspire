@@ -1,5 +1,5 @@
 import { requireProfile, json } from "@/lib/auth/server";
-import { askRaven, ravenEnabled } from "@/lib/ai/raven";
+import { askRavenStream, ravenEnabled } from "@/lib/ai/raven";
 import { lookupToken, describeTokenForRaven, type TokenCard } from "@/lib/data/tokens";
 import {
   detectHouses,
@@ -233,36 +233,80 @@ export async function POST(req: Request) {
     describeMemberForRaven(memberContext),
   ];
 
-  const result = await askRaven(
-    messages,
-    [...grounding, ...contexts].join("\n\n"),
-    { voice, browse, length, language }
-  );
-  if (!result)
-    return json({ error: "The Raven is preoccupied. Try again shortly." }, 502);
+  /* Spoken token by token from here on, over Server-Sent Events. Everything
+     above (the rate limit, the auth check, every live lookup) runs exactly
+     as it did before this route streamed: a member either gets a real
+     status code back before a single token is spent, or the reply that
+     follows is genuinely metered and grounded. Only the answer itself is
+     now a stream instead of one JSON blob, because that is the only part
+     of this response a member is ever kept waiting on. */
+  const encoder = new TextEncoder();
+  const context = [...grounding, ...contexts].join("\n\n");
 
-  /* The Herald's own follow-ups, grounded in the answer it just gave. The
-     keyword templates remain only as the floor for the rare turn where the
-     model emits no block at all, so the interface never shows a bare reply
-     where chips have always been. */
-  const suggestions = result.suggestions.length
-    ? result.suggestions
-    : suggestFollowUps({
-        cashtags,
-        houseSlugs: matchedHouses.map((h) => h.slug),
-        hasWallet: Boolean(walletCard),
-        hadData: cards.length > 0,
-      });
+  const streamBody = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: string, data: unknown) => {
+        controller.enqueue(
+          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+        );
+      };
+      try {
+        for await (const chunk of askRavenStream(messages, context, {
+          voice,
+          browse,
+          length,
+          language,
+        })) {
+          if (chunk.type === "text") {
+            send("text", { text: chunk.text });
+            continue;
+          }
+          if (chunk.type === "error") {
+            send("error", {
+              error: "The Raven is preoccupied. Try again shortly.",
+            });
+            continue;
+          }
+          /* The Herald's own follow-ups, grounded in the answer it just
+             gave. The keyword templates remain only as the floor for the
+             rare turn where the model emits no block at all, so the
+             interface never shows a bare reply where chips have always
+             been. */
+          const suggestions = chunk.result.suggestions.length
+            ? chunk.result.suggestions
+            : suggestFollowUps({
+                cashtags,
+                houseSlugs: matchedHouses.map((h) => h.slug),
+                hasWallet: Boolean(walletCard),
+                hadData: cards.length > 0,
+              });
+          send("done", {
+            reply: chunk.result.text,
+            cards,
+            walletCard,
+            pulse,
+            suggestions,
+            browsed: chunk.result.browsed,
+            browseRequested: chunk.result.browseRequested,
+            browseAvailable: chunk.result.browseAvailable,
+            sources: chunk.result.sources,
+          });
+        }
+      } catch {
+        send("error", {
+          error: "The Raven is preoccupied. Try again shortly.",
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
 
-  return json({
-    reply: result.text,
-    cards,
-    walletCard,
-    pulse,
-    suggestions,
-    browsed: result.browsed,
-    browseRequested: result.browseRequested,
-    browseAvailable: result.browseAvailable,
-    sources: result.sources,
+  return new Response(streamBody, {
+    headers: {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+    },
   });
 }

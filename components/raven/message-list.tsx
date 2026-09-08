@@ -43,10 +43,16 @@ function RavenAvatar() {
 export function MessageList({
   messages,
   busy,
+  streamingText,
   onSend,
 }: {
   messages: Msg[];
   busy: boolean;
+  /* The Herald's current reply, arriving a piece at a time. Null before the
+     first token lands (the three-dot indicator below still covers that gap)
+     and while nothing is in flight; once it holds text, it stands in for the
+     final assistant bubble until the turn actually completes. */
+  streamingText?: string | null;
   onSend: (text: string) => void;
 }) {
   if (messages.length === 0) {
@@ -208,7 +214,19 @@ export function MessageList({
           </div>
         );
       })}
-      {busy && (
+      {busy && streamingText && (
+        <div className="flex justify-start">
+          <div className="flex max-w-[90%] items-start gap-2.5">
+            <RavenAvatar />
+            <div className="min-w-0 text-sm leading-relaxed text-bone">
+              <p className="whitespace-pre-wrap break-words">
+                {tidyProse(streamingText)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {busy && !streamingText && (
         <div className="flex justify-start">
           <div className="flex items-center gap-2.5">
             <RavenAvatar />

@@ -14,7 +14,10 @@
  * When the block is absent, which is a legitimate outcome, the whole text is
  * the answer and there are no suggestions. */
 
-const MARKER = /<<<\s*FOLLOW-?UPS\s*>>>/i;
+/* Exported so a streaming caller (lib/ai/raven.ts's askRavenStream) can hold
+   back the same block from a live token feed, using the identical pattern
+   rather than a second, driftable copy of it. */
+export const MARKER = /<<<\s*FOLLOW-?UPS\s*>>>/i;
 
 export function splitFollowUps(raw: string): {
   text: string;
