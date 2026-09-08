@@ -285,9 +285,14 @@ export function CallForm({
   const [loading, setLoading] = useState(false);
   const showSkeleton = useDelayedLoading(loading);
 
-  /* The Herald's read on the draft. Member triggered, never automatic: it is
-     the one part of this panel that costs real coin, and a reading that fired
-     on every keystroke would spend the realm's day on people typing. */
+  /* The Herald's read on the draft. Live, not member triggered: it fires once
+     the free price preview below has resolved to a real difficulty, debounced
+     well past that preview's own 700ms (see the effect below), and keyed to a
+     five point confidence bucket rather than the raw slider value. Dragging
+     the slider a point or typing in the rationale never re-fires it; only a
+     real change in the claim itself or a genuine change in stated confidence
+     does. That is what keeps this the one part of the panel that costs real
+     coin from spending the realm's day on someone still drafting. */
   const [herald, setHerald] = useState<string | null>(null);
   const [heraldError, setHeraldError] = useState<string | null>(null);
   const [heraldLoading, setHeraldLoading] = useState(false);
@@ -356,6 +361,54 @@ export function CallForm({
   const pi0 = preview?.pi_0 ?? null;
   const band = pi0 !== null ? difficultyBand(pi0) : null;
   const outlook = pi0 !== null ? scoreOutlook(confidence, pi0) : null;
+
+  /* The Herald's live read, gated on the same claim the free preview already
+     settled plus a five point confidence bucket (the same granularity the
+     calibration band above already reasons in). Bucketing means dragging the
+     slider a point does not read as a change worth paying for; only crossing
+     a bucket boundary, or the claim itself changing, does. Gated on pi0 too,
+     so there is nothing to read until a real difficulty exists to read it
+     against. */
+  const heraldKey =
+    request && pi0 !== null
+      ? `${request}|${Math.round(draft.confidence / 5) * 5}`
+      : null;
+
+  useEffect(() => {
+    if (!heraldKey) return;
+
+    let cancelled = false;
+    /* A full second past the free preview's own 700ms debounce: this is the
+       one call in the panel that costs real coin, and a member still moving
+       the ticker or the slider should never spend it on a value they have
+       not settled on. */
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const payload = callPayload(draft);
+        if (!payload || cancelled) return;
+        setHeraldLoading(true);
+        setHeraldError(null);
+        const res = await realmFetch<{ text?: string; error?: string }>(
+          "/api/calls/preview/analysis",
+          { method: "POST", json: payload }
+        );
+        if (cancelled) return;
+        setHeraldLoading(false);
+        if (res.data?.text) setHerald(res.data.text);
+        else
+          setHeraldError(res.data?.error ?? "The Herald could not be reached.");
+      })();
+    }, 1800);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    /* Fires again only when heraldKey changes: the claim or the confidence
+       bucket, never a keystroke in the rationale or a stake the Herald was
+       never asked to weigh. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heraldKey]);
 
   /* The member's own calibration at the confidence they are currently stating.
      Read from the buckets the preview already returned rather than by asking
@@ -803,12 +856,35 @@ export function CallForm({
               </p>
             )}
 
-            {/* The Herald, reading the draft over every figure above. This
-                panel holds no copy of its own: it never renders a cached or
-                example reading, and when the Herald cannot be reached it says
-                so rather than filling the space with something that looks like
-                a reading and is not. */}
+            {/* The Herald, reading the draft live over every figure above the
+                instant a real difficulty exists to read it against (see
+                heraldKey). This panel holds no copy of its own: it never
+                renders a cached or example reading, and when the Herald
+                cannot be reached it says so rather than filling the space
+                with something that looks like a reading and is not. The
+                refresh action stays available for the one thing the live
+                trigger deliberately does not watch: a rationale edited after
+                the reading already came back. */}
             <div className="flex flex-col gap-2 border-t border-steel-line pt-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Icon name="raven" className="h-3.5 w-3.5 shrink-0 text-gold" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
+                    The Herald reads your draft
+                  </span>
+                </div>
+                {!heraldLoading && (herald || heraldError) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void askHerald()}
+                    className="h-auto min-h-0 shrink-0 px-1.5 py-0.5 text-[11px]"
+                  >
+                    {heraldError ? "Try again" : "Refresh"}
+                  </Button>
+                )}
+              </div>
+
               {showHeraldSkeleton && (
                 <div className="flex flex-col gap-2">
                   <Skeleton radius="sm" className="h-3 w-full" />
@@ -818,12 +894,6 @@ export function CallForm({
 
               {!heraldLoading && herald && (
                 <>
-                  <div className="flex items-center gap-2">
-                    <Icon name="raven" className="h-3.5 w-3.5 shrink-0 text-gold" />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-bone-faint">
-                      The Herald reads your draft
-                    </span>
-                  </div>
                   <p className="text-xs leading-relaxed text-bone-mut">{herald}</p>
                   <p className="text-[11px] leading-relaxed text-bone-faint">
                     Written over the figures above and nothing else. It is a
@@ -838,16 +908,12 @@ export function CallForm({
                 </p>
               )}
 
-              {!heraldLoading && !herald && (
-                <Button
-                  variant="glass"
-                  size="sm"
-                  onClick={() => void askHerald()}
-                  className="self-start"
-                >
-                  <Icon name="raven" className="h-3.5 w-3.5" />
-                  {heraldError ? "Ask again" : "Ask the Herald before you seal"}
-                </Button>
+              {!heraldLoading && !herald && !heraldError && (
+                <p className="text-xs leading-relaxed text-bone-faint">
+                  {heraldKey
+                    ? "Reading your draft."
+                    : "Set a claim and confidence for a live read."}
+                </p>
               )}
             </div>
 
