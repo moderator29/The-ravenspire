@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, SectionHeader } from "@/components/ui/card";
@@ -153,6 +153,12 @@ function CourtCard({ c }: { c: Court }) {
 export default function RookeryPage() {
   const { ready, authenticated } = useRealmAuth();
   const supabase = useMemo(() => createClient(), []);
+  /* One realtime channel per live court, keyed by room id. A ref rather than
+     state: it holds live channel handles to tear down, never anything the
+     view renders from directly. */
+  const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(
+    new Map()
+  );
 
   const [courts, setCourts] = useState<Court[] | null>(null);
   const [houses, setHouses] = useState<House[]>([]);
@@ -161,6 +167,10 @@ export default function RookeryPage() {
   const [opening, setOpening] = useState<null | "open" | "schedule">(null);
   const [error, setError] = useState<string | null>(null);
   const showSkeleton = useDelayedLoading(courts === null);
+  /* Flips true once any per-court realtime channel below actually confirms
+     SUBSCRIBED, so the poll can back off from being the only path to a real
+     count down to a fallback reconciliation. */
+  const [realtimeOk, setRealtimeOk] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -174,9 +184,85 @@ export default function RookeryPage() {
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => void load(), 12000);
-    return () => clearInterval(timer);
   }, [load]);
+
+  /* The poll is now a fallback, not the only path: a live court's headcount
+     updates the instant someone joins or leaves over the realtime channel
+     below. 12s until that channel is confirmed connected (matching the old
+     behaviour exactly until then), 45s once it is, since a dropped channel
+     is the only thing left for the poll to catch. */
+  useEffect(() => {
+    const timer = setInterval(() => void load(), realtimeOk ? 45000 : 12000);
+    return () => clearInterval(timer);
+  }, [load, realtimeOk]);
+
+  /* Real per-court headcounts, live: one channel per court in session,
+     reusing the exact rooms:court:{id} topic and "presence" broadcast
+     /api/rooms/route.ts already fires on join and leave for the single-room
+     view (see room-live.tsx), rather than a second realtime system. Scoped to
+     status "live" because that is the population whose headcount actually
+     moves; an upcoming court has nobody seated yet. */
+  useEffect(() => {
+    const liveIds = new Set(
+      (courts ?? []).filter((c) => c.status === "live").map((c) => c.id)
+    );
+    const channels = channelsRef.current;
+
+    for (const [id, channel] of channels) {
+      if (!liveIds.has(id)) {
+        void supabase.removeChannel(channel);
+        channels.delete(id);
+      }
+    }
+
+    for (const id of liveIds) {
+      if (channels.has(id)) continue;
+      const channel = supabase
+        .channel(`rooms:court:${id}`)
+        .on("broadcast", { event: "presence" }, (payload) => {
+          const data = payload.payload as
+            | { joined?: string; left?: string }
+            | undefined;
+          if (!data?.joined && !data?.left) return;
+          setCourts((prev) =>
+            (prev ?? []).map((c) => {
+              if (c.id !== id) return c;
+              if (data.joined && !c.participant_ids.includes(data.joined)) {
+                return {
+                  ...c,
+                  participants: c.participants + 1,
+                  participant_ids: [...c.participant_ids, data.joined],
+                };
+              }
+              if (data.left && c.participant_ids.includes(data.left)) {
+                return {
+                  ...c,
+                  participants: Math.max(0, c.participants - 1),
+                  participant_ids: c.participant_ids.filter(
+                    (p) => p !== data.left
+                  ),
+                };
+              }
+              return c;
+            })
+          );
+        })
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") setRealtimeOk(true);
+        });
+      channels.set(id, channel);
+    }
+  }, [courts, supabase]);
+
+  /* Every open channel closes with the page, not only the ones the effect
+     above already dropped as courts came and went. */
+  useEffect(() => {
+    const channels = channelsRef.current;
+    return () => {
+      for (const channel of channels.values()) void supabase.removeChannel(channel);
+      channels.clear();
+    };
+  }, [supabase]);
 
   useEffect(() => {
     void supabase
