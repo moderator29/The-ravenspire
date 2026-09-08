@@ -16,16 +16,44 @@ import { chainLogo } from "@/lib/trade/token-list";
      - trending: what the market is rotating into right now (trending pools)
      - top     : the deepest, highest-volume markets under the cap
 
-   Socials (site / X / Telegram) are enriched in one batched DexScreener call
-   so the glass carries a coin's links without a per-token fan-out. Keyless,
-   cached server-side. Real data only; unreachable chains are omitted. */
+   Socials (site / X / Telegram) AND a logo fallback are enriched in one
+   batched DexScreener call so the glass carries a coin's links and a real
+   picture without a per-token fan-out. Keyless, cached server-side. Real
+   data only; unreachable chains are omitted, never padded with anything
+   invented.
+
+   PER-CHAIN DEPTH, NOT ONE SHARED SLICE. This used to fetch two pages of top
+   pools per chain and cap every lens at 40 coins TOTAL across all seven
+   chains combined, sorted and sliced once. A chain with thinner but real
+   volume (Ethereum's own altcoins, next to BNB Chain's much higher pool
+   count) lost that fight before a member ever opened the chain filter: BNB
+   Chain's own coins alone could fill all 40 slots, so selecting "Ethereum"
+   client-side against that already-tiny shared list left three or four rows.
+   Each chain now earns its own top slice of up to PER_CHAIN_CAP coins by the
+   lens's own metric, and the chains are combined after, so a chain filter
+   shows what that chain actually has rather than what survived a
+   cross-chain popularity contest it was never entered into. */
 
 export const dynamic = "force-dynamic";
 
 const MAX_MARKET_CAP_USD = 100_000_000; // under $100M only, active altcoins
 const MIN_LIQUIDITY_USD = 15_000;
 const MIN_VOLUME_USD = 15_000;
-const PER_TAB = 40;
+/* Pages of GeckoTerminal's top-pools and trending-pools endpoints fetched per
+   chain, 20 pools a page. Five top-pool pages is up to 100 raw candidates a
+   chain before any filter runs; real chains with real liquidity comfortably
+   clear a hundred qualifying coins from that, thinner chains honestly return
+   fewer, because there simply are not two hundred liquid non-major altcoins
+   on every chain at every moment and padding that count would mean showing
+   junk pools to hit a number. */
+const TOP_PAGES = 5;
+const TRENDING_PAGES = 2;
+const PER_CHAIN_CAP = 200;
+/* How many addresses get the DexScreener enrichment pass (socials + logo
+   fallback + spark) in one request. Raised well past the old 90-coin ceiling
+   now that a chain-capped board can genuinely return several hundred coins;
+   still bounded so one refresh cannot balloon into an unbounded fan-out. */
+const ENRICH_BUDGET = 900;
 
 /* Never surfaced: stablecoins, wrapped natives, and the majors themselves.
    These are not the discovery target and only crowd out real altcoins. */
@@ -182,7 +210,7 @@ interface DexPair {
   priceUsd?: string;
   liquidity?: { usd?: number };
   priceChange?: { m5?: number; h1?: number; h6?: number; h24?: number };
-  info?: { websites?: DexWebsite[]; socials?: DexSocial[] };
+  info?: { imageUrl?: string; websites?: DexWebsite[]; socials?: DexSocial[] };
 }
 
 interface Enrichment {
@@ -190,6 +218,12 @@ interface Enrichment {
   twitter: string | null;
   telegram: string | null;
   spark: number[] | null;
+  /* DexScreener's own token image, used only when GeckoTerminal gave none.
+     GeckoTerminal's `image_url` is absent or "missing.png" for a large share
+     of BNB Chain pools specifically, which is exactly the "BNB coins not
+     showing a logo" gap: a second real source beats leaving the row to the
+     TokenLogo primitive's own letter-glyph fallback. */
+  logo: string | null;
 }
 
 /* Reconstruct a 24h→now price path from the current price and the percentage
@@ -233,6 +267,7 @@ async function enrichFor(addresses: string[]): Promise<Map<string, Enrichment>> 
             website: p.info?.websites?.[0]?.url ?? null,
             twitter: socials.find((s) => s.type === "twitter")?.url ?? null,
             telegram: socials.find((s) => s.type === "telegram")?.url ?? null,
+            logo: cleanLogo(p.info?.imageUrl),
             spark: buildSpark(Number(p.priceUsd ?? 0), p.priceChange),
           });
         }
@@ -254,17 +289,54 @@ function dedupeBest(coins: ScryCoin[]): Map<string, ScryCoin> {
   return best;
 }
 
+/* Groups a list by chain, sorts each chain's own group by its own metric,
+   then takes that chain's own top `cap` before rejoining every chain back
+   into one list. A shared global sort-then-slice is what let one high-volume
+   chain crowd out every other chain's real coins before a member ever opened
+   the chain filter; this is the fix, and it is the whole fix, everything
+   downstream (the lens sort for display, enrichment, the response shape)
+   is unchanged. */
+function perChainTop(
+  coins: ScryCoin[],
+  metric: (c: ScryCoin) => number,
+  cap: number
+): ScryCoin[] {
+  const byChain = new Map<number, ScryCoin[]>();
+  for (const c of coins) {
+    const arr = byChain.get(c.chainId);
+    if (arr) arr.push(c);
+    else byChain.set(c.chainId, [c]);
+  }
+  const out: ScryCoin[] = [];
+  for (const arr of byChain.values()) {
+    out.push(...[...arr].sort((a, b) => metric(b) - metric(a)).slice(0, cap));
+  }
+  return out;
+}
+
 async function scry() {
   const nets = TRADE_CHAINS.map((c) => c.gecko);
   const jobs: Promise<ScryCoin[]>[] = [];
   const trendingJobs: Promise<ScryCoin[]>[] = [];
   for (const net of nets) {
-    // Top pools (two pages) feed "top" and "heating"; trending feeds "trending".
-    jobs.push(fetchGecko(`networks/${net}/pools?include=base_token&page=1`, net));
-    jobs.push(fetchGecko(`networks/${net}/pools?include=base_token&page=2`, net));
-    trendingJobs.push(
-      fetchGecko(`networks/${net}/trending_pools?include=base_token`, net)
-    );
+    // Top pools feed "top" and "heating"; trending pools feed "trending".
+    // TOP_PAGES/TRENDING_PAGES pages a chain, 20 pools a page, so each chain
+    // gets its own real shot at PER_CHAIN_CAP qualifying coins rather than
+    // the two-page, forty-total-across-every-chain ceiling this used to run
+    // under.
+    for (let page = 1; page <= TOP_PAGES; page++) {
+      jobs.push(
+        fetchGecko(`networks/${net}/pools?include=base_token&page=${page}`, net)
+      );
+    }
+    for (let page = 1; page <= TRENDING_PAGES; page++) {
+      trendingJobs.push(
+        fetchGecko(
+          `networks/${net}/trending_pools?include=base_token&page=${page}`,
+          net
+        )
+      );
+    }
   }
 
   const [topBatches, trendBatches] = await Promise.all([
@@ -280,31 +352,52 @@ async function scry() {
 
   const topList = [...topAll.values()];
 
-  const top = [...topList]
-    .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0))
-    .slice(0, PER_TAB);
+  const top = perChainTop(topList, (c) => c.volume24h ?? 0, PER_CHAIN_CAP).sort(
+    (a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0)
+  );
 
-  const heating = [...topList]
-    .filter((c) => (c.change24h ?? 0) > 0)
-    .sort((a, b) => (b.change24h ?? 0) - (a.change24h ?? 0))
-    .slice(0, PER_TAB);
+  const heating = perChainTop(
+    topList.filter((c) => (c.change24h ?? 0) > 0),
+    (c) => c.change24h ?? 0,
+    PER_CHAIN_CAP
+  ).sort((a, b) => (b.change24h ?? 0) - (a.change24h ?? 0));
 
-  // Trending falls back to top-by-volume if the trending endpoints were thin.
-  const trendingSource = trendAll.size > 0 ? [...trendAll.values()] : topList;
-  const trending = trendingSource
-    .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0))
-    .slice(0, PER_TAB);
+  // Trending falls back to top-by-volume if the trending endpoints were thin,
+  // per chain: a chain whose trending_pools came back empty still gets its
+  // own top-by-volume coins rather than losing its slice to whichever chains
+  // did have trending data.
+  const chainsWithTrending = new Set([...trendAll.values()].map((c) => c.chainId));
+  const trendingSource: ScryCoin[] = [
+    ...trendAll.values(),
+    ...topList.filter((c) => !chainsWithTrending.has(c.chainId)),
+  ];
+  const trending = perChainTop(
+    trendingSource,
+    (c) => c.volume24h ?? 0,
+    PER_CHAIN_CAP
+  ).sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0));
 
-  // Enrich socials + spark once for the union of everything we're returning.
+  // Enrich socials + a logo fallback + spark once for the union of everything
+  // we're returning, keyed the same way the board itself dedupes: a coin can
+  // legitimately share an address across chains, so chain is part of the key.
   const union = new Map<string, ScryCoin>();
   for (const c of [...heating, ...trending, ...top])
-    union.set(c.address.toLowerCase(), c);
-  const enrich = await enrichFor([...union.keys()].slice(0, 90));
+    union.set(`${c.chainId}:${c.address.toLowerCase()}`, c);
+  const enrich = await enrichFor(
+    [...new Set([...union.values()].map((c) => c.address))].slice(
+      0,
+      ENRICH_BUDGET
+    )
+  );
 
   const apply = (list: ScryCoin[]) =>
     list.map((c) => {
       const e = enrich.get(c.address.toLowerCase());
-      return e ? { ...c, ...e } : c;
+      if (!e) return c;
+      // c.logo wins when GeckoTerminal already gave a real one; e.logo is
+      // strictly a fallback for when it did not, never an overwrite of a
+      // logo that already works.
+      return { ...c, ...e, logo: c.logo ?? e.logo };
     });
 
   return {

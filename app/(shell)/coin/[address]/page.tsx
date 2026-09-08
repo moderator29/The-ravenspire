@@ -32,6 +32,7 @@ interface CoinData {
   name: string;
   chainId: string | null;
   chainLabel: string | null;
+  chainLogo: string | null;
   logo: string | null;
   priceUsd: number | null;
   change24h: number | null;
@@ -254,7 +255,29 @@ export default function CoinPage({
           {/* Identity. The hero band stays comfortable: it is the Dossier half
               of this page, and the panels below it are the Console half. */}
           <Card className="flex items-center gap-3">
-            <TokenLogo src={coin.logo} symbol={coin.symbol} size={44} />
+            {/* The chain mark sits in the logo's own corner now, the same
+                CoinMark treatment the Scrying Glass board uses, rather than a
+                separate text pill reading "BNB CHAIN" beside the name: one
+                coin, one logo, the chain it lives on is part of the same
+                picture instead of a second sentence about it. */}
+            <span className="relative inline-flex shrink-0">
+              <TokenLogo src={coin.logo} symbol={coin.symbol} size={44} />
+              {coin.chainLogo && (
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center overflow-hidden rounded-[var(--radius-full)] border border-obsidian bg-obsidian">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={coin.chainLogo}
+                    alt={coin.chainLabel ?? "chain"}
+                    width={18}
+                    height={18}
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover"
+                  />
+                </span>
+              )}
+            </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h1 className="truncate font-display text-xl font-semibold text-bone">
@@ -264,13 +287,11 @@ export default function CoinPage({
                   <WatchBadge address={coin.address} chain={watchChain} />
                 )}
               </div>
-              <p className="truncate text-xs text-bone-mut">{coin.name}</p>
+              <p className="truncate text-xs text-bone-mut">
+                {coin.name}
+                {coin.chainLabel && !coin.chainLogo ? ` · ${coin.chainLabel}` : ""}
+              </p>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                {coin.chainLabel && (
-                  <span className="inline-block rounded-sm border border-steel-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-bone-faint">
-                    {coin.chainLabel}
-                  </span>
-                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -523,9 +544,6 @@ export default function CoinPage({
             </div>
           </Card>
 
-          <p className="mt-3 text-center text-[10px] text-bone-faint md:mt-2">
-            Market data via DexScreener. A watchlist star is kept on this device.
-          </p>
         </>
       )}
     </ConsolePage>

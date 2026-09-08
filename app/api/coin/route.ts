@@ -2,6 +2,7 @@ import { getProfile, json } from "@/lib/auth/server";
 import { callerKey, rateLimit } from "@/lib/rate-limit";
 import { lookupToken } from "@/lib/data/tokens";
 import { tradeChainByDex } from "@/lib/trade/config";
+import { chainLogo } from "@/lib/trade/token-list";
 
 /*
   In-app coin data for The Scrying Glass. Real market data only, keyless:
@@ -104,6 +105,11 @@ export interface CoinData {
   name: string;
   chainId: string | null;
   chainLabel: string | null;
+  /* The chain's own mark (Trust Wallet asset CDN), same source the Scrying
+     Glass board's CoinMark corner badge uses, so a coin page and a board row
+     agree on what "this coin lives on BNB Chain" looks like: a logo, not a
+     text pill. Null off the trade chain allowlist. */
+  chainLogo: string | null;
   logo: string | null;
   priceUsd: number | null;
   change24h: number | null;
@@ -298,6 +304,7 @@ export async function GET(req: Request) {
     name: pair.baseToken.name ?? pair.baseToken.symbol,
     chainId,
     chainLabel: chainId ? (CHAIN_LABELS[chainId] ?? chainId) : null,
+    chainLogo: evmChain ? chainLogo(evmChain.id) : null,
     logo: pair.info?.imageUrl ?? null,
     priceUsd: pair.priceUsd ? Number(pair.priceUsd) : null,
     change24h: pair.priceChange?.h24 ?? null,

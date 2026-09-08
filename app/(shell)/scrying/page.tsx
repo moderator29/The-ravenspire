@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { cx } from "@/components/ui/cx";
@@ -190,6 +190,7 @@ export default function ScryingPage() {
   const [tab, setTab] = useState<Tab>("heating");
   const [chainFilter, setChainFilter] = useState<number | null>(null);
   const [shown, setShown] = useState(PAGE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
     setError(false);
@@ -244,6 +245,28 @@ export default function ScryingPage() {
     const present = new Set((data[tab] ?? []).map((c) => c.chainId));
     return TRADE_CHAINS.filter((c) => present.has(c.id));
   }, [data, tab]);
+
+  /* True infinite scroll, the way every real discovery board reads: a bare
+     sentinel div past the last rendered row, watched by an
+     IntersectionObserver, that grows `shown` by one page the moment it
+     nears the viewport. The "Show more coins" button stays underneath it as
+     a visible, keyboard-reachable fallback (a scroll gesture is not the only
+     way to reach the next page, and a screen reader has nothing to observe),
+     so this is additive, never a replacement for a real control. */
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !coins || coins.length <= shown) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setShown((s) => Math.min(s + PAGE, coins.length));
+        }
+      },
+      { rootMargin: "600px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [coins, shown]);
 
   const showSkeleton = useDelayedLoading(coins === null, 300);
   const lens = TABS.find((t) => t.key === tab);
@@ -425,6 +448,9 @@ export default function ScryingPage() {
                 </Card>
               );
             })}
+            {coins.length > shown && (
+              <div ref={sentinelRef} aria-hidden className="h-px w-full" />
+            )}
             {coins.length > shown && (
               <Button
                 block
