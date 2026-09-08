@@ -23,6 +23,7 @@ import { InteractiveChart } from "@/components/coin/interactive-chart";
 import { TradePanel } from "@/components/trade/trade-panel";
 import { RavenTake } from "@/components/trade/raven-take";
 import { TokenSafety } from "@/components/trade/token-safety";
+import { HouseActivity } from "@/components/trade/house-activity";
 import { shareOrCopy } from "@/lib/share";
 import { withDeadline } from "@/lib/deadline";
 
@@ -524,6 +525,11 @@ export default function CoinPage({
           {/* Real GoPlus token-security scan (honeypot, tax, blacklist, etc.). */}
           {coin.evmChainId !== null && (
             <TokenSafety chainId={coin.evmChainId} address={coin.address} />
+          )}
+
+          {/* Real Houses with members who have actually traded this coin. */}
+          {coin.evmChainId !== null && (
+            <HouseActivity chainId={coin.evmChainId} address={coin.address} />
           )}
 
           {/* The Raven's read on this coin (real AI over real figures). */}
