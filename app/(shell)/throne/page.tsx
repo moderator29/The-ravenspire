@@ -80,7 +80,7 @@ const previewCards = [
      a member the season waits on a presale is describing a plan the realm no
      longer has. */
   {
-    label: "Season I",
+    label: "Season 0",
     value: "The First Throne",
     sub: "Opens after the founding round",
   },

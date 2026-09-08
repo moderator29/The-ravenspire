@@ -24,6 +24,7 @@ import { Roadmap } from "@/components/landing/roadmap";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { StatsStrip } from "@/components/landing/stats-strip";
 import { LiveRealmStats } from "@/components/landing/live-realm-stats";
+import { PumpfunLiveBanner } from "@/components/pumpfun/live-banner";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { RefCapture } from "@/components/referral/ref-capture";
 
@@ -193,6 +194,7 @@ export default function Landing() {
             >
               {heroBadge}
             </Card>
+            <PumpfunLiveBanner variant="landing" />
           </motion.div>
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
