@@ -251,7 +251,7 @@ export default function PumpfunPage() {
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <p className="tnum font-display text-3xl font-semibold text-bone sm:text-4xl">
-                    {coin.priceUsd !== null ? formatPrice(coin.priceUsd) : "—"}
+                    {coin.priceUsd !== null ? formatPrice(coin.priceUsd) : "n/a"}
                   </p>
                   <p className="mt-1 text-sm">
                     <ChangeText value={coin.change24h} />
@@ -284,22 +284,22 @@ export default function PumpfunPage() {
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Stat
                   label={coin.marketCapIsFdv ? "FDV" : "Market cap"}
-                  value={coin.marketCap !== null ? formatUsd(coin.marketCap) : "—"}
+                  value={coin.marketCap !== null ? formatUsd(coin.marketCap) : "n/a"}
                 />
                 <Stat
                   label="Liquidity"
-                  value={coin.liquidityUsd !== null ? formatUsd(coin.liquidityUsd) : "—"}
+                  value={coin.liquidityUsd !== null ? formatUsd(coin.liquidityUsd) : "n/a"}
                 />
                 <Stat
                   label="Volume (24h)"
-                  value={coin.volume24h !== null ? formatUsd(coin.volume24h) : "—"}
+                  value={coin.volume24h !== null ? formatUsd(coin.volume24h) : "n/a"}
                 />
                 <Stat
                   label="Txns (24h)"
                   value={
                     coin.txns24h
                       ? `${coin.txns24h.buys + coin.txns24h.sells}`
-                      : "—"
+                      : "n/a"
                   }
                 />
               </div>
