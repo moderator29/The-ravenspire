@@ -39,7 +39,12 @@ let serverItems: Set<string> | null = null;
 /* Keys with a tap in flight (or just rejected), overriding serverItems/hint
    until the round trip settles. */
 const optimistic = new Map<string, boolean>();
-let hint: Set<string> | null = null;
+/* The local hint, read ONCE from localStorage and never mutated afterward:
+   it is the fallback base currentComposite() rebuilds from whenever
+   serverItems has not loaded, so a later persistHint() write (or a rejected
+   optimistic change) always recomputes from the same untouched starting
+   point instead of compounding onto whatever was written last time. */
+let rawHint: Set<string> | null = null;
 let loadStarted = false;
 const listeners = new Set<Listener>();
 
@@ -61,18 +66,20 @@ function isCompositeKey(k: string): boolean {
   return k.includes(":");
 }
 
-/* The local hint, read once and cached. Prefers this version's own
-   (chainId,address) cache; falls back to the previous version's address-only
-   key so an existing member's stars still show on first paint. */
-function readHint(): Set<string> {
-  if (hint) return hint;
-  hint = new Set();
-  if (typeof window === "undefined") return hint;
+/* The local hint, read once and cached, and never written back to by
+   persistHint(): read-only for the lifetime of the module. Prefers this
+   version's own (chainId,address) cache; falls back to the previous
+   version's address-only key so an existing member's stars still show on
+   first paint. */
+function readRawHint(): Set<string> {
+  if (rawHint) return rawHint;
+  rawHint = new Set();
+  if (typeof window === "undefined") return rawHint;
   try {
     const rawV2 = window.localStorage.getItem(HINT_KEY);
     if (rawV2) {
-      for (const k of JSON.parse(rawV2) as string[]) hint.add(k);
-      return hint;
+      for (const k of JSON.parse(rawV2) as string[]) rawHint.add(k);
+      return rawHint;
     }
   } catch {
     /* ignore malformed/quota errors, fall through to the old key */
@@ -81,21 +88,24 @@ function readHint(): Set<string> {
     const rawV1 = window.localStorage.getItem(OLD_KEY);
     if (rawV1) {
       const store = JSON.parse(rawV1) as Record<string, true>;
-      for (const address of Object.keys(store)) hint.add(address);
+      for (const address of Object.keys(store)) rawHint.add(address);
     }
   } catch {
     /* ignore: an empty hint is still honest */
   }
-  return hint;
+  return rawHint;
 }
 
 /* Best current answer as a set of composite keys: server truth (or, before it
    loads, whatever composite-format hint we have) with in-flight optimistic
-   changes applied on top. Persisted after every change so the next first
-   paint on this device starts from the freshest known answer. */
+   changes applied on top. Always rebuilt from the untouched raw hint (never
+   from a previously persisted snapshot), so a rejected optimistic change
+   recomputes back to exactly what it was before the tap rather than
+   compounding onto the last write. Persisted after every change so the next
+   first paint on this device starts from the freshest known answer. */
 function currentComposite(): Set<string> {
   const base = new Set(
-    serverItems ?? [...readHint()].filter(isCompositeKey)
+    serverItems ?? [...readRawHint()].filter(isCompositeKey)
   );
   for (const [k, watched] of optimistic) {
     if (watched) base.add(k);
@@ -105,10 +115,10 @@ function currentComposite(): Set<string> {
 }
 
 function persistHint() {
-  hint = currentComposite();
+  const snapshot = currentComposite();
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(HINT_KEY, JSON.stringify([...hint]));
+    window.localStorage.setItem(HINT_KEY, JSON.stringify([...snapshot]));
   } catch {
     /* ignore quota / private-mode errors: the in-memory copy still works */
   }
@@ -141,7 +151,7 @@ export function isWatched(chainId: number, address: string): boolean {
   if (serverItems) return serverItems.has(k);
   // Not loaded yet: answer from the local hint, composite or (pre-migration)
   // address-only, so first paint is never a false "nothing watched".
-  const h = readHint();
+  const h = readRawHint();
   return h.has(k) || h.has(normalizeAddress(address));
 }
 
@@ -169,11 +179,17 @@ export function toggleWatch(chainId: number, address: string): boolean {
     }
 
     if (ok) {
-      // Confirmed: fold into server truth (once it exists) and clear the
-      // override so future reads come straight from serverItems again.
+      // Confirmed: fold into server truth once it exists. If the initial
+      // load has not resolved yet (this write's own request beat it, or the
+      // load failed), fold into the raw hint instead, so a confirmed change
+      // is not lost the moment the optimistic override below is cleared.
       if (serverItems) {
         if (next) serverItems.add(k);
         else serverItems.delete(k);
+      } else {
+        const rh = readRawHint();
+        if (next) rh.add(k);
+        else rh.delete(k);
       }
     }
     // Rejected: drop the optimistic override so the read falls back to
