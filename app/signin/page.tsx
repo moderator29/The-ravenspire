@@ -21,7 +21,7 @@ const assurances: { icon: LandingIconName; title: string; body: string }[] = [
   {
     icon: "shieldKey",
     title: "You keep your keys",
-    body: "A Privy embedded wallet is minted to you on entry. Export it any time.",
+    body: "An embedded wallet is minted to you on entry. Export it any time.",
   },
   {
     icon: "lock",

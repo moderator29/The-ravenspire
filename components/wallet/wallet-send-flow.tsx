@@ -399,7 +399,7 @@ export function WalletSendFlow({
 
       <p className="text-xs leading-relaxed text-bone-faint">
         Network fees are paid from this wallet in {chain?.native ?? "the gas coin"}.
-        You approve every transfer yourself in a secure Privy window.
+        You approve every transfer yourself in a secure wallet window.
       </p>
     </div>
   );
