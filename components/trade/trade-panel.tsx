@@ -521,6 +521,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
         };
         const approval = await sendTransaction(approveTx, {
           address: walletAddress,
+          uiOptions: { showWalletUIs: false },
         });
         approvalSent.current = true;
         setApprovalHash(approval.hash);
@@ -543,7 +544,10 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
         value: BigInt(firm.transaction.value || "0"),
         chainId: coin.evmChainId,
       };
-      const result = await sendTransaction(tx, { address: walletAddress });
+      const result = await sendTransaction(tx, {
+        address: walletAddress,
+        uiOptions: { showWalletUIs: false },
+      });
       setSwapHash(result.hash);
 
       // Record to the Vault's history so it survives without a provider feed,

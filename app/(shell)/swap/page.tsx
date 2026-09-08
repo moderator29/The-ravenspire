@@ -393,7 +393,7 @@ export default function SwapPage() {
             value: 0n,
             chainId,
           },
-          { address: walletAddress }
+          { address: walletAddress, uiOptions: { showWalletUIs: false } }
         );
         approvalSent.current = true;
         setApprovalHash(approval.hash);
@@ -414,7 +414,7 @@ export default function SwapPage() {
           value: BigInt(firm.transaction.value || "0"),
           chainId,
         },
-        { address: walletAddress }
+        { address: walletAddress, uiOptions: { showWalletUIs: false } }
       );
       setSwapHash(result.hash);
       recordTx({

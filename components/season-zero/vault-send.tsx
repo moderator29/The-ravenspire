@@ -152,7 +152,7 @@ export function SeasonZeroVaultSend({
           value: parsedWei,
           chainId: BASE_CHAIN_ID,
         },
-        { address: wallet.address }
+        { address: wallet.address, uiOptions: { showWalletUIs: false } }
       );
 
       /* Broadcast. Not confirmed: the server now reads the chain, and only

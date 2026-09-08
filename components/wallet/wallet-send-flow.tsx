@@ -147,7 +147,10 @@ export function WalletSendFlow({
             chainId: token.chainId,
           };
 
-      const result = await sendTransaction(tx, { address: wallet.address });
+      const result = await sendTransaction(tx, {
+        address: wallet.address,
+        uiOptions: { showWalletUIs: false },
+      });
       onRecorded(makeTxRecord(result.hash, token, recipient, parsedAmount));
       setHash(result.hash);
       setStep("sent");

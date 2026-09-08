@@ -151,7 +151,7 @@ export function TipDialog({
           value,
           ...(chainId != null ? { chainId } : {}),
         },
-        { address: sender.address }
+        { address: sender.address, uiOptions: { showWalletUIs: false } }
       );
       hash = result.hash;
     } catch (e) {
