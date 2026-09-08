@@ -178,7 +178,23 @@ export function Composer({
   const audience = AUDIENCES.find((a) => a.value === visibility);
 
   return (
-    <div className={page ? "flex min-h-[calc(100dvh-3.5rem)] flex-col" : "p-4"}>
+    <div
+      className={
+        page
+          ? /* 100dvh minus the shell's own top bar (h-14) is what this used to
+               read, and it never accounted for the shell's floating mobile
+               dock below: <main> already reserves var(--dock-height) of
+               bottom padding for it (components/shell/shell-main.tsx), but
+               this component sizes itself against the full viewport rather
+               than the space that padding actually leaves, so its own
+               "sticky bottom-0" toolbar (attach, poll, Herald, audience)
+               settled past the visible column and under the dock rather than
+               above it. Subtracting the same clearance the shell already
+               publishes lands the toolbar just above the dock instead. */
+            "flex min-h-[calc(100dvh-3.5rem-var(--dock-height,7rem)-var(--fab-clearance,0px)-1rem)] flex-col"
+          : "p-4"
+      }
+    >
       {page && (
         <div className="sticky top-0 z-sticky flex items-center justify-between gap-3 border-b border-steel-line bg-void/95 px-3 py-2.5 backdrop-blur-[14px]">
           {/* Close abandons the draft, so it belongs wherever the member was
