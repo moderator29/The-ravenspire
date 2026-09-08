@@ -571,7 +571,11 @@ export default function ScryingPage() {
                     </div>
                   </Link>
                   <div className="flex shrink-0 flex-col items-end gap-0.5">
-                    <WatchStar id={t.address} symbol={t.symbol} />
+                    <WatchStar
+                      chainId={t.chainId}
+                      address={t.address}
+                      symbol={t.symbol}
+                    />
                     <Socials t={t} />
                   </div>
                 </Card>

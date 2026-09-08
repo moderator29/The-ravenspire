@@ -5,23 +5,25 @@ import { Icon } from "@/components/ui/icon";
 import { isWatched, toggleWatch, subscribe } from "./watchlist";
 
 interface Props {
-  /** The address (preferred) or symbol that identifies this coin. */
-  id: string;
+  /** EIP-155 chain id the coin lives on, matching lib/trade/config's TRADE_CHAINS. */
+  chainId: number;
+  /** Contract address that identifies this coin on that chain. */
+  address: string;
   /** Ticker, used only for the accessible label. */
   symbol?: string;
   className?: string;
 }
 
 /*
-  A star for the local watchlist. Reads the shared store through
+  A star for the server-backed watchlist. Reads the shared store through
   useSyncExternalStore so every star for the same coin stays in lockstep. The
   bookmark glyph is drawn in living gold when kept, quiet bone when not, since
   the shared Icon set strokes rather than fills.
 */
-export function WatchStar({ id, symbol, className = "" }: Props) {
+export function WatchStar({ chainId, address, symbol, className = "" }: Props) {
   const watched = useSyncExternalStore(
     subscribe,
-    () => isWatched(id),
+    () => isWatched(chainId, address),
     () => false
   );
 
@@ -35,7 +37,7 @@ export function WatchStar({ id, symbol, className = "" }: Props) {
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggleWatch(id);
+        toggleWatch(chainId, address);
       }}
       aria-pressed={watched}
       aria-label={label}

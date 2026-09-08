@@ -373,7 +373,13 @@ export default function CoinPage({
                 </button>
               </div>
             </div>
-            <WatchStar id={coin.address} symbol={coin.symbol} />
+            {coin.evmChainId !== null && (
+              <WatchStar
+                chainId={coin.evmChainId}
+                address={coin.address}
+                symbol={coin.symbol}
+              />
+            )}
           </Card>
 
           {/* Price + chart */}
