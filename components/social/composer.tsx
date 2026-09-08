@@ -17,6 +17,7 @@ import {
   draftSentence,
   type CallDraft,
 } from "@/components/calls/call-form";
+import type { CallDirection } from "@/lib/calls/types";
 import { canRetrace } from "@/components/shell/nav-depth";
 import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
@@ -44,6 +45,7 @@ export function Composer({
   onPosted,
   page = false,
   onDone,
+  initialCall,
 }: {
   onPosted?: (post?: Post) => void;
   /* When true, the composer renders as a focused full compose screen (its own
@@ -52,14 +54,28 @@ export function Composer({
   /* Called after a successful post in page mode instead of the default
      navigation to /home, so a caller can steer where the member lands. */
   onDone?: () => void;
+  /* Opens straight into the Call composer with these fields pre-filled, for a
+     caller (a just-completed trade, say) that already knows the coin and a
+     direction. Still only a starting point: the member sees the same
+     difficulty preview and confidence slider as sealing one from scratch, and
+     can change or clear anything before it is sent. */
+  initialCall?: { token?: string; stance?: CallDirection };
 }) {
   const router = useRouter();
   const { authenticated, displayName } = useRealmAuth();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [callOpen, setCallOpen] = useState(false);
-  const [callDraft, setCallDraft] = useState<CallDraft>(EMPTY_CALL_DRAFT);
+  const [callOpen, setCallOpen] = useState(() => Boolean(initialCall?.token));
+  const [callDraft, setCallDraft] = useState<CallDraft>(() =>
+    initialCall?.token
+      ? {
+          ...EMPTY_CALL_DRAFT,
+          token: initialCall.token.slice(0, 12).toUpperCase(),
+          stance: initialCall.stance ?? EMPTY_CALL_DRAFT.stance,
+        }
+      : EMPTY_CALL_DRAFT
+  );
   /* Each attachment carries a local blob `preview` for instant, reliable
      on-screen display and the persisted public `url` used when the raven is
      sent. Previewing the blob (not the fresh remote URL) means the thumbnail

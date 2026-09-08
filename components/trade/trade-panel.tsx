@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
 import { AdaptiveDialog } from "@/components/ui/sheet";
@@ -1110,6 +1111,26 @@ function TradeSuccess({
           </div>
         </Card>
       )}
+      {/* A trade just stated a real position. Offering to state it as a Call
+          too, right here, is the one moment that read is fresh: the member
+          already bought or sold, the stance falls straight out of which one
+          (buy reads as an "up" claim, sell as "down"), and it is only ever a
+          pre-filled starting point, never sealed from here. The composer's
+          own difficulty preview and confidence slider still stand between
+          this tap and an actual Call. */}
+      <Button
+        variant="glass"
+        size="lg"
+        block
+        render={
+          <Link
+            href={`/compose?call=1&token=${encodeURIComponent(symbol)}&stance=${side === "buy" ? "up" : "down"}`}
+          />
+        }
+      >
+        <Icon name="target" className="h-4 w-4" />
+        Turn this into a Call
+      </Button>
       <Button variant="gold" size="lg" block onClick={onClose}>
         Done
       </Button>
