@@ -20,7 +20,15 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
  *
  * Real data only. A cell whose fact the realm cannot answer honestly does not
  * render at all, and when nothing can be answered the strip disappears rather
- * than showing a row of zeroes. */
+ * than showing a row of zeroes.
+ *
+ * Live, the same idiom as the realm trade tape (components/trade/realm-trades.tsx):
+ * a plain poll rather than a realtime channel, since these facts (House glory,
+ * a season clock, an open Call count) have no broadcast of their own to ride.
+ * Every cell already keys off a stable field name, so a poll landing on the
+ * same DOM nodes reads as a value changing in place, never a flash or a
+ * reshuffle. No invented interpolation between polls: a number holds until
+ * the next real one arrives. */
 
 interface Strip {
   streak: number | null;
@@ -79,6 +87,11 @@ function Cell({
   );
 }
 
+/* 20s: slower than the trade tape's 15s, since a House's glory or a season's
+   clock moves far less often than the realm's trades, but still inside the
+   15-30s band the product's other live counters already use. */
+const POLL_MS = 20_000;
+
 export function RealmStrip() {
   const { ready, authenticated } = useRealmAuth();
   const [data, setData] = useState<Strip | null>(null);
@@ -86,11 +99,15 @@ export function RealmStrip() {
   useEffect(() => {
     if (!ready || !authenticated) return;
     let cancelled = false;
-    void realmFetch<Strip>("/api/realm/strip").then((res) => {
+    const load = async () => {
+      const res = await realmFetch<Strip>("/api/realm/strip");
       if (!cancelled && res.data) setData(res.data);
-    });
+    };
+    void load();
+    const t = setInterval(() => void load(), POLL_MS);
     return () => {
       cancelled = true;
+      clearInterval(t);
     };
   }, [ready, authenticated]);
 
