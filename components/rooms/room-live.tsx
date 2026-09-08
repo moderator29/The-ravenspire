@@ -166,6 +166,15 @@ export function RoomLive({ roomId }: { roomId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>("floor");
 
+  /* Raise a seat: which profile ids are actively asking to speak (a signal,
+     not a record, since nothing here is persisted server side), which one
+     row's promote/demote action is in flight, and this member's own pending
+     request. */
+  const [speakRequests, setSpeakRequests] = useState<Set<string>>(new Set());
+  const [memberBusy, setMemberBusy] = useState<string | null>(null);
+  const [requested, setRequested] = useState(false);
+  const [requestBusy, setRequestBusy] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const loadRoom = useCallback(async () => {
@@ -263,7 +272,27 @@ export function RoomLive({ roomId }: { roomId: string }) {
           setFloats((prev) => prev.filter((f) => f.id !== id));
         }, 2600);
       })
-      .on("broadcast", { event: "presence" }, () => {
+      .on("broadcast", { event: "presence" }, (payload) => {
+        const data = payload.payload as
+          | { requestedToSpeak?: string; promoted?: string; demoted?: string }
+          | undefined;
+        /* A raised hand, kept client side only until the host acts on it or
+           dismisses it: there is nothing to persist, it is a moment, not a
+           record. A promotion clears the request it answered, from whichever
+           client the host was using. */
+        if (data?.requestedToSpeak) {
+          const id = data.requestedToSpeak;
+          setSpeakRequests((prev) => new Set(prev).add(id));
+        }
+        if (data?.promoted) {
+          const id = data.promoted;
+          setSpeakRequests((prev) => {
+            if (!prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }
         void loadRoom();
       })
       .subscribe();
@@ -297,11 +326,22 @@ export function RoomLive({ roomId }: { roomId: string }) {
     detail !== null &&
     me !== null &&
     detail.roster.some((r) => r.profile_id === me);
+  const myRole =
+    detail !== null && me !== null
+      ? (detail.roster.find((r) => r.profile_id === me)?.role ?? null)
+      : null;
   const live = detail?.status === "live";
   const ended = detail?.status === "ended";
   const scheduled = detail?.status === "scheduled";
 
   const showSkeleton = useDelayedLoading(room === null, 300);
+
+  /* A seat raised elsewhere (another tab, a rejoin) means this member's own
+     pending request is stale; drop it so the control reappears honestly
+     rather than staying disabled on a request nobody can see any more. */
+  useEffect(() => {
+    if (myRole !== "listener") setRequested(false);
+  }, [myRole]);
 
   async function act(action: "join" | "leave" | "close" | "start") {
     if (busy || !detail) return;
@@ -314,6 +354,48 @@ export function RoomLive({ roomId }: { roomId: string }) {
     if (!ok) setError(data?.error ?? "The act failed. Try again.");
     await loadRoom();
     setBusy(false);
+  }
+
+  /* Host only: raise a listener to speaker, or return a speaker to listener.
+     Follows the exact act() pattern above, keyed per row rather than the one
+     shared busy flag so promoting one member does not disable every other
+     control on the roster while the request is in flight. */
+  async function actOnMember(action: "promote" | "demote", targetId: string) {
+    if (!detail || memberBusy) return;
+    setMemberBusy(targetId);
+    setError(null);
+    const { ok, data } = await realmFetch<{ error?: string }>("/api/rooms", {
+      method: "POST",
+      json: { action, room_id: detail.id, profile_id: targetId },
+    });
+    if (!ok) {
+      setError(data?.error ?? "The act failed. Try again.");
+    } else if (action === "promote") {
+      setSpeakRequests((prev) => {
+        if (!prev.has(targetId)) return prev;
+        const next = new Set(prev);
+        next.delete(targetId);
+        return next;
+      });
+    }
+    await loadRoom();
+    setMemberBusy(null);
+  }
+
+  /* A listener signalling the host. No role changes and nothing persisted:
+     the host's own client keeps the running list, built from the broadcast
+     this fires. */
+  async function requestToSpeak() {
+    if (!detail || requestBusy || requested) return;
+    setRequestBusy(true);
+    setError(null);
+    const { ok, data } = await realmFetch<{ error?: string }>("/api/rooms", {
+      method: "POST",
+      json: { action: "request_to_speak", room_id: detail.id },
+    });
+    if (ok) setRequested(true);
+    else setError(data?.error ?? "The request did not carry. Try again.");
+    setRequestBusy(false);
   }
 
   async function react(reaction: string) {
@@ -593,20 +675,86 @@ export function RoomLive({ roomId }: { roomId: string }) {
     </Card>
   );
 
+  /* Only listeners still actually seated, so a member who left or was already
+     promoted through another client falls out the moment the roster reloads
+     rather than lingering as a stale ask. */
+  const pendingRequests = detail
+    ? detail.roster.filter(
+        (r) => speakRequests.has(r.profile_id) && r.role === "listener"
+      )
+    : [];
+
   const roster = (
     <Card
       pad="none"
       className="flex max-h-[calc(100dvh-24rem)] min-h-[12rem] flex-col overflow-hidden lg:max-h-[calc(100dvh-22rem)]"
     >
-      <div className="border-b border-steel-line px-3.5 py-2.5">
-        <p className="font-display text-sm font-semibold text-bone">
-          On the floor
-        </p>
-        <p className="text-[11px] text-bone-faint">
-          <span className="tnum text-bone-mut">{detail.participants}</span>{" "}
-          gathered
-        </p>
+      <div className="flex items-start justify-between gap-2 border-b border-steel-line px-3.5 py-2.5">
+        <div>
+          <p className="font-display text-sm font-semibold text-bone">
+            On the floor
+          </p>
+          <p className="text-[11px] text-bone-faint">
+            <span className="tnum text-bone-mut">{detail.participants}</span>{" "}
+            gathered
+          </p>
+        </div>
+        {live && isMember && !isHost && myRole === "listener" ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            dense
+            loading={requestBusy}
+            disabled={requested}
+            onClick={() => void requestToSpeak()}
+          >
+            <Icon name="bell" className="h-3.5 w-3.5" />
+            {requested ? "Asked" : "Request to speak"}
+          </Button>
+        ) : null}
       </div>
+
+      {isHost && pendingRequests.length > 0 ? (
+        <div className="flex flex-col gap-1 border-b border-steel-line px-2 py-2">
+          <p className="px-1.5 text-[10px] uppercase tracking-[0.14em] text-bone-faint">
+            Asking to speak
+          </p>
+          {pendingRequests.map((r) => (
+            <div
+              key={r.profile_id}
+              className="flex items-center gap-2 rounded-md px-1.5 py-1"
+            >
+              <Portrait person={r} className="h-7 w-7 shrink-0 text-[10px]" />
+              <span className="min-w-0 flex-1 truncate text-xs font-semibold text-bone">
+                {nameOf(r)}
+              </span>
+              <Button
+                variant="gold"
+                size="sm"
+                dense
+                loading={memberBusy === r.profile_id}
+                onClick={() => void actOnMember("promote", r.profile_id)}
+              >
+                Invite up
+              </Button>
+              <IconButton
+                icon="close"
+                label={`Dismiss ${nameOf(r)}'s request`}
+                size="sm"
+                dense
+                onClick={() =>
+                  setSpeakRequests((prev) => {
+                    const next = new Set(prev);
+                    next.delete(r.profile_id);
+                    return next;
+                  })
+                }
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className="flex-1 overflow-y-auto px-2 py-2">
         {detail.roster.length === 0 ? (
           <EmptyState
@@ -643,22 +791,44 @@ export function RoomLive({ roomId }: { roomId: string }) {
                   )}
                 </>
               );
-              const rowClass =
-                "flex min-h-11 items-center gap-2.5 rounded-md px-2 py-1.5 md:min-h-9";
-              return p.handle ? (
-                <Link
-                  key={p.profile_id}
-                  href={`/u/${p.handle}`}
-                  className={cx(
-                    rowClass,
-                    "transition-colors duration-fast ease-out-quint hover:bg-panel"
-                  )}
-                >
+              const linkClass = cx(
+                "flex min-w-0 flex-1 items-center gap-2.5 rounded-md py-1.5",
+                "transition-colors duration-fast ease-out-quint hover:bg-panel"
+              );
+              const identity = p.handle ? (
+                <Link href={`/u/${p.handle}`} className={linkClass}>
                   {inner}
                 </Link>
               ) : (
-                <div key={p.profile_id} className={rowClass}>
+                <div className="flex min-w-0 flex-1 items-center gap-2.5 py-1.5">
                   {inner}
+                </div>
+              );
+              /* A row-level control sits beside the identity link rather than
+                 inside it: a button inside an anchor is invalid markup and
+                 unreachable by keyboard as two separate stops. */
+              return (
+                <div
+                  key={p.profile_id}
+                  className="flex min-h-11 items-center gap-1 px-2 md:min-h-9"
+                >
+                  {identity}
+                  {isHost && !host ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      dense
+                      loading={memberBusy === p.profile_id}
+                      onClick={() =>
+                        void actOnMember(
+                          p.role === "speaker" ? "demote" : "promote",
+                          p.profile_id
+                        )
+                      }
+                    >
+                      {p.role === "speaker" ? "Demote" : "Promote"}
+                    </Button>
+                  ) : null}
                 </div>
               );
             })}
@@ -789,7 +959,7 @@ export function RoomLive({ roomId }: { roomId: string }) {
           court has no stage to enter. */}
       {!ended && (
         <div className="mt-3">
-          <RoomAudio roomId={detail.id} />
+          <RoomAudio roomId={detail.id} roster={detail.roster} />
         </div>
       )}
 

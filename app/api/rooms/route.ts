@@ -233,6 +233,7 @@ export async function POST(req: Request) {
     action?: string;
     title?: string;
     room_id?: string;
+    profile_id?: string;
     house_slug?: string | null;
     scheduled?: boolean;
   } | null;
@@ -384,6 +385,76 @@ export async function POST(req: Request) {
     if (error) return json({ error: error.message }, 500);
     await broadcast(`rooms:court:${body.room_id}`, "presence", {
       left: profile.id,
+    });
+    return json({ ok: true });
+  }
+
+  /* Raise a seat: only the host may promote a listener to speaker, or demote a
+     speaker back to listener. The LiveKit token minted at /api/rooms/token
+     already reads this role at request time, but a member holding an OLDER
+     token keeps its OLD publish rights until they reconnect, since a signed
+     token cannot be amended after the fact. The client listens for this exact
+     broadcast on its own identity and reconnects to pick up the change. */
+  if (body.action === "promote" || body.action === "demote") {
+    if (!body.room_id || !body.profile_id)
+      return json({ error: "bad request" }, 400);
+    const { data: room } = await db
+      .from("rooms")
+      .select("id, host_id, status")
+      .eq("id", body.room_id)
+      .maybeSingle();
+    if (!room) return json({ error: "No such court." }, 404);
+    if (room.host_id !== profile.id)
+      return json({ error: "Only the host may raise or lower a seat." }, 403);
+    if (room.status === "ended")
+      return json({ error: "That court has adjourned." }, 409);
+    if (body.profile_id === room.host_id)
+      return json({ error: "The host already holds the floor." }, 400);
+
+    const { data: target } = await db
+      .from("room_participants")
+      .select("profile_id")
+      .eq("room_id", room.id)
+      .eq("profile_id", body.profile_id)
+      .maybeSingle();
+    if (!target)
+      return json({ error: "That member is not seated in this court." }, 404);
+
+    const role = body.action === "promote" ? "speaker" : "listener";
+    const { error } = await db
+      .from("room_participants")
+      .update({ role })
+      .eq("room_id", room.id)
+      .eq("profile_id", body.profile_id);
+    if (error) return json({ error: error.message }, 500);
+
+    await broadcast(
+      `rooms:court:${room.id}`,
+      "presence",
+      body.action === "promote"
+        ? { promoted: body.profile_id }
+        : { demoted: body.profile_id }
+    );
+    return json({ ok: true });
+  }
+
+  /* A listener signalling the host, nothing more: no role changes here and
+     nothing is persisted, since this is a moment in time, not a record. The
+     host's client keeps its own list of who has asked, built from these
+     broadcasts. */
+  if (body.action === "request_to_speak") {
+    if (!body.room_id) return json({ error: "bad request" }, 400);
+    const { data: room } = await db
+      .from("rooms")
+      .select("id, status")
+      .eq("id", body.room_id)
+      .maybeSingle();
+    if (!room) return json({ error: "No such court." }, 404);
+    if (room.status !== "live")
+      return json({ error: "That court is not live." }, 409);
+
+    await broadcast(`rooms:court:${room.id}`, "presence", {
+      requestedToSpeak: profile.id,
     });
     return json({ ok: true });
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Room,
   RoomEvent,
@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import { cx } from "@/components/ui/cx";
 import { realmFetch } from "@/lib/auth/api";
+import { createClient } from "@/lib/supabase/client";
 
 /* The court's real audio stage (Twitter Spaces style), powered by LiveKit. The
    host and promoted speakers publish their voice; everyone else listens live.
@@ -51,6 +52,34 @@ interface Speaker {
   canPublish: boolean;
 }
 
+/* The real profile face for a seat on the stage. LiveKit's own `identity` is
+   the member's profile id (see /api/rooms/token), so it lines up exactly with
+   the roster's own `profile_id`: no invented avatar, the same photo the
+   roster panel already shows. */
+export interface StageFace {
+  profile_id: string;
+  avatar_url: string | null;
+  display_name: string | null;
+  handle: string | null;
+}
+
+/* The pulse is the one piece of ambient motion this surface earns (house rule
+   21): it only ever runs while LiveKit says that identity is actually
+   producing sound, so it is a live signal, not decoration. Opacity and
+   transform only, per rule 14. */
+const SPEAK_PULSE_KEYFRAMES = `
+@keyframes rvsp-speak-pulse{
+  0%{opacity:.5;transform:scale(.9)}
+  70%{opacity:0;transform:scale(1.35)}
+  100%{opacity:0;transform:scale(1.35)}
+}
+@media (prefers-reduced-motion: reduce){
+  @keyframes rvsp-speak-pulse{
+    0%{opacity:.35}
+    100%{opacity:.35}
+  }
+}`;
+
 /* getUserMedia failures are the one error class a member can actually fix, so
    each one gets the sentence that fixes it. */
 function micMessage(err: unknown): string {
@@ -67,7 +96,16 @@ function micMessage(err: unknown): string {
   return "The microphone would not open. Check your device, then try again.";
 }
 
-export function RoomAudio({ roomId }: { roomId: string }) {
+export function RoomAudio({
+  roomId,
+  roster,
+}: {
+  roomId: string;
+  /* The room's roster, already fetched by the caller: real faces for the
+     avatar tiles below, never invented ones. Optional so the stage still
+     renders (with plain initials) before the first roster load resolves. */
+  roster?: StageFace[];
+}) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
@@ -243,6 +281,38 @@ export function RoomAudio({ roomId }: { roomId: string }) {
     }
   }, [roomId, snapshot, teardown]);
 
+  const supabase = useMemo(() => createClient(), []);
+
+  /* A promotion or demotion changes what /api/rooms/token would mint NEXT,
+     never what this member's CURRENT token already grants: the token is a
+     hand-signed JWT (see the comment at the top of token/route.ts), fixed the
+     moment it was issued, so the only way to pick up new publish rights is a
+     fresh one. This listens on the same rooms:court:{roomId} topic room-live
+     already uses for chat, reactions and roster presence, for the exact
+     "presence" broadcast the promote/demote actions fire, and reconnects only
+     when the change is about THIS identity: LiveKit's own identity is the
+     member's profile id, minted that way by /api/rooms/token, so it lines up
+     with room_participants.profile_id with no lookup needed. */
+  useEffect(() => {
+    const channel = supabase
+      .channel(`rooms:court:${roomId}`)
+      .on("broadcast", { event: "presence" }, (payload) => {
+        const data = payload.payload as
+          | { promoted?: string; demoted?: string }
+          | undefined;
+        const room = roomRef.current;
+        if (!room) return;
+        const me = room.localParticipant.identity;
+        if (data?.promoted !== me && data?.demoted !== me) return;
+        teardown();
+        void connect();
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, roomId, teardown, connect]);
+
   const toggleMic = useCallback(async () => {
     const room = roomRef.current;
     if (!room || micBusy) return;
@@ -274,6 +344,12 @@ export function RoomAudio({ roomId }: { roomId: string }) {
 
   const live = status === "live";
 
+  const faceMap = useMemo(() => {
+    const map = new Map<string, StageFace>();
+    for (const f of roster ?? []) map.set(f.profile_id, f);
+    return map;
+  }, [roster]);
+
   /* Spoken state, for the members who cannot see the panel change. Kept out of
      the visual tree so the polite region never wraps the controls themselves,
      which would re-announce the whole stage on every mic press. */
@@ -291,7 +367,9 @@ export function RoomAudio({ roomId }: { roomId: string }) {
           : "You have not entered the audio stage.";
 
   return (
-    <Card variant="warm" className="flex flex-col gap-3">
+    <>
+      <style>{SPEAK_PULSE_KEYFRAMES}</style>
+      <Card variant="warm" className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Icon name="signal" className="h-4 w-4 shrink-0 text-gold" />
         <p className="text-sm font-semibold text-bone">Audio stage</p>
@@ -371,37 +449,79 @@ export function RoomAudio({ roomId }: { roomId: string }) {
 
         {live ? (
           <>
-            <ul
-              aria-label="On the stage"
-              className="flex flex-wrap gap-2"
-            >
+            <ul aria-label="On the stage" className="flex flex-wrap gap-3">
               {people.map((p) => {
                 const isSpeaking = speaking.has(p.identity);
                 const muted = p.isLocal && p.canPublish && !micOn;
+                const face = faceMap.get(p.identity);
+                const label = p.isLocal ? "You" : (face?.display_name ?? face?.handle ?? p.name);
+                const letter = (face?.display_name ?? face?.handle ?? p.name)
+                  .slice(0, 1)
+                  .toUpperCase();
                 return (
                   <li
                     key={p.identity}
-                    className={cx(
-                      "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs",
-                      "transition-colors duration-fast ease-out-quint",
-                      isSpeaking
-                        ? "border-gold/60 bg-panel-warm text-gold-bright"
-                        : "border-steel-line bg-panel/50 text-bone-mut"
-                    )}
+                    className="flex w-14 flex-col items-center gap-1.5"
                   >
-                    <Icon
-                      name={p.canPublish ? "signal" : "user"}
-                      className={cx(
-                        "h-3 w-3",
-                        isSpeaking ? "text-gold" : "text-bone-faint"
-                      )}
-                    />
-                    {p.isLocal ? "You" : p.name}
-                    {muted ? (
-                      <span className="text-[10px] uppercase tracking-[0.14em] text-bone-faint">
-                        Muted
+                    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center">
+                      {/* Ambient only while genuinely live: a real signal from
+                          LiveKit's ActiveSpeakersChanged, never a decorative
+                          loop. Opacity and transform only, per rule 14. */}
+                      {isSpeaking ? (
+                        <span
+                          aria-hidden
+                          className="absolute inset-[-3px] rounded-[var(--radius-full)] bg-gold/30"
+                          style={{
+                            animation: "rvsp-speak-pulse 1.1s ease-in-out infinite",
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className={cx(
+                          "relative flex h-11 w-11 items-center justify-center overflow-hidden",
+                          "rounded-[var(--radius-full)] border bg-panel font-display text-sm text-gold",
+                          "transition-[border-color,transform] duration-fast ease-out-quint",
+                          isSpeaking
+                            ? "scale-[1.04] border-gold"
+                            : "border-steel-line"
+                        )}
+                      >
+                        {face?.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={face.avatar_url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          letter
+                        )}
                       </span>
-                    ) : null}
+                      {p.canPublish ? (
+                        <span
+                          aria-hidden
+                          className={cx(
+                            "absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center",
+                            "rounded-[var(--radius-full)] border border-void bg-panel-warm"
+                          )}
+                        >
+                          <Icon
+                            name={muted ? "close" : "signal"}
+                            className={cx(
+                              "h-2.5 w-2.5",
+                              muted ? "text-bone-faint" : "text-gold"
+                            )}
+                          />
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="max-w-full truncate text-[10px] text-bone-mut">
+                      {label}
+                    </span>
+                    <span className="sr-only">
+                      {isSpeaking ? "Speaking now. " : ""}
+                      {muted ? "Microphone muted." : ""}
+                    </span>
                   </li>
                 );
               })}
@@ -442,14 +562,12 @@ export function RoomAudio({ roomId }: { roomId: string }) {
               </Button>
             ) : (
               /* Honest about what this seat can do. Publish rights are read
-                 from the member's seat when the token is minted, so a seat
-                 raised to speaker takes effect on the next join, not this one.
-                 Nothing in the realm raises a seat yet, so this says what is
-                 true rather than promising an invitation that cannot come. */
+                 from the member's seat when the token is minted, so a raised
+                 seat needs a fresh token, not a wish: the effect above
+                 reconnects the instant the host's own promotion arrives. */
               <p className="text-xs text-bone-mut">
                 You are listening. The floor belongs to the host and to seats
-                raised to speaker, and a raised seat takes the floor the next
-                time it enters the stage.
+                raised to speaker. Ask the host from the roster to be raised.
               </p>
             )}
 
@@ -463,6 +581,7 @@ export function RoomAudio({ roomId }: { roomId: string }) {
       </div>
 
       <div ref={audioBinRef} aria-hidden className="hidden" />
-    </Card>
+      </Card>
+    </>
   );
 }
