@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
+import { CeremonyCard } from "@/components/ui/ceremony-card";
 import { ShareButton } from "@/components/share/share-button";
 import { useViewerHandle } from "@/lib/social/use-viewer";
 import { realmFetch } from "@/lib/auth/api";
@@ -1098,24 +1099,14 @@ function TradeSuccess({
   const explorer = hash ? txExplorerUrlFor(chainId, hash) : null;
   const viewerHandle = useViewerHandle();
   return (
-    <div className="flex flex-col items-center gap-4 py-4 text-center">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-gold/40 bg-panel-warm">
-        {logo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt="" className="h-10 w-10 rounded-full" />
-        ) : (
-          <Icon name="coin" className="h-7 w-7 text-gold" />
-        )}
-      </span>
-      <div>
-        <p className="font-display text-lg font-semibold text-bone">
-          {side === "buy" ? "Bought" : "Sold"} {symbol}
-        </p>
-        <p className="mt-1 text-sm text-bone-mut">
-          {side === "buy" ? "You received" : "You received"} {receive}. Your
-          Vault and Coffers will update as the chain confirms.
-        </p>
-      </div>
+    <CeremonyCard
+      icon="coin"
+      image={logo}
+      kicker="Trade complete"
+      headline={`${side === "buy" ? "Bought" : "Sold"} ${symbol}`}
+      subline={`You received ${receive}. Your Vault and Coffers will update as the chain confirms.`}
+      footnote="A real trade, signed by your own wallet. Non-custodial."
+    >
       {hash && (
         <Card variant="inset" pad="md" className="w-full">
           <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
@@ -1173,7 +1164,7 @@ function TradeSuccess({
       <Button variant="gold" size="lg" block onClick={onClose}>
         Done
       </Button>
-    </div>
+    </CeremonyCard>
   );
 }
 
