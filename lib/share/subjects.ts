@@ -11,6 +11,7 @@ import {
   loadSeasonContributions,
 } from "@/lib/houses/scoring";
 import { readListing } from "@/lib/commerce/market-board";
+import { tradeChainById } from "@/lib/trade/config";
 import { readHoard } from "@/lib/collectibles/hoard";
 import { normalizeCall } from "@/lib/calls/types";
 import { findCrest } from "@/components/brand/crests";
@@ -493,6 +494,82 @@ export async function readListingSubject(
       price: formatMinor(listing.price_minor, listing.currency),
       sellerHandle: listing.seller?.handle ?? null,
       status: listing.status,
+    };
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* One verified trade off the realm's own feed                         */
+/* ------------------------------------------------------------------ */
+
+export type TradeSubject = {
+  kind: "buy" | "sell" | "swap";
+  chainId: number;
+  chainName: string;
+  sellSymbol: string | null;
+  buySymbol: string | null;
+  traderName: string;
+  traderHandle: string | null;
+  txHash: string;
+  createdAt: string;
+};
+
+export async function readTradeSubject(
+  id: string,
+  client?: ShareDb | null
+): Promise<TradeSubject | null> {
+  const db = client ?? adminClient();
+  if (!db) return null;
+
+  return safely(async () => {
+    /* Verified only, the same line /api/trade/record draws for the realm feed
+       itself: an unproven trade is a claim, and a share card unfurled at a
+       guessable URL is the one surface where a claim reads as a fact about
+       somebody else. No amount and no USD value on this card for the same
+       reason that route documents at length: verifyTrade proves the
+       transaction and the token that arrived, never the client-supplied
+       figures, so this card shows only what is actually proven. */
+    const { data } = await db
+      .from("trades")
+      .select(
+        "id, kind, chain_id, tx_hash, sell_symbol, buy_symbol, created_at, verified_at, trader:profiles!trades_profile_id_fkey (handle, display_name, is_banned)"
+      )
+      .eq("id", id)
+      .not("verified_at", "is", null)
+      .maybeSingle();
+    if (!data) return null;
+
+    const row = data as unknown as {
+      kind: string;
+      chain_id: number;
+      tx_hash: string;
+      sell_symbol: string | null;
+      buy_symbol: string | null;
+      created_at: string;
+      trader: {
+        handle: string | null;
+        display_name: string | null;
+        is_banned: boolean | null;
+      } | null;
+    };
+
+    if (row.trader?.is_banned === true) return null;
+    if (row.kind !== "buy" && row.kind !== "sell" && row.kind !== "swap")
+      return null;
+
+    const chain = tradeChainById(row.chain_id);
+    return {
+      kind: row.kind,
+      chainId: row.chain_id,
+      chainName: chain?.name ?? "an unknown chain",
+      sellSymbol: row.sell_symbol,
+      buySymbol: row.buy_symbol,
+      traderName:
+        row.trader?.display_name ??
+        (row.trader?.handle ? `@${row.trader.handle}` : "A member of the realm"),
+      traderHandle: row.trader?.handle ?? null,
+      txHash: row.tx_hash,
+      createdAt: row.created_at,
     };
   });
 }

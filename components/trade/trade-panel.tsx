@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
+import { ShareButton } from "@/components/share/share-button";
+import { useViewerHandle } from "@/lib/social/use-viewer";
 import { realmFetch } from "@/lib/auth/api";
 import { useVaultPrefs } from "@/components/wallet/wallet-prefs";
 import { useWalletTokens } from "@/components/wallet/use-wallet-tokens";
@@ -235,6 +237,12 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
   const [approvalHash, setApprovalHash] = useState<string | null>(null);
   const approvalSent = useRef(false);
   const [swapHash, setSwapHash] = useState<string | null>(null);
+  /* The realm feed's own row id for this trade, once it is written AND
+     verified. Only a verified trade gets a share card (lib/share/subjects.ts
+     refuses an unverified one the same way the feed itself does), so this
+     stays null for an unproven trade rather than pointing the share button
+     at a page that will 404. */
+  const [tradeRecordId, setTradeRecordId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -449,6 +457,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
     setExecError(null);
     setApprovalHash(null);
     setSwapHash(null);
+    setTradeRecordId(null);
     approvalSent.current = false;
   };
 
@@ -568,30 +577,39 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
 
       // Also record to the platform-wide trade feed (real receipt, idempotent
       // on the hash). Best-effort: the on-chain trade is the source of truth,
-      // so a failed write here never undoes a completed trade.
+      // so a failed write here never undoes a completed trade, and the
+      // success screen does not wait on it. The id it returns only matters
+      // for the share card, once the trade is confirmed verified.
       const isBuy = side === "buy";
-      void realmFetch("/api/trade/record", {
-        method: "POST",
-        json: {
-          kind: side,
-          chainId: coin.evmChainId,
-          txHash: result.hash,
-          sellSymbol: isBuy ? chain.native : coin.symbol,
-          sellAmount: firm.sellAmount
-            ? formatUnits(toBig(firm.sellAmount), isBuy ? NATIVE_DECIMALS : decimals)
-            : null,
-          sellContract: isBuy ? null : coin.address,
-          buySymbol: isBuy ? coin.symbol : chain.native,
-          buyAmount: firm.buyAmount
-            ? formatUnits(toBig(firm.buyAmount), isBuy ? decimals : NATIVE_DECIMALS)
-            : null,
-          buyContract: isBuy ? coin.address : null,
-          usdValue: isBuy
-            ? usdAmount
-            : heldToken
-              ? (heldToken.quoteUsd * sellPct) / 100
-              : undefined,
-        },
+      void realmFetch<{ trade?: string; verified?: boolean }>(
+        "/api/trade/record",
+        {
+          method: "POST",
+          json: {
+            kind: side,
+            chainId: coin.evmChainId,
+            txHash: result.hash,
+            sellSymbol: isBuy ? chain.native : coin.symbol,
+            sellAmount: firm.sellAmount
+              ? formatUnits(toBig(firm.sellAmount), isBuy ? NATIVE_DECIMALS : decimals)
+              : null,
+            sellContract: isBuy ? null : coin.address,
+            buySymbol: isBuy ? coin.symbol : chain.native,
+            buyAmount: firm.buyAmount
+              ? formatUnits(toBig(firm.buyAmount), isBuy ? decimals : NATIVE_DECIMALS)
+              : null,
+            buyContract: isBuy ? coin.address : null,
+            usdValue: isBuy
+              ? usdAmount
+              : heldToken
+                ? (heldToken.quoteUsd * sellPct) / 100
+                : undefined,
+          },
+        }
+      ).then((res) => {
+        if (res.ok && res.data?.verified && res.data.trade) {
+          setTradeRecordId(res.data.trade);
+        }
       });
 
       setPhase("success");
@@ -913,6 +931,7 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                   receive={receiveText}
                   chainId={coin.evmChainId}
                   hash={swapHash}
+                  tradeId={tradeRecordId}
                   onClose={reset}
                 />
               ) : (
@@ -1061,6 +1080,7 @@ function TradeSuccess({
   receive,
   chainId,
   hash,
+  tradeId,
   onClose,
 }: {
   side: Side;
@@ -1069,9 +1089,14 @@ function TradeSuccess({
   receive: string;
   chainId: number;
   hash: string | null;
+  /* The realm feed's row id, once the trade has been written AND verified.
+     Null until then, so the share card only ever appears once there is
+     something real to share, never mid-flight. */
+  tradeId: string | null;
   onClose: () => void;
 }) {
   const explorer = hash ? txExplorerUrlFor(chainId, hash) : null;
+  const viewerHandle = useViewerHandle();
   return (
     <div className="flex flex-col items-center gap-4 py-4 text-center">
       <span className="flex h-16 w-16 items-center justify-center rounded-full border border-gold/40 bg-panel-warm">
@@ -1114,6 +1139,16 @@ function TradeSuccess({
             )}
           </div>
         </Card>
+      )}
+      {tradeId && (
+        <ShareButton
+          target={{ kind: "trade", id: tradeId }}
+          subjectHandle={viewerHandle}
+          label="Share this trade"
+          variant="glass"
+          size="lg"
+          className="w-full"
+        />
       )}
       {/* A trade just stated a real position. Offering to state it as a Call
           too, right here, is the one moment that read is fresh: the member

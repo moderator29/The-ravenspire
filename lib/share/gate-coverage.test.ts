@@ -9,17 +9,19 @@ import { isPublicSharePath } from "@/lib/share/links";
  * 10 had in mind. This tests it against the shapes the repository really has,
  * which is a different question and the one that goes wrong later.
  *
- * ShellGate opens a path when `isPublicSharePath` says so. Six anchored patterns
- * say so today. The risk is not that those six are wrong, it is that somebody
- * adds `app/(shell)/u/[handle]/vault/page.tsx` in a year and it matches a
- * pattern written for a different purpose, and nothing anywhere fails. A list of
- * private paths typed by hand cannot catch that, because the person adding the
- * route is the same person who would have had to remember to add it to the list.
+ * ShellGate opens a path when `isPublicSharePath` says so. Seven anchored
+ * patterns say so today. The risk is not that those seven are wrong, it is
+ * that somebody adds `app/(shell)/u/[handle]/vault/page.tsx` in a year and it
+ * matches a pattern written for a different purpose, and nothing anywhere
+ * fails. A list of private paths typed by hand cannot catch that, because the
+ * person adding the route is the same person who would have had to remember
+ * to add it to the list.
  *
  * So the route table is READ OFF THE FILESYSTEM. Every `page.tsx` under
  * `app/(shell)` becomes the path it serves, dynamic segments filled with values
- * that are valid for their type, and exactly the six shares may be public. A new
- * route is covered the moment it exists, without anybody remembering anything.
+ * that are valid for their type, and exactly the seven shares may be public. A
+ * new route is covered the moment it exists, without anybody remembering
+ * anything.
  */
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -55,7 +57,7 @@ function routes(dir: string, prefix = ""): string[] {
   return out;
 }
 
-/* The six moments a share link can point at, and nothing else. Written out
+/* The seven moments a share link can point at, and nothing else. Written out
    rather than derived, because this is the security decision itself: if this
    list needs editing, that is a deliberate act and it should read like one. */
 const PUBLIC = new Set([
@@ -68,6 +70,10 @@ const PUBLIC = new Set([
   /* The founding round. Deliberate: its share card is meant for strangers,
      and the page shows a sign-in prompt where the controls would be. */
   "/season-zero",
+  /* A verified trade. Deliberate: the page carries no amount and no USD
+     value, the same restraint the realm feed itself applies, so there is
+     nothing on it a stranger could not already read on the live tape. */
+  `/trade/${UUID}`,
 ]);
 
 describe("the share gate against the real route table", () => {
@@ -82,7 +88,7 @@ describe("the share gate against the real route table", () => {
     expect(all).toContain("/whispers");
   });
 
-  it("opens every one of the six, and closes every other route in the product", () => {
+  it("opens every one of the seven, and closes every other route in the product", () => {
     const opened = all.filter((p) => isPublicSharePath(p));
     const expected = all.filter((p) => PUBLIC.has(p));
     expect(new Set(opened)).toEqual(new Set(expected));

@@ -19,7 +19,7 @@ import {
 const UUID = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
 
 describe("sharePath", () => {
-  it("builds the six shapes", () => {
+  it("builds the seven shapes", () => {
     expect(sharePath({ kind: "keep", handle: "raven_lord" })).toBe("/u/raven_lord");
     expect(sharePath({ kind: "call", id: UUID })).toBe(`/calls/${UUID}`);
     expect(sharePath({ kind: "house", slug: "house-of-embers" })).toBe(
@@ -30,6 +30,7 @@ describe("sharePath", () => {
     ).toBe("/u/raven_lord/crest/lord-of-light");
     expect(sharePath({ kind: "proof", reference: UUID })).toBe(`/proof/${UUID}`);
     expect(sharePath({ kind: "listing", id: UUID })).toBe(`/market/${UUID}`);
+    expect(sharePath({ kind: "trade", id: UUID })).toBe(`/trade/${UUID}`);
   });
 
   it("normalises the handle rather than minting a second URL for one Keep", () => {
@@ -59,6 +60,7 @@ describe("sharePath", () => {
       { kind: "crest", handle: "", slug: "lord-of-light" },
       { kind: "proof", reference: "0" },
       { kind: "listing", id: "'; drop table market_listings; --" },
+      { kind: "trade", id: "not-a-uuid" },
     ];
     for (const target of bad) {
       expect(sharePath(target), JSON.stringify(target)).toBeNull();
@@ -82,6 +84,7 @@ describe("isPublicSharePath", () => {
     expect(isPublicSharePath("/houses/house-of-embers")).toBe(true);
     expect(isPublicSharePath(`/market/${UUID}`)).toBe(true);
     expect(isPublicSharePath(`/post/${UUID}`)).toBe(true);
+    expect(isPublicSharePath(`/trade/${UUID}`)).toBe(true);
   });
 
   it("tolerates a trailing slash, because chat clients add them", () => {
@@ -101,6 +104,7 @@ describe("isPublicSharePath", () => {
     expect(isPublicSharePath("/u/ravenlord/crest/lord-of-light/edit")).toBe(false);
     expect(isPublicSharePath(`/calls/${UUID}/resolve`)).toBe(false);
     expect(isPublicSharePath(`/market/${UUID}/pay`)).toBe(false);
+    expect(isPublicSharePath(`/trade/${UUID}/edit`)).toBe(false);
   });
 
   it("keeps the member-only realm shut", () => {

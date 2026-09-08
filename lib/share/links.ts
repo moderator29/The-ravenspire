@@ -30,7 +30,8 @@ export type ShareKind =
   | "house"
   | "crest"
   | "proof"
-  | "listing";
+  | "listing"
+  | "trade";
 
 export type ShareTarget =
   /* A member's Keep. */
@@ -45,7 +46,9 @@ export type ShareTarget =
   /* A settled chest opening, by its draw reference. */
   | { kind: "proof"; reference: string }
   /* One card on the Bazaar. */
-  | { kind: "listing"; id: string };
+  | { kind: "listing"; id: string }
+  /* One verified trade off the realm's own feed. */
+  | { kind: "trade"; id: string };
 
 /* The realm's own shapes, checked before anything is interpolated into a path.
    A handle is what /api/onboard enforces; a uuid is what every id in the
@@ -110,6 +113,10 @@ export function sharePath(target: ShareTarget): string | null {
       const id = normaliseId(target.id);
       return id ? `/market/${id}` : null;
     }
+    case "trade": {
+      const id = normaliseId(target.id);
+      return id ? `/trade/${id}` : null;
+    }
     default:
       return null;
   }
@@ -130,6 +137,7 @@ const PUBLIC_PATTERNS: RegExp[] = [
   /^\/calls\/[0-9a-f-]{36}$/,
   /^\/houses\/[a-z0-9-]{1,64}$/,
   /^\/market\/[0-9a-f-]{36}$/,
+  /^\/trade\/[0-9a-f-]{36}$/,
   /* One raven. Not produced by sharePath, because a raven is not one of the
      six moments mission 10 is about, but it has carried an Open Graph card
      since long before this file existed and that card has been unfurling into
