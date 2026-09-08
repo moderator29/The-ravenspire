@@ -1,10 +1,13 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emit } from "@/lib/realm/events";
+import { createNotification } from "@/lib/notifications";
 import { realmWeek } from "@/lib/realm/period";
-import { HOUSE_TOP_N, houses } from "@/lib/data/houses";
+import { HOUSE_TOP_N, houseBySlug, houses } from "@/lib/data/houses";
 import {
   MASTER_OF_RAVENS_MIN_CALLS,
+  ROLE_META,
+  type HouseMemberRole,
   type HouseRole,
 } from "@/lib/houses/roles";
 import type { SeasonRow } from "@/lib/houses/oath";
@@ -460,6 +463,7 @@ export async function recomputeSeason(
   /* Leadership. Every open oath drops back to sworn first, so a title a member
      no longer holds does not linger on their name for another season. */
   const membersByHouse = new Map<string, string[]>();
+  const priorRoles = new Map<string, HouseMemberRole>();
   const { data: openOaths } = await db
     .from("house_members")
     .select("id, profile_id, house_slug, role")
@@ -468,10 +472,12 @@ export async function recomputeSeason(
   for (const row of (openOaths ?? []) as {
     profile_id: string;
     house_slug: string;
+    role: HouseMemberRole;
   }[]) {
     const list = membersByHouse.get(row.house_slug);
     if (list) list.push(row.profile_id);
     else membersByHouse.set(row.house_slug, [row.profile_id]);
+    priorRoles.set(row.profile_id, row.role);
   }
 
   const roles: Record<string, RoleAward[]> = {};
@@ -501,11 +507,40 @@ export async function recomputeSeason(
         .neq("role", "sworn");
     }
     for (const award of awards) {
+      /* A real Ceremony moment, not a silent recompute: a member earns one
+         the instant they hold a title they did not hold a moment ago
+         (sworn to any title), or the instant they reach Lord specifically,
+         the one title this ladder can only ever seat one person in. A
+         lateral move between two specialist titles, or dropping from Lord
+         to Hand as somebody else overtakes them, is neither: nothing here
+         claims a demotion is worth celebrating. role_celebrated defaults to
+         true so no existing titleholder is retroactively handed one. */
+      const prior = priorRoles.get(award.profileId) ?? "sworn";
+      const wasUntitled = prior === "sworn";
+      const becameLord = award.role === "lord" && prior !== "lord";
+      const promoted = wasUntitled || becameLord;
+
       await db
         .from("house_members")
-        .update({ role: award.role })
+        .update({
+          role: award.role,
+          ...(promoted ? { role_celebrated: false } : {}),
+        })
         .is("left_at", null)
         .eq("profile_id", award.profileId);
+
+      if (promoted) {
+        const house = houseBySlug(standing.slug);
+        const title = ROLE_META[award.role].title;
+        await createNotification(db, {
+          profile_id: award.profileId,
+          kind: "house",
+          ref: standing.slug,
+          body: house
+            ? `You are now ${title} of ${house.name}.`
+            : `You are now ${title} of your House.`,
+        });
+      }
     }
   }
 

@@ -40,7 +40,8 @@ export type NotificationKind =
   | "call_verdict"
   | "follow_trade"
   | "follow_call"
-  | "watch_alert";
+  | "watch_alert"
+  | "house";
 
 export interface CreateNotificationInput {
   /* Who receives the raven. */
