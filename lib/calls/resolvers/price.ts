@@ -21,7 +21,12 @@ export function pinSubject(card: TokenCard): PriceSubject | null {
   if (card.address && card.chain && EVM_DEX_CHAINS.has(card.chain)) {
     return { kind: "dex", address: card.address, chain: card.chain };
   }
-  const id = COINGECKO_IDS[card.symbol.toLowerCase()];
+  /* The card's own CoinGecko id, when it resolved through CoinGecko (the
+     curated majors map, or lib/data/tokens.ts's broader symbol search for
+     everything else real, e.g. a coin with no meaningful EVM liquidity).
+     Falls back to re-deriving from the curated map only for a card shape
+     that predates that field. */
+  const id = card.coingeckoId ?? COINGECKO_IDS[card.symbol.toLowerCase()];
   if (id) return { kind: "coingecko", id };
   return null;
 }

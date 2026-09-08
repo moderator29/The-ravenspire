@@ -91,6 +91,7 @@ async function lookupMajor(symbol: string): Promise<TokenCard | null> {
       liquidityUsd: null,
       chain: CG_CHAIN[id] ?? "ethereum",
       address: null,
+      coingeckoId: id,
       url: `https://www.coingecko.com/en/coins/${id}`,
       fetchedAt: Date.now(),
     };
@@ -110,6 +111,15 @@ export interface TokenCard {
   liquidityUsd: number | null;
   chain: string | null;
   address: string | null;
+  /* CoinGecko's own canonical id, when this card resolved through CoinGecko
+     (the curated majors map below, or the broad symbol search further down).
+     A Call pins its identity from this directly rather than re-deriving it
+     from the symbol at seal time (see lib/calls/resolvers/price.ts's
+     pinSubject), so a token found only through the broad search still gets a
+     real, non-guessable identity to settle against later. Null for a card
+     that resolved through an EVM DEX pool instead, which pins on chain +
+     address. */
+  coingeckoId: string | null;
   url: string | null;
   fetchedAt: number;
 }
@@ -268,11 +278,146 @@ async function lookupGeckoTerminal(
         liquidityUsd: liquidity,
         chain: chain.dex,
         address: address || null,
+        coingeckoId: null,
         url: `https://www.geckoterminal.com/${networkSlug}/pools/${pool.relationships?.base_token?.data?.id ?? ""}`,
         fetchedAt: Date.now(),
       };
     }
     return null;
+  } catch {
+    return null;
+  }
+}
+
+async function lookupDexScreenerEvm(
+  q: string,
+  isAddress: boolean
+): Promise<TokenCard | null> {
+  try {
+    const res = await fetch(
+      `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(q)}`,
+      { next: { revalidate: 60 } }
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as { pairs?: DexPair[] };
+    const allPairs = body.pairs ?? [];
+
+    // Only accept a trustworthy match:
+    //  - address queries: the base token address must match exactly;
+    //  - symbol queries: the base token symbol must match exactly. No
+    //    highest-liquidity "closest guess" fallback, which renders a
+    //    confidently wrong token.
+    const matches = allPairs
+      // EVM chains only, the realm never trades Solana or other non-EVM coins,
+      // and dropping them here is what keeps a Solana impostor out of the card.
+      .filter((p) => p.chainId && EVM_DEX_CHAINS.has(p.chainId))
+      .filter((p) => {
+        if (isAddress) return p.baseToken?.address?.toLowerCase() === q;
+        return p.baseToken?.symbol?.toLowerCase() === q;
+      })
+      .sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0));
+
+    const p = matches[0];
+    // Enforce a liquidity floor so zero-liquidity impostor pairs cannot mint
+    // an authoritative-looking price card.
+    if (!p || !p.baseToken?.symbol || (p.liquidity?.usd ?? 0) < MIN_LIQUIDITY_USD) {
+      return null;
+    }
+
+    const hasRealMcap = typeof p.marketCap === "number" && p.marketCap > 0;
+    return {
+      symbol: p.baseToken.symbol.toUpperCase(),
+      name: p.baseToken.name ?? p.baseToken.symbol,
+      priceUsd: p.priceUsd ? Number(p.priceUsd) : null,
+      change24h: p.priceChange?.h24 ?? null,
+      volume24h: p.volume?.h24 ?? null,
+      marketCap: hasRealMcap ? (p.marketCap as number) : (p.fdv ?? null),
+      marketCapIsFdv: !hasRealMcap && typeof p.fdv === "number",
+      liquidityUsd: p.liquidity?.usd ?? null,
+      chain: p.chainId ?? null,
+      address: p.baseToken.address ?? null,
+      coingeckoId: null,
+      url: p.url ?? null,
+      fetchedAt: Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function cgHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (process.env.COINGECKO_API_KEY) {
+    headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
+  }
+  return headers;
+}
+
+interface CoinGeckoSearchCoin {
+  id?: string;
+  symbol?: string;
+  name?: string;
+  market_cap_rank?: number | null;
+}
+
+/* The realm trades EVM chains only, but a Call is a claim about a price, not
+   an order the realm has to fill, so it is not bound by that restriction: a
+   member asking about TRUMP, DOGE, or anything else genuinely real should be
+   able to seal a Call on it even though none of it has meaningful EVM DEX
+   liquidity for this platform's Swap to route through. This is the broad
+   catch-all after the curated majors map and both EVM DEX sources have all
+   come up empty: search CoinGecko's own listing (thousands of real, ranked
+   coins, not a hand-maintained allowlist) for an exact symbol match, and
+   trust only the one CoinGecko itself ranks highest by market cap among
+   exact matches. A coin with no market cap rank at all is refused rather
+   than guessed at, the same anti-impostor floor liquidity plays everywhere
+   else in this file: a brand new, unranked listing is exactly what a
+   same-symbol scam token looks like, and a real, established asset always
+   has a rank. */
+async function lookupCoinGeckoBroad(symbol: string): Promise<TokenCard | null> {
+  try {
+    const headers = cgHeaders();
+    const searchRes = await fetch(
+      `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`,
+      { headers, next: { revalidate: 300 } }
+    );
+    if (!searchRes.ok) return null;
+    const searchBody = (await searchRes.json()) as {
+      coins?: CoinGeckoSearchCoin[];
+    };
+    const exact = (searchBody.coins ?? [])
+      .filter((c) => c.id && c.symbol?.toLowerCase() === symbol)
+      .sort(
+        (a, b) =>
+          (a.market_cap_rank ?? Infinity) - (b.market_cap_rank ?? Infinity)
+      );
+    const best = exact[0];
+    if (!best?.id || best.market_cap_rank == null) return null;
+
+    const priceRes = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${best.id}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true`,
+      { headers, next: { revalidate: 60 } }
+    );
+    if (!priceRes.ok) return null;
+    const priceBody = (await priceRes.json()) as Record<string, CoinGeckoPrice>;
+    const d = priceBody[best.id];
+    if (!d || typeof d.usd !== "number") return null;
+
+    return {
+      symbol: (best.symbol ?? symbol).toUpperCase(),
+      name: best.name ?? best.symbol ?? symbol,
+      priceUsd: d.usd,
+      change24h: typeof d.usd_24h_change === "number" ? d.usd_24h_change : null,
+      volume24h: typeof d.usd_24h_vol === "number" ? d.usd_24h_vol : null,
+      marketCap: typeof d.usd_market_cap === "number" ? d.usd_market_cap : null,
+      marketCapIsFdv: false,
+      liquidityUsd: null,
+      chain: null,
+      address: null,
+      coingeckoId: best.id,
+      url: `https://www.coingecko.com/en/coins/${best.id}`,
+      fetchedAt: Date.now(),
+    };
   } catch {
     return null;
   }
@@ -295,7 +440,7 @@ export async function lookupToken(query: string): Promise<TokenCard | null> {
       cacheSet(q, major);
       return major;
     }
-    // fall through to DexScreener only if CoinGecko was unreachable
+    // fall through to the rest of the chain only if CoinGecko was unreachable
   }
 
   /* GeckoTerminal before DexScreener for on-chain tokens.
@@ -318,64 +463,26 @@ export async function lookupToken(query: string): Promise<TokenCard | null> {
     return gecko;
   }
 
-  try {
-    const res = await fetch(
-      `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(q)}`,
-      { next: { revalidate: 60 } }
-    );
-    if (!res.ok) throw new Error(String(res.status));
-    const body = (await res.json()) as { pairs?: DexPair[] };
-    const allPairs = body.pairs ?? [];
-
-    // Only accept a trustworthy match:
-    //  - address queries: the base token address must match exactly;
-    //  - symbol queries: the base token symbol must match exactly. No
-    //    highest-liquidity "closest guess" fallback, which renders a
-    //    confidently wrong token.
-    const matches = allPairs
-      // EVM chains only, the realm never trades Solana or other non-EVM coins,
-      // and dropping them here is what keeps a Solana impostor out of the card.
-      .filter((p) => p.chainId && EVM_DEX_CHAINS.has(p.chainId))
-      .filter((p) => {
-        if (isAddress) return p.baseToken?.address?.toLowerCase() === q;
-        return p.baseToken?.symbol?.toLowerCase() === q;
-      })
-      .sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0));
-
-    const p = matches[0];
-    // Enforce a liquidity floor so zero-liquidity impostor pairs cannot mint
-    // an authoritative-looking price card.
-    if (
-      !p ||
-      !p.baseToken?.symbol ||
-      (p.liquidity?.usd ?? 0) < MIN_LIQUIDITY_USD
-    ) {
-      cacheSet(q, null);
-      return null;
-    }
-
-    const hasRealMcap = typeof p.marketCap === "number" && p.marketCap > 0;
-    const card: TokenCard = {
-      symbol: p.baseToken.symbol.toUpperCase(),
-      name: p.baseToken.name ?? p.baseToken.symbol,
-      priceUsd: p.priceUsd ? Number(p.priceUsd) : null,
-      change24h: p.priceChange?.h24 ?? null,
-      volume24h: p.volume?.h24 ?? null,
-      marketCap: hasRealMcap ? (p.marketCap as number) : (p.fdv ?? null),
-      marketCapIsFdv: !hasRealMcap && typeof p.fdv === "number",
-      liquidityUsd: p.liquidity?.usd ?? null,
-      chain: p.chainId ?? null,
-      address: p.baseToken.address ?? null,
-      url: p.url ?? null,
-      fetchedAt: Date.now(),
-    };
-    cacheSet(q, card);
-    return card;
-  } catch {
-    // Do not serve unbounded stale data; a fresh cached value (within TTL) is
-    // already returned above, so on error we answer honestly with null.
-    return null;
+  const dex = await lookupDexScreenerEvm(q, isAddress);
+  if (dex) {
+    cacheSet(q, dex);
+    return dex;
   }
+
+  /* Nothing tradeable in-app has this symbol. An address query stops here: a
+     raw contract address with no EVM DEX match has no broader identity to
+     search CoinGecko by. A symbol query gets one more real, ranked source
+     before the realm gives up on it (see lookupCoinGeckoBroad). */
+  if (!isAddress) {
+    const broad = await lookupCoinGeckoBroad(q);
+    if (broad) {
+      cacheSet(q, broad);
+      return broad;
+    }
+  }
+
+  cacheSet(q, null);
+  return null;
 }
 
 export function describeTokenForRaven(card: TokenCard): string {
