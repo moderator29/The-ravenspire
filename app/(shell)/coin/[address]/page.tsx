@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { cx } from "@/components/ui/cx";
@@ -46,12 +46,25 @@ interface CoinData {
   dexId: string | null;
   dexUrl: string | null;
   explorerUrl: string | null;
-  chart: { source: "geckoterminal"; points: ChartPoint[] } | null;
+  chart: {
+    source: "geckoterminal";
+    timeframe: ChartTimeframe;
+    points: ChartPoint[];
+  } | null;
   evmChainId: number | null;
   decimals: number | null;
   pairCreatedAt: number | null;
   fetchedAt: number;
 }
+
+/* Real zoom levels for the chart, mirroring `/api/coin`'s own
+   `CHART_TIMEFRAMES` (kept as a plain literal here rather than imported,
+   since a route module should not be pulled into a client bundle). Each is a
+   genuinely different GeckoTerminal request, not one fixed window resliced
+   client-side. */
+const CHART_TIMEFRAMES = ["1H", "4H", "1D", "1W"] as const;
+type ChartTimeframe = (typeof CHART_TIMEFRAMES)[number];
+const DEFAULT_TIMEFRAME: ChartTimeframe = "1D";
 
 /* GoldRush watch-network id from the DexScreener chainId, so the defenses
    badge can scan the right chain. Null where The Watch has no coverage. */
@@ -109,9 +122,21 @@ export default function CoinPage({
   const [coin, setCoin] = useState<CoinData | null>(null);
   const [copiedAddr, setCopiedAddr] = useState(false);
   const [chartMode, setChartMode] = useState<"line" | "candle">("line");
+  const [chartTimeframe, setChartTimeframe] =
+    useState<ChartTimeframe>(DEFAULT_TIMEFRAME);
+  const [chartLoading, setChartLoading] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "notfound" | "error">(
     "loading"
   );
+
+  /* A ref, not a dependency: the timeframe is a chart view preference, not
+     part of "which coin is this", so switching it must never re-run the
+     initial load (full skeleton) or restart the live poll below. Both read
+     the current choice at request time through this ref instead. */
+  const tfRef = useRef(chartTimeframe);
+  useEffect(() => {
+    tfRef.current = chartTimeframe;
+  }, [chartTimeframe]);
 
   useEffect(() => {
     let alive = true;
@@ -121,6 +146,7 @@ export default function CoinPage({
     qs.set("address", address);
     if (net) qs.set("net", net);
     if (sym) qs.set("symbol", sym);
+    qs.set("tf", tfRef.current);
     /* The deadline is what makes the `.catch` below reachable, and it covers
        the body read as well as the response, so a stalled stream is bounded
        the same way a stalled connection is. The catch already handled a
@@ -159,12 +185,13 @@ export default function CoinPage({
      with no loading flash. Only runs once a first load has succeeded. */
   useEffect(() => {
     if (status !== "ready") return;
-    const qs = new URLSearchParams();
-    qs.set("address", address);
-    if (net) qs.set("net", net);
-    if (sym) qs.set("symbol", sym);
     let alive = true;
     const tick = () => {
+      const qs = new URLSearchParams();
+      qs.set("address", address);
+      if (net) qs.set("net", net);
+      if (sym) qs.set("symbol", sym);
+      qs.set("tf", tfRef.current);
       fetch(`/api/coin?${qs.toString()}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((body) => {
@@ -180,6 +207,42 @@ export default function CoinPage({
       clearInterval(t);
     };
   }, [status, address, net, sym]);
+
+  /* The member picking 1H/4H/1D/1W is a genuine new GeckoTerminal request for
+     that window, fetched and swapped in the same silent way the live poll
+     above does, so the whole page never flashes back to the loading skeleton
+     just to redraw the chart. Skips the very first render, since that
+     timeframe was already fetched by the initial load above. */
+  const mountedTf = useRef(false);
+  useEffect(() => {
+    if (!mountedTf.current) {
+      mountedTf.current = true;
+      return;
+    }
+    if (status !== "ready") return;
+    let alive = true;
+    setChartLoading(true);
+    const qs = new URLSearchParams();
+    qs.set("address", address);
+    if (net) qs.set("net", net);
+    if (sym) qs.set("symbol", sym);
+    qs.set("tf", chartTimeframe);
+    fetch(`/api/coin?${qs.toString()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (!alive || !body) return;
+        const data = (body as { coin?: CoinData }).coin;
+        if (data) setCoin(data);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setChartLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartTimeframe]);
 
   const chart = useMemo<{ points: ChartPoint[]; implied: boolean } | null>(() => {
     if (!coin) return null;
@@ -343,36 +406,59 @@ export default function CoinPage({
             <div className="mt-3 md:mt-2">
               {chart ? (
                 <>
-                  {/* Line / candle toggle, candles only when real OHLC exists
-                      (never on an implied line). Two exclusive views of the
-                      same data, so a Segmented control rather than a capsule
-                      track of hand rolled buttons. */}
-                  {!chart.implied && chart.points.some((p) => p.o != null) && (
-                    <div className="mb-2 flex justify-end">
+                  {/* Timeframe is a real zoom into a different GeckoTerminal
+                      window, never available on an implied 24h line since
+                      there is no history to zoom into. Chart style stays
+                      alongside it, candles only when real OHLC exists. Two
+                      Segmented controls, never a capsule track of hand
+                      rolled buttons. */}
+                  {!chart.implied && (
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                       <SegmentedControl
-                        label="Chart style"
+                        label="Chart timeframe"
                         size="sm"
-                        items={[
-                          { value: "line", label: "Line" },
-                          { value: "candle", label: "Candle" },
-                        ]}
-                        value={chartMode}
+                        items={CHART_TIMEFRAMES.map((tf) => ({
+                          value: tf,
+                          label: tf,
+                        }))}
+                        value={chartTimeframe}
                         onValueChange={(v) =>
-                          setChartMode(v as "line" | "candle")
+                          setChartTimeframe(v as ChartTimeframe)
                         }
                       />
+                      {chart.points.some((p) => p.o != null) && (
+                        <SegmentedControl
+                          label="Chart style"
+                          size="sm"
+                          items={[
+                            { value: "line", label: "Line" },
+                            { value: "candle", label: "Candle" },
+                          ]}
+                          value={chartMode}
+                          onValueChange={(v) =>
+                            setChartMode(v as "line" | "candle")
+                          }
+                        />
+                      )}
                     </div>
                   )}
-                  <InteractiveChart
-                    points={chart.points}
-                    up={up}
-                    mode={chart.implied ? "line" : chartMode}
-                    onScrub={setScrub}
-                  />
+                  <div
+                    className={cx(
+                      "transition-opacity duration-fast",
+                      chartLoading && "opacity-50"
+                    )}
+                  >
+                    <InteractiveChart
+                      points={chart.points}
+                      up={up}
+                      mode={chart.implied ? "line" : chartMode}
+                      onScrub={setScrub}
+                    />
+                  </div>
                   <p className="mt-2 text-[11px] text-bone-faint">
                     {chart.implied
                       ? "Implied 24h line from current price and 24h change. Full price history is not available for this pair yet."
-                      : `Recent price, hourly ${chartMode === "candle" ? "candles" : "closes"} from the deepest pool. Source: GeckoTerminal.`}
+                      : `${chartTimeframe} view, ${chartMode === "candle" ? "candles" : "closes"} from the deepest pool. Source: GeckoTerminal.`}
                   </p>
                 </>
               ) : (

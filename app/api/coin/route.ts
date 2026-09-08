@@ -99,6 +99,27 @@ export interface CoinChartPoint {
   l?: number;
 }
 
+/* Real zoom levels, each a genuine GeckoTerminal OHLCV request rather than one
+   fixed two-day window sliced client-side. Aggregate values are the ones
+   GeckoTerminal's keyless API actually accepts per unit (minute: 1/5/15,
+   hour: 1/4/12, day: 1), chosen so every level still renders a readable
+   number of candles: 1H is sixty one-minute candles, 4H is forty eight
+   five-minute candles, 1D is twenty four hourly candles, 1W is forty two
+   four-hour candles (six weeks of history compressed to one point every four
+   hours would be too sparse to read, so this stays at seven real days). */
+export const CHART_TIMEFRAMES = ["1H", "4H", "1D", "1W"] as const;
+export type ChartTimeframe = (typeof CHART_TIMEFRAMES)[number];
+const TIMEFRAME_CONFIG: Record<
+  ChartTimeframe,
+  { unit: "minute" | "hour" | "day"; aggregate: number; limit: number }
+> = {
+  "1H": { unit: "minute", aggregate: 1, limit: 60 },
+  "4H": { unit: "minute", aggregate: 5, limit: 48 },
+  "1D": { unit: "hour", aggregate: 1, limit: 24 },
+  "1W": { unit: "hour", aggregate: 4, limit: 42 },
+};
+const DEFAULT_TIMEFRAME: ChartTimeframe = "1D";
+
 export interface CoinData {
   address: string;
   symbol: string;
@@ -123,7 +144,11 @@ export interface CoinData {
   dexId: string | null;
   dexUrl: string | null;
   explorerUrl: string | null;
-  chart: { source: "geckoterminal"; points: CoinChartPoint[] } | null;
+  chart: {
+    source: "geckoterminal";
+    timeframe: ChartTimeframe;
+    points: CoinChartPoint[];
+  } | null;
   /* Trading support: the EIP-155 chain id when this token lives on a tradable
      EVM chain (null for non-EVM, which is never tradable in-app), the token
      decimals for base-unit conversion, and the pool's age for the rug-risk
@@ -303,14 +328,16 @@ async function fetchFromGecko(
 
 async function fetchChart(
   chainId: string | null,
-  pairAddress: string | null
+  pairAddress: string | null,
+  timeframe: ChartTimeframe
 ): Promise<CoinChartPoint[] | null> {
   if (!chainId || !pairAddress) return null;
   const network = GECKO_NETWORK[chainId];
   if (!network) return null;
+  const { unit, aggregate, limit } = TIMEFRAME_CONFIG[timeframe];
   try {
     const res = await fetch(
-      `https://api.geckoterminal.com/api/v2/networks/${network}/pools/${pairAddress}/ohlcv/hour?aggregate=1&limit=48&currency=usd`,
+      `https://api.geckoterminal.com/api/v2/networks/${network}/pools/${pairAddress}/ohlcv/${unit}?aggregate=${aggregate}&limit=${limit}&currency=usd`,
       { headers: { accept: "application/json" }, next: { revalidate: 300 } }
     );
     if (!res.ok) return null;
@@ -383,6 +410,12 @@ export async function GET(req: Request) {
   const rawId = (url.searchParams.get("address") ?? "").trim();
   const net = url.searchParams.get("net"); // GeckoTerminal network id, optional
   const symbolHint = url.searchParams.get("symbol");
+  const tfParam = url.searchParams.get("tf");
+  const timeframe: ChartTimeframe = (
+    CHART_TIMEFRAMES as readonly string[]
+  ).includes(tfParam ?? "")
+    ? (tfParam as ChartTimeframe)
+    : DEFAULT_TIMEFRAME;
 
   if (!rawId && !symbolHint) return json({ error: "missing address" }, 400);
 
@@ -433,7 +466,7 @@ export async function GET(req: Request) {
   const evmChain = chainId ? tradeChainByDex(chainId) : undefined;
   // Only spend the extra decimals lookup on tokens we can actually trade.
   const [points, decimals] = await Promise.all([
-    fetchChart(chainId, pair.pairAddress ?? null),
+    fetchChart(chainId, pair.pairAddress ?? null, timeframe),
     evmChain ? fetchDecimals(chainId, tokenAddress) : Promise.resolve(null),
   ]);
 
@@ -472,7 +505,7 @@ export async function GET(req: Request) {
       chainId && EXPLORER_TOKEN[chainId]
         ? `${EXPLORER_TOKEN[chainId]}${tokenAddress}`
         : null,
-    chart: points ? { source: "geckoterminal", points } : null,
+    chart: points ? { source: "geckoterminal", timeframe, points } : null,
     evmChainId: evmChain?.id ?? null,
     decimals,
     pairCreatedAt:
