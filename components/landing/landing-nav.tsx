@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { RavenMark } from "@/components/brand/raven-mark";
 import { Button } from "@/components/ui/button";
 import { LandingIcon, type LandingIconName } from "@/components/landing/icons";
+import { PumpfunLiveBanner } from "@/components/pumpfun/live-banner";
 
 /*
   The landing top bar. Sticky, glassy, premium. Logo left, in-page anchor
@@ -71,36 +72,42 @@ export function LandingNav({
       initial={{ opacity: 0, y: -16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="fixed inset-x-0 top-0 z-nav flex justify-center px-3 pt-3 sm:px-6 sm:pt-4"
+      className="fixed inset-x-0 top-0 z-nav flex flex-col"
     >
-      {/* The scrim behind the floating bar.
+      {/* $RSP live on Pump.fun, full bleed, above the floating nav rather than
+          squeezed into its row: the first thing anyone reading the page sees
+          earns real room, not a badge fighting the hero for space. Renders
+          nothing until a real mint is configured (lib/pumpfun.ts). */}
+      <PumpfunLiveBanner variant="top" />
+      <div className="flex justify-center px-3 pt-3 sm:px-6 sm:pt-4">
+        {/* The scrim behind the floating bar.
 
-          The bar is an inset card, so three strips of the page were never
-          covered by it at all: the 12 to 16px above it and the gutters either
-          side. Measured at 1440 while scrolled, "The $RSP allocation" at 30px
-          display read straight through the bar and out into the strip above
-          it, and the same happened on every section heading down the page.
-          `bg-void/72` behind a 24px backdrop blur is simply not enough scrim
-          for display type passing underneath.
+            The bar is an inset card, so three strips of the page were never
+            covered by it at all: the 12 to 16px above it and the gutters either
+            side. Measured at 1440 while scrolled, "The $RSP allocation" at 30px
+            display read straight through the bar and out into the strip above
+            it, and the same happened on every section heading down the page.
+            `bg-void/72` behind a 24px backdrop blur is simply not enough scrim
+            for display type passing underneath.
 
-          A full bleed gradient fixes the strips as well as the bar, and it
-          fades out rather than ending on a hard line, so the bar still reads
-          as floating rather than as a solid header rail. */}
-      <div
-        aria-hidden="true"
-        className={`pointer-events-none absolute inset-x-0 top-0 h-28 transition-opacity duration-base ease-out-quint ${
-          scrolled ? "opacity-100" : "opacity-0"
-        }`}
-        style={{
-          background:
-            "linear-gradient(180deg, var(--obsidian) 0%, rgba(7,7,10,0.88) 46%, transparent 100%)",
-        }}
-      />
-      <nav
-        className={`relative flex w-full max-w-5xl items-center gap-3 rounded-2xl border px-3 py-2.5 transition-all duration-300 sm:px-4 ${
-          scrolled
-            ? "border-gold/18 bg-void/88 shadow-[0_18px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl"
-            : "border-transparent bg-transparent"
+            A full bleed gradient fixes the strips as well as the bar, and it
+            fades out rather than ending on a hard line, so the bar still reads
+            as floating rather than as a solid header rail. */}
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-0 top-0 h-28 transition-opacity duration-base ease-out-quint ${
+            scrolled ? "opacity-100" : "opacity-0"
+          }`}
+          style={{
+            background:
+              "linear-gradient(180deg, var(--obsidian) 0%, rgba(7,7,10,0.88) 46%, transparent 100%)",
+          }}
+        />
+        <nav
+          className={`relative flex w-full max-w-5xl items-center gap-3 rounded-2xl border px-3 py-2.5 transition-all duration-300 sm:px-4 ${
+            scrolled
+              ? "border-gold/18 bg-void/88 shadow-[0_18px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl"
+              : "border-transparent bg-transparent"
         }`}
       >
         {/* Brand first, and hard left.
@@ -263,6 +270,7 @@ export function LandingNav({
           </Card>
         )}
       </nav>
+      </div>
     </motion.header>
   );
 }
