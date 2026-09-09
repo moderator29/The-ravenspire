@@ -1,10 +1,19 @@
 import { getProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { escapeFilterTerm } from "@/lib/validate";
+import { profileKey, rateLimit } from "@/lib/rate-limit";
 
 /* Global search across the realm: members, cashtags and posts. Real data only.
-   Members only (no anonymous scraping). Private posts are never returned. */
+   Members only (no anonymous scraping). Private posts are never returned.
 
+   Rate limited like every other member-gated route in this API (see
+   lib/rate-limit.ts): three concurrent ILIKE queries per request against the
+   profiles and posts tables is real query cost, and this was the one
+   authenticated route in the app with no limiter at all, so a single account
+   could hammer it without bound. 120/hour matches the other read/lookup
+   routes at this traffic shape (watchlist:read, trade:tokens). Default
+   fail-open: a limiter outage must not take search down, same posture as
+   every other free (non-AI) route here. */
 const CASHTAG_RE = /^[a-zA-Z0-9]{1,12}$/;
 
 function escapeLike(s: string): string {
@@ -17,6 +26,9 @@ export async function GET(req: Request) {
   if (!viewer) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
+
+  const rl = await rateLimit(profileKey("search", viewer.id), 120, 3600);
+  if (!rl.ok) return json({ error: "rate_limited", retryAfter: rl.retryAfter }, 429);
 
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
   if (q.length < 2) return json({ users: [], posts: [], cashtags: [] });
