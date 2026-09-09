@@ -101,7 +101,7 @@ export function AccountSecurity() {
     } catch {
       setNote({
         tone: "warn",
-        text: "That could not be completed just now. Please try again.",
+        text: "That could not be completed just now. Try again in a moment.",
       });
     } finally {
       setBusy(null);

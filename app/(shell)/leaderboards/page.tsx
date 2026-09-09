@@ -222,7 +222,7 @@ export default function LeaderboardsPage() {
             <EmptyState
               icon="alert"
               title="The roll could not be read"
-              body="Something went wrong reaching the standings."
+              body="The standings did not answer just now. Nothing has changed."
               action={
                 <Button variant="glass" size="md" onClick={() => void load(metric)}>
                   Try again
