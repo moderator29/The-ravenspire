@@ -216,11 +216,11 @@ export function EndowPanel({
               {/* The three figures, in the order the arithmetic runs. Printed
                   before the button can be pressed, the same way the Bazaar
                   prints a sale's three numbers before a listing exists. */}
-              <div className="flex flex-col gap-1.5 rounded-lg border border-steel-line bg-void/50 px-3 py-2.5">
+              <Card variant="inset" radius="lg" pad="sm" className="flex flex-col gap-1.5">
                 <Line label="You commit" value={preview?.committed} />
                 <Line label={`Reaches ${houseName}`} value={preview?.toTreasury} />
                 <Line label="Destroyed for good" value={preview?.destroyed} />
-              </div>
+              </Card>
 
               <p className="text-[11px] leading-relaxed text-bone-faint">
                 A treasury can only be spent on the perks in the catalogue, by

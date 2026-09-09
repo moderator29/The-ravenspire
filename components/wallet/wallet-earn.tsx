@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { realmFetch } from "@/lib/auth/api";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/wallet/copy-button";
@@ -76,7 +77,7 @@ export function WalletEarn() {
 
       {/* Referral link */}
       {link ? (
-        <div className="rounded-lg border border-gold/20 bg-panel-warm/50 p-3">
+        <Card variant="warm" radius="lg" pad="sm" className="border-gold/20">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-bone-faint">
             Your referral link
           </p>
@@ -86,13 +87,13 @@ export function WalletEarn() {
             </code>
             <CopyButton value={link} label="Copy link" variant="gold" block />
           </div>
-        </div>
+        </Card>
       ) : (
-        <div className="rounded-lg border border-steel-line bg-panel/40 p-3">
+        <Card variant="inset" radius="lg" pad="sm">
           <p className="text-sm text-bone-mut">
             Claim your handle first; your referral link carries your name.
           </p>
-        </div>
+        </Card>
       )}
 
       <p className="flex items-start gap-2 text-xs leading-relaxed text-bone-faint">
@@ -115,7 +116,7 @@ function Stat({
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-steel-line bg-void px-3 py-2.5 text-center">
+    <Card variant="inset" radius="lg" pad="sm" className="text-center">
       <p
         className={`tnum font-display text-xl font-semibold ${
           accent ? "text-gold-bright" : "text-bone"
@@ -126,6 +127,6 @@ function Stat({
       <p className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-bone-faint">
         {label}
       </p>
-    </div>
+    </Card>
   );
 }

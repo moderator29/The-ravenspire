@@ -1,5 +1,6 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/wallet/copy-button";
@@ -38,21 +39,26 @@ export function WalletReceive({
         tokens. It is yours alone, non-custodial, and safe to share.
       </p>
 
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-steel-line bg-panel/40 p-4">
+      <Card
+        variant="inset"
+        radius="lg"
+        pad="lg"
+        className="flex flex-col items-center gap-3"
+      >
         <AddressQR value={address} />
         <span className="rounded-sm border border-gold/25 bg-panel-warm/60 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-bone-mut">
           EVM / Ethereum only
         </span>
-      </div>
+      </Card>
 
-      <div className="rounded-lg border border-steel-line bg-panel/50 p-3">
+      <Card variant="inset" radius="lg" pad="sm">
         <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
           Wallet address
         </p>
         <code className="tnum mt-1.5 block break-all font-mono text-sm leading-relaxed text-bone">
           {address}
         </code>
-      </div>
+      </Card>
 
       <div className="flex gap-2">
         <CopyButton
