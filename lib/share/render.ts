@@ -12,6 +12,7 @@ import {
   type ShareDb,
 } from "@/lib/share/subjects";
 import { isDrawReference } from "@/lib/collectibles/verify";
+import type { EarningsStatement } from "@/lib/economy/earnings";
 
 /* THE ONE PLACE A SHARE TARGET BECOMES A CARD.
  *
@@ -245,4 +246,69 @@ export async function renderShareCard(
     default:
       return OG_GENERIC;
   }
+}
+
+/* THE COFFERS, as a card. The one card in the set with no ShareTarget at all.
+ *
+ * Every subject above is read anonymously, by design: a Call or a Keep is
+ * meant to unfurl for a stranger holding the link. A member's earnings are
+ * not, even when they have turned pnlVisible on for other members browsing
+ * their Keep in the product (see lib/share/subjects.ts's KeepSubject, which
+ * deliberately omits earnings for exactly this reason). An image at a
+ * permanent, guessable URL is the wrong place for a number that says what
+ * somebody has earned, no matter how visible they have chosen to be inside
+ * the product itself.
+ *
+ * So this card has no public route. app/api/share/coffers/route.ts, its only
+ * caller, requires a session and always renders the CALLING member's own
+ * statement: there is no id parameter anywhere in that path for a stranger's
+ * data to leak through. What is shown is POINTS, per house rule 7, never
+ * $RSP and never a wallet figure: the same restraint every other card here
+ * already holds, applied to the one card that is actually about a balance.
+ */
+export function renderCoffersCard(input: {
+  name: string;
+  handle: string;
+  tier: string | null;
+  houseName: string | null;
+  statement: EarningsStatement;
+  glory: number;
+}): OgCardProps {
+  const { statement } = input;
+  const topStream = [...statement.streams]
+    .filter((s) => s.points > 0)
+    .sort((a, b) => b.points - a.points)[0];
+
+  const stats: OgStat[] = [{ label: "GLORY", value: ogNumber(input.glory) }];
+  if (topStream) {
+    stats.push({
+      label: `TOP: ${topStream.label.toUpperCase()}`,
+      value: ogNumber(topStream.points),
+      tone: "bone",
+    });
+  }
+  if (statement.given > 0) {
+    stats.push({ label: "GIVEN TO HOUSE", value: ogNumber(statement.given), tone: "bone" });
+  }
+  if (statement.firstAt) {
+    stats.push({
+      label: "SINCE",
+      value: new Date(statement.firstAt)
+        .toLocaleDateString("en-US", { month: "short", year: "numeric" })
+        .toUpperCase(),
+      tone: "bone",
+    });
+  }
+
+  const identity = [`@${input.handle}`, input.tier, input.houseName].filter(
+    Boolean
+  ) as string[];
+
+  return {
+    kicker: "THE COFFERS",
+    headline: `${ogNumber(statement.earned)} POINTS EARNED`,
+    subline: identity.join("  ·  ") || ogTrim(input.name, 34),
+    stats: stats.slice(0, 4),
+    glow: "left",
+  };
 }

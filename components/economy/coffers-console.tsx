@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedControl } from "@/components/ui/tabs";
 import { cx } from "@/components/ui/cx";
+import { CoffersShare } from "@/components/economy/coffers-share";
 import { realmFetch } from "@/lib/auth/api";
 import {
   CONSOLE_BODY,
@@ -204,9 +205,15 @@ function RealmTab({ points }: { points: CoffersResponse["points"] }) {
   return (
     <ConsoleStack>
       <Card variant="raised" pad="none" radius="lg" className="px-4 py-3">
-        <p className={cx(CONSOLE_META, "uppercase tracking-[0.2em] text-bone-faint")}>
-          Balance
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <p className={cx(CONSOLE_META, "uppercase tracking-[0.2em] text-bone-faint")}>
+            Balance
+          </p>
+          {/* Share your Coffers: the one card in the set with no public link,
+              only a downloadable image. See components/economy/coffers-share.tsx
+              for why this never became a ShareSheet target. */}
+          <CoffersShare />
+        </div>
         <p className="tnum mt-1 font-display text-3xl font-semibold text-bone md:text-2xl">
           {num.format(points.balance)}
           <span className="ml-2 text-sm font-semibold text-gold">POINTS</span>
