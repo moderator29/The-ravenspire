@@ -13,6 +13,7 @@ import {
   perkIsActive,
   perkMeta,
   perkPrice,
+  perkUnlocked,
   type HousePerkView,
 } from "@/lib/houses/perks";
 import { HOUSE_TITHE_BPS } from "@/lib/calls/stake";
@@ -142,6 +143,44 @@ describe("the catalogue", () => {
     expect(PERK_META["wardens-pardon"].allowance).toBe(true);
     expect(PERK_META["the-standard"].allowance).toBe(false);
     expect(PERK_META["long-watch"].allowance).toBe(false);
+  });
+});
+
+describe("House level's one real unlock", () => {
+  it("gates only The Long Watch, the one perk that can move a standing", () => {
+    /* Every House is level 1 from the day it is founded (houseLevel(0).level
+       is 1, the floor, not a gate), so a perk with minLevel 1 is buyable on
+       day one. Only the perk that can move a House's own standing asks it to
+       prove something first. */
+    expect(PERK_META["wardens-pardon"].minLevel).toBe(1);
+    expect(PERK_META["the-standard"].minLevel).toBe(1);
+    expect(PERK_META["long-watch"].minLevel).toBeGreaterThan(1);
+  });
+
+  it("unlocks every perk for a level 1 House except the gated one", () => {
+    for (const slug of HOUSE_PERKS) {
+      const meta = PERK_META[slug];
+      expect(perkUnlocked(meta, 1)).toBe(meta.minLevel <= 1);
+    }
+  });
+
+  it("unlocks The Long Watch once the House reaches its level, never before", () => {
+    const meta = PERK_META["long-watch"];
+    expect(perkUnlocked(meta, meta.minLevel - 1)).toBe(false);
+    expect(perkUnlocked(meta, meta.minLevel)).toBe(true);
+    expect(perkUnlocked(meta, meta.minLevel + 5)).toBe(true);
+  });
+
+  it("carries a minLevel of at least 1 for every perk in the catalogue", () => {
+    /* A perk with minLevel 0 or less would be gated by nothing, which is the
+       same as having no gate at all, and a fractional or absent minLevel
+       would leave perkUnlocked comparing against something that was never
+       validated as a real House level. */
+    for (const slug of HOUSE_PERKS) {
+      const meta = PERK_META[slug];
+      expect(meta.minLevel).toBeGreaterThanOrEqual(1);
+      expect(Number.isInteger(meta.minLevel)).toBe(true);
+    }
   });
 });
 

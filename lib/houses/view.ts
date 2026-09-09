@@ -74,6 +74,11 @@ export interface PerkOfferView {
   price: number;
   affordable: boolean;
   burning: boolean;
+  /* The House level this perk requires, and whether this House has reached
+     it. 1 for every perk but The Long Watch, so `unlocked` is only ever
+     false for it, and only until the House's real level catches up. */
+  min_level: number;
+  unlocked: boolean;
 }
 
 export interface TreasuryEntryView {

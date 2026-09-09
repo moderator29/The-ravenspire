@@ -6,9 +6,11 @@ import {
   hasActivePerk,
   perkMeta,
   perkPrice,
+  perkUnlocked,
   type HousePerkSlug,
   type HousePerkView,
 } from "@/lib/houses/perks";
+import { currentHouseLevel } from "@/lib/houses/scoring";
 import {
   DAILY_ENDOWMENT_CAP,
   ENDOWMENT_TREASURY_BPS,
@@ -256,8 +258,24 @@ export async function buyHousePerk(
   if (!meta)
     return { ok: false, error: "No such perk.", status: 404 };
 
-  const members = await swornCount(db, opts.houseSlug);
+  const [members, level] = await Promise.all([
+    swornCount(db, opts.houseSlug),
+    currentHouseLevel(db, opts.houseSlug),
+  ]);
   const cost = perkPrice(meta, members);
+
+  /* The level gate (see "long-watch" in lib/houses/perks.ts): a House below
+     the level a perk requires is refused here, reading the same real
+     cumulative figure the hall itself renders. Every other perk in the
+     catalogue has minLevel 1, which every House clears from the day it is
+     founded, so this never fires for them. */
+  if (!perkUnlocked(meta, level.level)) {
+    return {
+      ok: false,
+      error: `${meta.name} unlocks at House level ${meta.minLevel}. This House is level ${level.level}.`,
+      status: 403,
+    };
+  }
 
   const { data, error } = await db.rpc("spend_house_treasury", {
     p_house_slug: opts.houseSlug,

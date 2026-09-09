@@ -3,14 +3,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { emit } from "@/lib/realm/events";
 import { createNotification } from "@/lib/notifications";
 import { realmWeek } from "@/lib/realm/period";
-import { HOUSE_TOP_N, houseBySlug, houses } from "@/lib/data/houses";
+import { HOUSE_TOP_N, houseBySlug, houseLevel, houses } from "@/lib/data/houses";
 import {
   MASTER_OF_RAVENS_MIN_CALLS,
   ROLE_META,
   type HouseMemberRole,
   type HouseRole,
 } from "@/lib/houses/roles";
-import type { SeasonRow } from "@/lib/houses/oath";
+import { loadSeasonWindow, type SeasonRow } from "@/lib/houses/oath";
 
 /* Size-neutral House scoring and computed seasonal leadership.
    V2 sections 11.1b and 11.2.
@@ -169,6 +169,35 @@ export async function loadCumulative(
     );
   }
   return totals;
+}
+
+/* One House's real level, right now: the same figure GET /api/houses/[slug]
+   shows in the hall banner, computed the identical way (this season's live
+   score plus everything cumulative.ts has already banked from earlier
+   seasons, through houseLevel in lib/data/houses.ts). Kept as its own call
+   rather than threaded through as a parameter, because the one caller that
+   needs it, buyHousePerk, is a purchase and has to read the real thing at the
+   moment of spend, not a figure the client sent or a stale one the hall
+   fetched a page load ago. */
+export async function currentHouseLevel(
+  db: SupabaseClient,
+  houseSlug: string
+): Promise<{ level: number; cumulative: number }> {
+  const window = await loadSeasonWindow(db);
+  const season = window.latest;
+  const [contributions, cumulative] = await Promise.all([
+    season ? loadSeasonContributions(db, season.id) : Promise.resolve([]),
+    loadCumulative(db, season?.id ?? null),
+  ]);
+
+  const liveScore = contributions
+    .filter((c) => c.house_slug === houseSlug)
+    .sort((a, b) => b.glory - a.glory)
+    .slice(0, HOUSE_TOP_N)
+    .reduce((sum, c) => sum + c.glory, 0);
+
+  const total = (cumulative.get(houseSlug) ?? 0) + liveScore;
+  return { level: houseLevel(total).level, cumulative: total };
 }
 
 /* ------------------------------------------------------------------

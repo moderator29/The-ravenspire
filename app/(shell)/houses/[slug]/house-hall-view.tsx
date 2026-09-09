@@ -863,14 +863,19 @@ function PerkCard({
   onBuy: () => void;
 }) {
   /* One reason, the most useful one, rather than a stack of disabled states.
-     A member who cannot buy is told why in the same place the price is. */
+     A member who cannot buy is told why in the same place the price is.
+     The level gate goes first when it applies: a House below the level a
+     perk requires cannot buy it no matter who is asking or what the treasury
+     holds, so that is the one true reason to lead with. */
   const blocked = offer.burning
     ? "Already burning"
-    : !maySpend
-      ? "Only the Lord and the Hand may spend"
-      : !offer.affordable
-        ? "The treasury cannot cover this yet"
-        : null;
+    : !offer.unlocked
+      ? `Unlocks at House level ${offer.min_level}`
+      : !maySpend
+        ? "Only the Lord and the Hand may spend"
+        : !offer.affordable
+          ? "The treasury cannot cover this yet"
+          : null;
 
   return (
     <Card className="flex flex-col gap-2.5">

@@ -107,6 +107,13 @@ export interface HousePerkMeta {
   perMember: number;
   /* How long it burns for, in days. */
   durationDays: number;
+  /* The House level (lib/data/houses.ts, houseLevel) required to buy this
+     perk at all. 1 is every House from the day it is founded, since
+     houseLevel(0).level is 1: the floor, not a gate. A perk above 1 is the
+     one real unlock House level progression has ever bought anyone. See
+     perkUnlocked and the note on "long-watch" below for why it is the one
+     perk that has one. */
+  minLevel: number;
   /* True when the purchase ring-fences its own cost as a spendable allowance
      rather than simply being switched on. */
   allowance: boolean;
@@ -151,6 +158,7 @@ export const PERK_META: Record<HousePerkSlug, HousePerkMeta> = {
     perMember: 120,
     durationDays: 7,
     allowance: true,
+    minLevel: 1,
     icon: "shield",
   },
 
@@ -178,6 +186,7 @@ export const PERK_META: Record<HousePerkSlug, HousePerkMeta> = {
     perMember: 60,
     durationDays: 30,
     allowance: false,
+    minLevel: 1,
     icon: "banner",
   },
 
@@ -203,7 +212,20 @@ export const PERK_META: Record<HousePerkSlug, HousePerkMeta> = {
      makes bad Calls: it is one more chance to be scored against a difficulty
      baseline, and a wrong Call costs Season Rating and a burned stake. The
      ceiling on the effect is one slot and seven days, which is why it is one
-     and seven rather than three and thirty. */
+     and seven rather than three and thirty.
+
+     THE LEVEL GATE, AND WHY THIS IS THE ONE PERK THAT HAS ONE. Every House
+     starts at level 1: houseLevel(0).level is 1, the floor rather than a
+     gate, which is why the other two perks in this catalogue carry minLevel
+     1 and are buyable from the day a House is founded. This one is different
+     because it is the one perk that can move a House's standing, and a House
+     with nothing behind it yet should not be able to buy more chances to
+     earn Glory on day one. Level 2 opens at 250 * 2 * 1, 500 cumulative
+     contribution (lib/data/houses.ts, houseLevel), which is real, sustained
+     activity summed across every season a House has ever closed plus its
+     live one, never a single good week and never reset. A House has to prove
+     that before its treasury, itself built from what its own members risked
+     and lost, can buy them more room to risk and lose again. */
   "long-watch": {
     slug: "long-watch",
     name: "The Long Watch",
@@ -213,12 +235,21 @@ export const PERK_META: Record<HousePerkSlug, HousePerkMeta> = {
     perMember: 200,
     durationDays: 7,
     allowance: false,
+    minLevel: 2,
     icon: "target",
   },
 };
 
 export function perkMeta(slug: string): HousePerkMeta | null {
   return PERK_META[slug as HousePerkSlug] ?? null;
+}
+
+/* Has this House's real level reached what the perk requires. The one real
+   unlock House level progression has ever bought anyone: for every perk with
+   minLevel 1 this is true from the day the House is founded, and for The Long
+   Watch it is not, until level 2. */
+export function perkUnlocked(meta: HousePerkMeta, houseLevel: number): boolean {
+  return houseLevel >= meta.minLevel;
 }
 
 /* ------------------------------------------------------------------

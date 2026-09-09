@@ -9,6 +9,7 @@ import {
   maySpendTreasury,
   perkIsActive,
   perkPrice,
+  perkUnlocked,
 } from "@/lib/houses/perks";
 import {
   endowedToday,
@@ -109,6 +110,7 @@ export async function GET(
 
   const banked = cumulative.get(slug) ?? 0;
   const total = banked + standing.score;
+  const level = houseLevel(total);
 
   /* The treasury: a real balance from real sinks, the perks it has bought, and
      the audit trail of every movement. A House that has never had a stake burn
@@ -190,7 +192,7 @@ export async function GET(
         score: rivalStanding?.score ?? 0,
       };
     })(),
-    level: { ...houseLevel(total), cumulative: total },
+    level: { ...level, cumulative: total },
     treasury: {
       balance: treasury,
       sworn: swornHere,
@@ -213,6 +215,8 @@ export async function GET(
           burning: perks.some(
             (p) => p.slug === meta.slug && Date.parse(p.expires_at) > Date.now()
           ),
+          min_level: meta.minLevel,
+          unlocked: perkUnlocked(meta, level.level),
         };
       }),
       active: perks.filter((p) => perkIsActive(p)),
