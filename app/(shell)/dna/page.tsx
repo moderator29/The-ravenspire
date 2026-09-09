@@ -109,7 +109,7 @@ function Analyzer() {
       />
 
       <p className="mt-3 text-sm text-bone-mut md:mt-2 md:text-[13px]">
-        Drop an EVM wallet address or a member&apos;s @handle. The engine reads
+        Drop an EVM wallet address or a member&apos;s @handle. The Bloodline reads
         real data and returns a DNA profile: the archetype, the traits, the
         signal. Nothing invented.
       </p>

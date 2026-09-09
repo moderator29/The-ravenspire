@@ -61,7 +61,7 @@ export function SettingsSheet({
         if (!next) onClose();
       }}
       side="right"
-      title="AI settings"
+      title="Raven settings"
       description="Remembered on this device"
     >
       <div className="flex flex-col gap-6">

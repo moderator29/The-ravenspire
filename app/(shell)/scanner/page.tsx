@@ -84,9 +84,9 @@ export default function ScannerPage() {
       />
 
       <p className="mt-3 text-sm text-bone-mut md:mt-2 md:text-[13px]">
-        A real AI read of your own account: your standing, your posts and your
-        linked wallet, with honest strengths, risks and next moves. Only your
-        data is read, never anyone else&apos;s.
+        The Oracle reads your own account, your standing, your posts and your
+        linked wallet, and returns honest strengths, risks and next moves.
+        Only your data, never anyone else&apos;s.
       </p>
 
       {stats && (
