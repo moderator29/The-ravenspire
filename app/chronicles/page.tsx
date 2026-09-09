@@ -20,7 +20,7 @@ export default function ChroniclesOverviewPage() {
         kicker="Chapter I"
         icon="raven"
         title="The Realm"
-        dek="A competitive online realm where communities earn reputation through participation. Crypto is the infrastructure. Community is the product. Reputation is the progression system."
+        dek="What Ravenspire actually is, in one idea: a public prediction, scored against a token's own real difficulty the instant you seal it, becomes a reputation nobody can buy, borrow, or take back."
       />
 
       <div className="mt-10 flex flex-col gap-9">
