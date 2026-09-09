@@ -46,7 +46,7 @@ describe("overtakeReactionFacts", () => {
   it("carries no em dash, so the Herald's own house rule never has to strip one from a fact line", () => {
     const facts = overtakeReactionFacts(base);
     for (const line of facts) {
-      expect(line).not.toMatch(/[—–]/);
+      expect(line).not.toMatch(/[\u2014\u2013]/);
     }
   });
 });
