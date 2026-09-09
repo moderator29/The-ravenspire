@@ -131,10 +131,10 @@ export default function ChroniclesRoadmapPage() {
             it: the highest-risk logic, scoring, points, payments, carries
             the heaviest test coverage, and an adversarial security review
             closed the money-path exploits it found before this document
-            was written. That combination, a small team moving at funded-
-            team speed without lowering the bar, is the actual bet: not
-            that the realm will hire its way to quality, but that it
-            already builds that way.
+            was written. That combination, a small team moving at
+            funded-team speed without lowering the bar, is the actual
+            bet: not that the realm will hire its way to quality, but
+            that it already builds that way.
           </p>
         </Section>
       </div>
