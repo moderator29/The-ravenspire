@@ -1,13 +1,6 @@
 import { ImageResponse } from "next/og";
-import {
-  OgCard,
-  OG_CONTENT_TYPE,
-  OG_GENERIC,
-  OG_SIZE,
-  ogNumber,
-} from "@/lib/share/og";
-import { readProofSubject } from "@/lib/share/subjects";
-import { isDrawReference } from "@/lib/collectibles/verify";
+import { OgCard, OG_CONTENT_TYPE, OG_SIZE } from "@/lib/share/og";
+import { renderShareCard } from "@/lib/share/render";
 
 /* A settled chest opening, as a share card.
  *
@@ -24,7 +17,7 @@ import { isDrawReference } from "@/lib/collectibles/verify";
  * under this seed, and nothing joins it to a profile. This card is the most
  * public projection of that row in the product, so it holds the line hardest.
  * No handle, no Keep, no avatar, and the reader for lib/share/subjects.ts does
- * not select profile_id at all.
+ * not select profile_id at all. The layout is lib/share/render.ts.
  */
 
 export const dynamic = "force-dynamic";
@@ -39,36 +32,6 @@ export default async function Image({
   params: Promise<{ reference: string }>;
 }) {
   const { reference } = await params;
-  const proof = isDrawReference(reference)
-    ? await readProofSubject(reference)
-    : null;
-
-  if (!proof) {
-    return new ImageResponse(<OgCard {...OG_GENERIC} />, { ...size });
-  }
-
-  return new ImageResponse(
-    (
-      <OgCard
-        kicker="PROVABLY FAIR"
-        headline={proof.chestName}
-        subline={
-          proof.best
-            ? `${proof.best}${proof.bestRarity ? `  ·  ${proof.bestRarity}` : ""}`
-            : "Opened, revealed and on the record"
-        }
-        stats={[
-          { label: "CARDS DEALT", value: ogNumber(proof.cards) },
-          {
-            label: "COMMITMENT",
-            value: proof.commitment,
-            tone: "bone",
-          },
-        ]}
-        verdict={{ label: "CHECKABLE", tone: "gold" }}
-        glow="left"
-      />
-    ),
-    { ...size }
-  );
+  const props = await renderShareCard({ kind: "proof", reference });
+  return new ImageResponse(<OgCard {...props} />, { ...size });
 }

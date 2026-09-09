@@ -1,11 +1,6 @@
 import { ImageResponse } from "next/og";
-import {
-  OgCard,
-  OG_CONTENT_TYPE,
-  OG_GENERIC,
-  OG_SIZE,
-} from "@/lib/share/og";
-import { readListingSubject } from "@/lib/share/subjects";
+import { OgCard, OG_CONTENT_TYPE, OG_SIZE } from "@/lib/share/og";
+import { renderShareCard } from "@/lib/share/render";
 
 /* A Bazaar listing, as a share card.
  *
@@ -15,7 +10,8 @@ import { readListingSubject } from "@/lib/share/subjects";
  * per rarity floor is what the platform commits to standing behind rather than
  * a market price, and a card that put it beside a listing would be quoting it
  * as one whatever the label said. lib/commerce/market-board.ts refuses to
- * import the catalogue for the same reason and this route does not either.
+ * import the catalogue for the same reason and lib/share/render.ts does not
+ * either.
  *
  * A withdrawn or sold listing still unfurls, and says so. Somebody following a
  * link to a card that has just gone is entitled to be told it went, and the
@@ -29,50 +25,12 @@ export const alt = "A card on the Bazaar of The Ravenspire";
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
-const VERDICT: Record<string, { label: string; tone: "gold" | "ember" | "steel" }> = {
-  active: { label: "FOR SALE", tone: "gold" },
-  reserved: { label: "RESERVED", tone: "steel" },
-  settled: { label: "SOLD", tone: "ember" },
-  cancelled: { label: "WITHDRAWN", tone: "steel" },
-};
-
 export default async function Image({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const listing = await readListingSubject(id);
-
-  if (!listing) {
-    return new ImageResponse(<OgCard {...OG_GENERIC} />, { ...size });
-  }
-
-  return new ImageResponse(
-    (
-      <OgCard
-        kicker="THE BAZAAR"
-        headline={listing.cardName}
-        subline={
-          [
-            listing.cardTitle,
-            listing.sellerHandle ? `listed by @${listing.sellerHandle}` : null,
-          ]
-            .filter(Boolean)
-            .join("  ·  ") || null
-        }
-        stats={[
-          { label: "PRICE", value: listing.price },
-          {
-            label: "RARITY",
-            value: listing.rarity.toUpperCase(),
-            tone: "bone",
-          },
-        ]}
-        verdict={VERDICT[listing.status] ?? null}
-        glow="right"
-      />
-    ),
-    { ...size }
-  );
+  const props = await renderShareCard({ kind: "listing", id });
+  return new ImageResponse(<OgCard {...props} />, { ...size });
 }

@@ -6,7 +6,7 @@ import { Avatar } from "@/components/social/avatar";
 import { CommentThread } from "@/components/social/comment-thread";
 import { RichBody } from "@/components/social/rich-body";
 import { Badge } from "@/components/ui/badge";
-import { ShareButton } from "@/components/share/share-button";
+import { ShareSheet } from "@/components/share/share-sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -423,10 +423,11 @@ export function CallDetailView({ id }: { id: string }) {
               made it. It sits beside the caller because that is the identity it
               belongs to, and the banner rides only when the viewer IS the
               caller. */}
-          <ShareButton
+          <ShareSheet
             target={{ kind: "call", id }}
             subjectHandle={handle ?? null}
-            title={`${claimSentence(data)} · The Ravenspire`}
+            title="Share this Call"
+            shareTitle={`${claimSentence(data)} · The Ravenspire`}
           />
           {handle && (
             <Button

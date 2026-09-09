@@ -1,14 +1,6 @@
 import { ImageResponse } from "next/og";
-import {
-  OgCard,
-  OG_CONTENT_TYPE,
-  OG_GENERIC,
-  OG_SIZE,
-  ogNumber,
-  ogTrim,
-  type OgStat,
-} from "@/lib/share/og";
-import { readCallSubject } from "@/lib/share/subjects";
+import { OgCard, OG_CONTENT_TYPE, OG_SIZE } from "@/lib/share/og";
+import { renderShareCard } from "@/lib/share/render";
 
 /* A Call, as a share card. The one the realm most wants shared.
  *
@@ -23,6 +15,9 @@ import { readCallSubject } from "@/lib/share/subjects";
  * makes it worth nothing as distribution either. The score is the settlement's
  * own number and is absent while a Call is still open, because there is no
  * score yet and inventing a provisional one would be inventing data.
+ *
+ * The layout itself lives in lib/share/render.ts now, shared with the in-app
+ * share sheet's live preview and download.
  */
 
 export const dynamic = "force-dynamic";
@@ -37,60 +32,6 @@ export default async function Image({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const call = await readCallSubject(id);
-
-  if (!call) {
-    return new ImageResponse(<OgCard {...OG_GENERIC} />, { ...size });
-  }
-
-  const stats: OgStat[] = [];
-  if (call.score !== null) {
-    stats.push({
-      label: "RENOWN",
-      value: ogNumber(call.score),
-      tone: call.verdict === "miss" ? "ember" : "gold",
-    });
-  }
-  if (call.confidence !== null) {
-    stats.push({
-      label: "CONFIDENCE",
-      value: `${call.confidence}%`,
-      tone: "bone",
-    });
-  }
-  if (call.threshold !== null) {
-    stats.push({
-      label: "MOVE REQUIRED",
-      value: `${call.threshold}%`,
-      tone: "bone",
-    });
-  }
-
-  const verdict =
-    call.verdict === "hit"
-      ? { label: "HIT", tone: "gold" as const }
-      : call.verdict === "miss"
-        ? { label: "MISS", tone: "ember" as const }
-        : call.verdict === "void"
-          ? { label: "VOID", tone: "steel" as const }
-          : { label: "OPEN", tone: "steel" as const };
-
-  return new ImageResponse(
-    (
-      <OgCard
-        kicker={call.verdict === "open" ? "A CALL, SEALED" : "A CALL, RESOLVED"}
-        headline={call.claim}
-        subline={
-          call.callerHandle
-            ? `${call.callerName}  ·  @${call.callerHandle}`
-            : call.callerName
-        }
-        body={ogTrim(call.rationale, 150)}
-        stats={stats}
-        verdict={verdict}
-        glow="left"
-      />
-    ),
-    { ...size }
-  );
+  const props = await renderShareCard({ kind: "call", id });
+  return new ImageResponse(<OgCard {...props} />, { ...size });
 }

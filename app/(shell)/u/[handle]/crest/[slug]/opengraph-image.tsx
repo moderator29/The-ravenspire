@@ -1,13 +1,6 @@
 import { ImageResponse } from "next/og";
-import {
-  OgCard,
-  OG_CONTENT_TYPE,
-  OG_GENERIC,
-  OG_SIZE,
-  ogNumber,
-  ogTrim,
-} from "@/lib/share/og";
-import { readCrestSubject } from "@/lib/share/subjects";
+import { OgCard, OG_CONTENT_TYPE, OG_SIZE } from "@/lib/share/og";
+import { renderShareCard } from "@/lib/share/render";
 
 /* A crest a member holds, as a share card.
  *
@@ -21,7 +14,8 @@ import { readCrestSubject } from "@/lib/share/subjects";
  * plus any slug would let anybody manufacture a convincing image of somebody
  * else holding something they never earned, and post it. The reader in
  * lib/share/subjects.ts requires the user_crests row before it returns
- * anything at all.
+ * anything at all; the layout is lib/share/render.ts, shared with the share
+ * sheet.
  */
 
 export const dynamic = "force-dynamic";
@@ -36,30 +30,6 @@ export default async function Image({
   params: Promise<{ handle: string; slug: string }>;
 }) {
   const { handle, slug } = await params;
-  const crest = await readCrestSubject(handle, slug);
-
-  if (!crest) {
-    return new ImageResponse(<OgCard {...OG_GENERIC} />, { ...size });
-  }
-
-  return new ImageResponse(
-    (
-      <OgCard
-        kicker="A CREST EARNED"
-        headline={crest.crestName}
-        subline={`${crest.holderName}  ·  @${crest.holderHandle}`}
-        body={ogTrim(crest.earn, 130)}
-        stats={[
-          {
-            label: "IN THE REALM",
-            value:
-              crest.holders === 1 ? "The only one" : ogNumber(crest.holders),
-          },
-          { label: "RARITY", value: crest.rarity.toUpperCase(), tone: "bone" },
-        ]}
-        glow="right"
-      />
-    ),
-    { ...size }
-  );
+  const props = await renderShareCard({ kind: "crest", handle, slug });
+  return new ImageResponse(<OgCard {...props} />, { ...size });
 }

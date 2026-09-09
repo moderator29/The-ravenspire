@@ -269,3 +269,86 @@ export function readBanner(search: string | URLSearchParams): string | null {
    key /welcome has always used, so a recruit who lands on a shared Call, wanders
    the realm and then onboards still credits the member who sent them. */
 export const BANNER_STORAGE_KEY = "rvn_banner";
+
+/* The inverse of sharePath: a ShareTarget from query params, or null.
+ *
+ * app/api/share/card/route.ts is the one caller. It exists so the in-app share
+ * sheet has a stable, directly fetchable image URL to put in an <img src> and
+ * behind a download button: Next's own opengraph-image.tsx convention appends
+ * a build-generated suffix to the served path that is not safe to construct by
+ * hand from the client, so the app needs its own route for this. Reusing the
+ * exact validators sharePath already trusts, rather than a second, looser
+ * parse, keeps "what a share target may legally be" defined in exactly one
+ * place: an id here that would not survive sharePath must not survive this
+ * either.
+ */
+/* The path app/api/share/card/route.ts serves for a target, the exact inverse
+ * of parseShareTarget above. Relative, like sharePath: the caller (the share
+ * sheet) already knows its own origin and this keeps the two symmetrical
+ * rather than one taking an origin and the other not.
+ */
+export function shareCardImagePath(target: ShareTarget): string {
+  const params = new URLSearchParams({ kind: target.kind });
+  switch (target.kind) {
+    case "keep":
+      params.set("handle", target.handle);
+      break;
+    case "call":
+      params.set("id", target.id);
+      break;
+    case "house":
+      params.set("slug", target.slug);
+      break;
+    case "crest":
+      params.set("handle", target.handle);
+      params.set("slug", target.slug);
+      break;
+    case "proof":
+      params.set("reference", target.reference);
+      break;
+    case "listing":
+      params.set("id", target.id);
+      break;
+    case "trade":
+      params.set("id", target.id);
+      break;
+  }
+  return `/api/share/card?${params.toString()}`;
+}
+
+export function parseShareTarget(params: URLSearchParams): ShareTarget | null {
+  const kind = params.get("kind");
+  switch (kind) {
+    case "keep": {
+      const handle = normaliseHandle(params.get("handle") ?? "");
+      return handle ? { kind: "keep", handle } : null;
+    }
+    case "call": {
+      const id = normaliseId(params.get("id") ?? "");
+      return id ? { kind: "call", id } : null;
+    }
+    case "house": {
+      const slug = normaliseSlug(params.get("slug") ?? "");
+      return slug ? { kind: "house", slug } : null;
+    }
+    case "crest": {
+      const handle = normaliseHandle(params.get("handle") ?? "");
+      const slug = normaliseSlug(params.get("slug") ?? "");
+      return handle && slug ? { kind: "crest", handle, slug } : null;
+    }
+    case "proof": {
+      const reference = normaliseId(params.get("reference") ?? "");
+      return reference ? { kind: "proof", reference } : null;
+    }
+    case "listing": {
+      const id = normaliseId(params.get("id") ?? "");
+      return id ? { kind: "listing", id } : null;
+    }
+    case "trade": {
+      const id = normaliseId(params.get("id") ?? "");
+      return id ? { kind: "trade", id } : null;
+    }
+    default:
+      return null;
+  }
+}

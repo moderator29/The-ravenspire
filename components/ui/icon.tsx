@@ -168,6 +168,14 @@ const paths: Record<string, React.ReactNode> = {
   reply: <path d="M9 17l-5-5 5-5m-5 5h9a6 6 0 0 1 6 6v2" />,
   repost: <path d="M4 9l3-3m0 0l3 3M7 6v9a3 3 0 0 0 3 3h2m8-3l-3 3m0 0l-3-3m3 3V9a3 3 0 0 0-3-3h-2" />,
   share: <path d="M12 3v12m0-12L8 7m4-4l4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />,
+  /* share's own inverse: a tray with the arrow pointing in rather than out,
+     for saving a file to the device rather than handing it to another app. */
+  download: (
+    <>
+      <path d="M12 3v11m0 0l-4-4m4 4l4-4" />
+      <path d="M5 19h14" />
+    </>
+  ),
   image: (
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />

@@ -1,14 +1,6 @@
 import { ImageResponse } from "next/og";
-import {
-  OgCard,
-  OG_CONTENT_TYPE,
-  OG_GENERIC,
-  OG_SIZE,
-  ogNumber,
-  ogTrim,
-  type OgStat,
-} from "@/lib/share/og";
-import { readKeepSubject } from "@/lib/share/subjects";
+import { OgCard, OG_CONTENT_TYPE, OG_SIZE } from "@/lib/share/og";
+import { renderShareCard } from "@/lib/share/render";
 
 /* A member's Keep, as a share card.
  *
@@ -18,7 +10,8 @@ import { readKeepSubject } from "@/lib/share/subjects";
  * no gate, so this card discloses nothing new. The Hoard is on it only when the
  * member's `hoardVisible` says so, which is the same gate /api/hoard applies to
  * a stranger. lib/share/subjects.ts is where all of that is decided and where
- * the reasoning is written out.
+ * the reasoning is written out; lib/share/render.ts is where it becomes the
+ * card's actual layout, shared with the in-app share sheet.
  *
  * WHAT IS DELIBERATELY NOT ON IT: points, $RSP, any earnings figure, and the
  * wallet address. A crawler holding a guessed URL is the wrong reader for a
@@ -43,56 +36,6 @@ export default async function Image({
   params: Promise<{ handle: string }>;
 }) {
   const { handle } = await params;
-  const keep = await readKeepSubject(handle);
-
-  if (!keep) {
-    return new ImageResponse(<OgCard {...OG_GENERIC} />, { ...size });
-  }
-
-  const stats: OgStat[] = [
-    { label: "RENOWN", value: ogNumber(keep.renown) },
-    { label: "GLORY", value: ogNumber(keep.glory) },
-  ];
-  /* Only real counts reach the card. A member with no crests gets two stats
-     rather than a third reading zero, because a zero presented as a statistic
-     is the product telling a stranger this member has failed at something they
-     may never have attempted. */
-  if (keep.crests > 0) {
-    stats.push({ label: "CRESTS", value: ogNumber(keep.crests) });
-  }
-  if (keep.callsWon + keep.callsLost > 0) {
-    stats.push({
-      label: "CALLS",
-      value: `${ogNumber(keep.callsWon)}/${ogNumber(
-        keep.callsWon + keep.callsLost
-      )}`,
-      tone: keep.callsWon >= keep.callsLost ? "gold" : "ember",
-    });
-  }
-  if (keep.hoard) {
-    stats.push({
-      label: "HOARD",
-      value: `${ogNumber(keep.hoard.distinct)}/${ogNumber(keep.hoard.setSize)}`,
-      tone: "bone",
-    });
-  }
-
-  const identity = [
-    `@${keep.handle}`,
-    keep.tier,
-    keep.houseName,
-  ].filter(Boolean) as string[];
-
-  return new ImageResponse(
-    (
-      <OgCard
-        kicker="THE KEEP"
-        headline={ogTrim(keep.name, 34) ?? `@${keep.handle}`}
-        subline={identity.join("  ·  ")}
-        stats={stats.slice(0, 4)}
-        glow="right"
-      />
-    ),
-    { ...size }
-  );
+  const props = await renderShareCard({ kind: "keep", handle });
+  return new ImageResponse(<OgCard {...props} />, { ...size });
 }

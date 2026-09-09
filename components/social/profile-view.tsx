@@ -41,7 +41,7 @@ import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { shareOrCopy } from "@/lib/share";
 import { shareUrl } from "@/lib/share/links";
-import { ShareButton } from "@/components/share/share-button";
+import { ShareSheet } from "@/components/share/share-sheet";
 
 /* A Keep, on the Dossier archetype.
 
@@ -413,14 +413,15 @@ export function ProfileView({
                referral banner ride along, which is exactly the case where
                that is honest. */
             <div className="flex items-center gap-2">
-              <ShareButton
+              <ShareSheet
                 /* A handle that is not yet claimed produces no path and
                    therefore no button, which is correct: there is nothing to
                    share until the Keep has a name. */
                 target={{ kind: "keep", handle: profile.handle ?? "" }}
                 subjectHandle={profile.handle}
                 size="md"
-                title={`${profile.display_name ?? `@${profile.handle}`} on The Ravenspire`}
+                title="Share your Keep"
+                shareTitle={`${profile.display_name ?? `@${profile.handle}`} on The Ravenspire`}
               />
               {onEdit ? (
                 <Button variant="gold" size="md" dense onClick={onEdit}>
