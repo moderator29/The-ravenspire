@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     template: "%s · The Ravenspire",
   },
   description:
-    "A competitive realm where communities earn reputation through participation. Post, make Calls the realm can verify, swear to a House, and climb from Smallfolk to Monarch. Standing is earned, never bought.",
+    "Make the call. Earn your name. A competitive realm of Houses, Calls, Crests and Renown. Post, make Calls the realm can verify, swear to a House, and climb from Smallfolk to Monarch. Standing is earned, never bought.",
   /* NO `images` KEY IN EITHER BLOCK, AND THAT IS THE WHOLE POINT.
    *
    * Both used to name /game/lineup.png here, and between them they made every
