@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Button, INLINE_TOUCH_TARGET } from "@/components/ui/button";
 import { CopyButton } from "@/components/wallet/copy-button";
@@ -69,20 +70,25 @@ export function CoinDetail({
               {chain?.name ?? token.chainName}. This is your non-custodial
               address, safe to share.
             </p>
-            <div className="flex flex-col items-center gap-3 rounded-lg border border-steel-line bg-panel/40 p-4">
+            <Card
+              variant="inset"
+              radius="lg"
+              pad="lg"
+              className="flex flex-col items-center gap-3"
+            >
               <AddressQR value={address} />
               <span className="rounded-sm border border-gold/25 bg-panel-warm/60 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-bone-mut">
                 {chain?.name ?? token.chainName} / EVM only
               </span>
-            </div>
-            <div className="rounded-lg border border-steel-line bg-panel/50 p-3">
+            </Card>
+            <Card variant="inset" radius="lg" pad="sm">
               <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
                 Wallet address
               </p>
               <code className="tnum mt-1.5 block break-all font-mono text-sm leading-relaxed text-bone">
                 {address}
               </code>
-            </div>
+            </Card>
             <div className="flex gap-2">
               <CopyButton
                 value={address}
@@ -121,7 +127,12 @@ export function CoinDetail({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-gold/20 bg-panel-warm/50 p-4 text-center">
+      <Card
+        variant="warm"
+        radius="lg"
+        pad="lg"
+        className="flex flex-col items-center gap-3 border-gold/20 text-center"
+      >
         <div className="relative">
           <TokenLogo logo={token.logo} symbol={token.symbol} size={44} />
           <span className="absolute -bottom-1 -right-1 rounded-sm border border-obsidian bg-panel px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-gold">
@@ -140,12 +151,9 @@ export function CoinDetail({
               })}
               {token.change24h !== 0 ? (
                 <span
-                  style={{
-                    color:
-                      token.change24h >= 0
-                        ? "var(--chart-up)"
-                        : "var(--chart-down)",
-                  }}
+                  className={
+                    token.change24h >= 0 ? "text-chart-up" : "text-chart-down"
+                  }
                 >
                   {" "}
                   {token.change24h >= 0 ? "+" : ""}
@@ -159,7 +167,7 @@ export function CoinDetail({
             </p>
           )}
         </div>
-      </div>
+      </Card>
 
       <div className="grid grid-cols-2 gap-2">
         <Button variant="gold" size="lg" block onClick={() => setView("send")}>
@@ -172,7 +180,7 @@ export function CoinDetail({
         </Button>
       </div>
 
-      <div className="flex flex-col gap-0.5 rounded-lg border border-steel-line bg-panel/40 p-3">
+      <Card variant="inset" radius="lg" pad="sm" className="flex flex-col gap-0.5">
         <Row label="Network" value={chain?.name ?? token.chainName} />
         {token.priceUsd > 0 ? (
           <Row
@@ -197,7 +205,7 @@ export function CoinDetail({
             </div>
           </div>
         ) : null}
-      </div>
+      </Card>
 
       {tokenExplorer ? (
         <Button

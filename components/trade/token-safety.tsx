@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { realmFetch } from "@/lib/auth/api";
 
@@ -57,22 +58,27 @@ export function TokenSafety({
 
   if (state === "loading") {
     return (
-      <div className="mt-3 flex items-center gap-2 rounded-2xl border border-steel-line bg-panel/40 p-3 text-xs text-bone-faint">
+      <Card
+        variant="inset"
+        radius="lg"
+        pad="sm"
+        className="mt-3 flex items-center gap-2 text-xs text-bone-faint"
+      >
         <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
         Running a GoPlus safety scan...
-      </div>
+      </Card>
     );
   }
 
   if (state === "unavailable") {
     return (
-      <div className="mt-3 flex items-start gap-3 rounded-2xl border border-steel-line bg-panel/40 p-3">
+      <Card variant="inset" radius="lg" pad="sm" className="mt-3 flex items-start gap-3">
         <Icon name="shield" className="mt-0.5 h-4 w-4 shrink-0 text-bone-faint" />
         <p className="text-[11px] text-bone-mut">
           A GoPlus safety read is not available for this token right now. Absence
           of a warning is not a guarantee of safety. Trade with caution.
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -84,7 +90,13 @@ export function TokenSafety({
 
   if (safety.flags.length === 0) {
     return (
-      <div className="mt-3 flex items-start gap-3 rounded-2xl border border-gold/25 bg-panel-warm/40 p-3">
+      <Card
+        variant="warm"
+        tone="gold"
+        radius="lg"
+        pad="sm"
+        className="mt-3 flex items-start gap-3"
+      >
         <Icon name="shield" className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
         <div>
           <p className="text-xs font-semibold text-bone">
@@ -99,22 +111,22 @@ export function TokenSafety({
             . Still unverified: do your own research.
           </p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   const headline = danger.length > 0;
   return (
-    <div
-      className={`mt-3 flex items-start gap-3 rounded-2xl border p-3.5 ${
-        headline
-          ? "border-ember-deep/50 bg-panel"
-          : "border-gold/25 bg-panel-warm/40"
-      }`}
+    <Card
+      variant={headline ? "raised" : "warm"}
+      tone={headline ? "danger" : "gold"}
+      radius="lg"
+      pad="md"
+      className="mt-3 flex items-start gap-3"
     >
       <Icon
         name="shield"
-        className={`mt-0.5 h-4 w-4 shrink-0 ${headline ? "text-ember" : "text-gold"}`}
+        className={`mt-0.5 h-4 w-4 shrink-0 ${headline ? "text-state-danger" : "text-gold"}`}
       />
       <div className="min-w-0">
         <p className="text-xs font-semibold text-bone">
@@ -148,6 +160,6 @@ export function TokenSafety({
           than you can lose.
         </p>
       </div>
-    </div>
+    </Card>
   );
 }

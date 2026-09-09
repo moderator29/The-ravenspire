@@ -4,6 +4,7 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { WalletLive } from "@/components/wallet/wallet-live";
 import { WalletCard } from "@/components/wallet/wallet-card";
 import { CopyButton } from "@/components/wallet/copy-button";
+import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { shortAddress } from "@/components/wallet/chains";
 
@@ -31,7 +32,7 @@ export function WalletSection() {
               This is your realm wallet address. It is yours alone,
               non-custodial, and safe to share to receive coin and tokens.
             </p>
-            <div className="mt-4 rounded-2xl border border-steel-line bg-panel/50 p-3.5">
+            <Card variant="inset" radius="lg" pad="sm" className="mt-4">
               <p className="text-[11px] uppercase tracking-[0.2em] text-bone-faint">
                 Wallet address
               </p>
@@ -41,14 +42,20 @@ export function WalletSection() {
                 </code>
                 <CopyButton value={addr} label="Copy address" iconOnly />
               </div>
-            </div>
-            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-gold/15 bg-panel/40 px-3.5 py-2.5">
+            </Card>
+            <Card
+              variant="inset"
+              radius="lg"
+              pad="sm"
+              tone="gold"
+              className="mt-4 flex items-center gap-2"
+            >
               <Icon name="lock" className="h-4 w-4 shrink-0 text-gold" />
               <p className="text-xs text-bone-mut">
                 Non-custodial. You hold the keys, and only you can move these
                 funds.
               </p>
-            </div>
+            </Card>
           </>
         ) : (
           <p className="text-sm text-bone-mut">

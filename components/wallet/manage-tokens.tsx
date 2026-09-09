@@ -4,7 +4,7 @@ import { useState } from "react";
 import { isAddress } from "viem";
 import { Icon } from "@/components/ui/icon";
 import { Button, IconButton } from "@/components/ui/button";
-import { Toggle } from "@/components/ui/field";
+import { Input, Toggle } from "@/components/ui/field";
 import { Chip } from "@/components/console/console-shell";
 import { TokenLogo } from "@/components/wallet/token-logo";
 import { EVM_CHAINS } from "@/components/wallet/chains";
@@ -98,50 +98,51 @@ export function ManageTokens({
             ))}
           </div>
 
-          <input
+          <Input
             value={contract}
             onChange={(e) => setContract(e.target.value)}
             spellCheck={false}
             autoComplete="off"
             placeholder="Contract address 0x..."
             aria-label="Contract address"
-            className={`tnum h-11 w-full rounded-md border bg-panel/60 px-3 font-mono text-sm text-bone outline-none transition-colors duration-fast placeholder:font-sans placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px] ${
-              contractValid ? "border-steel-line" : "border-ember/60"
+            aria-invalid={!contractValid || undefined}
+            className={`tnum h-11 font-mono placeholder:font-sans md:h-9 md:text-[13px] ${
+              contractValid ? "" : "border-state-danger/70"
             }`}
           />
           {!contractValid ? (
-            <span className="text-xs text-ember">
+            <span className="text-xs text-state-danger">
               That is not a valid contract address.
             </span>
           ) : null}
 
           <div className="flex gap-2">
-            <input
+            <Input
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
               spellCheck={false}
               autoComplete="off"
               placeholder="Symbol"
               aria-label="Token symbol"
-              className="h-11 w-1/2 rounded-md border border-steel-line bg-panel/60 px-3 text-sm text-bone outline-none transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px]"
+              className="h-11 w-1/2 md:h-9 md:text-[13px]"
             />
-            <input
+            <Input
               value={decimals}
               onChange={(e) => setDecimals(e.target.value)}
               inputMode="numeric"
               placeholder="Decimals"
               aria-label="Token decimals"
-              className="tnum h-11 w-1/2 rounded-md border border-steel-line bg-panel/60 px-3 text-sm text-bone outline-none transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px]"
+              className="tnum h-11 w-1/2 md:h-9 md:text-[13px]"
             />
           </div>
-          <input
+          <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             spellCheck={false}
             autoComplete="off"
             placeholder="Name (optional)"
             aria-label="Token name"
-            className="h-11 w-full rounded-md border border-steel-line bg-panel/60 px-3 text-sm text-bone outline-none transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px]"
+            className="h-11 md:h-9 md:text-[13px]"
           />
 
           <Button variant="gold" size="lg" block onClick={add} className="md:h-9 md:text-sm">
