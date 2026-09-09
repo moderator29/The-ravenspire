@@ -7,13 +7,18 @@ export interface Author {
   is_agent?: boolean;
 }
 
-export interface CallData {
-  token: string;
-  stance: "up" | "down";
-  timeframe: string;
-  entry_price: number;
-  verdict: "open" | "hit" | "miss";
-}
+/* Re-exported rather than declared here a second time. This module used to
+   keep its own, narrower CallData with token, stance and entry_price all
+   required, which was the V1 shape a Call could no longer be limited to once
+   lib/calls/types.ts generalized it to any resolvable claim (a realm claim
+   has none of those three). The stale copy meant TypeScript approved reading
+   post.call.token as an always-present string everywhere a Post's own call
+   was touched, which is exactly the assumption components/social/post-card.tsx
+   made and the exact one that crashed the whole shell the first time a
+   member's feed carried a realm claim next to a price one. One real type,
+   read from where it is actually produced. */
+import type { CallData } from "@/lib/calls/types";
+export type { CallData } from "@/lib/calls/types";
 
 export interface Post {
   id: string;

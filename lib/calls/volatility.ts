@@ -1,5 +1,5 @@
 import "server-only";
-import { COINGECKO_IDS } from "@/lib/data/tokens";
+import { cgHeaders, COINGECKO_IDS } from "@/lib/data/tokens";
 import type { PriceSubject } from "@/lib/calls/types";
 
 /* Trailing realized volatility, annualized, from real price data only.
@@ -61,7 +61,7 @@ async function coingeckoVolatility(id: string): Promise<VolatilityReading | null
   try {
     const res = await fetch(
       `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=30&interval=daily`,
-      { next: { revalidate: 3600 } }
+      { headers: cgHeaders(), next: { revalidate: 3600 } }
     );
     if (!res.ok) return null;
     const body = (await res.json()) as { prices?: [number, number][] };

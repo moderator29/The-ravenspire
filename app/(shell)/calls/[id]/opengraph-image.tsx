@@ -79,7 +79,7 @@ export default async function Image({
     (
       <OgCard
         kicker={call.verdict === "open" ? "A CALL, SEALED" : "A CALL, RESOLVED"}
-        headline={`${call.token} ${call.stance}`}
+        headline={call.claim}
         subline={
           call.callerHandle
             ? `${call.callerName}  ·  @${call.callerHandle}`

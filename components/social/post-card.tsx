@@ -6,6 +6,7 @@ import { Avatar } from "@/components/social/avatar";
 import { RichBody } from "@/components/social/rich-body";
 import { PriceCard } from "@/components/social/price-card";
 import { CallChart } from "@/components/social/call-chart";
+import { claimSentence } from "@/components/calls/claim";
 import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -527,50 +528,61 @@ export function PostCard({ post }: { post: Post }) {
             <RichBody text={post.body} />
           </Link>
 
-          {post.call && (
-            <Card
-              variant="inset"
-              pad="none"
-              className={`mt-1.5 flex items-center gap-3 px-3 py-2 ${
-                post.call.stance === "up"
-                  ? "border-chart-up/40"
-                  : "border-chart-down/40"
-              }`}
-            >
-              <Icon
-                name="target"
-                className={`h-4 w-4 shrink-0 ${
-                  post.call.stance === "up"
-                    ? "text-chart-up"
-                    : "text-chart-down"
+          {/* Every category of Call reads through claimSentence, the one
+              function that decides what a Call says (components/calls/claim.ts):
+              a realm claim has no token, no entry price and no meaningful up
+              or down, and rendering it as though it did was a genuine crash
+              here, not just a wrong label, since CallChart below went on to
+              call methods on a token that was never there. */}
+          {post.call && (() => {
+            const priced = post.call.resolver !== "internal";
+            const up = post.call.stance !== "down";
+            return (
+              <Card
+                variant="inset"
+                pad="none"
+                className={`mt-1.5 flex items-center gap-3 px-3 py-2 ${
+                  priced
+                    ? up
+                      ? "border-chart-up/40"
+                      : "border-chart-down/40"
+                    : "border-gold/30"
                 }`}
-              />
-              <p className="min-w-0 text-xs text-bone-mut">
-                <span className="font-bold text-bone">CALL</span> · $
-                {post.call.token} {post.call.stance === "up" ? "rises" : "falls"}{" "}
-                within {post.call.timeframe} · sealed at ${post.call.entry_price}
-              </p>
-              <span className="ml-auto shrink-0">
-                <Badge
-                  variant={
-                    post.call.verdict === "hit"
-                      ? "gold"
-                      : post.call.verdict === "miss"
-                        ? "danger"
-                        : "default"
-                  }
-                >
-                  {post.call.verdict}
-                </Badge>
-              </span>
-            </Card>
-          )}
+              >
+                <Icon
+                  name="target"
+                  className={`h-4 w-4 shrink-0 ${
+                    priced ? (up ? "text-chart-up" : "text-chart-down") : "text-gold"
+                  }`}
+                />
+                <p className="min-w-0 text-xs text-bone-mut">
+                  <span className="font-bold text-bone">CALL</span> ·{" "}
+                  {claimSentence(post.call)}
+                </p>
+                <span className="ml-auto shrink-0">
+                  <Badge
+                    variant={
+                      post.call.verdict === "hit"
+                        ? "gold"
+                        : post.call.verdict === "miss"
+                          ? "danger"
+                          : "default"
+                    }
+                  >
+                    {post.call.verdict}
+                  </Badge>
+                </span>
+              </Card>
+            );
+          })()}
 
-          {post.call && (
+          {/* A price mini chart needs a real token to fetch, which only a
+              price-resolver Call ever has. */}
+          {post.call?.token && (
             <CallChart
               symbol={post.call.token}
-              entryPrice={post.call.entry_price}
-              stance={post.call.stance}
+              entryPrice={post.call.entry_price ?? null}
+              stance={post.call.stance === "down" ? "down" : "up"}
             />
           )}
 

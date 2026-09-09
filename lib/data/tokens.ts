@@ -68,13 +68,29 @@ interface CoinGeckoPrice {
   usd_market_cap?: number;
 }
 
+/* CoinGecko's free Demo tier is keyless by design, but a configured key lifts
+   the request straight from the shared, easily exhausted anonymous rate limit
+   onto this realm's own. Every fetch to api.coingecko.com anywhere in the
+   product sends this, not only the one call site that originally grew it:
+   a member's own real BTC or ETH Call failing with "cannot measure that
+   token's volatility" because some other request on the anonymous limit used
+   it up first is not a data gap, it is this header missing from a sibling
+   function. */
+export function cgHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (process.env.COINGECKO_API_KEY) {
+    headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
+  }
+  return headers;
+}
+
 async function lookupMajor(symbol: string): Promise<TokenCard | null> {
   const id = COINGECKO_IDS[symbol];
   if (!id) return null;
   try {
     const res = await fetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true`,
-      { next: { revalidate: 60 } }
+      { headers: cgHeaders(), next: { revalidate: 60 } }
     );
     if (!res.ok) return null;
     const body = (await res.json()) as Record<string, CoinGeckoPrice>;
@@ -345,13 +361,6 @@ async function lookupDexScreenerEvm(
   }
 }
 
-function cgHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { accept: "application/json" };
-  if (process.env.COINGECKO_API_KEY) {
-    headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
-  }
-  return headers;
-}
 
 interface CoinGeckoSearchCoin {
   id?: string;

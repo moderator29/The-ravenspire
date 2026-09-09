@@ -1,5 +1,5 @@
 import "server-only";
-import { COINGECKO_IDS, lookupToken, type TokenCard } from "@/lib/data/tokens";
+import { cgHeaders, COINGECKO_IDS, lookupToken, type TokenCard } from "@/lib/data/tokens";
 import { EVM_DEX_CHAINS, MIN_LIQUIDITY_USD } from "@/lib/trade/config";
 import type { CallData, PriceSubject, CallVerdict } from "@/lib/calls/types";
 import { priceSubjectFor } from "@/lib/calls/types";
@@ -71,7 +71,7 @@ async function coingeckoPrice(id: string): Promise<number | null> {
   try {
     const res = await fetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd`,
-      { next: { revalidate: 60 } }
+      { headers: cgHeaders(), next: { revalidate: 60 } }
     );
     if (!res.ok) return null;
     const body = (await res.json()) as Record<string, { usd?: number }>;

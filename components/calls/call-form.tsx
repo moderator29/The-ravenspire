@@ -21,7 +21,6 @@ import {
 import { CONFIDENCE_MAX, CONFIDENCE_MIN } from "@/lib/calls/scoring";
 import { MIN_STAKE, stakeBonus } from "@/lib/calls/stake";
 import {
-  CALL_CATEGORIES,
   CALL_TIMEFRAMES,
   type CallCategory,
   type CallData,
@@ -63,6 +62,19 @@ const CATEGORY_LABEL: Record<CallCategory, string> = {
   sport: "Sport",
   realm: "The realm",
 };
+
+/* Only the categories with a real, distinct resolver behind them today.
+   esports, gaming, culture and sport exist in CALL_CATEGORIES and in
+   IMPLEMENTED_RESOLVERS' own comment as the categories a community or manual
+   resolver would eventually settle, but that resolver was declined on cost
+   (docs/RAVENSPIRE-V2.md's own record of the decision) and never built, so
+   picking one of them here did nothing but silently fall back to the price
+   resolver: the member still had to name a real, tradeable token, and a
+   claim tagged "Esports" that only a coin ticker could settle is not an
+   esports claim, it is a mislabeled Crypto one. Offering a category with
+   nothing behind it is worse than not offering it, so this list is what
+   CALL_CATEGORIES is until community or manual actually lands. */
+const COMPOSABLE_CATEGORIES: CallCategory[] = ["markets", "realm"];
 
 /* The realm claims a member can actually seal today. member_tier and
    member_renown exist in the resolver and are not offered here, because both
@@ -471,7 +483,7 @@ export function CallForm({
       </div>
 
       <StreamChipRail label="Call category">
-        {CALL_CATEGORIES.map((c) => (
+        {COMPOSABLE_CATEGORIES.map((c) => (
           <StreamChip
             key={c}
             active={draft.category === c}

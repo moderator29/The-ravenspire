@@ -14,6 +14,7 @@ import { readListing } from "@/lib/commerce/market-board";
 import { tradeChainById } from "@/lib/trade/config";
 import { readHoard } from "@/lib/collectibles/hoard";
 import { normalizeCall } from "@/lib/calls/types";
+import { claimSentence } from "@/components/calls/claim";
 import { crests as crestCatalog, findCrest } from "@/components/brand/crests";
 import { CHEST_TIERS } from "@/lib/collectibles/warchests";
 import { SET_ONE } from "@/lib/collectibles/set-one";
@@ -200,6 +201,12 @@ export async function readKeepSubject(
 export type CallSubject = {
   token: string;
   stance: string;
+  /* The Call, written as the sentence it is (components/calls/claim.ts's
+     claimSentence), the one function that decides what a Call says for
+     every resolver, realm claims included. token and stance above stay as
+     they were for callers that only ever cared about the price resolver's
+     own shape; claim is what an outward-facing card should actually show. */
+  claim: string;
   verdict: "open" | "hit" | "miss" | "void";
   /* The Renown the settlement minted, present only once it has settled. */
   score: number | null;
@@ -253,6 +260,7 @@ export async function readCallSubject(
          the scorer names them; a card facing outward says which way the member
          actually called it. */
       stance: call.stance === "down" ? "DOWN" : "UP",
+      claim: claimSentence(call),
       verdict: (call.verdict ?? "open") as CallSubject["verdict"],
       score: typeof call.score === "number" ? call.score : null,
       confidence:
