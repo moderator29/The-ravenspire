@@ -6,7 +6,7 @@ import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { realmFetch } from "@/lib/auth/api";
 import { createClient } from "@/lib/supabase/client";
 import { BackButton } from "@/components/shell/back-button";
-import { Button, IconButton } from "@/components/ui/button";
+import { Button, IconButton, INLINE_TOUCH_TARGET } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cx } from "@/components/ui/cx";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,6 +21,7 @@ import {
   StreamEmpty,
   StreamList,
 } from "@/components/stream/stream-shell";
+import { isReaction, REACTIONS } from "@/lib/reactions";
 import { timeAgo } from "@/lib/social/types";
 
 /* Whispers, as the Stream archetype: one 640px column, comfortable density, a
@@ -47,12 +48,20 @@ interface Convo {
   unread: number;
 }
 
+interface MessageReaction {
+  profile_id: string;
+  reaction: string;
+}
+
 interface Message {
   id: string;
   sender_id: string;
   body: string | null;
   image_url: string | null;
   created_at: string;
+  /* At most one per member (app/api/whispers/messages/react). Defaults to
+     empty for a message this tab just sent optimistically. */
+  reactions: MessageReaction[];
   /* Local-only: an optimistic message not yet confirmed by the server. */
   pending?: boolean;
 }
@@ -131,6 +140,8 @@ export default function WhispersPage() {
      now, as far as this tab has heard. Cleared by its own timeout, not only
      by an explicit "stopped" signal that a closed tab would never send. */
   const [otherTyping, setOtherTyping] = useState(false);
+  /* Which message's reaction picker is open, at most one at a time. */
+  const [reactingTo, setReactingTo] = useState<string | null>(null);
 
   /* Image staged in the composer, uploaded and ready to send. */
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -191,6 +202,28 @@ export default function WhispersPage() {
       return [...pruned, incoming].sort(byTime);
     });
   }, []);
+
+  /* Apply one member's reaction (or its removal, when reaction is null) to a
+     single message, locally. The one function both the optimistic tap and
+     the realtime broadcast from the other participant funnel through, so the
+     two can never leave a message holding two rows for the same member. */
+  const setMessageReaction = useCallback(
+    (messageId: string, profileId: string, reaction: string | null) => {
+      setMsgs((prev) =>
+        (prev ?? []).map((m) => {
+          if (m.id !== messageId) return m;
+          const rest = m.reactions.filter((r) => r.profile_id !== profileId);
+          return {
+            ...m,
+            reactions: reaction
+              ? [...rest, { profile_id: profileId, reaction }]
+              : rest,
+          };
+        })
+      );
+    },
+    []
+  );
 
   const loadMessages = useCallback(async (conversation: string) => {
     const res = await realmFetch<{
@@ -271,6 +304,20 @@ export default function WhispersPage() {
         const at = data.at;
         setOtherReadAt((prev) => (prev && prev > at ? prev : at));
       })
+      .on("broadcast", { event: "reaction" }, (payload) => {
+        const data = payload.payload as
+          | { message_id?: string; profile_id?: string; reaction?: string | null }
+          | undefined;
+        /* My own reactions are already applied optimistically the moment I
+           tap one; this is only for the other participant's. Removal rides
+           the same event as null, which is the one shape isReaction does not
+           need to gate: only a real reaction has to be drawn from the six the
+           realm knows. */
+        if (!data?.message_id || !data.profile_id || data.profile_id === meId)
+          return;
+        if (data.reaction !== null && !isReaction(data.reaction)) return;
+        setMessageReaction(data.message_id, data.profile_id, data.reaction ?? null);
+      })
       .subscribe();
     channelRef.current = channel;
     return () => {
@@ -279,7 +326,7 @@ export default function WhispersPage() {
       setOtherTyping(false);
       void supabase.removeChannel(channel);
     };
-  }, [supabase, activeId, meId, mergeMessage]);
+  }, [supabase, activeId, meId, mergeMessage, setMessageReaction]);
 
   /* Gentle poll as a fallback so delivery is guaranteed even if a broadcast
      is missed (open thread, and the corridor for unread counts). */
@@ -406,6 +453,7 @@ export default function WhispersPage() {
       body: text || null,
       image_url: image,
       created_at: new Date().toISOString(),
+      reactions: [],
       pending: true,
     };
     mergeMessage(optimistic, true);
@@ -436,6 +484,27 @@ export default function WhispersPage() {
       setSendErr("The whisper was lost. Try again.");
     }
     setSending(false);
+  }
+
+  /* Toggled optimistically, then reconciled by the server's own answer: a
+     tap always applies locally first so the picker closes and the chip
+     appears without waiting on a round trip, and the response corrects it if
+     the toggle actually landed the other way (a race with a second tab, or a
+     reaction sent while this one was mid-flight). */
+  async function react(messageId: string, reaction: string) {
+    if (!meId) return;
+    const already = msgs
+      ?.find((m) => m.id === messageId)
+      ?.reactions.some((r) => r.profile_id === meId && r.reaction === reaction);
+    setReactingTo(null);
+    setMessageReaction(messageId, meId, already ? null : reaction);
+    const res = await realmFetch<{ ok: true; reaction: string | null }>(
+      "/api/whispers/messages/react",
+      { method: "POST", json: { message: messageId, reaction } }
+    );
+    if (res.ok && res.data) {
+      setMessageReaction(messageId, meId, res.data.reaction);
+    }
   }
 
   async function startWhisper(p: ProfileHit) {
@@ -615,6 +684,50 @@ export default function WhispersPage() {
                       </p>
                     )}
                   </Card>
+                  {/* Reactions actually standing on this message. At most
+                      two chips, since a whisper is read by exactly two
+                      people: one may be mine, one may be theirs. Tapping my
+                      own toggles it off; the other participant's is a fact,
+                      not a control. */}
+                  {m.reactions.length > 0 && (
+                    <div
+                      className={cx(
+                        "mt-1 flex flex-wrap gap-1",
+                        mine ? "justify-end" : "justify-start"
+                      )}
+                    >
+                      {m.reactions.map((r) => {
+                        const isMine = r.profile_id === meId;
+                        return (
+                          <button
+                            key={r.profile_id}
+                            type="button"
+                            aria-label={
+                              isMine
+                                ? `Remove your ${r.reaction} reaction`
+                                : `Reacted with ${r.reaction}`
+                            }
+                            onClick={() => isMine && void react(m.id, r.reaction)}
+                            disabled={!isMine}
+                            className={cx(
+                              "flex h-6 min-w-6 items-center justify-center rounded-[var(--radius-sm)] border px-1",
+                              isMine
+                                ? cx(INLINE_TOUCH_TARGET, "border-gold/40 bg-gold/10")
+                                : "cursor-default border-steel-line bg-panel"
+                            )}
+                          >
+                            <Icon
+                              name={r.reaction}
+                              className={cx(
+                                "h-3.5 w-3.5",
+                                isMine ? "text-gold" : "text-bone-faint"
+                              )}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   <span className="tnum mt-0.5 flex items-center gap-1 px-1 text-[10px] text-bone-faint">
                     {m.pending ? "Sending" : timeAgo(m.created_at)}
                     {mine && myLastReadId === m.id && (
@@ -624,7 +737,38 @@ export default function WhispersPage() {
                         <span className="text-gold">Read</span>
                       </>
                     )}
+                    {!m.pending && (
+                      <IconButton
+                        icon="plus"
+                        label={reactingTo === m.id ? "Close reactions" : "React"}
+                        size="sm"
+                        variant="ghost"
+                        className="h-5 w-5 border-0"
+                        onClick={() =>
+                          setReactingTo((cur) => (cur === m.id ? null : m.id))
+                        }
+                      />
+                    )}
                   </span>
+                  {reactingTo === m.id && (
+                    <div
+                      className={cx(
+                        "mt-1 flex items-center gap-1 rounded-[var(--radius-md)] border border-steel-line bg-panel p-1",
+                        mine ? "flex-row-reverse" : "flex-row"
+                      )}
+                    >
+                      {REACTIONS.map((r) => (
+                        <IconButton
+                          key={r}
+                          icon={r}
+                          label={`React with ${r}`}
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => void react(m.id, r)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -3,9 +3,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/notifications";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { isRealmMediaUrl } from "@/lib/social/media-url";
-import { uuid } from "@/lib/validate";
-
-type Db = NonNullable<ReturnType<typeof adminClient>>;
+import { assertMember, blockedBetween, broadcast } from "@/lib/whispers/guard";
 
 interface WhisperMessage {
   id: string;
@@ -13,58 +11,9 @@ interface WhisperMessage {
   body: string | null;
   image_url: string | null;
   created_at: string;
-}
-
-async function assertMember(
-  db: Db,
-  conversationId: string,
-  profileId: string
-) {
-  const { data } = await db
-    .from("conversation_members")
-    .select("conversation_id")
-    .eq("conversation_id", conversationId)
-    .eq("profile_id", profileId)
-    .maybeSingle();
-  return Boolean(data);
-}
-
-/* True when this send must be refused because one of the two members has
-   blocked the other. Answers false for anything that is not a pair, and false
-   when the lookup itself fails: a blocks table that cannot be read must not
-   silence a conversation, and the door is still closed at creation time. Both
-   ids are proven uuids before they reach the .or() filter, where , ( ) and .
-   are grammar a crafted value could otherwise rewrite (lib/validate.ts).
-
-   The pair check is not a defensive fallback for a case that cannot happen;
-   it is the actual shape of every whisper. Whispers is dm only by decision,
-   not by accident (the 20260908160000 migration constrains
-   conversations.kind to 'dm' at the database level): a group would need this
-   function to walk every member rather than bail at two, and building that
-   safely, not merely relaxing the insert that names a conversation's kind, is
-   the real work group whispers would take. */
-async function blockedBetween(
-  db: Db,
-  conversationId: string,
-  profileId: string
-): Promise<boolean> {
-  const { data: members } = await db
-    .from("conversation_members")
-    .select("profile_id")
-    .eq("conversation_id", conversationId)
-    .limit(3);
-  const ids = (members ?? []).map((m) => m.profile_id as string);
-  if (ids.length !== 2) return false;
-  const other = ids.find((id) => id !== profileId);
-  if (!other || !uuid(other) || !uuid(profileId)) return false;
-  const { data: blocked } = await db
-    .from("blocks")
-    .select("blocker_id")
-    .or(
-      `and(blocker_id.eq.${profileId},blocked_id.eq.${other}),and(blocker_id.eq.${other},blocked_id.eq.${profileId})`
-    )
-    .limit(1);
-  return Boolean(blocked?.length);
+  /* Every reaction currently standing on this message, at most one per
+     member (see lib/whispers/guard.ts's neighbour, the react route). */
+  reactions: { profile_id: string; reaction: string }[];
 }
 
 /* Only images uploaded to our own public media shelf may travel in a whisper.
@@ -81,37 +30,6 @@ async function blockedBetween(
    member expected to close a door left it exactly as wide as it was. Only
    two-member threads are judged, because a block between two people in a room
    of six is not a reason to silence one of them for everybody. */
-
-/* Fire a realtime broadcast through Supabase's HTTP endpoint using the service
-   role. Topics are keyed on the secret conversation id (a v4 UUID only the two
-   participants ever receive), so no message content is exposed through the
-   public anon key the way an RLS-open table would be. Best effort: the message
-   is already persisted, and the client polls as a fallback, so a broadcast
-   failure never loses a whisper. */
-async function broadcast(
-  topic: string,
-  event: string,
-  payload: Record<string, unknown>
-): Promise<void> {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !key) return;
-  try {
-    await fetch(`${base}/realtime/v1/api/broadcast`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        apikey: key,
-        authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        messages: [{ topic, event, payload, private: false }],
-      }),
-    });
-  } catch {
-    /* realtime is a nicety, never a requirement */
-  }
-}
 
 export async function GET(req: Request) {
   const profile = await requireProfile(req);
@@ -130,6 +48,33 @@ export async function GET(req: Request) {
     .eq("conversation_id", conversation)
     .order("created_at", { ascending: true })
     .limit(200);
+
+  const ids = (messages ?? []).map((m) => m.id as string);
+  const { data: reactionRows } = ids.length
+    ? await db
+        .from("message_reactions")
+        .select("message_id, profile_id, reaction")
+        .in("message_id", ids)
+    : { data: [] as { message_id: string; profile_id: string; reaction: string }[] };
+
+  const reactionsByMessage = new Map<
+    string,
+    { profile_id: string; reaction: string }[]
+  >();
+  for (const row of (reactionRows ?? []) as {
+    message_id: string;
+    profile_id: string;
+    reaction: string;
+  }[]) {
+    const list = reactionsByMessage.get(row.message_id);
+    const entry = { profile_id: row.profile_id, reaction: row.reaction };
+    if (list) list.push(entry);
+    else reactionsByMessage.set(row.message_id, [entry]);
+  }
+  const withReactions: WhisperMessage[] = (messages ?? []).map((m) => ({
+    ...(m as Omit<WhisperMessage, "reactions">),
+    reactions: reactionsByMessage.get(m.id as string) ?? [],
+  }));
 
   /* The other participant's own last_read_at, read before this member's write
      below overwrites the row that matters, so a thread opened after the other
@@ -161,7 +106,7 @@ export async function GET(req: Request) {
 
   return json({
     me: profile.id,
-    messages: (messages ?? []) as WhisperMessage[],
+    messages: withReactions,
     otherReadAt: (otherMember?.last_read_at as string | null) ?? null,
   });
 }
@@ -225,7 +170,10 @@ export async function POST(req: Request) {
     .update({ last_message_at: now })
     .eq("id", body.conversation);
 
-  const message = created as WhisperMessage;
+  const message: WhisperMessage = {
+    ...(created as Omit<WhisperMessage, "reactions">),
+    reactions: [],
+  };
 
   /* Notify the open thread instantly, then nudge every other participant's
      personal channel so their conversation corridor reorders and lights up

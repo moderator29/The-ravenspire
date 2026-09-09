@@ -17,6 +17,7 @@ import { RoomAudio } from "@/components/rooms/room-audio";
 import { BackButton } from "@/components/shell/back-button";
 import { useIsMobile } from "@/components/ui/sheet";
 import { Skeleton, useDelayedLoading } from "@/components/ui/skeleton";
+import { isReaction, REACTIONS } from "@/lib/reactions";
 import { timeAgo } from "@/lib/social/types";
 
 /* A court, as the Dossier archetype: hero band, then tabs, then panels.
@@ -88,8 +89,6 @@ export interface FloatingReaction {
   handle: string | null;
   left: number;
 }
-
-const REACTIONS = ["heart", "flame", "crown", "swords", "medal", "shield"];
 
 /* The floating reaction is the one deliberately slow motion on this surface,
    and it is ornament rather than interface, so it degrades to a plain fade
@@ -266,7 +265,7 @@ export function RoomLive({ roomId }: { roomId: string }) {
         const r = payload.payload as
           | { reaction?: string; handle?: string | null }
           | undefined;
-        if (!r?.reaction || !REACTIONS.includes(r.reaction)) return;
+        if (!r?.reaction || !isReaction(r.reaction)) return;
         const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const left = 8 + Math.random() * 78;
         setFloats((prev) => [
