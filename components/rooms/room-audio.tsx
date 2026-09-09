@@ -10,7 +10,7 @@ import {
   type TrackPublication,
 } from "livekit-client";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
@@ -62,6 +62,12 @@ export interface StageFace {
   avatar_url: string | null;
   display_name: string | null;
   handle: string | null;
+  /* Present when the caller is the room's roster (RosterEntry in
+     room-live.tsx, a superset of this shape): the seat's real role and
+     whether the host has silenced it. Optional so a caller that has not
+     wired up host controls still type-checks. */
+  role?: string;
+  muted?: boolean;
 }
 
 /* The pulse is the one piece of ambient motion this surface earns (house rule
@@ -122,6 +128,7 @@ export function RoomAudio({
   roomId,
   roster,
   floats,
+  isHost,
 }: {
   roomId: string;
   /* The room's roster, already fetched by the caller: real faces for the
@@ -134,6 +141,11 @@ export function RoomAudio({
      moment rather than nothing at all. Optional so the stage still renders
      for a caller that has not wired this up. */
   floats?: FloatingReaction[];
+  /* The caller (room-live.tsx) already knows host from guest server-side, off
+     the same room detail this stage's roster prop comes from. Host controls
+     render only when this is true: a non-host must never see them, and this
+     component has no independent way to check who the host is. */
+  isHost?: boolean;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -144,6 +156,13 @@ export function RoomAudio({
   const [soundBlocked, setSoundBlocked] = useState(false);
   const [people, setPeople] = useState<Speaker[]>([]);
   const [speaking, setSpeaking] = useState<Set<string>>(new Set());
+  /* Host controls: which identity's mute/remove action is in flight, keyed
+     per row like room-live's own memberBusy, so acting on one speaker tile
+     never disables every other tile's controls while the request is out. */
+  const [ctrlBusy, setCtrlBusy] = useState<{
+    identity: string;
+    action: "mute" | "unmute" | "demote";
+  } | null>(null);
 
   const roomRef = useRef<Room | null>(null);
   const audioBinRef = useRef<HTMLDivElement | null>(null);
@@ -327,12 +346,23 @@ export function RoomAudio({
       .channel(`rooms:court:${roomId}`)
       .on("broadcast", { event: "presence" }, (payload) => {
         const data = payload.payload as
-          | { promoted?: string; demoted?: string }
+          | {
+              promoted?: string;
+              demoted?: string;
+              speakerMuted?: string;
+              speakerUnmuted?: string;
+            }
           | undefined;
         const room = roomRef.current;
         if (!room) return;
         const me = room.localParticipant.identity;
-        if (data?.promoted !== me && data?.demoted !== me) return;
+        if (
+          data?.promoted !== me &&
+          data?.demoted !== me &&
+          data?.speakerMuted !== me &&
+          data?.speakerUnmuted !== me
+        )
+          return;
         teardown();
         void connect();
       })
@@ -341,6 +371,32 @@ export function RoomAudio({
       void supabase.removeChannel(channel);
     };
   }, [supabase, roomId, teardown, connect]);
+
+  /* Host controls: mute a speaker's mic (they keep their seat, publish rights
+     are revoked at the token) or remove them from the stage entirely (the
+     existing demote, which returns them to listener). Follows the exact
+     pattern room-live.tsx's own actOnMember uses for promote/demote: a
+     server route that checks the caller is genuinely the host, then a
+     broadcast the AFFECTED member's own client reconnects on (see the effect
+     above). The optimistic state here is only the row's own busy flag; the
+     roster (and so this component's `roster` prop) refreshes off the same
+     broadcast via room-live's loadRoom(). */
+  const hostAct = useCallback(
+    async (action: "mute" | "unmute" | "demote", identity: string) => {
+      if (ctrlBusy) return;
+      setCtrlBusy({ identity, action });
+      await realmFetch("/api/rooms", {
+        method: "POST",
+        json: {
+          action,
+          room_id: roomId,
+          profile_id: identity,
+        },
+      });
+      setCtrlBusy(null);
+    },
+    [ctrlBusy, roomId]
+  );
 
   const toggleMic = useCallback(async () => {
     const room = roomRef.current;
@@ -379,6 +435,16 @@ export function RoomAudio({
     return map;
   }, [roster]);
 
+  /* Whether THIS member is a speaker the host has muted, distinct from never
+     having been promoted at all: the empty state below needs the true reason,
+     not a generic "you are listening" that leaves a silenced speaker
+     wondering why their own unmute button vanished. */
+  const localFace = useMemo(() => {
+    const local = people.find((p) => p.isLocal);
+    return local ? faceMap.get(local.identity) : undefined;
+  }, [people, faceMap]);
+  const hostMutedMe = localFace?.role === "speaker" && localFace?.muted === true;
+
   /* Spoken state, for the members who cannot see the panel change. Kept out of
      the visual tree so the polite region never wraps the controls themselves,
      which would re-announce the whole stage on every mic press. */
@@ -390,7 +456,9 @@ export function RoomAudio({
           ? micOn
             ? "You are live on the audio stage with your microphone open."
             : "You are live on the audio stage with your microphone muted."
-          : "You are listening to the audio stage."
+          : hostMutedMe
+            ? "The host has muted your voice. You are still listening."
+            : "You are listening to the audio stage."
         : status === "error" || status === "unavailable"
           ? (error ?? "The audio stage is not open.")
           : "You have not entered the audio stage.";
@@ -501,16 +569,31 @@ export function RoomAudio({
             <ul aria-label="On the stage" className="flex flex-wrap gap-3">
               {people.map((p) => {
                 const isSpeaking = speaking.has(p.identity);
-                const muted = p.isLocal && p.canPublish && !micOn;
                 const face = faceMap.get(p.identity);
+                /* A host mute overrides the local mic reading: once the
+                   silenced member's own client reconnects with publish
+                   rights revoked, p.canPublish goes false and this becomes
+                   the only signal left that the seat is a muted SPEAKER
+                   rather than a plain listener. */
+                const hostMuted = face?.muted === true;
+                const muted = (p.isLocal && p.canPublish && !micOn) || hostMuted;
                 const label = p.isLocal ? "You" : (face?.display_name ?? face?.handle ?? p.name);
                 const letter = (face?.display_name ?? face?.handle ?? p.name)
                   .slice(0, 1)
                   .toUpperCase();
+                /* Host controls: only the host sees these, only on a seat
+                   that genuinely holds the floor. A listener has nothing to
+                   mute or remove from a stage they are not on. */
+                const showHostControls =
+                  isHost && !p.isLocal && face?.role === "speaker";
+                const rowBusy = ctrlBusy?.identity === p.identity;
                 return (
                   <li
                     key={p.identity}
-                    className="flex w-14 flex-col items-center gap-1.5"
+                    className={cx(
+                      "flex flex-col items-center gap-1.5",
+                      showHostControls ? "w-16" : "w-14"
+                    )}
                   >
                     <span className="relative flex h-11 w-11 shrink-0 items-center justify-center">
                       {/* Ambient only while genuinely live: a real signal from
@@ -546,7 +629,7 @@ export function RoomAudio({
                           letter
                         )}
                       </span>
-                      {p.canPublish ? (
+                      {p.canPublish || face?.role === "speaker" ? (
                         <span
                           aria-hidden
                           className={cx(
@@ -569,8 +652,32 @@ export function RoomAudio({
                     </span>
                     <span className="sr-only">
                       {isSpeaking ? "Speaking now. " : ""}
-                      {muted ? "Microphone muted." : ""}
+                      {hostMuted ? "Muted by the host. " : muted ? "Microphone muted. " : ""}
                     </span>
+                    {showHostControls && (
+                      <div className="flex items-center gap-0.5">
+                        <IconButton
+                          icon={hostMuted ? "signal" : "close"}
+                          label={hostMuted ? `Restore ${label}'s voice` : `Mute ${label}`}
+                          size="sm"
+                          dense
+                          variant="ghost"
+                          disabled={rowBusy}
+                          onClick={() =>
+                            void hostAct(hostMuted ? "unmute" : "mute", p.identity)
+                          }
+                        />
+                        <IconButton
+                          icon="chevron-down"
+                          label={`Move ${label} back to listening`}
+                          size="sm"
+                          dense
+                          variant="ghost"
+                          disabled={rowBusy}
+                          onClick={() => void hostAct("demote", p.identity)}
+                        />
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -609,6 +716,17 @@ export function RoomAudio({
                 )}
                 {micOn ? "Mute your voice" : "Unmute your voice"}
               </Button>
+            ) : hostMutedMe ? (
+              /* No dead end: a muted member sees exactly why, not a silent
+                 loss of audio dressed up as the ordinary listener copy. */
+              <p className="text-xs text-bone-mut">
+                <Icon
+                  name="alert"
+                  className="mr-1 inline h-3.5 w-3.5 text-gold"
+                />
+                The host has muted your voice. You still hold your seat and
+                can hear the stage; ask the host to restore it.
+              </p>
             ) : (
               /* Honest about what this seat can do. Publish rights are read
                  from the member's seat when the token is minted, so a raised

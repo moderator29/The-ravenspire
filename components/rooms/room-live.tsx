@@ -49,6 +49,9 @@ interface RosterEntry {
   profile_id: string;
   role: string;
   joined_at: string;
+  /* Host controls: silenced by the host without being demoted. See
+     room-audio.tsx, which is what actually acts on it. */
+  muted: boolean;
   handle: string | null;
   display_name: string | null;
   avatar_url: string | null;
@@ -963,7 +966,12 @@ export function RoomLive({ roomId }: { roomId: string }) {
           court has no stage to enter. */}
       {!ended && (
         <div className="mt-3">
-          <RoomAudio roomId={detail.id} roster={detail.roster} floats={floats} />
+          <RoomAudio
+            roomId={detail.id}
+            roster={detail.roster}
+            floats={floats}
+            isHost={isHost}
+          />
         </div>
       )}
 

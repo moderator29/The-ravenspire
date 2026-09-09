@@ -67,7 +67,7 @@ async function roomDetail(id: string) {
   const [{ data: parts }, { data: host }] = await Promise.all([
     db
       .from("room_participants")
-      .select("profile_id, role, joined_at")
+      .select("profile_id, role, joined_at, muted")
       .eq("room_id", id)
       .order("joined_at", { ascending: true }),
     db
@@ -126,6 +126,7 @@ async function roomDetail(id: string) {
           profile_id: p.profile_id,
           role: p.role,
           joined_at: p.joined_at,
+          muted: p.muted === true,
           handle: face?.handle ?? null,
           display_name: face?.display_name ?? null,
           avatar_url: face?.avatar_url ?? null,
@@ -421,9 +422,13 @@ export async function POST(req: Request) {
       return json({ error: "That member is not seated in this court." }, 404);
 
     const role = body.action === "promote" ? "speaker" : "listener";
+    /* A demote also clears any standing host mute: the role that mute applies
+       to is gone, and a member re-promoted later should not silently inherit
+       an old mute nobody told them about. A promote resets it too, defensively,
+       so a fresh seat never opens pre-silenced. */
     const { error } = await db
       .from("room_participants")
-      .update({ role })
+      .update({ role, muted: false })
       .eq("room_id", room.id)
       .eq("profile_id", body.profile_id);
     if (error) return json({ error: error.message }, 500);
@@ -434,6 +439,59 @@ export async function POST(req: Request) {
       body.action === "promote"
         ? { promoted: body.profile_id }
         : { demoted: body.profile_id }
+    );
+    return json({ ok: true });
+  }
+
+  /* Host controls, the other half of raising a seat: silence a speaker's mic
+     without demoting them off the roster. `muted` lives on room_participants
+     (see 20260909150102_room_participants_host_mute.sql) and is read by
+     /api/rooms/token on every mint, so it survives a reconnect rather than
+     being an in-memory nicety the member could shake off by rejoining. The
+     client listens for this exact broadcast on its own identity (same as
+     promote/demote) and reconnects to pick up a token whose publish rights
+     now honestly reflect it. */
+  if (body.action === "mute" || body.action === "unmute") {
+    if (!body.room_id || !body.profile_id)
+      return json({ error: "bad request" }, 400);
+    const { data: room } = await db
+      .from("rooms")
+      .select("id, host_id, status")
+      .eq("id", body.room_id)
+      .maybeSingle();
+    if (!room) return json({ error: "No such court." }, 404);
+    if (room.host_id !== profile.id)
+      return json({ error: "Only the host may mute a voice." }, 403);
+    if (room.status === "ended")
+      return json({ error: "That court has adjourned." }, 409);
+    if (body.profile_id === room.host_id)
+      return json({ error: "The host cannot be muted." }, 400);
+
+    const { data: target } = await db
+      .from("room_participants")
+      .select("profile_id, role")
+      .eq("room_id", room.id)
+      .eq("profile_id", body.profile_id)
+      .maybeSingle();
+    if (!target)
+      return json({ error: "That member is not seated in this court." }, 404);
+    if (target.role !== "speaker")
+      return json({ error: "That member is not on the stage." }, 400);
+
+    const muted = body.action === "mute";
+    const { error } = await db
+      .from("room_participants")
+      .update({ muted })
+      .eq("room_id", room.id)
+      .eq("profile_id", body.profile_id);
+    if (error) return json({ error: error.message }, 500);
+
+    await broadcast(
+      `rooms:court:${room.id}`,
+      "presence",
+      muted
+        ? { speakerMuted: body.profile_id }
+        : { speakerUnmuted: body.profile_id }
     );
     return json({ ok: true });
   }

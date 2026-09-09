@@ -109,16 +109,22 @@ export async function POST(req: Request) {
       );
   }
 
-  // Publish rights: host or a promoted speaker.
+  // Publish rights: host, or a promoted speaker the host has not muted.
+  // `muted` is read fresh on every mint (see app/api/rooms/route.ts's
+  // mute/unmute actions), so a member cannot pick up publish rights back by
+  // simply reconnecting: the token is honest about the CURRENT seat, not the
+  // one held when an older token was issued.
   let canPublish = isHost;
   if (!isHost) {
     const { data: part } = await db
       .from("room_participants")
-      .select("role")
+      .select("role, muted")
       .eq("room_id", roomId)
       .eq("profile_id", profile.id)
       .maybeSingle();
-    canPublish = part?.role === "speaker" || part?.role === "host";
+    canPublish =
+      (part?.role === "speaker" || part?.role === "host") &&
+      part?.muted !== true;
   }
 
   const name = profile.display_name ?? profile.handle ?? "A member";
