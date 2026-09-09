@@ -34,7 +34,15 @@ async function assertMember(
    when the lookup itself fails: a blocks table that cannot be read must not
    silence a conversation, and the door is still closed at creation time. Both
    ids are proven uuids before they reach the .or() filter, where , ( ) and .
-   are grammar a crafted value could otherwise rewrite (lib/validate.ts). */
+   are grammar a crafted value could otherwise rewrite (lib/validate.ts).
+
+   The pair check is not a defensive fallback for a case that cannot happen;
+   it is the actual shape of every whisper. Whispers is dm only by decision,
+   not by accident (the 20260908160000 migration constrains
+   conversations.kind to 'dm' at the database level): a group would need this
+   function to walk every member rather than bail at two, and building that
+   safely, not merely relaxing the insert that names a conversation's kind, is
+   the real work group whispers would take. */
 async function blockedBetween(
   db: Db,
   conversationId: string,

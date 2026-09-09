@@ -41,7 +41,6 @@ interface ConvoOther {
 
 interface Convo {
   id: string;
-  kind: string;
   title: string | null;
   last_message_at: string | null;
   other: ConvoOther | null;

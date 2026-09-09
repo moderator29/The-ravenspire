@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
   const { data: convos } = await db
     .from("conversations")
-    .select("id, kind, title, last_message_at")
+    .select("id, title, last_message_at")
     .in("id", ids)
     .order("last_message_at", { ascending: false })
     .limit(50);
@@ -88,7 +88,10 @@ export async function POST(req: Request) {
   if (blocked?.length)
     return json({ error: "That door is closed." }, 403);
 
-  /* Reuse an existing dm between the pair. */
+  /* Reuse an existing dm between the pair. Whispers is dm only (see the
+     20260908160000 migration): conversations.kind can hold nothing else, so
+     the shared conversation this finds is always the one to reuse without
+     having to disambiguate by kind at all. */
   const { data: mine } = await db
     .from("conversation_members")
     .select("conversation_id")
@@ -97,7 +100,7 @@ export async function POST(req: Request) {
   if (mineIds.length) {
     const { data: shared } = await db
       .from("conversation_members")
-      .select("conversation_id, conversations!inner(kind)")
+      .select("conversation_id")
       .eq("profile_id", body.with)
       .in("conversation_id", mineIds)
       .limit(1);
@@ -105,6 +108,12 @@ export async function POST(req: Request) {
     if (existing) return json({ id: existing });
   }
 
+  /* dm is the only kind this table has ever held, and the column now
+     enforces it: nothing here reasons about a group. app/api/whispers/messages
+     assumes exactly two members throughout, most importantly in its own
+     block check, which silently treats any conversation of a different size
+     as not blocked. Building a real group whisper would mean fixing that
+     first, not relaxing this insert. */
   const { data: convo, error } = await db
     .from("conversations")
     .insert({ kind: "dm" })
