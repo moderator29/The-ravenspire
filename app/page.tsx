@@ -12,6 +12,7 @@ import { comingSoonNav } from "@/lib/nav";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { RealmIntro } from "@/components/landing/realm-intro";
+import { TheMoat } from "@/components/landing/the-moat";
 import { NonCustodial } from "@/components/landing/non-custodial";
 import { PlatformPreview } from "@/components/landing/platform-preview";
 import { TheChampions } from "@/components/landing/the-champions";
@@ -234,18 +235,34 @@ export default function Landing() {
             THE RAVENSPIRE
           </motion.h1>
           <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="mt-6 font-display text-xl font-semibold text-bone sm:text-2xl"
+          >
+            Make the call. <span className="gold-text">Earn your name.</span>
+          </motion.p>
+          {/* The thesis, not the feature list. A member does not come back
+              because The War exists; every social game has a game. They come
+              back because what they were right about last month is still
+              theirs, in public, and nothing they do here can be taken away
+              or bought by someone who was not. That is the one sentence the
+              hero has to land before anything else on the page gets a
+              chance to. */}
+          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.5 }}
-            className="mt-5 max-w-xl text-base text-bone-mut sm:text-lg"
+            transition={{ duration: 0.8, delay: 0.62 }}
+            className="mt-3 max-w-xl text-base text-bone-mut sm:text-lg"
           >
-            Play the War. Collect the champions. Join a House.{" "}
-            <span className="font-semibold text-gold">Own the relics.</span>
+            A public prediction, scored the instant you seal it against the
+            token&rsquo;s own real difficulty, becomes a reputation nobody can
+            buy, borrow, or take back.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.65 }}
+            transition={{ duration: 0.7, delay: 0.72 }}
             className="mt-9 flex flex-wrap items-center justify-center gap-4"
           >
             <Button variant="gold" size="lg" render={<Link href={ctaHref} />}>
@@ -253,10 +270,10 @@ export default function Landing() {
               <LandingIcon name="arrowRight" className="h-4 w-4" />
             </Button>
             <Link
-              href="/chronicle"
+              href="/chronicles"
               className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-bone-mut transition hover:text-bone"
             >
-              Discover the realm
+              Read the Chronicles
               <LandingIcon name="arrowUpRight" className="h-4 w-4" />
             </Link>
           </motion.div>
@@ -286,6 +303,11 @@ export default function Landing() {
         <div className="relative mx-auto max-w-5xl space-y-16 px-4 pb-16 sm:space-y-20 sm:px-6">
           {/* Introduction + Mission / Vision / History */}
           <RealmIntro />
+
+          {/* Why this exists, why it is different, and why now. The
+              section the page did not have: proof by contrast rather than
+              a features list, right before the numbers back it up. */}
+          <TheMoat />
 
           {/* The realm in numbers */}
           <StatsStrip />

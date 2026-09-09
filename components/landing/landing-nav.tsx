@@ -35,7 +35,12 @@ const links: NavLink[] = [
   { label: "Features", target: "features", icon: "features" },
   { label: "Games", target: "games", icon: "games" },
   { label: "The Realm", target: "realm", icon: "realm" },
-  { label: "Docs", target: "/chronicle", icon: "docs", route: true },
+  /* The one link on this bar that leaves the pitch and enters the proof.
+     `/chronicle` (singular) is a different, private surface, a signed-in
+     member's own Herald digest; `/chronicles` is the public world document
+     this exact nav item now points to, and the two must never be confused
+     at the URL level. */
+  { label: "Chronicles", target: "/chronicles", icon: "docs", route: true },
 ];
 
 export function LandingNav({
@@ -157,10 +162,14 @@ export function LandingNav({
               control. 12px is the rung the scale names for nav items. */}
           {links.map((l) =>
             l.route ? (
+              /* The one link on this bar that leaves the page rather than
+                 jumping within it, so it is the one link that reads as gold
+                 rather than bone: a visitor should be able to tell, without
+                 clicking, that this is a door and the rest are anchors. */
               <Link
                 key={l.label}
                 href={l.target}
-                className="whitespace-nowrap rounded-md px-3 py-2 text-[13px] font-medium text-bone-mut transition hover:bg-gold/5 hover:text-bone"
+                className="whitespace-nowrap rounded-md px-3 py-2 text-[13px] font-semibold text-gold transition hover:bg-gold/8 hover:text-gold-bright"
               >
                 {l.label}
               </Link>

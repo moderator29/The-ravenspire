@@ -29,6 +29,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: number;
   }[] = [
     { path: "/", changeFrequency: "weekly", priority: 1 },
+    /* The public world document. Same rule as everything else here: it is
+       genuinely readable signed out, so it earns a row. */
+    { path: "/chronicles", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/chronicles/system", changeFrequency: "monthly", priority: 0.7 },
+    { path: "/chronicles/philosophy", changeFrequency: "monthly", priority: 0.7 },
+    { path: "/chronicles/economy", changeFrequency: "monthly", priority: 0.7 },
+    { path: "/chronicles/roadmap", changeFrequency: "monthly", priority: 0.7 },
     /* Season Zero. It qualifies under the rule above rather than around it:
        the founding round was added to PUBLIC_PATTERNS in lib/share/links.ts,
        so a signed-out visitor genuinely reads it instead of meeting the gate.

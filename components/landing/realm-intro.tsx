@@ -29,20 +29,20 @@ const pillars: Pillar[] = [
   {
     icon: "accuracy",
     kicker: "Mission",
-    title: "Make the on-chain world a place worth living in",
-    body: "Give people a home where the social life comes first and the serious crypto tools sit quietly beneath it, honest, non-custodial, and genuinely fun to open every day.",
+    title: "A home for the on-chain world, not just a terminal for it",
+    body: "Serious portfolio, safety and market tools, real and non-custodial down to the last signature, sitting quietly beneath a social life people actually want to open every day. Crypto is the infrastructure here. It was never meant to be the whole point.",
   },
   {
     icon: "scrying",
     kicker: "Vision",
-    title: "A realm where reputation is the real currency",
-    body: "A world of Houses, champions and Seasons where standing is earned in the open, never bought, and every wallet, Call and victory is proven against real data. Renown you earn is permanent and can never be taken back.",
+    title: "Standing that compounds instead of resetting",
+    body: "Most platforms hand you a score that dies the day you close the tab. Renown is permanent, earned in the open against real outcomes, and cannot be bought, borrowed, or gamed from a browser. It is the one thing you build here that is still yours a year from now.",
   },
   {
     icon: "chronicle",
     kicker: "History",
-    title: "Built by people tired of soulless dashboards",
-    body: "The Ravenspire began as a rebellion against cold terminals and empty hype. We set out to wrap real portfolio, safety and market tools in a living story people actually enjoy.",
+    title: "Built against soulless dashboards and mercenary markets",
+    body: "Two builders, tired of terminals with no memory and prediction markets that pay you and forget you existed the moment the position closes. We wanted a place where being right meant something the day after, not only the day of.",
   },
 ];
 
@@ -63,17 +63,18 @@ export function RealmIntro() {
           What is The Ravenspire
         </span>
         <h2 className="mt-5 font-display text-3xl font-semibold text-bone sm:text-4xl">
-          A premium social realm with{" "}
-          <span className="gold-text">real crypto beneath it</span>
+          A world you belong to,{" "}
+          <span className="gold-text">not a feed you scroll</span>
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-relaxed text-bone-mut sm:text-base">
           The Ravenspire is the competitive arena where crypto conviction earns
-          a name that can&rsquo;t be bought. You post, you argue, you swear to a House and
-          you make Calls the realm keeps a record of, while a full suite of
-          portfolio, safety and market tools works underneath, reading only real
-          on-chain data. A wallet is minted to you on sign-up and the keys are
-          yours alone. We never hold your funds, and everything of worth is
-          earned, never bought.
+          a name that can&rsquo;t be bought. You post, you argue, you swear to a
+          House, and you make Calls the realm scores against the token&rsquo;s
+          own real difficulty, never a coin flip dressed up as one, while a
+          full suite of portfolio, safety and market tools works underneath,
+          reading only real on-chain data. A wallet is minted to you on
+          sign-up and the keys are yours alone. We never hold your funds, and
+          everything of worth here is earned, never bought.
         </p>
       </motion.div>
 
