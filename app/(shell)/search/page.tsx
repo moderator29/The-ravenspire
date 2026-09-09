@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/field";
-import { Button, IconButton } from "@/components/ui/button";
+import { Button, IconButton, Spinner } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BackButton } from "@/components/shell/back-button";
 import { Avatar } from "@/components/social/avatar";
@@ -184,7 +184,7 @@ function SearchBody() {
           </p>
         ) : searching && results === null ? (
           <div className="flex items-center gap-2 px-1 text-sm text-bone-faint">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" />
+            <Spinner className="text-gold" />
             Searching the realm...
           </div>
         ) : failed ? (

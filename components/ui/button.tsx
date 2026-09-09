@@ -323,15 +323,27 @@ export function IconButton({
 }
 
 /* A ring, not a bouncing dot. Rotation is a transform, so it composites on the
-   GPU and never triggers layout. */
-function Spinner({ size }: { size: ButtonSize }) {
+   GPU and never triggers layout.
+
+   Exported, because a loading state outside a Button still needs the realm's
+   one spinner rather than a hand rolled `animate-spin` ring: the search page
+   drew its own copy of exactly this markup (a bordered circle, `border-t`
+   dropped to fake the gap) before this was reachable from outside the file. */
+export function Spinner({
+  size = "md",
+  className,
+}: {
+  size?: ButtonSize;
+  className?: string;
+}) {
   return (
     <span
       aria-hidden
       className={cx(
         "inline-block shrink-0 animate-spin rounded-[var(--radius-full)]",
         "border-2 border-current border-t-transparent opacity-70",
-        size === "sm" ? "h-3 w-3" : size === "lg" ? "h-4.5 w-4.5" : "h-4 w-4"
+        size === "sm" ? "h-3 w-3" : size === "lg" ? "h-4.5 w-4.5" : "h-4 w-4",
+        className
       )}
     />
   );
