@@ -17,8 +17,8 @@ import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/ui/icon";
+import { NotifFace } from "@/components/notifications/notif-face";
 import {
-  NOTIF_KIND_ICON,
   NOTIF_KIND_TEXT,
   notifActorName,
   notifHref,
@@ -201,26 +201,7 @@ export function NotificationsProvider({
           <div className="pointer-events-none fixed inset-x-0 top-3 z-toast flex flex-col items-center gap-2 px-3 sm:inset-x-auto sm:right-4 sm:items-end">
             {toasts.map((t) => (
               <Card key={t.key} render={<Link href={t.href} onClick={() => dismissToast(t.key)} />} variant="warm" pad="md" elevation="overlay" className="notif-toast pointer-events-auto flex w-full max-w-sm items-start gap-3 transition hover:border-gold/40">
-                <span className="relative shrink-0">
-                  <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-steel-line bg-panel font-display text-sm text-gold">
-                    {t.actor?.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={t.actor.avatar_url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      notifActorName(t.actor).slice(0, 1).toUpperCase()
-                    )}
-                  </span>
-                  <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-steel-line bg-obsidian text-gold">
-                    <Icon
-                      name={NOTIF_KIND_ICON[t.kind] ?? "bell"}
-                      className="h-3 w-3"
-                    />
-                  </span>
-                </span>
+                <NotifFace kind={t.kind} actor={t.actor} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-bone">
                     <span className="font-semibold">

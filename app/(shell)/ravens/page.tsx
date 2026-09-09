@@ -10,10 +10,9 @@ import { realmFetch } from "@/lib/auth/api";
 import { useRealmAuth } from "@/lib/auth/use-realm-auth";
 import { createClient } from "@/lib/supabase/client";
 import { timeAgo } from "@/lib/social/types";
-import { Icon } from "@/components/ui/icon";
 import { BackButton } from "@/components/shell/back-button";
+import { NotifFace } from "@/components/notifications/notif-face";
 import {
-  NOTIF_KIND_ICON,
   NOTIF_KIND_TEXT,
   notifActorName,
   notifHref,
@@ -227,27 +226,10 @@ export default function RavensPage() {
                 <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-gold" />
               )}
 
-              {/* Actor face, with a kind badge riding its corner. */}
-              <span className="relative shrink-0">
-                <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-steel-line bg-panel font-display text-sm text-gold">
-                  {n.actor?.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={n.actor.avatar_url}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    notifActorName(n.actor).slice(0, 1).toUpperCase()
-                  )}
-                </span>
-                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-steel-line bg-obsidian text-gold">
-                  <Icon
-                    name={NOTIF_KIND_ICON[n.kind] ?? "bell"}
-                    className="h-3 w-3"
-                  />
-                </span>
-              </span>
+              {/* Actor face, with a kind badge riding its corner. Shared with
+                  the toast in notifications-provider.tsx rather than a second
+                  hand rolled copy of the same disc and badge. */}
+              <NotifFace kind={n.kind} actor={n.actor} />
 
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-bone">
