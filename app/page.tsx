@@ -64,7 +64,7 @@ const floatSpots = [
 const faqs = [
   {
     q: "What is The Ravenspire?",
-    a: "A world built around one loop. You make a public prediction, a Call, and the realm measures how hard it genuinely was from the token's own volatility before it settles automatically against real data. Get it right and you earn Renown, a running record that only grows and that nobody can buy, borrow, or take from you. Houses let you compete as a faction, the Ravenry is where the realm's activity surfaces as it happens, and The War is a live game running on that same reputation. It is not a leaderboard with a token bolted on. Being right, in public, is the actual currency.",
+    a: "A competitive online realm where communities earn reputation through participation. You post, you argue, you make Calls about what happens next, and the realm keeps the record. Crypto is infrastructure here, community is the product, and reputation is the progression system.",
   },
   {
     q: "Is it non-custodial?",
@@ -233,29 +233,14 @@ export default function Landing() {
             THE RAVENSPIRE
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.5 }}
-            className="mt-6 font-display text-xl font-semibold text-bone sm:text-2xl"
-          >
-            Make the call. <span className="gold-text">Earn your name.</span>
-          </motion.p>
-          {/* The thesis, not the feature list. A member does not come back
-              because The War exists; every social game has a game. They come
-              back because what they were right about last month is still
-              theirs, in public, and nothing they do here can be taken away
-              or bought by someone who was not. That is the one sentence the
-              hero has to land before anything else on the page gets a
-              chance to. */}
-          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.62 }}
-            className="mt-3 max-w-xl text-base text-bone-mut sm:text-lg"
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="mt-6 max-w-2xl text-base text-bone-mut sm:text-lg"
           >
-            A public prediction, scored the instant you seal it against the
-            token&rsquo;s own real difficulty, becomes a reputation nobody can
-            buy, borrow, or take back.
+            A competitive online realm where communities earn reputation
+            through participation. Crypto is the infrastructure. Community is
+            the product. Reputation is the progression system.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 8 }}
