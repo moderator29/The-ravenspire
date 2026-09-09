@@ -5,22 +5,35 @@ import { profileKey, rateLimit } from "@/lib/rate-limit";
 import { isRealmMediaUrl } from "@/lib/social/media-url";
 import { assertMember, blockedBetween, broadcast } from "@/lib/whispers/guard";
 
+interface MessageMedia {
+  url: string;
+  type: string;
+}
+
 interface WhisperMessage {
   id: string;
   sender_id: string;
   body: string | null;
+  /* Kept for a message sent before media existed: the one still image it
+     always carried. A message sent after this ships writes `media` instead
+     and leaves this null; see the migration
+     (20260909150325_whispers_message_media.sql) for why both columns live on
+     from here. */
   image_url: string | null;
+  /* Up to four attachments, image or video, in the same {url, type} shape
+     posts.media already uses (app/api/posts/route.ts). */
+  media: MessageMedia[];
   created_at: string;
   /* Every reaction currently standing on this message, at most one per
      member (see lib/whispers/guard.ts's neighbour, the react route). */
   reactions: { profile_id: string; reaction: string }[];
 }
 
-/* Only images uploaded to our own public media shelf may travel in a whisper.
+/* Only files uploaded to our own public media shelf may travel in a whisper.
    Anything else (external URLs, other buckets) is rejected so a message can
-   never be used to smuggle a foreign link dressed as an image. The predicate
+   never be used to smuggle a foreign link dressed as media. The predicate
    itself is lib/social/media-url.ts, shared with the posts and profile routes
-   so the four places that accept an image URL cannot drift apart again; the
+   so the four places that accept a media URL cannot drift apart again; the
    path-segment matching it does is the version this file already used.
 
    BLOCKS ARE RE-CHECKED ON EVERY SEND, not only when the conversation was
@@ -44,7 +57,7 @@ export async function GET(req: Request) {
 
   const { data: messages } = await db
     .from("messages")
-    .select("id, sender_id, body, image_url, created_at")
+    .select("id, sender_id, body, image_url, media, created_at")
     .eq("conversation_id", conversation)
     .order("created_at", { ascending: true })
     .limit(200);
@@ -134,16 +147,32 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as {
     conversation?: string;
     body?: string;
+    /* Legacy single-image path: kept working for any client that has not
+       picked up the media array below. */
     imageUrl?: string;
+    media?: { url?: string; type?: string }[];
   } | null;
 
   const text = body?.body?.trim() ?? "";
-  const imageUrl = typeof body?.imageUrl === "string" ? body.imageUrl : null;
+  const legacyImageUrl =
+    typeof body?.imageUrl === "string" ? body.imageUrl : null;
+  /* Up to four, image or video, each proven to live in our own media shelf
+     and to carry a type this product actually renders. Anything else in the
+     array is dropped rather than rejected outright, the same posture
+     app/api/posts/route.ts already takes with a raven's media. */
+  const media: MessageMedia[] = (body?.media ?? [])
+    .slice(0, 4)
+    .filter(
+      (m): m is { url: string; type: string } =>
+        isRealmMediaUrl(m?.url) && (m?.type === "image" || m?.type === "video")
+    )
+    .map((m) => ({ url: m.url, type: m.type }));
 
   if (!body?.conversation) return json({ error: "bad request" }, 400);
-  if (!text && !imageUrl) return json({ error: "bad request" }, 400);
+  if (!text && !legacyImageUrl && media.length === 0)
+    return json({ error: "bad request" }, 400);
   if (text.length > 1000) return json({ error: "Too long for one breath" }, 400);
-  if (imageUrl && !isRealmMediaUrl(imageUrl))
+  if (legacyImageUrl && !isRealmMediaUrl(legacyImageUrl))
     return json({ error: "That image is not from the realm" }, 400);
   if (!(await assertMember(db, body.conversation, profile.id)))
     return json({ error: "Not your whisper" }, 403);
@@ -158,9 +187,10 @@ export async function POST(req: Request) {
       conversation_id: body.conversation,
       sender_id: profile.id,
       body: text || null,
-      image_url: imageUrl,
+      image_url: legacyImageUrl,
+      media,
     })
-    .select("id, sender_id, body, image_url, created_at")
+    .select("id, sender_id, body, image_url, media, created_at")
     .single();
   if (error || !created) return json({ error: "The whisper was lost" }, 500);
 
@@ -185,7 +215,14 @@ export async function POST(req: Request) {
     .select("profile_id")
     .eq("conversation_id", body.conversation)
     .neq("profile_id", profile.id);
-  const preview = text ? text.slice(0, 120) : "sent you an image";
+  const mediaCount = media.length + (legacyImageUrl ? 1 : 0);
+  const preview = text
+    ? text.slice(0, 120)
+    : media.some((m) => m.type === "video")
+      ? "sent you a video"
+      : mediaCount > 1
+        ? "sent you images"
+        : "sent you an image";
   await Promise.all(
     (members ?? []).flatMap((m) => [
       broadcast(`whispers:user:${m.profile_id}`, "bump", {

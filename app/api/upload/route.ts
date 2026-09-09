@@ -2,12 +2,29 @@ import { requireProfile, json } from "@/lib/auth/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { profileKey, rateLimit } from "@/lib/rate-limit";
 
-const MAX_BYTES = 4 * 1024 * 1024;
-const ALLOWED: Record<string, string> = {
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+/* A short clip needs real room a still image does not. 20MB comfortably
+   carries a few seconds of 720p video, which is what a Whisper's own bubble
+   or a raven can honestly render; it is not an archive shelf. Supabase
+   Storage is already the product's media store (no new paid service, rule
+   19), so this raises no new bill, only a per-file ceiling this route
+   enforces itself. */
+const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+const ALLOWED_IMAGE: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
   "image/gif": "gif",
+};
+/* C8 in app/api/posts/route.ts filtered "video" out of a raven's media with a
+   promise: "re-admit it when an upload path exists that can [produce one]."
+   This is that path. Same posture as images: the bytes are sniffed against
+   each format's own signature and the upload is refused if the declared type
+   disagrees, so a client cannot dress an arbitrary file up as a playable
+   video any more than it could as a photo. */
+const ALLOWED_VIDEO: Record<string, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
 };
 
 /* What the bytes say they are, which is the only thing this route believes.
@@ -49,16 +66,32 @@ function sniffImageType(head: Uint8Array): string | null {
   return null;
 }
 
-/* Uploads an image to the public media shelf. Members only, 4MB cap,
-   images only, stored under the uploader's id. */
+/* The real content type of `head`, or null when it is neither video format
+   this route admits. */
+function sniffVideoType(head: Uint8Array): string | null {
+  /* MP4 (and the ISO base media container family): a 4 byte box size, then
+     the ASCII tag "ftyp" at byte 4. The size varies with the file, the tag
+     does not, so only the tag is checked. */
+  if (startsWith(head, [0x66, 0x74, 0x79, 0x70], 4)) return "video/mp4";
+  /* WebM: an EBML document, whose files always open with this exact 4 byte
+     magic number. */
+  if (startsWith(head, [0x1a, 0x45, 0xdf, 0xa3])) return "video/webm";
+  return null;
+}
+
+/* Uploads a still image or a short video to the public media shelf. Members
+   only, 4MB cap for an image and 20MB for a video, nothing else, stored under
+   the uploader's id. The caller never has to declare which: the bytes decide,
+   and the response says which it minted. */
 export async function POST(req: Request) {
   const profile = await requireProfile(req);
   if (!profile) return json({ error: "unauthenticated" }, 401);
   const db = adminClient();
   if (!db) return json({ error: "unavailable" }, 503);
 
-  /* C4: storage is the one resource here that never shrinks. 60 images an hour
-     is far above any real composing session and far below a filled bucket. */
+  /* C4: storage is the one resource here that never shrinks. 60 uploads an
+     hour is far above any real composing session and far below a filled
+     bucket. */
   const rl = await rateLimit(profileKey("upload", profile.id), 60, 3600);
   if (!rl.ok)
     return json(
@@ -72,28 +105,45 @@ export async function POST(req: Request) {
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) return json({ error: "no file" }, 400);
-  if (!ALLOWED[file.type])
-    return json({ error: "Images only (jpeg, png, webp, gif)" }, 400);
-  if (file.size > MAX_BYTES)
-    return json({ error: "Too heavy for a raven to carry (4MB max)" }, 400);
 
-  /* The head first, so a file that is not an image at all is turned away
-     before the whole of it is read into memory. */
+  const wantsVideo = Boolean(ALLOWED_VIDEO[file.type]);
+  const wantsImage = Boolean(ALLOWED_IMAGE[file.type]);
+  if (!wantsImage && !wantsVideo)
+    return json(
+      { error: "Images (jpeg, png, webp, gif) or video (mp4, webm) only" },
+      400
+    );
+  const maxBytes = wantsVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+  if (file.size > maxBytes)
+    return json(
+      {
+        error: wantsVideo
+          ? "Too heavy for a whisper to carry (20MB max)"
+          : "Too heavy for a raven to carry (4MB max)",
+      },
+      400
+    );
+
+  /* The head first, so a file that is not what it claims at all is turned
+     away before the whole of it is read into memory. */
   const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
-  const sniffed = sniffImageType(head);
+  const sniffed = wantsVideo ? sniffVideoType(head) : sniffImageType(head);
   if (!sniffed)
-    return json({ error: "Images only (jpeg, png, webp, gif)" }, 400);
+    return json(
+      { error: "Images (jpeg, png, webp, gif) or video (mp4, webm) only" },
+      400
+    );
   /* A declared type that disagrees with the bytes is not a format we correct
      for the uploader: it is either a broken client or a deliberate dress-up,
      and neither is worth hosting. */
   if (sniffed !== file.type)
     return json(
-      { error: "That file is not the kind of image it claims to be" },
+      { error: "That file is not the kind of media it claims to be" },
       400
     );
 
   /* Both derived from the signature, never from the claim. */
-  const ext = ALLOWED[sniffed];
+  const ext = wantsVideo ? ALLOWED_VIDEO[sniffed] : ALLOWED_IMAGE[sniffed];
   const path = `${profile.id}/${crypto.randomUUID()}.${ext}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
   const { error } = await db.storage
@@ -102,5 +152,9 @@ export async function POST(req: Request) {
   if (error) return json({ error: "The shelf refused it. Try again." }, 500);
 
   const { data } = db.storage.from("media").getPublicUrl(path);
-  return json({ ok: true, url: data.publicUrl });
+  return json({
+    ok: true,
+    url: data.publicUrl,
+    type: wantsVideo ? "video" : "image",
+  });
 }

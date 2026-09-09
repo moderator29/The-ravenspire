@@ -53,17 +53,38 @@ interface MessageReaction {
   reaction: string;
 }
 
+interface MessageMedia {
+  url: string;
+  type: string;
+}
+
 interface Message {
   id: string;
   sender_id: string;
   body: string | null;
+  /* Kept for a message sent before media existed; a message sent after this
+     shipped carries its attachments in `media` instead and leaves this null
+     (see app/api/whispers/messages/route.ts). Both are read when rendering
+     so an old thread and a new one show correctly side by side. */
   image_url: string | null;
+  /* Up to four attachments, image or video, in the same {url, type} shape
+     a raven's own media already uses. */
+  media: MessageMedia[];
   created_at: string;
   /* At most one per member (app/api/whispers/messages/react). Defaults to
      empty for a message this tab just sent optimistically. */
   reactions: MessageReaction[];
   /* Local-only: an optimistic message not yet confirmed by the server. */
   pending?: boolean;
+}
+
+/* A message's real gallery, old shape or new: the array when it has one,
+   otherwise the single legacy image wrapped to look like one, otherwise
+   nothing. The one place that decides this, so the thread body and the
+   dedupe check below can never read the two shapes differently. */
+function galleryOf(m: Message): MessageMedia[] {
+  if (m.media.length > 0) return m.media;
+  return m.image_url ? [{ url: m.image_url, type: "image" }] : [];
 }
 
 interface ProfileHit {
@@ -143,8 +164,10 @@ export default function WhispersPage() {
   /* Which message's reaction picker is open, at most one at a time. */
   const [reactingTo, setReactingTo] = useState<string | null>(null);
 
-  /* Image staged in the composer, uploaded and ready to send. */
-  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  /* Attachments staged in the composer, uploaded and ready to send. Up to
+     four, image or video, the same cap the main Ravenry composer holds
+     images to (components/social/composer.tsx). */
+  const [pendingMedia, setPendingMedia] = useState<MessageMedia[]>([]);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -195,7 +218,12 @@ export default function WhispersPage() {
               !(
                 m.pending &&
                 (m.body ?? "") === (incoming.body ?? "") &&
-                (m.image_url ?? "") === (incoming.image_url ?? "")
+                galleryOf(m)
+                  .map((g) => g.url)
+                  .join(",") ===
+                  galleryOf(incoming)
+                    .map((g) => g.url)
+                    .join(",")
               )
           )
         : list;
@@ -384,7 +412,7 @@ export default function WhispersPage() {
     setActiveId(id);
     setMsgs(null);
     setBody("");
-    setPendingImage(null);
+    setPendingMedia([]);
     setSendErr(null);
     setOtherReadAt(null);
     setOtherTyping(false);
@@ -398,7 +426,7 @@ export default function WhispersPage() {
     setActiveId(null);
     setMsgs(null);
     setBody("");
-    setPendingImage(null);
+    setPendingMedia([]);
     setSendErr(null);
     setOtherReadAt(null);
     setOtherTyping(false);
@@ -422,28 +450,34 @@ export default function WhispersPage() {
     });
   }
 
-  async function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
+  async function pickMedia(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (!file || pendingMedia.length >= 4 || uploading) return;
     setSendErr(null);
     setUploading(true);
     const form = new FormData();
     form.append("file", file);
-    const res = await realmFetch<{ url?: string; error?: string }>(
-      "/api/upload",
-      { method: "POST", body: form }
-    );
-    if (res.ok && res.data?.url) setPendingImage(res.data.url);
-    else setSendErr(res.data?.error ?? "That image could not be sent.");
+    const res = await realmFetch<{
+      url?: string;
+      type?: string;
+      error?: string;
+    }>("/api/upload", { method: "POST", body: form });
+    if (res.ok && res.data?.url) {
+      const type = res.data.type === "video" ? "video" : "image";
+      setPendingMedia((prev) => [...prev, { url: res.data!.url!, type }]);
+    } else {
+      setSendErr(res.data?.error ?? "That could not be sent.");
+    }
     setUploading(false);
   }
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const text = body.trim();
-    const image = pendingImage;
-    if ((!text && !image) || !activeId || sending || uploading) return;
+    const media = pendingMedia;
+    if ((!text && media.length === 0) || !activeId || sending || uploading)
+      return;
     setSending(true);
     setSendErr(null);
 
@@ -451,14 +485,15 @@ export default function WhispersPage() {
       id: `temp-${crypto.randomUUID()}`,
       sender_id: meId ?? "",
       body: text || null,
-      image_url: image,
+      image_url: null,
+      media,
       created_at: new Date().toISOString(),
       reactions: [],
       pending: true,
     };
     mergeMessage(optimistic, true);
     setBody("");
-    setPendingImage(null);
+    setPendingMedia([]);
 
     const res = await realmFetch<{ ok: true; message: Message }>(
       "/api/whispers/messages",
@@ -467,7 +502,7 @@ export default function WhispersPage() {
         json: {
           conversation: activeId,
           body: text || undefined,
-          imageUrl: image || undefined,
+          media: media.length ? media : undefined,
         },
       }
     );
@@ -480,7 +515,7 @@ export default function WhispersPage() {
         prev ? prev.filter((m) => m.id !== optimistic.id) : prev
       );
       if (text) setBody(text);
-      if (image) setPendingImage(image);
+      if (media.length) setPendingMedia(media);
       setSendErr("The whisper was lost. Try again.");
     }
     setSending(false);
@@ -529,7 +564,7 @@ export default function WhispersPage() {
 
   const active = convos?.find((c) => c.id === activeId) ?? null;
   const canSend =
-    (body.trim().length > 0 || Boolean(pendingImage)) && !uploading;
+    (body.trim().length > 0 || pendingMedia.length > 0) && !uploading;
 
   /* The id of my own last confirmed message, but only when the other
      participant's real last_read_at proves they have actually seen it. A
@@ -624,6 +659,7 @@ export default function WhispersPage() {
         <div className="flex flex-col gap-2">
           {msgs.map((m) => {
             const mine = meId !== null && m.sender_id === meId;
+            const gallery = galleryOf(m);
             return (
               <div
                 key={m.id}
@@ -645,38 +681,69 @@ export default function WhispersPage() {
                     mine ? "items-end" : "items-start"
                   )}
                 >
-                  {/* An image only bubble is a frame around the picture and
+                  {/* A media only bubble is a frame around the gallery and
                       takes the tightest rung. A bubble carrying words is a
                       line of text and wants asymmetric room, which is not a
                       rung and is not pretending to be one. */}
                   <Card
                     variant={mine ? "warm" : "default"}
-                    pad={m.image_url && !m.body ? "xs" : "none"}
+                    pad={gallery.length > 0 && !m.body ? "xs" : "none"}
                     className={cx(
                       "overflow-hidden",
                       mine ? "rounded-br-sm" : "rounded-bl-sm",
-                      m.image_url && !m.body ? "" : "px-3.5 py-2"
+                      gallery.length > 0 && !m.body ? "" : "px-3.5 py-2"
                     )}
                   >
-                    {m.image_url && (
-                      <Button
-                        variant="ghost"
-                        size="lg"
-                        aria-label="Open image full size"
-                        onClick={() => setLightbox(m.image_url)}
+                    {gallery.length > 0 && (
+                      <div
                         className={cx(
-                          "group h-auto max-w-[16rem] overflow-hidden px-0!",
+                          "grid gap-1 overflow-hidden rounded-lg",
+                          gallery.length === 1
+                            ? "grid-cols-1"
+                            : "grid-cols-2",
                           m.body && "mb-2"
                         )}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={m.image_url}
-                          alt="Whispered image"
-                          loading="lazy"
-                          className="max-h-64 w-full object-cover transition-[filter] duration-fast ease-out-quint group-hover:brightness-110"
-                        />
-                      </Button>
+                        {gallery.slice(0, 4).map((item, i) =>
+                          item.type === "video" ? (
+                            <video
+                              key={i}
+                              src={item.url}
+                              controls
+                              playsInline
+                              muted
+                              className={cx(
+                                "w-full rounded-md border border-steel-line object-cover",
+                                gallery.length === 1
+                                  ? "max-h-64 max-w-[16rem]"
+                                  : "aspect-square"
+                              )}
+                            />
+                          ) : (
+                            <Button
+                              key={i}
+                              variant="ghost"
+                              size="lg"
+                              aria-label="Open image full size"
+                              onClick={() => setLightbox(item.url)}
+                              className="group h-auto overflow-hidden px-0!"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={item.url}
+                                alt="Whispered image"
+                                loading="lazy"
+                                className={cx(
+                                  "w-full rounded-md border-0 object-cover transition-[filter] duration-fast ease-out-quint group-hover:brightness-110",
+                                  gallery.length === 1
+                                    ? "max-h-64 max-w-[16rem]"
+                                    : "aspect-square"
+                                )}
+                              />
+                            </Button>
+                          )
+                        )}
+                      </div>
                     )}
                     {m.body && (
                       <p className="whitespace-pre-wrap break-words text-sm text-bone">
@@ -797,26 +864,40 @@ export default function WhispersPage() {
         </p>
       )}
 
-      {pendingImage && (
-        <div className="flex items-center gap-3 border-t border-steel-line px-3 pt-2.5">
-          <span className="relative inline-block">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={pendingImage}
-              alt="Attachment preview"
-              className="h-16 w-16 rounded-md border border-steel-line object-cover"
-            />
-            <IconButton
-              icon="close"
-              label="Remove image"
-              size="sm"
-              shape="circle"
-              variant="glass"
-              onClick={() => setPendingImage(null)}
-              className="absolute -right-2 -top-2 h-6 w-6"
-            />
+      {pendingMedia.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto border-t border-steel-line px-3 pt-2.5">
+          {pendingMedia.map((item, i) => (
+            <span key={item.url} className="relative inline-block shrink-0">
+              {item.type === "video" ? (
+                <video
+                  src={item.url}
+                  muted
+                  className="h-16 w-16 rounded-md border border-steel-line object-cover"
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.url}
+                  alt="Attachment preview"
+                  className="h-16 w-16 rounded-md border border-steel-line object-cover"
+                />
+              )}
+              <IconButton
+                icon="close"
+                label="Remove attachment"
+                size="sm"
+                shape="circle"
+                variant="glass"
+                onClick={() =>
+                  setPendingMedia((prev) => prev.filter((_, j) => j !== i))
+                }
+                className="absolute -right-2 -top-2 h-6 w-6"
+              />
+            </span>
+          ))}
+          <span className="shrink-0 text-xs text-bone-faint">
+            {pendingMedia.length < 4 ? "Ready to send" : "Four is the most"}
           </span>
-          <span className="text-xs text-bone-faint">Ready to send</span>
         </div>
       )}
 
@@ -827,18 +908,18 @@ export default function WhispersPage() {
         <input
           ref={fileRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
           className="hidden"
-          onChange={(e) => void pickImage(e)}
+          onChange={(e) => void pickMedia(e)}
         />
         {/* A Button rather than an IconButton, because the upload needs the
             spinner and only Button carries one. */}
         <Button
           variant="ghost"
           size="lg"
-          aria-label="Attach image"
+          aria-label="Attach an image or a video"
           loading={uploading}
-          disabled={Boolean(pendingImage)}
+          disabled={pendingMedia.length >= 4}
           onClick={() => fileRef.current?.click()}
           className="w-11 shrink-0 px-0!"
         >
