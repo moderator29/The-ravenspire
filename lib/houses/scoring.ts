@@ -11,6 +11,10 @@ import {
   type HouseRole,
 } from "@/lib/houses/roles";
 import { loadSeasonWindow, type SeasonRow } from "@/lib/houses/oath";
+import { MODEL_BRIEF, heraldAvailable, heraldProse } from "@/lib/ai/herald";
+import { overtakeReactionFacts } from "@/lib/ai/house-reactions";
+import { DEADLINE_MODEL, withDeadline } from "@/lib/deadline";
+import { rateLimit } from "@/lib/rate-limit";
 
 /* Size-neutral House scoring and computed seasonal leadership.
    V2 sections 11.1b and 11.2.
@@ -485,6 +489,12 @@ export async function recomputeSeason(
         rank: overtake.rank,
       },
     });
+
+    /* The Herald's one proactive reaction (platform sweep item 19), over this
+       exact overtake and nothing else. Never allowed to fail the pass that
+       resolves the season: every failure inside it, no key, no rate
+       allowance, a refusal, a timeout, is swallowed and simply posts nothing. */
+    await emitOvertakeReaction(db, season, overtake, standings);
   }
 
   await emitStandingsSnapshot(db, season, standings);
@@ -574,6 +584,106 @@ export async function recomputeSeason(
   }
 
   return { seasonId: season.id, standings, roles, overtakes };
+}
+
+/* ------------------------------------------------------------------
+   The Herald's proactive reaction
+   ------------------------------------------------------------------ */
+
+const OVERTAKE_REACTION_SYSTEM = `You are @raven, the Herald of The Ravenspire, reacting in one short sentence to one House passing another in the realm's live standings.
+
+Rules, all absolute:
+- Reason ONLY over the figures you are given. Never state a number that is not in them, and never estimate one.
+- Never give financial advice, never predict what happens next, and never address a member directly or tell anyone to do anything.
+- Never invent a House, a score, a member or an event.
+- No em dashes, ever. Use a comma, a period, or restructure.
+- No emoji, no hashtags, no headings, no lists, no greeting, no sign off, no questions.
+- One sentence of plain prose, under 30 words. You are remarking on what just happened, not writing to a person.`;
+
+/* One Herald reaction, realm wide, per hour: recomputeSeason runs once a day
+   and caps overtakes at three a pass, so this never binds a healthy day. It
+   exists for the day it runs more than once, a steward correcting a season
+   boundary on top of the scheduled cron, which is exactly the shape every
+   other paid Herald surface in the realm already guards against. */
+const HERALD_REACTION_REALM_HOURLY = 6;
+const HERALD_REACTION_WINDOW_SECONDS = 3600;
+
+/* React to one real overtake, or post nothing.
+ *
+ * The second half of platform sweep item 19: a real, bounded Anthropic call
+ * over one genuinely rare, realm-wide event already on the spine, never a
+ * poll and never a fabricated one. Every way this can fail to produce a
+ * sentence, no key configured, the rate cap spent, a refusal, a timeout,
+ * renders as silence: no herald.reaction row is written, and the
+ * house.overtake card this pass already wrote stands on its own, exactly as
+ * it always has. B5: the rate limiter fails closed here, the same posture the
+ * Chronicle and every other paid Herald route takes, because a limiter
+ * outage that waved every overtake through would turn a bounded feature into
+ * an unbounded one. */
+async function emitOvertakeReaction(
+  db: SupabaseClient,
+  season: SeasonRow,
+  overtake: { house: string; passed: string; rank: number },
+  standings: HouseStanding[]
+): Promise<void> {
+  if (!heraldAvailable()) return;
+
+  const house = houseBySlug(overtake.house);
+  const passed = houseBySlug(overtake.passed);
+  if (!house || !passed) return;
+
+  const houseScore = standings.find((s) => s.slug === overtake.house)?.score;
+  const passedScore = standings.find((s) => s.slug === overtake.passed)?.score;
+  if (typeof houseScore !== "number" || typeof passedScore !== "number") return;
+
+  const cap = await rateLimit(
+    "herald-reaction:house.overtake:realm",
+    HERALD_REACTION_REALM_HOURLY,
+    HERALD_REACTION_WINDOW_SECONDS,
+    { failClosed: true }
+  );
+  if (!cap.ok) return;
+
+  const facts = overtakeReactionFacts({
+    houseName: house.name,
+    passedName: passed.name,
+    rank: overtake.rank,
+    houseScore,
+    passedScore,
+  });
+
+  let text: string | null = null;
+  try {
+    text = await withDeadline(
+      heraldProse({
+        model: MODEL_BRIEF,
+        system: OVERTAKE_REACTION_SYSTEM,
+        user: `Here is what just happened, and it is all you may use:\n\n${facts.join("\n")}`,
+        maxTokens: 120,
+      }),
+      DEADLINE_MODEL
+    );
+  } catch {
+    /* A deadline, and nothing else reaches here: heraldProse swallows its own
+       failures. Either way the Herald had nothing to say. */
+    text = null;
+  }
+  if (!text) return;
+
+  await emit(db, {
+    kind: "herald.reaction",
+    subjectType: "house",
+    subjectId: overtake.house,
+    houseSlug: overtake.house,
+    payload: {
+      v: 1,
+      source_kind: "house.overtake",
+      season_id: season.id,
+      passed: overtake.passed,
+      rank: overtake.rank,
+      text,
+    },
+  });
 }
 
 /* The weekly standings card (V2 section 8, "Leaderboards").

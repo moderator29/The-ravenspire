@@ -60,6 +60,7 @@ export const FEED_EVENT_KINDS = [
   "clash.opened",
   "clash.settled",
   "discussion.trending",
+  "herald.reaction",
 ] as const;
 
 /* Whether this reader is in the audience for one event. The authoritative

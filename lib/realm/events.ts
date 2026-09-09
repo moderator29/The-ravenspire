@@ -36,6 +36,15 @@ export const EVENT_KINDS = [
      job once per Clash, and on the once-only index for that reason. */
   "clash.settled",
   "discussion.trending",
+  /* The Herald's own proactive reaction (platform sweep item 19): a real
+     sentence over a real, rare event it did not have to be asked about.
+     Emitted by recomputeSeason in lib/houses/scoring.ts, in the same pass
+     that writes house.overtake and immediately after each one, so it is
+     bounded by exactly the same "at most three a pass" the overtake loop
+     already enforces, plus its own rate limit for the rare day the pass runs
+     more than once. No actor: the Herald is reacting to the realm, not
+     speaking as a member. */
+  "herald.reaction",
 ] as const;
 
 export type RealmEventKind = (typeof EVENT_KINDS)[number];

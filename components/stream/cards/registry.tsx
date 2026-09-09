@@ -9,6 +9,7 @@ import { ClashSettledCard } from "@/components/stream/cards/clash-settled";
 import { CrestEarnedCard } from "@/components/stream/cards/crest-earned";
 import { DiscussionTrendingCard } from "@/components/stream/cards/discussion-trending";
 import { DuelOpenedCard } from "@/components/stream/cards/duel-opened";
+import { HeraldReactionCard } from "@/components/stream/cards/herald-reaction";
 import { HouseOvertakeCard } from "@/components/stream/cards/house-overtake";
 import { OathSwornCard } from "@/components/stream/cards/oath-sworn";
 import { QuestCompletedCard } from "@/components/stream/cards/quest-completed";
@@ -74,7 +75,15 @@ import type { FeedEvent, FeedItem } from "@/lib/feed/types";
  *   Reward announcements  the realm-wide half is season.milestone at settle.
  *                         The per member half would publish a member's earned
  *                         balance to the realm, which is a privacy decision
- *                         nobody has made and which rule 7 constrains. */
+ *                         nobody has made and which rule 7 constrains.
+ *
+ * One more arrived afterward, off the AI pipeline rather than the directive's
+ * own list (platform sweep item 19): herald.reaction, the Herald's first
+ * proactive word, written by recomputeSeason the instant it writes
+ * house.overtake and reacting to that same real overtake, never a second
+ * fabricated one. It renders through HeraldReactionCard, which is Ledger
+ * register on purpose: house.overtake already holds the one Forge card this
+ * moment gets, and the note above stands, that list does not grow. */
 
 export const CARD_REGISTRY: Record<
   string,
@@ -91,6 +100,7 @@ export const CARD_REGISTRY: Record<
   "clash.settled": ClashSettledCard,
   "season.milestone": SeasonMilestoneCard,
   "discussion.trending": DiscussionTrendingCard,
+  "herald.reaction": HeraldReactionCard,
 };
 
 /* One feed item, whatever it turns out to be. The Ravenry maps over this and
