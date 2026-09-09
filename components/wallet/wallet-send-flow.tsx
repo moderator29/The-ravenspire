@@ -272,11 +272,11 @@ export function WalletSendFlow({
             className={`tnum h-11 w-full rounded-md border bg-panel/60 px-3 font-mono text-sm text-bone outline-none transition-colors duration-fast placeholder:text-bone-faint focus:border-gold md:h-9 md:text-[13px] ${
               to.trim() === "" || recipientValid
                 ? "border-steel-line"
-                : "border-ember/60"
+                : "border-state-danger/70"
             }`}
           />
           {to.trim() !== "" && !recipientValid ? (
-            <span className="text-xs text-ember">
+            <span className="text-xs text-state-danger">
               This is not a valid EVM wallet address.
             </span>
           ) : null}
@@ -334,7 +334,7 @@ export function WalletSendFlow({
             autoComplete="off"
             placeholder="0.0"
             className={`tnum w-full rounded-2xl border bg-panel/60 px-3.5 py-3 pr-28 font-mono text-sm text-bone outline-none transition-colors placeholder:text-bone-faint focus:border-gold ${
-              overBalance ? "border-ember/60" : "border-steel-line"
+              overBalance ? "border-state-danger/70" : "border-steel-line"
             }`}
           />
           <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-2">
@@ -352,7 +352,7 @@ export function WalletSendFlow({
         </div>
         <div className="flex items-center justify-between gap-2">
           <span
-            className={`tnum text-xs ${overBalance ? "text-ember" : "text-bone-faint"}`}
+            className={`tnum text-xs ${overBalance ? "text-state-danger" : "text-bone-faint"}`}
           >
             Available {formatBalance(availableText)} {token.symbol}
           </span>
@@ -363,7 +363,7 @@ export function WalletSendFlow({
           ) : null}
         </div>
         {overBalance ? (
-          <span className="text-xs text-ember">
+          <span className="text-xs text-state-danger">
             That is more than your {token.symbol} balance on{" "}
             {chain?.name ?? token.chainName}.
           </span>
@@ -371,7 +371,7 @@ export function WalletSendFlow({
         {/* Only when the balance is fine, so a member is never handed two
             refusals for one amount and left guessing which to fix first. */}
         {!overBalance && overCeiling && ceiling.ceilingWei !== null ? (
-          <span className="text-xs text-ember">
+          <span className="text-xs text-state-danger">
             {overCeilingSentence(parsedAmount as bigint, ceiling.ceilingWei)}
           </span>
         ) : null}
@@ -390,9 +390,9 @@ export function WalletSendFlow({
         {pending ? "Confirm in the window..." : "Review and send"}
       </Button>
 
-      {error ? <p className="text-xs text-ember">{error}</p> : null}
+      {error ? <p className="text-xs text-state-danger">{error}</p> : null}
       {!wallet ? (
-        <p className="text-xs text-ember">
+        <p className="text-xs text-state-danger">
           No embedded wallet is ready to sign this transfer yet.
         </p>
       ) : null}

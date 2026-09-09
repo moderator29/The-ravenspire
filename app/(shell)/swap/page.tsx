@@ -540,7 +540,7 @@ export default function SwapPage() {
           {payUsd !== null && <span className="tnum">{fmtUsd(payUsd)}</span>}
         </div>
         {overBalance && (
-          <p className={cx("mt-1 text-ember", CONSOLE_META)}>
+          <p className={cx("mt-1 text-state-danger", CONSOLE_META)}>
             More than your {from.symbol} balance.
           </p>
         )}
@@ -617,7 +617,7 @@ export default function SwapPage() {
       )}
 
       {quoteError && sellRaw > 0n && (
-        <p className={cx("mt-2 text-ember", CONSOLE_META)}>{quoteError}</p>
+        <p className={cx("mt-2 text-state-danger", CONSOLE_META)}>{quoteError}</p>
       )}
 
       <Button
@@ -633,7 +633,7 @@ export default function SwapPage() {
       </Button>
 
       {!walletAddress && (
-        <p className={cx("mt-2 text-center text-ember", CONSOLE_META)}>
+        <p className={cx("mt-2 text-center text-state-danger", CONSOLE_META)}>
           No embedded wallet is ready to swap yet.
         </p>
       )}
@@ -720,13 +720,18 @@ export default function SwapPage() {
               </div>
 
               {approvalHash && (
-                <p className="mt-3 rounded-lg border border-gold/25 bg-panel-warm/50 p-3 text-xs text-bone-mut">
+                <Card
+                  variant="warm"
+                  radius="lg"
+                  pad="sm"
+                  className="mt-3 border-gold/25 text-xs text-bone-mut"
+                >
                   Approval sent. Once it confirms (about 15 seconds), confirm
                   the swap below.
-                </p>
+                </Card>
               )}
               {execError && (
-                <p className="mt-3 text-xs text-ember">{execError}</p>
+                <p className="mt-3 text-xs text-state-danger">{execError}</p>
               )}
 
               <Button

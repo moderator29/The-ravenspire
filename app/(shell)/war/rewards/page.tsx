@@ -319,7 +319,7 @@ export default function RewardsPage() {
                     {capped ? null : (
                       <span
                         className={`tnum ${BOARD_META} ${
-                          affordable ? "text-bone-faint" : "text-ember"
+                          affordable ? "text-bone-faint" : "text-state-danger"
                         }`}
                       >
                         {cost.toLocaleString()} gold

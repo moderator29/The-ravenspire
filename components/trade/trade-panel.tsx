@@ -998,10 +998,15 @@ export function TradePanel({ coin }: { coin: TradeCoin }) {
                   )}
 
                   {approvalHash && (
-                    <div className="mt-3 rounded-lg border border-gold/25 bg-panel-warm/50 p-3 text-xs text-bone-mut">
+                    <Card
+                      variant="warm"
+                      radius="lg"
+                      pad="sm"
+                      className="mt-3 border-gold/25 text-xs text-bone-mut"
+                    >
                       Approval sent. Once it confirms (about 15 seconds), confirm
                       the swap below.
-                    </div>
+                    </Card>
                   )}
 
                   {execError && (

@@ -109,7 +109,7 @@ export function WalletWatchlist({
           disabled={adding || query.trim() === ""}
         />
       </div>
-      {note ? <p className="mt-2 text-xs text-ember">{note}</p> : null}
+      {note ? <p className="mt-2 text-xs text-state-danger">{note}</p> : null}
 
       <div className="mt-2 flex flex-col gap-2 md:gap-1">
         {watch.length === 0 ? (
