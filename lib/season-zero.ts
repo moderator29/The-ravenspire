@@ -25,11 +25,11 @@ export const SEASON_ZERO = {
 
   /* The allocation. Seven percent of total supply, drawn from within the
      twenty percent Presale allocation in the published tokenomics.
-     Total supply is 1,000,000,000, matching the standard Pump.fun launch
-     model: this is the current, real figure, not the round's own archived
-     history. It replaced 10,000,000,000 when the token moved to a Pump.fun
-     launch; rspAllocation and rspPerEth are rescaled from it so this object
-     stays internally consistent (7% of supply, the same floor invariant
+     Total supply is 1,000,000,000, fixed at launch with no mint after: this
+     is the current, real figure, not the round's own archived history. It
+     replaced 10,000,000,000 when the token's launch model changed;
+     rspAllocation and rspPerEth are rescaled from it so this object stays
+     internally consistent (7% of supply, the same floor invariant
      lib/season-zero.test.ts checks) rather than left contradicting a supply
      figure that changed out from under it. */
   supplyPct: 7,

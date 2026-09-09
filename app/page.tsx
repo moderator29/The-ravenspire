@@ -25,7 +25,6 @@ import { Roadmap } from "@/components/landing/roadmap";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { StatsStrip } from "@/components/landing/stats-strip";
 import { LiveRealmStats } from "@/components/landing/live-realm-stats";
-import { PumpfunLiveBanner } from "@/components/pumpfun/live-banner";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { RefCapture } from "@/components/referral/ref-capture";
 
@@ -65,7 +64,7 @@ const floatSpots = [
 const faqs = [
   {
     q: "What is The Ravenspire?",
-    a: "A competitive online realm where communities earn reputation through participation. You post, you argue, you make Calls about what happens next, and the realm keeps the record. Crypto is infrastructure here, community is the product, and reputation is the progression system.",
+    a: "A world built around one loop. You make a public prediction, a Call, and the realm measures how hard it genuinely was from the token's own volatility before it settles automatically against real data. Get it right and you earn Renown, a running record that only grows and that nobody can buy, borrow, or take from you. Houses let you compete as a faction, the Ravenry is where the realm's activity surfaces as it happens, and The War is a live game running on that same reputation. It is not a leaderboard with a token bolted on. Being right, in public, is the actual currency.",
   },
   {
     q: "Is it non-custodial?",
@@ -195,7 +194,6 @@ export default function Landing() {
             >
               {heroBadge}
             </Card>
-            <PumpfunLiveBanner variant="landing" />
           </motion.div>
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}

@@ -23,12 +23,11 @@ type NavLink = {
   route?: boolean;
 };
 
-/* The Pump.fun link used to point at PumpFunLaunch
-   (components/landing/pump-fun-launch.tsx), which is removed along with
-   every other "live on Pump.fun" claim on the founder's direction: the
-   listing is not live yet, so nothing on the realm's own surfaces should
-   read as if it were. jump() below silently no-ops for an id that does not
-   render, which is exactly how a dead click like this one goes unnoticed,
+/* This bar once carried a link to a third-party listing page, removed along
+   with every claim of being live anywhere that was not true yet: nothing on
+   the realm's own surfaces should read as live before it genuinely is.
+   jump() below silently no-ops for an id that does not render, which is
+   exactly how a dead click like this one goes unnoticed,
    so the entry is deleted rather than left pointing at nothing. */
 const links: NavLink[] = [
   { label: "Overview", target: "overview", icon: "overview" },

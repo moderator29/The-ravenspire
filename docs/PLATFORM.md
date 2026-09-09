@@ -470,8 +470,8 @@ Social awards draw from a 200-per-day allowance through the
 
 ### $RSP, Live copy, planned distribution
 
-Ticker `$RSP`, total supply 1,000,000,000, matching the standard Pump.fun
-launch model. Earned balances are shown as **POINTS** everywhere in the
+Ticker `$RSP`, total supply 1,000,000,000, fixed at launch with no further
+mint. Earned balances are shown as **POINTS** everywhere in the
 product; no $RSP figure is displayed against a member's name, because none
 has been distributed. Points convert to $RSP at TGE.
 
@@ -594,7 +594,7 @@ The full set lives in `AGENTS.md` and is non-negotiable. In brief:
 - Reputation is earned, never bought. No keys, no tickets, no NFTs.
 - Server-authoritative rewards. Points and Glory settle on the server against
   verified events, never trusted from the client.
-- Ticker `$RSP`, supply 1,000,000,000 (the standard Pump.fun launch model).
+- Ticker `$RSP`, supply 1,000,000,000, fixed at launch with no further mint.
   Season Zero, the founding round, is built to run inside the platform,
   non-custodially and wallet to wallet, currently archived behind
   `season_zero_live`. Earned balances are shown as POINTS; the Season Zero

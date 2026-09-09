@@ -169,8 +169,8 @@ Policy at `/legal/privacy` and the Terms of Service at `/legal/terms`.
 - Reputation is earned, never bought. No keys, no tickets, no NFTs.
 - Server-authoritative rewards. Points and Glory settle on the server against
   verified events, never on the word of a client.
-- Ticker is `$RSP`, total supply 1,000,000,000, matching the standard
-  Pump.fun launch model. Season Zero, the founding round, is currently
+- Ticker is `$RSP`, total supply 1,000,000,000, fixed at launch with no
+  further mint. Season Zero, the founding round, is currently
   archived behind the `season_zero_live` realm flag; its mechanics are
   intact and non-custodial (wallet to wallet), only paused. Earned balances
   are shown as POINTS, never as a $RSP amount. The Season Zero allocation is

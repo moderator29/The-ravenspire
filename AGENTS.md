@@ -37,8 +37,8 @@ The full V2 plan lives in `docs/RAVENSPIRE-V2.md`.
    real data. Never fake, stub, canned, or hardcode model output.
 6. **Non-custodial only.** Every value transfer is signed by the member's own
    Privy embedded wallet. The platform never takes custody and never holds keys.
-7. Ticker is `$RSP`, total supply 1,000,000,000, matching the standard
-   Pump.fun launch model. Season Zero, the founding round, is currently
+7. Ticker is `$RSP`, total supply 1,000,000,000, fixed at launch with no
+   further mint. Season Zero, the founding round, is currently
    ARCHIVED behind the `season_zero_live` realm flag (fails closed, see
    `lib/flags.ts`): its mechanics, its own page, and every figure describing
    it still exist and are correct, they are simply not active. Do not

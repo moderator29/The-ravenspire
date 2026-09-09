@@ -41,8 +41,8 @@ export default function ChroniclesEconomyPage() {
             <FactRow label="Total supply" value="1,000,000,000" note="fixed" />
             <FactRow
               label="Launch model"
-              value="Standard Pump.fun model"
-              note="fixed supply, no mint after launch"
+              value="Fixed supply"
+              note="no mint after launch"
             />
           </div>
         </Section>
