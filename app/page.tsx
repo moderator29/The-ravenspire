@@ -26,7 +26,6 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { StatsStrip } from "@/components/landing/stats-strip";
 import { LiveRealmStats } from "@/components/landing/live-realm-stats";
 import { SiteFooter } from "@/components/landing/site-footer";
-import { pumpfunLive } from "@/lib/pumpfun";
 import { RefCapture } from "@/components/referral/ref-capture";
 
 /* Every chip is a live destination in lib/nav.ts. Claim the Throne held a slot
@@ -165,15 +164,8 @@ export default function Landing() {
           ))}
         </motion.div>
 
-        {/* Hero. Extra top padding when the Pump.fun strip is live: the fixed
-            header (components/landing/landing-nav.tsx) grows a full row
-            taller, and this is the one section whose own padding has to
-            grow with it rather than let the header cover its top edge. */}
-        <section
-          className={`relative flex min-h-screen flex-col items-center justify-center px-6 text-center ${
-            pumpfunLive() ? "pt-56 sm:pt-36" : "pt-24"
-          }`}
-        >
+        {/* Hero */}
+        <section className="relative flex min-h-screen flex-col items-center justify-center px-6 pt-24 text-center">
           {/* Warm ember-into-gold aura, restrained */}
           <div
             aria-hidden="true"

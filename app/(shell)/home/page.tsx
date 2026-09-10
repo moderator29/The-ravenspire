@@ -5,7 +5,6 @@ import { HeraldDigest } from "@/components/raven/digest-card";
 import { RealmStrip } from "@/components/social/realm-strip";
 import { StreamColumn } from "@/components/stream/stream-shell";
 import { SeasonZeroBanner } from "@/components/season-zero/banner";
-import { PumpfunLiveBanner } from "@/components/pumpfun/live-banner";
 import { FirstCrestCeremony } from "@/components/crests/first-ceremony";
 import { HouseRoleCeremony } from "@/components/houses/role-ceremony";
 import { getFlag } from "@/lib/flags";
@@ -41,9 +40,6 @@ export default async function HomePage() {
           register, and it removes itself when the round closes or is
           archived. */}
       {seasonZeroLive ? <SeasonZeroBanner /> : null}
-      {/* $RSP on Pump.fun. Renders nothing until a real mint is configured
-          (lib/pumpfun.ts), same fails-closed posture as the banner above. */}
-      <PumpfunLiveBanner variant="dashboard" />
       {/* The dashboard cluster. The strip answers "is something happening";
           the digest answers "what happened while I was gone", and it renders
           nothing at all when the answer is nothing. A single shared gap, not
